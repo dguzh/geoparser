@@ -46,7 +46,7 @@ class PostInstallCommand(install):
 
 setup(
     name='geoparser',
-    version='0.1.0',
+    version='0.1.2',
     author='Diego Gomes',
     author_email='diego.gomes@uzh.ch',
     packages=find_packages(),
