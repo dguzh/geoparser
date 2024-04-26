@@ -1,5 +1,4 @@
 import pkg_resources
-import requests
 import zipfile
 import os
 import subprocess
@@ -19,6 +18,7 @@ class PostInstallCommand(install):
             subprocess.check_call([sys.executable, "-m", "spacy", "download", model])
 
     def download_geonames(self):
+        import requests
         site_packages = os.path.join(sys.prefix, 'lib', 'site-packages')
         data_dir = os.path.join(site_packages, 'geoparser', 'geonames')
         os.makedirs(data_dir, exist_ok=True)
