@@ -3,26 +3,26 @@ import re
 import pickle
 import unicodedata
 import logging
+import pkg_resources
 import spacy
 from tqdm.auto import tqdm
 from typing import List, Set
 from sentence_transformers import SentenceTransformer, util
 import torch
 
-from entities import Document, Toponym, Location
-from gazetteer import Gazetteer
+from .entities import Document, Toponym, Location
+from .gazetteer import Gazetteer
 
 # Suppress token length warnings from transformers
 logging.getLogger("transformers.tokenization_utils_base").setLevel(logging.ERROR)
 
 class Geoparser:
-    def __init__(self, spacy_model='en_core_web_trf', transformer_model='models/all-distilroberta-v1',
-                 index_file='index.pkl', geonames_file='geonames/allCountries.txt'):
+    def __init__(self, spacy_model='en_core_web_trf', transformer_model='dguzh/geo-all-distilroberta-v1'):
         self.ensure_spacy_model(spacy_model)
         self.nlp = spacy.load(spacy_model)
         self.transformer = SentenceTransformer(transformer_model)
-        self.index_file = index_file
-        self.geonames_file = geonames_file
+        self.index_file = pkg_resources.resource_filename('geoparser', 'index.pkl')
+        self.geonames_file = pkg_resources.resource_filename('geoparser', 'geonames/allCountries.txt')
         self.index = self.load_index()
         self.tokenizer = self.transformer.tokenizer
         self.model_max_length = self.tokenizer.model_max_length

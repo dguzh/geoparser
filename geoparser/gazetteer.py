@@ -1,17 +1,14 @@
+import pkg_resources
 import pandas as pd
 import numpy as np
 
 class Gazetteer:
-    def __init__(self, geonames_file='geonames/allCountries.txt', 
-                 admin1_file='geonames/admin1CodesASCII.txt',
-                 admin2_file='geonames/admin2Codes.txt', 
-                 country_info_file='geonames/countryInfo.txt',
-                 feature_codes_file='geonames/featureCodes_en.txt'):
-        self.geonames_file = geonames_file
-        self.admin1_file = admin1_file
-        self.admin2_file = admin2_file
-        self.country_info_file = country_info_file
-        self.feature_codes_file = feature_codes_file
+    def __init__(self):
+        self.geonames_file = pkg_resources.resource_filename('geoparser', 'geonames/allCountries.txt')
+        self.admin1_file = pkg_resources.resource_filename('geoparser', 'geonames/admin1CodesASCII.txt')
+        self.admin2_file = pkg_resources.resource_filename('geoparser', 'geonames/admin2Codes.txt')
+        self.country_info_file = pkg_resources.resource_filename('geoparser', 'geonames/countryInfo.txt')
+        self.feature_codes_file = pkg_resources.resource_filename('geoparser', 'geonames/featureCodes_en.txt')
         self.data = None
 
     def load(self, all_candidates):
