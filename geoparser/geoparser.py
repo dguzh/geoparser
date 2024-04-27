@@ -3,11 +3,11 @@ import re
 import pickle
 import unicodedata
 import logging
-import pkg_resources
 import spacy
 from tqdm.auto import tqdm
 from typing import List, Set
 from sentence_transformers import SentenceTransformer, util
+from appdirs import user_data_dir
 import torch
 
 from .entities import Document, Toponym, Location
@@ -21,8 +21,11 @@ class Geoparser:
         self.ensure_spacy_model(spacy_model)
         self.nlp = spacy.load(spacy_model)
         self.transformer = SentenceTransformer(transformer_model)
-        self.index_file = pkg_resources.resource_filename('geoparser', 'index.pkl')
-        self.geonames_file = pkg_resources.resource_filename('geoparser', 'geonames/allCountries.txt')
+        
+        data_dir = user_data_dir('geoparser')
+        self.index_file = os.path.join(data_dir, 'index.pkl')
+        self.geonames_file = os.path.join(data_dir, 'allCountries.txt')
+        
         self.index = self.load_index()
         self.tokenizer = self.transformer.tokenizer
         self.model_max_length = self.tokenizer.model_max_length
@@ -43,27 +46,7 @@ class Geoparser:
             with open(self.index_file, 'rb') as file:
                 return pickle.load(file)
         else:
-            index = self.build_index()
-            with open(self.index_file, 'wb') as file:
-                pickle.dump(index, file)
-            return index
-
-    def build_index(self):
-        index = {}
-        with open(self.geonames_file, 'r', encoding='utf-8') as file:
-            total_lines = sum(1 for line in file)
-        with open(self.geonames_file, 'r', encoding='utf-8') as file:
-            for line in tqdm(file, total=total_lines, desc="Building index", unit=" lines"):
-                columns = line.strip().split('\t')
-                geonameid = int(columns[0])
-                names = [columns[1]] + columns[3].split(',')
-                for name in names:
-                    normalized_name = self.normalize_name(name)
-                    if normalized_name:
-                        if normalized_name not in index:
-                            index[normalized_name] = set()
-                        index[normalized_name].add(geonameid)
-        return index
+            raise FileNotFoundError("GeoNames index file not found. Please run 'python -m geoparser download' to generate it.")
 
     def parse(self, texts: List[str]):
         documents = [Document(text) for text in texts]
@@ -197,3 +180,4 @@ class Geoparser:
                             population=predicted_location['population']
                         )
                     toponym_index += 1
+                    

@@ -1,14 +1,17 @@
-import pkg_resources
+import os
+from appdirs import user_data_dir
 import pandas as pd
 import numpy as np
 
 class Gazetteer:
     def __init__(self):
-        self.geonames_file = pkg_resources.resource_filename('geoparser', 'geonames/allCountries.txt')
-        self.admin1_file = pkg_resources.resource_filename('geoparser', 'geonames/admin1CodesASCII.txt')
-        self.admin2_file = pkg_resources.resource_filename('geoparser', 'geonames/admin2Codes.txt')
-        self.country_info_file = pkg_resources.resource_filename('geoparser', 'geonames/countryInfo.txt')
-        self.feature_codes_file = pkg_resources.resource_filename('geoparser', 'geonames/featureCodes_en.txt')
+        data_dir = user_data_dir('geoparser')
+        
+        self.geonames_file = os.path.join(data_dir, 'allCountries.txt')
+        self.admin1_file = os.path.join(data_dir, 'admin1CodesASCII.txt')
+        self.admin2_file = os.path.join(data_dir, 'admin2Codes.txt')
+        self.country_info_file = os.path.join(data_dir, 'countryInfo.txt')
+        self.feature_codes_file = os.path.join(data_dir, 'featureCodes_en.txt')
         self.data = None
 
     def load(self, all_candidates):
@@ -99,3 +102,4 @@ class Gazetteer:
         feature_str = f" ({row['feature_name']})" if pd.notna(row['feature_name']) else ""
     
         return f"{components[0]}{feature_str}{location_str}"
+        

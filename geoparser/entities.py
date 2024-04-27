@@ -40,3 +40,4 @@ class Document:
 
     def __str__(self):
         return self.text
+        
