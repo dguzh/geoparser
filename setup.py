@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='geoparser',
-    version='0.1.3',
+    version='0.1.4',
     author='Diego Gomes',
     author_email='diego.gomes@uzh.ch',
     packages=find_packages(),
