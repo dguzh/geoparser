@@ -1,9 +1,8 @@
 import os
 import re
-import pickle
-import unicodedata
 import logging
 import spacy
+import sqlite3
 from tqdm.auto import tqdm
 from typing import List, Set
 from sentence_transformers import SentenceTransformer, util
@@ -11,22 +10,16 @@ from appdirs import user_data_dir
 import torch
 
 from .entities import Document, Toponym, Location
-from .gazetteer import Gazetteer
 
 # Suppress token length warnings from transformers
 logging.getLogger("transformers.tokenization_utils_base").setLevel(logging.ERROR)
 
 class Geoparser:
     def __init__(self, spacy_model='en_core_web_trf', transformer_model='dguzh/geo-all-distilroberta-v1'):
+        self.db_path = os.path.join(user_data_dir('geoparser'), 'geonames.db')
         self.ensure_spacy_model(spacy_model)
         self.nlp = spacy.load(spacy_model)
         self.transformer = SentenceTransformer(transformer_model)
-        
-        data_dir = user_data_dir('geoparser')
-        self.index_file = os.path.join(data_dir, 'index.pkl')
-        self.geonames_file = os.path.join(data_dir, 'allCountries.txt')
-        
-        self.index = self.load_index()
         self.tokenizer = self.transformer.tokenizer
         self.model_max_length = self.tokenizer.model_max_length
 
@@ -35,20 +28,10 @@ class Geoparser:
             print(f"Downloading spaCy model '{model_name}'...")
             spacy.cli.download(model_name)
 
-    def normalize_name(self, name):
-        name = unicodedata.normalize('NFKD', name).encode('ascii', 'ignore').decode('ascii')
-        name = re.sub(r"[^\w\s]", "", name)  # remove all punctuation
-        name = re.sub(r"\s+", " ", name).strip()  # normalize whitespaces and strip
-        return name.lower()  # convert to lowercase
-
-    def load_index(self):
-        if os.path.exists(self.index_file):
-            with open(self.index_file, 'rb') as file:
-                return pickle.load(file)
-        else:
-            raise FileNotFoundError("GeoNames index file not found. Please run 'python -m geoparser download' to generate it.")
-
     def parse(self, texts: List[str]):
+        if not isinstance(texts, list) or not all(isinstance(text, str) for text in texts):
+            raise TypeError("Input must be a list of strings")
+
         documents = [Document(text) for text in texts]
         for document in documents:
             self.extract_toponyms(document)
@@ -124,30 +107,21 @@ class Geoparser:
 
         return ' '.join(context_sentences)
 
-    def query_index(self, toponym: str) -> set:
-        normalized_toponym = self.normalize_name(toponym)
-        return self.index.get(normalized_toponym, set())
-
     def resolve_toponyms(self, documents: List[Document]):
         all_candidates = set()
         for document in documents:
             for toponym in document.toponyms:
-                candidates = self.query_index(toponym.name)
+                candidates = self.fetch_candidates(toponym.name)
                 all_candidates.update(candidates)
                 toponym.candidates = candidates
 
         if all_candidates:
-            gazetteer = Gazetteer()
-            gazetteer.load(all_candidates)
-
-            pseudotexts = gazetteer.data['pseudotext'].tolist()
-
+            all_candidates = list(all_candidates)
+            pseudotexts = self.fetch_pseudotexts(all_candidates)
             candidate_embeddings = self.transformer.encode(pseudotexts, batch_size=8, show_progress_bar=True, convert_to_tensor=True)
-
-            candidate_embeddings_lookup = dict(zip(gazetteer.data['geonameid'], candidate_embeddings))
+            candidate_embeddings_lookup = dict(zip(all_candidates, candidate_embeddings))
 
             contexts = [toponym.context for document in documents for toponym in document.toponyms]
-
             toponym_embeddings = self.transformer.encode(contexts, batch_size=8, show_progress_bar=True, convert_to_tensor=True)
 
             toponym_index = 0
@@ -161,23 +135,116 @@ class Geoparser:
                         similarities = util.cos_sim(toponym_embeddings[toponym_index], candidate_embeddings)
                         predicted_index = torch.argmax(similarities).item()
                         predicted_geonameid = candidates[predicted_index]
+                        predicted_location = self.fetch_location_attributes(predicted_geonameid)
+                        toponym.location = Location(**predicted_location)
 
-                        # Step 7: Create a Location object for the best match and assign to the toponym
-                        predicted_location = gazetteer.data.loc[gazetteer.data['geonameid'] == predicted_geonameid].iloc[0]
-                        toponym.location = Location(
-                            geonameid=predicted_geonameid,
-                            name=predicted_location['name'],
-                            admin2_geonameid=predicted_location['admin2_geonameid'],
-                            admin2_name=predicted_location['admin2_name'],
-                            admin1_geonameid=predicted_location['admin1_geonameid'],
-                            admin1_name=predicted_location['admin1_name'],
-                            country_geonameid=predicted_location['country_geonameid'],
-                            country_name=predicted_location['country_name'],
-                            feature_name=predicted_location['feature_name'],
-                            latitude=predicted_location['latitude'],
-                            longitude=predicted_location['longitude'],
-                            elevation=predicted_location['elevation'],
-                            population=predicted_location['population']
-                        )
                     toponym_index += 1
+
+    def execute_query(self, query, params=None):
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.cursor()
+            cursor.execute(query, params or ())
+            return cursor.fetchall()
                     
+    def fetch_candidates(self, toponym):
+        # Note: The name 'US' was not considered an alternatename of the United States.
+        #       It has now been added to the GeoNames database (03.05.2024).
+        #       The following line is a temporary fix until the GeoNames download server updates the files.
+        toponym = 'U.S.' if toponym == 'US' else toponym
+
+        toponym = ' '.join([f'"{word}"' for word in toponym.split()])
+
+        query = '''
+            WITH MinRankAllCountries AS (
+                SELECT MIN(rank) AS MinRank FROM allCountries_fts WHERE allCountries_fts MATCH ?
+            ),
+            MinRankAlternateNames AS (
+                SELECT MIN(rank) AS MinRank FROM alternateNames_fts WHERE alternateNames_fts MATCH ?
+            ),
+            CombinedResults AS (
+                SELECT allCountries_fts.rowid as geonameid, allCountries_fts.rank as rank
+                FROM allCountries_fts
+                WHERE allCountries_fts MATCH ?
+                
+                UNION
+                
+                SELECT alternateNames.geonameid, alternateNames_fts.rank as rank
+                FROM alternateNames
+                JOIN alternateNames_fts ON alternateNames_fts.rowid = alternateNames.alternateNameId
+                WHERE alternateNames_fts MATCH ?
+            )
+            SELECT geonameid
+            FROM CombinedResults
+            WHERE rank = (SELECT MinRank FROM MinRankAllCountries)
+            OR rank = (SELECT MinRank FROM MinRankAlternateNames)
+            GROUP BY geonameid
+            ORDER BY rank
+        '''
+        params = (toponym, toponym, toponym, toponym)
+        result = self.execute_query(query, params)
+        return [(row[0]) for row in result]
+
+    def fetch_pseudotexts(self, candidate_ids, batch_size=500):
+        chunks = [candidate_ids[i:i + batch_size] for i in range(0, len(candidate_ids), batch_size)]
+        results_dict = {}
+        for chunk in chunks:
+            placeholders = ', '.join(['?' for _ in chunk])
+            query = f"""
+            SELECT
+                geonameid,
+                name || 
+                CASE 
+                    WHEN feature_name IS NOT NULL THEN ' (' || feature_name || ')'
+                    ELSE ''
+                END || 
+                CASE 
+                    WHEN admin2_name IS NOT NULL OR admin1_name IS NOT NULL OR country_name IS NOT NULL THEN ' in '
+                    ELSE ''
+                END ||
+                COALESCE(admin2_name || ', ', '') ||
+                COALESCE(admin1_name || ', ', '') ||
+                COALESCE(country_name, '') AS pseudotext
+            FROM allCountries
+            LEFT JOIN countryInfo ON allCountries.country_code = countryInfo.ISO
+            LEFT JOIN admin1CodesASCII ON countryInfo.ISO || '.' || allCountries.admin1_code = admin1CodesASCII.admin1_full_code
+            LEFT JOIN admin2Codes ON countryInfo.ISO || '.' || allCountries.admin1_code || '.' || allCountries.admin2_code = admin2Codes.admin2_full_code
+            LEFT JOIN featureCodes ON allCountries.feature_class || '.' || allCountries.feature_code = featureCodes.feature_full_code
+            WHERE allCountries.geonameid IN ({placeholders})
+            """
+            result = self.execute_query(query, chunk)
+            for geonameid, pseudotext in result:
+                results_dict[geonameid] = pseudotext
+
+        pseudotexts = [results_dict.get(id, "") for id in candidate_ids]
+        return pseudotexts
+
+    def fetch_location_attributes(self, geonameid):
+        query = """
+        SELECT geonameid, name, admin2_geonameid, admin2_name, admin1_geonameid, admin1_name, country_geonameid, country_name, feature_name, latitude, longitude, elevation, population
+        FROM allCountries
+        LEFT JOIN countryInfo ON allCountries.country_code = countryInfo.ISO
+        LEFT JOIN admin1CodesASCII ON countryInfo.ISO || '.' || allCountries.admin1_code = admin1CodesASCII.admin1_full_code
+        LEFT JOIN admin2Codes ON countryInfo.ISO || '.' || allCountries.admin1_code || '.' || allCountries.admin2_code = admin2Codes.admin2_full_code
+        LEFT JOIN featureCodes ON allCountries.feature_class || '.' || allCountries.feature_code = featureCodes.feature_full_code
+        WHERE geonameid = ?
+        """
+        result = self.execute_query(query, (geonameid,))
+        if result:
+            row = result[0]
+            return {
+                'geonameid': row[0],
+                'name': row[1],
+                'admin2_geonameid': row[2],
+                'admin2_name': row[3],
+                'admin1_geonameid': row[4],
+                'admin1_name': row[5],
+                'country_geonameid': row[6],
+                'country_name': row[7],
+                'feature_name': row[8],
+                'latitude': row[9],
+                'longitude': row[10],
+                'elevation': row[11],
+                'population': row[12]
+            }
+        return {}
+        
