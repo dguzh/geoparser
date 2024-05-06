@@ -52,7 +52,7 @@ class Geoparser:
     def clean_ent(self, ent):
         # remove leading lowercase 'the'
         original_text = ent.text
-        new_text = re.sub(r"^the\s+", "", original_text)
+        new_text = re.sub(r"^the\s+", "", original_text).lstrip('"')
         if new_text != original_text:
             new_text = new_text.lstrip()
             start_char = ent.start_char + (len(original_text) - len(new_text))
@@ -61,7 +61,7 @@ class Geoparser:
 
         # remove trailing possessive 's
         original_text = new_text
-        new_text = re.sub(r"\'s$", "", original_text)
+        new_text = re.sub(r"\'s$", "", original_text).rstrip('"')
         if new_text != original_text:
             new_text = new_text.rstrip()
             end_char = start_char + len(new_text)
@@ -147,10 +147,8 @@ class Geoparser:
             return cursor.fetchall()
                     
     def fetch_candidates(self, toponym):
-        # Note: The name 'US' was not considered an alternatename of the United States.
-        #       It has now been added to the GeoNames database (03.05.2024).
-        #       The following line is a temporary fix until the GeoNames download server updates the files.
-        toponym = 'U.S.' if toponym == 'US' else toponym
+
+        toponym = re.sub(r"\"", "", toponym).strip()
 
         toponym = ' '.join([f'"{word}"' for word in toponym.split()])
 
