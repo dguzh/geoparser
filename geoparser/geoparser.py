@@ -28,14 +28,14 @@ class Geoparser:
             print(f"Downloading spaCy model '{model_name}'...")
             spacy.cli.download(model_name)
 
-    def parse(self, texts: List[str]):
+    def parse(self, texts: List[str], country_filter: List[str] = None, feature_filter: List[str] = None):
         if not isinstance(texts, list) or not all(isinstance(text, str) for text in texts):
             raise TypeError("Input must be a list of strings")
 
         documents = [Document(text) for text in texts]
         for document in documents:
             self.extract_toponyms(document)
-        self.resolve_toponyms(documents)
+        self.resolve_toponyms(documents, country_filter, feature_filter)
         return documents
 
     def extract_toponyms(self, document: Document):
@@ -107,11 +107,11 @@ class Geoparser:
 
         return ' '.join(context_sentences)
 
-    def resolve_toponyms(self, documents: List[Document]):
+    def resolve_toponyms(self, documents: List[Document], country_filter: List[str] = None, feature_filter: List[str] = None):
         all_candidates = set()
         for document in documents:
             for toponym in document.toponyms:
-                candidates = self.fetch_candidates(toponym.name)
+                candidates = self.fetch_candidates(toponym.name, country_filter, feature_filter)
                 all_candidates.update(candidates)
                 toponym.candidates = candidates
 
@@ -146,13 +146,13 @@ class Geoparser:
             cursor.execute(query, params or ())
             return cursor.fetchall()
                     
-    def fetch_candidates(self, toponym):
+    def fetch_candidates(self, toponym, country_filter=None, feature_filter=None):
 
         toponym = re.sub(r"\"", "", toponym).strip()
 
         toponym = ' '.join([f'"{word}"' for word in toponym.split()])
 
-        query = '''
+        base_query = '''
             WITH MinRankAllCountries AS (
                 SELECT MIN(rank) AS MinRank FROM allCountries_fts WHERE allCountries_fts MATCH ?
             ),
@@ -163,24 +163,43 @@ class Geoparser:
                 SELECT allCountries_fts.rowid as geonameid, allCountries_fts.rank as rank
                 FROM allCountries_fts
                 WHERE allCountries_fts MATCH ?
-                
+
                 UNION
-                
+
                 SELECT alternateNames.geonameid, alternateNames_fts.rank as rank
-                FROM alternateNames
-                JOIN alternateNames_fts ON alternateNames_fts.rowid = alternateNames.alternateNameId
+                FROM alternateNames_fts
+                JOIN alternateNames ON alternateNames_fts.rowid = alternateNames.alternateNameId
                 WHERE alternateNames_fts MATCH ?
             )
-            SELECT geonameid
-            FROM CombinedResults
-            WHERE rank = (SELECT MinRank FROM MinRankAllCountries)
-            OR rank = (SELECT MinRank FROM MinRankAlternateNames)
-            GROUP BY geonameid
-            ORDER BY rank
+            SELECT ac.geonameid
+            FROM CombinedResults cr
+            JOIN allCountries ac ON cr.geonameid = ac.geonameid
+            WHERE (cr.rank = (SELECT MinRank FROM MinRankAllCountries)
+                   OR cr.rank = (SELECT MinRank FROM MinRankAlternateNames))
         '''
-        params = (toponym, toponym, toponym, toponym)
-        result = self.execute_query(query, params)
-        return [(row[0]) for row in result]
+
+        where_clauses = []
+        params = [toponym, toponym, toponym, toponym]
+
+        # Adding filters for country codes
+        if country_filter:
+            where_clauses.append(f"ac.country_code IN ({','.join(['?' for _ in country_filter])})")
+            params.extend(country_filter)
+
+        # Adding filters for feature classes
+        if feature_filter:
+            where_clauses.append(f"ac.feature_class IN ({','.join(['?' for _ in feature_filter])})")
+            params.extend(feature_filter)
+
+        # Append additional filters if present
+        if where_clauses:
+            base_query += f" AND {' AND '.join(where_clauses)}"
+
+        base_query += " GROUP BY ac.geonameid ORDER BY cr.rank"
+
+        # Execute query with the constructed parameters
+        result = self.execute_query(base_query, tuple(params))
+        return [row[0] for row in result]
 
     def fetch_pseudotexts(self, candidate_ids, batch_size=500):
         chunks = [candidate_ids[i:i + batch_size] for i in range(0, len(candidate_ids), batch_size)]
