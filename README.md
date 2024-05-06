@@ -104,6 +104,14 @@ The `parse` method returns a list of `Document` objects, where each `Document` c
 - `elevation`: The elevation of the location in meters.
 - `population`: The population of the location.
 
+### Geocoding Scope
+
+You can limit the scope of geocoding by specifying one or more countries and [GeoNames feature classes](https://www.geonames.org/export/codes.html). This ensures that Geoparser only encodes locations within the specified countries, and can limit the types of geographical features to consider. To use this feature, use the `country_filter` and `feature_filter` parameters in the `parse` method:
+
+```python
+docs = geo.parse(texts, country_filter=['CH', 'DE', 'AT'], feature_filter=['A', 'P'])
+```
+
 ## Example
 
 Here's an example illustrating how the library might be used:
@@ -113,9 +121,13 @@ from geoparser import Geoparser
 
 geo = Geoparser()
 
-text = "Zurich is a city rich in history."
+texts = [
+    "Zurich is a city rich in history.",
+    "Geneva is known for its role in international diplomacy.",
+    "Munich is famous for its annual Oktoberfest celebration."
+]    
 
-docs = geo.parse([text])
+docs = geo.parse([texts])
 
 for doc in docs:
     for toponym in doc.toponyms:
