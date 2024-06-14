@@ -122,17 +122,17 @@ for doc in docs:
 For document-wise retrieval of location data you may want to use the `GeoDoc.locations` attribute to retrieve lists of location dictionaries aligned with `GeoDoc.toponyms`. This allows for a more efficient batch retrieval of location data, reducing the number of database queries:
 
 - To get a list of all location dictionaries:
-    ```python
+```python
 all_locations = doc.locations
-    ```
+```
 - To retrieve specific attributes:
-    ```python
+```python
 all_geonameids = doc.locations['geonameid']
-    ```
+```
 - To retrieve multiple attributes:
-    ```python
+```python
 all_coordinates = doc.locations['latitude', 'longitude']
-    ```
+```
 
 ### Geocoding Scope
 
