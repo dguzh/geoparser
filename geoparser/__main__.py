@@ -1,30 +1,26 @@
-import os
 import sys
-from appdirs import user_data_dir
+from importlib import import_module
+
+GAZETTEERS = {
+    'geonames': 'geonames.GeoNames'
+}
 
 def main():
-    data_dir = user_data_dir('geoparser')
-    db_path = os.path.join(data_dir, "geonames.db")
+    if len(sys.argv) == 3 and sys.argv[1] == 'download':
+        gazetteer_name = sys.argv[2].lower()
+        if gazetteer_name in GAZETTEERS:
+            gazetteer_module, gazetteer_class = GAZETTEERS[gazetteer_name].split('.')
+            
+            module = import_module('.' + gazetteer_module, package='geoparser')
+            gazetteer = getattr(module, gazetteer_class)()
 
-    if 'download' in sys.argv:
-        if os.path.exists(db_path):
-            user_input = input("GeoNames database found. Would you like to update the data? [y/n]: ")
-            if user_input.lower() != 'y':
-                return
-            else:
-                os.remove(db_path)
+            gazetteer.setup_database()
 
-        from .downloader import main as download_main
-        from .database import main as database_main
-
-        download_main()
-        database_main()
-
-        for file_name in os.listdir(data_dir):
-            if file_name.endswith('.txt'):
-                os.remove(os.path.join(data_dir, file_name))
+        else:
+            available = ", ".join(GAZETTEERS.keys())
+            print(f"Invalid gazetteer name. Available gazetteers: {available}")
     else:
-        print("Usage: python -m geoparser download")
+        print("Usage: python -m geoparser download [gazetteer_name]")
 
 if __name__ == '__main__':
     main()
