@@ -28,6 +28,8 @@ Geoparser depends on the following Python libraries:
 
 These dependencies are automatically installed when building Geoparser with pip.
 
+**GPU support:** The performance of Geoparser benefits greatly from GPU processing. If you have a CUDA enabled GPU available, you can use it for toponym recognition with spaCy's transformer models as well as for toponym resolution using the SentenceTransformers models. To do so, install [PyTorch with CUDA support](https://pytorch.org/get-started/locally/) as well as the [GPU enabled version of spaCy](https://spacy.io/usage#gpu). 
+
 ## Download Required Data
 
 To get started with Geoparser, specific data resources must be downloaded:
@@ -64,7 +66,7 @@ These files are temporarily stored in your system's user-specific data directory
 - **macOS**: `~/Library/Application Support/geoparser/geonames.db`
 - **Linux**: `~/.local/share/geoparser/geonames.db`
 
-Please ensure you have enough disk space available. The final size of the downloaded GeoNames data will be approximately 3.2 GB, increasing temporarily to approximately 5 GB during the download and setup process.
+Please ensure you have enough disk space available. The final size of the downloaded GeoNames data will be approximately 3.2 GB, increasing temporarily to around 5 GB during the download and setup process.
 
 **Note:** The library currently only supports the GeoNames gazetteer, but the framework allows for future extensions with other knowledge bases.
 
@@ -86,7 +88,7 @@ Default configuration:
 geo = Geoparser(spacy_model='en_core_web_trf', transformer_model='dguzh/geo-all-distilroberta-v1', gazetteer='geonames')
 ```
 
-For faster performance, you may opt for faster models:
+For faster performance, you may opt for more lightweight models:
 
 ```python
 geo = Geoparser(spacy_model='en_core_web_sm', transformer_model='dguzh/geo-all-MiniLM-L6-v2', gazetteer='geonames')
@@ -110,7 +112,7 @@ for doc in docs:
         print(toponym, toponym.start_char, toponym.end_char)
 ```
 
-Toponyms are resolved to their corresponding geographical location which can be accessed using `GeoSpan.location`. This returns a dictionary with geographic data sourced from the gazetteer.
+Toponyms are resolved to their corresponding geographical location which can be accessed using `GeoSpan.location`. This returns a dictionary with geographic data sourced from the gazetteer:
 
 ```python
 for doc in docs:
@@ -119,9 +121,29 @@ for doc in docs:
             print(toponym, toponym.location['geonameid'], toponym.location['latitude'], toponym.location['longitude'])
 ```
 
-For document-wise retrieval of location data you may want to use the `GeoDoc.locations` attribute to retrieve lists of location dictionaries aligned with `GeoDoc.toponyms`. This allows for a more efficient batch retrieval of location data, reducing the number of database queries:
+Example of a location dictionary using the GeoNames gazetteer:
 
-- To get a list of all location dictionaries:
+```python
+{
+'geonameid': 2867714,
+'name': 'Munich',
+'admin2_geonameid': 2861322,
+'admin2_name': 'Upper Bavaria',
+'admin1_geonameid': 2951839,
+'admin1_name': 'Bavaria',
+'country_geonameid': 2921044,
+'country_name': 'Germany',
+'feature_name': 'seat of a first-order administrative division',
+'latitude': 48.13743,
+'longitude': 11.57549,
+'elevation': None,
+'population': 1260391
+}
+```
+
+For document-wise retrieval of location data you may want to use the `GeoDoc.locations` attribute to retrieve lists of location dictionaries aligned with `GeoDoc.toponyms`. This allows for more efficient batch retrieval of location data, reducing the number of database queries:
+
+- To get a list of location dictionaries of all toponyms in a document:
 ```python
 all_locations = doc.locations
 ```
@@ -157,7 +179,7 @@ texts = [
     "Munich is famous for its annual Oktoberfest celebration."
 ]    
 
-docs = geo.parse([texts])
+docs = geo.parse(texts)
 
 for doc in docs:
     identifiers = doc.locations['name', 'admin1_name', 'country_name']
@@ -171,9 +193,9 @@ The `GeoparserTrainer` is an extension of the `Geoparser` class designed for tra
 
 ### Fine-Tuning HuggingFace Models for Geoparsing
 
-The `GeoparserTrainer` supports fine-tuning any model from HuggingFace that is compatible with the SentenceTransformers framework. This allows users to leverage a wide range of pre-trained models to enhance geoparsing capabilities tailored to specific needs.
+The `GeoparserTrainer` supports fine-tuning any transformer model from HuggingFace that is compatible with the SentenceTransformers framework. This allows users to leverage a wide range of pre-trained models to enhance geoparsing capabilities tailored to specific needs.
 
-While it is possible to fine-tune virtually any HuggingFace model that works within the SentenceTransformers ecosystem, the employed geoparsing strategy benefits significantly from models that are pre-trained on sentence similarity tasks. For a comprehensive list of pre-trained SentenceTransformer models that are optimised for tasks like sentence similarity, please refer to the [official SentenceTransformers documentation](https://www.sbert.net/docs/sentence_transformer/pretrained_models.html#original-models).
+While it is possible to fine-tune virtually any HuggingFace model that works within the SentenceTransformers ecosystem, the employed geoparsing strategy benefits from models that are pre-trained on sentence similarity tasks. For an overview of pre-trained SentenceTransformer models that are optimised for tasks like sentence similarity, please refer to the [official SentenceTransformers documentation](https://www.sbert.net/docs/sentence_transformer/pretrained_models.html#original-models).
 
 ### Preparing Your Dataset
 
@@ -189,7 +211,7 @@ train_corpus = [
 
 ### Annotating and Preparing Training Data
 
-Once you have your dataset, use the `annotate` method to convert the text and annotations into `GeoDoc` objects suitable for training:
+Once you have your dataset, use the `annotate` method to convert the text and annotations into gold `GeoDoc` objects suitable for training:
 
 ```python
 from geoparser import GeoparserTrainer
@@ -227,7 +249,11 @@ evaluation_results = trainer.evaluate(test_docs)
 print(evaluation_results)
 ```
 
-This compares the predicted location IDs against the annotated IDs and provides metrics such as accuracy and mean error distance.
+This compares the predicted location IDs against the annotated IDs and provides the following metrics:
+- Exact match accuracy
+- Accuracy within a 161 km radius
+- Mean error distance [km]
+- Area under the curve
 
 ### Using the Trained Model
 
