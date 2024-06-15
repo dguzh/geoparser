@@ -141,6 +141,8 @@ Example of a location dictionary using the GeoNames gazetteer:
 }
 ```
 
+The certainty of the toponym resolution predictions can be retrieved using the `GeoSpan.score` property. Users may choose to only consider predictions above a certain threshold as valid.
+
 For document-wise retrieval of location data you may want to use the `GeoDoc.locations` attribute to retrieve lists of location dictionaries aligned with `GeoDoc.toponyms`. This allows for more efficient batch retrieval of location data, reducing the number of database queries:
 
 - To get a list of location dictionaries of all toponyms in a document:
