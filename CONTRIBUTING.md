@@ -8,6 +8,7 @@ For local development, you can install the package via pip:
 
 ```bash
 > pip install -e .
+> pip install -r requirements/requirements.dev.txt
 ```
 
 We recommend you install the package in a virtual environment.

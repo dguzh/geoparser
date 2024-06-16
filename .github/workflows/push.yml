@@ -19,4 +19,4 @@ jobs:
           python-version: 3.8
       - uses: isort/isort-action@master
         with:
-            requirementsFiles: "requirements.txt requirements-test.txt"
+            requirementsFiles: "requirements.txt requirements.dev.txt"
