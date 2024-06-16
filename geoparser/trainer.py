@@ -1,11 +1,7 @@
 import numpy as np
 from datasets import Dataset
 from haversine import haversine
-from sentence_transformers import (
-    SentenceTransformer,
-    SentenceTransformerTrainer,
-    losses,
-)
+from sentence_transformers import SentenceTransformerTrainer, losses
 from sentence_transformers.training_args import SentenceTransformerTrainingArguments
 from tqdm.auto import tqdm
 
