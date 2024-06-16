@@ -1,26 +1,32 @@
-import sys
-from importlib import import_module
+import argparse
 
-GAZETTEERS = {"geonames": "geonames.GeoNames"}
+from .constants import GAZETTEERS, MODES
 
 
-def main():
-    if len(sys.argv) == 3 and sys.argv[1] == "download":
-        gazetteer_name = sys.argv[2].lower()
-        if gazetteer_name in GAZETTEERS:
-            gazetteer_module, gazetteer_class = GAZETTEERS[gazetteer_name].split(".")
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "mode",
+        type=str,
+        choices=MODES.values(),
+        help="the setup mode for geoparser",
+    )
+    parser.add_argument(
+        "gazetteer",
+        type=str,
+        choices=GAZETTEERS.keys(),
+        help="specify the gazetteer to set up",
+    )
+    args = parser.parse_args()
+    return args
 
-            module = import_module("." + gazetteer_module, package="geoparser")
-            gazetteer = getattr(module, gazetteer_class)()
 
-            gazetteer.setup_database()
-
-        else:
-            available = ", ".join(GAZETTEERS.keys())
-            print(f"Invalid gazetteer name. Available gazetteers: {available}")
-    else:
-        print("Usage: python -m geoparser download [gazetteer_name]")
+def main(args: argparse.Namespace):
+    if args.mode == MODES["download"]:
+        gazetteer = GAZETTEERS[args.gazetteer]()
+        gazetteer.setup_database()
 
 
 if __name__ == "__main__":
-    main()
+    args = parse_args()
+    main(args)
