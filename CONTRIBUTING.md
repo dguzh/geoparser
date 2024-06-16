@@ -25,6 +25,12 @@ These resources can provide a good start:
 
 ### Import order
 
+Imports in `geoparser` are sorted with `isort` to ensure a consistent import order across all files. Import order is check via a GitHub action on every push. Before submitting a pull request, please make sure your code passes the import order check.
+
+These resources can provide a good start:
+
+- [Official isort documentation](https://pycqa.github.io/isort/index.html)
+
 ## Licensing
 
 See the [LICENSE](./LICENSE) file for the project's licensing.
