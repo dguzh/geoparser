@@ -1,11 +1,12 @@
+import math
 import os
 import re
-import math
 import shutil
 import sqlite3
+import zipfile
+
 import pandas as pd
 import requests
-import zipfile
 from tqdm.auto import tqdm
 
 from .gazetteer import Gazetteer

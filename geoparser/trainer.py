@@ -1,13 +1,13 @@
+import numpy as np
 from datasets import Dataset
+from haversine import haversine
 from sentence_transformers import (
     SentenceTransformer,
     SentenceTransformerTrainer,
     losses,
 )
 from sentence_transformers.training_args import SentenceTransformerTrainingArguments
-from haversine import haversine
 from tqdm.auto import tqdm
-import numpy as np
 
 from .geoparser import Geoparser
 from .geospan import GeoSpan

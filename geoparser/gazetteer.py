@@ -2,6 +2,7 @@ import os
 import re
 import sqlite3
 from abc import ABC, abstractmethod
+
 from appdirs import user_data_dir
 
 

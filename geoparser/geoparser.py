@@ -1,11 +1,12 @@
-import os
 import logging
+import os
 from importlib import import_module
-import spacy
-from tqdm.auto import tqdm
 from typing import List, Set
-from sentence_transformers import SentenceTransformer, util
+
+import spacy
 import torch
+from sentence_transformers import SentenceTransformer, util
+from tqdm.auto import tqdm
 
 from .geodoc import GeoDoc
 
