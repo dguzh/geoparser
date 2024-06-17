@@ -10,7 +10,7 @@ setup(
     long_description=open("README.md").read(),
     long_description_content_type="text/markdown",
     install_requires=[
-        "numpy>=1.26.4",
+        "numpy==1.26.4",
         "pandas>=2.2.2",
         "spacy>=3.7.5",
         "sentence_transformers>=3.0.1",
