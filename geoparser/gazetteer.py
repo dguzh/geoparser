@@ -7,7 +7,7 @@ from appdirs import user_data_dir
 
 
 class Gazetteer(ABC):
-    def __init__(self, db_name):
+    def __init__(self, db_name: str):
         self.data_dir = user_data_dir("geoparser", "")
         self.db_path = os.path.join(self.data_dir, db_name + ".db")
 
@@ -23,7 +23,7 @@ class Gazetteer(ABC):
     def query_location_info(self):
         pass
 
-    def execute_query(self, query, params=None):
+    def execute_query(self, query: str, params: tuple[str, ...] = None):
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()
             cursor.execute(query, params or ())
