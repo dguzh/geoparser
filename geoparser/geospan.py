@@ -1,9 +1,14 @@
 from spacy.tokens import Span
 
+
 class GeoSpan(Span):
 
     def __eq__(self, other):
-        return self.doc == other.doc and self.start == other.start and self.end == other.end
+        return (
+            self.doc == other.doc
+            and self.start == other.start
+            and self.end == other.end
+        )
 
     @property
     def location(self):
@@ -15,20 +20,31 @@ class GeoSpan(Span):
 
     @property
     def candidates(self):
-        return self.doc.geoparser.gazetteer.query_candidates(self.text, self.doc.geoparser.country_filter, self.doc.geoparser.feature_filter)
-        
+        return self.doc.geoparser.gazetteer.query_candidates(
+            self.text,
+            self.doc.geoparser.country_filter,
+            self.doc.geoparser.feature_filter,
+        )
+
     @property
     def context(self):
         tokenizer = self.doc.geoparser.transformer.tokenizer
         token_limit = self.doc.geoparser.transformer.get_max_seq_length()
-        
+
         sentences = list(self.doc.sents)
         total_tokens = len(tokenizer.tokenize(self.doc.text))
 
         if total_tokens <= token_limit:
             return self.doc[:]
 
-        target_sentence = next((s for s in sentences if s.start_char <= self.start_char and s.end_char >= self.end_char), None)
+        target_sentence = next(
+            (
+                s
+                for s in sentences
+                if s.start_char <= self.start_char and s.end_char >= self.end_char
+            ),
+            None,
+        )
         target_index = sentences.index(target_sentence)
         context_sentences = [target_sentence]
         tokens_count = len(tokenizer.tokenize(target_sentence.text))
