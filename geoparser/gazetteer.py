@@ -1,6 +1,7 @@
 import os
 import re
 import sqlite3
+import typing as t
 from abc import ABC, abstractmethod
 
 from appdirs import user_data_dir
@@ -23,22 +24,28 @@ class Gazetteer(ABC):
     def query_location_info(self):
         pass
 
-    def execute_query(self, query: str, params: tuple[str, ...] = None):
+    def execute_query(self, query: str, params: tuple[str, ...] = None) -> list:
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()
             cursor.execute(query, params or ())
             return cursor.fetchall()
 
-    def get_location_description(self, location):
+    def get_location_description(
+        self, location: dict[str, t.Union[int, str, float]]
+    ) -> str:
         return self.format_location_description(
             location, self.location_description_template
         )
 
     @staticmethod
-    def format_location_description(location, template):
+    def format_location_description(
+        location: dict[str, t.Union[int, str, float]], template: str
+    ) -> str:
         if location:
 
-            def evaluate_conditionals(cond_expr):
+            def evaluate_conditionals(
+                cond_expr: str,
+            ) -> tuple[t.Optional[str], t.Optional[t.Callable[[dict], bool]]]:
                 match = re.match(r"COND\[(.+?), (any|all)\{(.+?)\}\]", cond_expr)
                 if not match:
                     return None, None
@@ -52,7 +59,7 @@ class Gazetteer(ABC):
                     return text, lambda loc: all(loc.get(key) for key in keys)
                 return None, None
 
-            def substitute_conditionals(template):
+            def substitute_conditionals(template: str) -> str:
                 conditionals = re.findall(r"COND\[.+?\]", template)
                 for cond in conditionals:
                     text, conditional_func = evaluate_conditionals(cond)
@@ -61,7 +68,7 @@ class Gazetteer(ABC):
                         template = template.replace(cond, replacement_text, 1)
                 return template
 
-            def substitute_keys(match):
+            def substitute_keys(match: re.Match) -> str:
                 key = match.group("key")
                 value = location.get(key)
                 return (
