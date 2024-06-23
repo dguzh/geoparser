@@ -1,5 +1,8 @@
-name: push
-on: push
+name: push_pr
+on:
+  push:
+  pull_request:
+
 
 jobs:
   black:
