@@ -1,2 +1,28 @@
+[tool.poetry]
+name = "geoparser"
+version = "0.1.7"
+description = "A geoparsing library for English texts"
+authors = ["Diego Gomes <diego.gomes@uzh.ch>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.9"
+numpy = "1.26.4"
+pandas = "^2.2.2"
+spacy = "^3.7.5"
+sentence-transformers = "^3.0.1"
+tqdm = "^4.66.4"
+torch = "^2.3.1"
+requests = "^2.32.3"
+appdirs = "^1.4.4"
+datasets = "^2.20.0"
+haversine = "^2.8.1"
+accelerate = "^0.31.0"
+
+
+[tool.poetry.group.dev.dependencies]
+black = "24.4.2"
+isort = "5.13.2"
+
 [tool.isort]
 profile = "black"
