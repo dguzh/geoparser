@@ -23,6 +23,7 @@ accelerate = "^0.31.0"
 [tool.poetry.group.dev.dependencies]
 black = "24.4.2"
 isort = "5.13.2"
+pytest = "^8.2.2"
 
 [tool.isort]
 profile = "black"
