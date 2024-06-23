@@ -8,6 +8,7 @@ from sentence_transformers import SentenceTransformer, util
 from tqdm.auto import tqdm
 
 from geoparser.geodoc import GeoDoc
+from geoparser.constants import GAZETTEERS
 
 # Suppress token length warnings from transformers
 logging.getLogger("transformers.tokenization_utils_base").setLevel(logging.ERROR)
@@ -28,16 +29,8 @@ class Geoparser:
 
     def setup_gazetteer(self, gazetteer: str):
 
-        GAZETTEERS = {"geonames": "geonames.GeoNames"}
-
-        gazetteer_name = gazetteer.lower()
-
-        if gazetteer_name in GAZETTEERS:
-            gazetteer_module, gazetteer_class = GAZETTEERS[gazetteer_name].split(".")
-
-            module = import_module("." + gazetteer_module, package="geoparser")
-            gazetteer = getattr(module, gazetteer_class)()
-
+        if gazetteer in GAZETTEERS:
+            gazetteer = GAZETTEERS[gazetteer.lower()]()
             return gazetteer
 
         else:

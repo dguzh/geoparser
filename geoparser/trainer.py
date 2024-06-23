@@ -5,6 +5,7 @@ from sentence_transformers import SentenceTransformerTrainer, losses
 from sentence_transformers.training_args import SentenceTransformerTrainingArguments
 from tqdm.auto import tqdm
 
+from geoparser.constants import MAX_ERROR
 from geoparser.geodoc import GeoDoc
 from geoparser.geoparser import Geoparser
 from geoparser.geospan import GeoSpan
@@ -45,7 +46,6 @@ class GeoparserTrainer(Geoparser):
         return docs
 
     def evaluate(self, eval_docs: list[GeoDoc]):
-        MAX_ERROR = 20039  # half Earth's circumference in km
         distances = []
 
         matches = 0
