@@ -5,6 +5,7 @@ from sentence_transformers import SentenceTransformerTrainer, losses
 from sentence_transformers.training_args import SentenceTransformerTrainingArguments
 from tqdm.auto import tqdm
 
+from .geodoc import GeoDoc
 from .geoparser import Geoparser
 from .geospan import GeoSpan
 
@@ -15,7 +16,11 @@ class GeoparserTrainer(Geoparser):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-    def annotate(self, corpus, include_unmatched=False):
+    def annotate(
+        self,
+        corpus: list[tuple[str, list[tuple[int, int, str]]]],
+        include_unmatched: bool = False,
+    ):
         docs = []
         for text, annotations in tqdm(corpus):
             doc = self.nlp(text)
@@ -39,7 +44,7 @@ class GeoparserTrainer(Geoparser):
 
         return docs
 
-    def evaluate(self, eval_docs):
+    def evaluate(self, eval_docs: list[GeoDoc]):
         MAX_ERROR = 20039  # half Earth's circumference in km
         distances = []
 
@@ -99,7 +104,7 @@ class GeoparserTrainer(Geoparser):
             "AreaUnderTheCurve": auc,
         }
 
-    def prepare_training_data(self, docs):
+    def prepare_training_data(self, docs: list[GeoDoc]):
         toponym_texts = []
         candidate_texts = []
         labels = []
@@ -131,7 +136,13 @@ class GeoparserTrainer(Geoparser):
             }
         )
 
-    def train(self, train_docs, output_path, epochs=1, batch_size=8):
+    def train(
+        self,
+        train_docs: list[GeoDoc],
+        output_path: str,
+        epochs: int = 1,
+        batch_size: int = 8,
+    ):
         train_dataset = self.prepare_training_data(train_docs)
 
         train_loss = losses.ContrastiveLoss(self.transformer)
