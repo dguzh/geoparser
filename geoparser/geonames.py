@@ -10,7 +10,7 @@ import pandas as pd
 import requests
 from tqdm.auto import tqdm
 
-from .gazetteer import Gazetteer
+from geoparser.gazetteer import Gazetteer
 
 
 class GeoNames(Gazetteer):

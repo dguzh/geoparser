@@ -1,2 +1,2 @@
-from .geoparser import Geoparser
-from .trainer import GeoparserTrainer
+from geoparser.geoparser import Geoparser
+from geoparser.trainer import GeoparserTrainer

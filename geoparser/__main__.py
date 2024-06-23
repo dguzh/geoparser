@@ -1,6 +1,6 @@
 import argparse
 
-from .constants import GAZETTEERS, MODES
+from geoparser.constants import GAZETTEERS, MODES
 
 
 def parse_args() -> argparse.Namespace:

@@ -5,9 +5,9 @@ from sentence_transformers import SentenceTransformerTrainer, losses
 from sentence_transformers.training_args import SentenceTransformerTrainingArguments
 from tqdm.auto import tqdm
 
-from .geodoc import GeoDoc
-from .geoparser import Geoparser
-from .geospan import GeoSpan
+from geoparser.geodoc import GeoDoc
+from geoparser.geoparser import Geoparser
+from geoparser.geospan import GeoSpan
 
 GeoSpan.set_extension("gold_loc_id", default=None)
 
