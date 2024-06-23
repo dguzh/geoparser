@@ -7,11 +7,21 @@ This project uses [`poetry`](https://python-poetry.org/docs/) to manage dependen
 For local development, you can install the package in virtual environment via `poetry`:
 
 ```bash
-> poetry install
-> poetry shell
+poetry install
+poetry shell
 ```
 
 We recommend you install the package in a virtual environment.
+
+## Building
+
+To build the package with `poetry`, use the `poetry build` command:
+
+```bash
+poetry build
+```
+
+This build the package in `sdist` and `wheel` format in the `dist` directory.
 
 ## Developer Guidelines
 
