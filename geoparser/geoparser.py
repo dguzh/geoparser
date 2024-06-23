@@ -7,8 +7,8 @@ import torch
 from sentence_transformers import SentenceTransformer, util
 from tqdm.auto import tqdm
 
-from geoparser.geodoc import GeoDoc
 from geoparser.constants import GAZETTEERS
+from geoparser.geodoc import GeoDoc
 
 # Suppress token length warnings from transformers
 logging.getLogger("transformers.tokenization_utils_base").setLevel(logging.ERROR)
