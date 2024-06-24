@@ -23,6 +23,7 @@ accelerate = "^0.31.0"
 [tool.poetry.group.dev.dependencies]
 black = "24.4.2"
 isort = "5.13.2"
+jupyter = "^1.0.0"
 
 [tool.isort]
 profile = "black"
