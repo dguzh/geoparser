@@ -2,16 +2,26 @@
 
 ## Local development
 
-Requirements can be found in the `requirements.txt` file.
+This project uses [`poetry`](https://python-poetry.org/docs/) to manage dependencies. For installing poetry, visit the official [docs](https://python-poetry.org/docs/#installation).
 
-For local development, you can install the package via pip:
+For local development, you can install the package in virtual environment via `poetry`:
 
 ```bash
-> pip install -e .
-> pip install -r requirements/requirements.dev.txt
+poetry install
+poetry shell
 ```
 
 We recommend you install the package in a virtual environment.
+
+## Building
+
+To build the package with `poetry`, use the `poetry build` command:
+
+```bash
+poetry build
+```
+
+This build the package in `sdist` and `wheel` format in the `dist` directory.
 
 ## Developer Guidelines
 

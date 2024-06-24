@@ -1,5 +1,4 @@
 import logging
-import os
 from importlib import import_module
 from typing import List, Set
 
@@ -8,7 +7,8 @@ import torch
 from sentence_transformers import SentenceTransformer, util
 from tqdm.auto import tqdm
 
-from .geodoc import GeoDoc
+from geoparser.constants import GAZETTEERS
+from geoparser.geodoc import GeoDoc
 
 # Suppress token length warnings from transformers
 logging.getLogger("transformers.tokenization_utils_base").setLevel(logging.ERROR)
@@ -17,9 +17,9 @@ logging.getLogger("transformers.tokenization_utils_base").setLevel(logging.ERROR
 class Geoparser:
     def __init__(
         self,
-        spacy_model="en_core_web_trf",
-        transformer_model="dguzh/geo-all-distilroberta-v1",
-        gazetteer="geonames",
+        spacy_model: str = "en_core_web_trf",
+        transformer_model: str = "dguzh/geo-all-distilroberta-v1",
+        gazetteer: str = "geonames",
     ):
         self.gazetteer = self.setup_gazetteer(gazetteer)
         self.nlp = self.setup_spacy(spacy_model)
@@ -27,18 +27,10 @@ class Geoparser:
         self.country_filter = None
         self.feature_filter = None
 
-    def setup_gazetteer(self, gazetteer):
+    def setup_gazetteer(self, gazetteer: str):
 
-        GAZETTEERS = {"geonames": "geonames.GeoNames"}
-
-        gazetteer_name = gazetteer.lower()
-
-        if gazetteer_name in GAZETTEERS:
-            gazetteer_module, gazetteer_class = GAZETTEERS[gazetteer_name].split(".")
-
-            module = import_module("." + gazetteer_module, package="geoparser")
-            gazetteer = getattr(module, gazetteer_class)()
-
+        if gazetteer in GAZETTEERS:
+            gazetteer = GAZETTEERS[gazetteer.lower()]()
             return gazetteer
 
         else:
@@ -47,7 +39,7 @@ class Geoparser:
                 f"Invalid gazetteer name. Available gazetteers: {available}"
             )
 
-    def setup_spacy(self, spacy_model):
+    def setup_spacy(self, spacy_model: str):
         if not spacy.util.is_package(spacy_model):
             raise OSError(
                 f"spaCy model '{spacy_model}' not found. Run the following command to install it:\npython -m spacy download {spacy_model}"
@@ -65,13 +57,13 @@ class Geoparser:
 
         return nlp
 
-    def setup_transformer(self, transformer_model):
+    def setup_transformer(self, transformer_model: str):
         return SentenceTransformer(transformer_model)
 
     def parse(
         self,
         texts: List[str],
-        batch_size=8,
+        batch_size: int = 8,
         country_filter: List[str] = None,
         feature_filter: List[str] = None,
     ):
@@ -97,7 +89,7 @@ class Geoparser:
 
         return docs
 
-    def resolve(self, docs: List[GeoDoc], batch_size=8):
+    def resolve(self, docs: List[GeoDoc], batch_size: int = 8):
 
         candidate_ids = set()
         for doc in docs:

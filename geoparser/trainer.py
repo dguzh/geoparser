@@ -1,16 +1,14 @@
 import numpy as np
 from datasets import Dataset
 from haversine import haversine
-from sentence_transformers import (
-    SentenceTransformer,
-    SentenceTransformerTrainer,
-    losses,
-)
+from sentence_transformers import SentenceTransformerTrainer, losses
 from sentence_transformers.training_args import SentenceTransformerTrainingArguments
 from tqdm.auto import tqdm
 
-from .geoparser import Geoparser
-from .geospan import GeoSpan
+from geoparser.constants import MAX_ERROR
+from geoparser.geodoc import GeoDoc
+from geoparser.geoparser import Geoparser
+from geoparser.geospan import GeoSpan
 
 GeoSpan.set_extension("gold_loc_id", default=None)
 
@@ -19,7 +17,11 @@ class GeoparserTrainer(Geoparser):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-    def annotate(self, corpus, include_unmatched=False):
+    def annotate(
+        self,
+        corpus: list[tuple[str, list[tuple[int, int, int]]]],
+        include_unmatched: bool = False,
+    ):
         docs = []
         for text, annotations in tqdm(corpus):
             doc = self.nlp(text)
@@ -43,8 +45,7 @@ class GeoparserTrainer(Geoparser):
 
         return docs
 
-    def evaluate(self, eval_docs):
-        MAX_ERROR = 20039  # half Earth's circumference in km
+    def evaluate(self, eval_docs: list[GeoDoc]):
         distances = []
 
         matches = 0
@@ -103,7 +104,7 @@ class GeoparserTrainer(Geoparser):
             "AreaUnderTheCurve": auc,
         }
 
-    def prepare_training_data(self, docs):
+    def prepare_training_data(self, docs: list[GeoDoc]):
         toponym_texts = []
         candidate_texts = []
         labels = []
@@ -135,7 +136,13 @@ class GeoparserTrainer(Geoparser):
             }
         )
 
-    def train(self, train_docs, output_path, epochs=1, batch_size=8):
+    def train(
+        self,
+        train_docs: list[GeoDoc],
+        output_path: str,
+        epochs: int = 1,
+        batch_size: int = 8,
+    ):
         train_dataset = self.prepare_training_data(train_docs)
 
         train_loss = losses.ContrastiveLoss(self.transformer)

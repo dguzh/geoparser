@@ -1,6 +1,6 @@
 from spacy.tokens import Doc
 
-from .geospan import GeoSpan
+from geoparser.geospan import GeoSpan
 
 GeoSpan.set_extension("loc_id", default=None)
 GeoSpan.set_extension("loc_score", default=None)

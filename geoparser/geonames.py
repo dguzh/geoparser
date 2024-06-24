@@ -3,13 +3,14 @@ import os
 import re
 import shutil
 import sqlite3
+import typing as t
 import zipfile
 
 import pandas as pd
 import requests
 from tqdm.auto import tqdm
 
-from .gazetteer import Gazetteer
+from geoparser.gazetteer import Gazetteer
 
 
 class GeoNames(Gazetteer):
@@ -29,7 +30,7 @@ class GeoNames(Gazetteer):
 
         print("Database setup complete.")
 
-    def clean_dir(self, keep_db=False):
+    def clean_dir(self, keep_db: bool = False):
 
         if os.path.exists(self.data_dir):
             for file_name in os.listdir(self.data_dir):
@@ -54,7 +55,7 @@ class GeoNames(Gazetteer):
         for url in urls:
             self.download_file(url)
 
-    def download_file(self, url):
+    def download_file(self, url: str):
         filename = url.split("/")[-1]
         file_path = os.path.join(self.data_dir, filename)
         response = requests.get(url, stream=True)
@@ -83,7 +84,7 @@ class GeoNames(Gazetteer):
 
         conn.close()
 
-    def create_tables(self, conn):
+    def create_tables(self, conn: sqlite3.Connection):
 
         cursor = conn.cursor()
 
@@ -204,7 +205,7 @@ class GeoNames(Gazetteer):
 
         conn.commit()
 
-    def populate_tables(self, conn):
+    def populate_tables(self, conn: sqlite3.Connection):
 
         cursor = conn.cursor()
 
@@ -319,7 +320,13 @@ class GeoNames(Gazetteer):
         conn.commit()
 
     def load_file_into_table(
-        self, conn, file_path, table_name, columns, skiprows=None, chunksize=100000
+        self,
+        conn: sqlite3.Connection,
+        file_path: str,
+        table_name: str,
+        columns: list[str],
+        skiprows: t.Union[int, list[int], t.Callable] = None,
+        chunksize: int = 100000,
     ):
 
         chunks = pd.read_csv(
@@ -341,7 +348,12 @@ class GeoNames(Gazetteer):
 
         os.remove(file_path)
 
-    def query_candidates(self, toponym, country_filter=None, feature_filter=None):
+    def query_candidates(
+        self,
+        toponym: str,
+        country_filter: list[str] = None,
+        feature_filter: list[str] = None,
+    ) -> list[int]:
 
         toponym = re.sub(r"\"", "", toponym).strip()
 
@@ -398,10 +410,11 @@ class GeoNames(Gazetteer):
 
         # Execute query with the constructed parameters
         result = self.execute_query(base_query, tuple(params))
-
         return [row[0] for row in result]
 
-    def query_location_info(self, location_ids, batch_size=500):
+    def query_location_info(
+        self, location_ids: list[int], batch_size: int = 500
+    ) -> list[dict]:
 
         if not isinstance(location_ids, list):
             location_ids = [location_ids]
