@@ -29,9 +29,25 @@ class GeoparserTrainer(Geoparser):
 
             for start_char, end_char, loc_id in annotations:
                 span = doc.char_span(start_char, end_char)
-                if span is None:
-                    continue
-                start_token, end_token = span.start, span.end
+                if span is None or span.text != text[start_char:end_char]:
+                    expanded_span = doc.char_span(
+                        start_char, end_char, alignment_mode="expand"
+                    )
+                    if expanded_span is None:
+                        continue
+                    filtered_tokens = [
+                        token
+                        for token in expanded_span
+                        if token.pos_ in ["PROPN", "ADJ"]
+                    ]
+                    if filtered_tokens:
+                        start_token = filtered_tokens[0].i
+                        end_token = filtered_tokens[-1].i + 1
+                    else:
+                        continue
+
+                else:
+                    start_token, end_token = span.start, span.end
 
                 annotation = GeoSpan(doc, start_token, end_token, label="ANNOT")
                 annotation._.gold_loc_id = loc_id
@@ -39,7 +55,16 @@ class GeoparserTrainer(Geoparser):
                 if include_unmatched or annotation in doc.toponyms:
                     processed_annotations.append(annotation)
 
-            doc.set_ents(processed_annotations)
+            processed_annotations = sorted(processed_annotations, key=lambda x: x.start)
+
+            filtered_annotations = [
+                annotation
+                for i, annotation in enumerate(processed_annotations)
+                if i == len(processed_annotations) - 1
+                or annotation.end <= processed_annotations[i + 1].start
+            ]
+
+            doc.set_ents(filtered_annotations)
 
             docs.append(doc)
 
