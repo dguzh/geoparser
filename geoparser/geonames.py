@@ -34,7 +34,9 @@ class GeoNames(Gazetteer):
 
         if os.path.exists(self.data_dir):
             for file_name in os.listdir(self.data_dir):
-                if file_name.endswith(".db") and keep_db:
+                if keep_db and (
+                    file_name.endswith(".db") or file_name.endswith(".db-journal")
+                ):
                     continue
                 else:
                     try:

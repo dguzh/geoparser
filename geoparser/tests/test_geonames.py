@@ -16,10 +16,10 @@ def geonames(tmpdir: py.path.LocalPath) -> GeoNames:
 
 @pytest.mark.parametrize("keep_db", [True, False])
 def test_clean_dir(geonames: GeoNames, keep_db: bool):
-    # create db and other file
+    # create db files and other file
     with open(geonames.db_path, "wb"), open(
         Path(geonames.db_path).parent / "other.txt", "w"
-    ):
+    ), open(Path(geonames.db_path).parent / "geonames.db-journal", "w"):
         pass
     # create subdirectory
     (Path(geonames.db_path).parent / "subdir").mkdir(parents=True, exist_ok=True)
@@ -30,7 +30,7 @@ def test_clean_dir(geonames: GeoNames, keep_db: bool):
     n_dirs = len([content for content in dir_content if content.is_dir()])
     # only keep db file
     if keep_db:
-        assert n_files == 1
+        assert n_files == 2
     if not keep_db:
         assert n_files == 0
     # always delete subdirectories
