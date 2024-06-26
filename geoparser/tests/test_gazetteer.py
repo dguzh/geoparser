@@ -1,3 +1,4 @@
+import types
 import typing as t
 
 import pytest
@@ -137,3 +138,107 @@ def test_get_location_description_all(
 ):
     gazetteer.location_description_template = template
     assert gazetteer.get_location_description(location) == expected
+
+
+@pytest.mark.parametrize(
+    "cond_expr",
+    [
+        "COND[in, sorted{<admin2_name>, <admin1_name>, <country_name>}]",  # not a supported function
+        "<country_name>}",  # no condition
+        "",  # empty string
+    ],
+)
+def test_evaluate_conditionals_no_condition(
+    gazetteer: Gazetteer,
+    cond_expr: str,
+):
+    assert gazetteer.evaluate_conditionals(cond_expr) == (None, None)
+
+
+@pytest.mark.parametrize(
+    "cond_expr,pos,neg",
+    [
+        (  # all
+            "COND[in, all{<admin2_name>, <admin1_name>, <country_name>}]",
+            {
+                "admin2_name": "Geneva",
+                "admin1_name": "Geneva",
+                "country_name": "Switzerland",
+            },
+            {
+                "admin1_name": "Geneva",
+                "country_name": "Switzerland",
+            },
+        ),
+        (  # any
+            "COND[in, any{<admin2_name>, <admin1_name>, <country_name>}]",
+            {
+                "admin2_name": "Geneva",
+                "admin1_name": "Geneva",
+                "country_name": "Switzerland",
+            },
+            {
+                "asdf": "Geneva",
+                "adsf": "Switzerland",
+            },
+        ),
+    ],
+)
+def test_evaluate_conditionals_valid(
+    gazetteer: Gazetteer,
+    cond_expr: str,
+    pos: dict[str, str],
+    neg: dict[str, str],
+):
+    text, conditional_func = gazetteer.evaluate_conditionals(cond_expr)
+    assert type(text) is str
+    assert type(conditional_func) is types.FunctionType
+    assert conditional_func(pos) is True
+    assert conditional_func(neg) is False
+
+
+@pytest.mark.parametrize(
+    "template,location,expected",
+    [
+        (  # base case
+            "COND[in, any{<admin2_name>, <admin1_name>, <country_name>}]",
+            {"admin2_name": "Geneva"},
+            "in",
+        ),
+        (  # does not substitute anything else
+            "asdfCOND[in, any{<admin2_name>, <admin1_name>, <country_name>}]asdf",
+            {
+                "admin2_name": "Geneva",
+                "admin1_name": "Geneva",
+                "country_name": "Switzerland",
+            },
+            "asdfinasdf",
+        ),
+        (  # no conditional
+            "asdf",
+            {
+                "admin3_name": "Geneva",
+            },
+            "asdf",
+        ),
+        (  # empty string
+            "",
+            {
+                "admin3_name": "Geneva",
+            },
+            "",
+        ),
+        (  # empty location
+            "asdf",
+            {},
+            "asdf",
+        ),
+    ],
+)
+def test_substitute_conditionals(
+    gazetteer: Gazetteer,
+    template: str,
+    location: dict[str, str],
+    expected: t.Optional[str],
+):
+    assert gazetteer.substitute_conditionals(location, template) == expected
