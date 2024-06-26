@@ -1,3 +1,5 @@
+import typing as t
+
 import pytest
 
 from geoparser.gazetteer import Gazetteer
@@ -5,15 +7,133 @@ from geoparser.tests.utils import make_concrete
 
 
 @pytest.fixture
-def gazetteer():
+def gazetteer() -> Gazetteer:
     gazetteer = make_concrete(Gazetteer)(db_name="")
     return gazetteer
 
 
-def test_format_location_description(gazetteer):
-    gazetteer = gazetteer
-    assert True is True
+@pytest.mark.parametrize(
+    "template,location,expected",
+    [
+        (  # base case
+            "<name>",
+            {"name": "Geneva"},
+            "Geneva",
+        ),
+        (  # multiple placeholders
+            "<name>, <country_name>",
+            {"name": "Geneva", "country_name": "Switzerland"},
+            "Geneva, Switzerland",
+        ),
+        (  # non-ascii placeholder name
+            "<XÆA12>",
+            {"XÆA12": "Geneva"},
+            "Geneva",
+        ),
+        (  # placeholder cannot contain whitespace
+            "<X Æ A 12>",
+            {"X Æ A 12": "Geneva"},
+            "<X Æ A 12>",
+        ),
+        (  # remove placeholders with no value in location
+            "<name>, <admin2_name>, <admin1_name>, <country_name>",
+            {"name": "Geneva", "country_name": "Switzerland"},
+            "Geneva, Switzerland",
+        ),
+        (  # no placeholder
+            "I am a fish",
+            {"name": "Geneva", "country_name": "Switzerland"},
+            "I am a fish",
+        ),
+        (  # empty string
+            "",
+            {"name": "Geneva", "country_name": "Switzerland"},
+            "",
+        ),
+        (  # empty location returns None
+            "",
+            {},
+            None,
+        ),
+    ],
+)
+def test_get_location_description_base(
+    gazetteer: Gazetteer,
+    template: str,
+    location: dict[str, str],
+    expected: t.Optional[str],
+):
+    gazetteer.location_description_template = template
+    assert gazetteer.get_location_description(location) == expected
 
 
-def test_evaluate_conditionals():
-    assert True is True
+@pytest.mark.parametrize(
+    "template,location,expected",
+    [
+        (  # one value
+            "COND[in, any{<admin2_name>, <admin1_name>, <country_name>}]",
+            {"admin2_name": "Geneva"},
+            "in",
+        ),
+        (  # all values
+            "COND[in, any{<admin2_name>, <admin1_name>, <country_name>}]",
+            {
+                "admin2_name": "Geneva",
+                "admin1_name": "Geneva",
+                "country_name": "Switzerland",
+            },
+            "in",
+        ),
+        (  # no values
+            "COND[in, any{<admin2_name>, <admin1_name>, <country_name>}]",
+            {
+                "admin3_name": "Geneva",
+            },
+            "",
+        ),
+    ],
+)
+def test_get_location_description_any(
+    gazetteer: Gazetteer,
+    template: str,
+    location: dict[str, str],
+    expected: t.Optional[str],
+):
+    gazetteer.location_description_template = template
+    assert gazetteer.get_location_description(location) == expected
+
+
+@pytest.mark.parametrize(
+    "template,location,expected",
+    [
+        (  # one value
+            "COND[in, all{<admin2_name>, <admin1_name>, <country_name>}]",
+            {"admin2_name": "Geneva"},
+            "",
+        ),
+        (  # all values
+            "COND[in, all{<admin2_name>, <admin1_name>, <country_name>}]",
+            {
+                "admin2_name": "Geneva",
+                "admin1_name": "Geneva",
+                "country_name": "Switzerland",
+            },
+            "in",
+        ),
+        (  # no values
+            "COND[in, all{<admin2_name>, <admin1_name>, <country_name>}]",
+            {
+                "admin3_name": "Geneva",
+            },
+            "",
+        ),
+    ],
+)
+def test_get_location_description_all(
+    gazetteer: Gazetteer,
+    template: str,
+    location: dict[str, str],
+    expected: t.Optional[str],
+):
+    gazetteer.location_description_template = template
+    assert gazetteer.get_location_description(location) == expected
