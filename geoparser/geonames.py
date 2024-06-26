@@ -39,6 +39,8 @@ class GeoNames(Gazetteer):
                 else:
                     try:
                         os.remove(os.path.join(self.data_dir, file_name))
+                    except IsADirectoryError:
+                        os.rmdir(os.path.join(self.data_dir, file_name))
                     except PermissionError:
                         shutil.rmtree(os.path.join(self.data_dir, file_name))
 
