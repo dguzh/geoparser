@@ -1,9 +1,12 @@
+import re
 from pathlib import Path
 
 import py
 import pytest
+from requests_mock.mocker import Mocker
 
 from geoparser.geonames import GeoNames
+from geoparser.tests.utils import get_static_test_file
 
 
 @pytest.fixture
@@ -35,3 +38,29 @@ def test_clean_dir(geonames: GeoNames, keep_db: bool):
         assert n_files == 0
     # always delete subdirectories
     assert n_dirs == 0
+
+
+@pytest.mark.parametrize(
+    "url, filename",
+    [
+        ("https://my.url.org/path/to/a.txt", "a.txt"),
+        (
+            "https://my.url.org/path/to/a.zip",
+            "b.zip",
+        ),
+    ],
+)
+def test_download_file(
+    geonames: GeoNames,
+    url: str,
+    filename: str,
+    requests_mock: Mocker,
+):
+    print(type(requests_mock))
+    with open(get_static_test_file(filename), "rb") as file:
+        requests_mock.get(url, body=file)
+        geonames.download_file(url=url)
+    dir_content = Path(geonames.db_path).parent.glob("**/*")
+    files = [content.name for content in dir_content]
+    # a.txt downloaded as is, b.zip has been extracted
+    assert files == [re.sub("zip", "txt", filename)]
