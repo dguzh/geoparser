@@ -18,6 +18,7 @@ appdirs = "^1.4.4"
 datasets = "^2.20.0"
 haversine = "^2.8.1"
 accelerate = "^0.31.0"
+requests-mock = "^1.12.1"
 
 
 [tool.poetry.group.dev.dependencies]
