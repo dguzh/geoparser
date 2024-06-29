@@ -201,13 +201,13 @@ While it is possible to fine-tune virtually any HuggingFace model that works wit
 
 ### Preparing Your Dataset
 
-To train a custom geoparser model, you need to prepare a dataset formatted as a list of tuples, where each tuple contains a text string and an associated list of annotations. Annotations should be tuples of (start character, end character, location id) that mark the toponyms within the text:
+To train a custom geoparser model, you need to prepare a dataset formatted as a list of tuples, where each tuple contains a text string and an associated list of annotations. Annotations should be tuples of (toponym string, start character, end character, location id) that mark the toponyms within the text:
 
 ```python
 train_corpus = [
-    ("Zurich is a city in Switzerland.", [(0, 6, 2657896), (20, 31, 2658434)]),
-    ("Geneva is known for international diplomacy.", [(0, 6, 2660646)]),
-    ("Munich hosts the annual Oktoberfest.", [(0, 6, 2867714)])
+    ("Zurich is a city in Switzerland.", [("Zurich", 0, 6, 2657896), ("Switzerland", 20, 31, 2658434)]),
+    ("Geneva is known for international diplomacy.", [("Geneva", 0, 6, 2660646)]),
+    ("Munich hosts the annual Oktoberfest.", [("Munich", 0, 6, 2867714)])
 ]
 ```
 
