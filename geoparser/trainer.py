@@ -20,7 +20,7 @@ class GeoparserTrainer(Geoparser):
 
     def annotate(
         self,
-        corpus: list[tuple[str, list[tuple[int, int, int]]]],
+        corpus: list[tuple[str, list[tuple[str, int, int, int]]]],
         include_unmatched: bool = False,
     ):
         docs = []
