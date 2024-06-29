@@ -37,14 +37,7 @@ class GeoSpan(Span):
         if total_tokens <= token_limit:
             return self.doc[:]
 
-        target_sentence = next(
-            (
-                s
-                for s in sentences
-                if s.start_char <= self.start_char and s.end_char >= self.end_char
-            ),
-            None,
-        )
+        target_sentence = self.sent
         target_index = sentences.index(target_sentence)
         context_sentences = [target_sentence]
         tokens_count = len(tokenizer.tokenize(target_sentence.text))

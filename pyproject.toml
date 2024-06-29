@@ -25,6 +25,7 @@ requests-mock = "^1.12.1"
 black = "24.4.2"
 isort = "5.13.2"
 pytest = "^8.2.2"
+jupyter = "^1.0.0"
 
 [tool.isort]
 profile = "black"

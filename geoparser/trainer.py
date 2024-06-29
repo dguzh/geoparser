@@ -3,6 +3,7 @@ from datasets import Dataset
 from haversine import haversine
 from sentence_transformers import SentenceTransformerTrainer, losses
 from sentence_transformers.training_args import SentenceTransformerTrainingArguments
+from spacy.matcher import PhraseMatcher
 from tqdm.auto import tqdm
 
 from geoparser.constants import MAX_ERROR
@@ -19,27 +20,72 @@ class GeoparserTrainer(Geoparser):
 
     def annotate(
         self,
-        corpus: list[tuple[str, list[tuple[int, int, int]]]],
+        corpus: list[tuple[str, list[tuple[str, int, int, int]]]],
         include_unmatched: bool = False,
     ):
         docs = []
+
+        matcher = PhraseMatcher(self.nlp.vocab)
+
         for text, annotations in tqdm(corpus):
             doc = self.nlp(text)
             processed_annotations = []
 
-            for start_char, end_char, loc_id in annotations:
-                span = doc.char_span(start_char, end_char)
-                if span is None:
-                    continue
-                start_token, end_token = span.start, span.end
+            for toponym, start_char, end_char, loc_id in annotations:
 
-                annotation = GeoSpan(doc, start_token, end_token, label="ANNOT")
-                annotation._.gold_loc_id = loc_id
+                if toponym == text[start_char:end_char]:
 
-                if include_unmatched or annotation in doc.toponyms:
-                    processed_annotations.append(annotation)
+                    span = doc.char_span(start_char, end_char)
 
-            doc.set_ents(processed_annotations)
+                else:
+
+                    matcher.add("TOPONYM", [self.nlp(toponym)])
+
+                    matches = matcher(doc)
+
+                    if matches:
+
+                        best_match = None
+                        best_match_dist = float("inf")
+
+                        for match_id, start_idx, end_idx in matches:
+                            match_span = doc[start_idx:end_idx]
+                            match_dist = abs(match_span.start_char - start_char) + abs(
+                                match_span.end_char - end_char
+                            )
+
+                            if match_dist < best_match_dist:
+                                best_match = match_span
+                                best_match_dist = match_dist
+
+                        span = best_match
+
+                    else:
+
+                        span = None
+
+                    matcher.remove("TOPONYM")
+
+                if span:
+
+                    start_token, end_token = span.start, span.end
+
+                    annotation = GeoSpan(doc, start_token, end_token, label="ANNOT")
+                    annotation._.gold_loc_id = loc_id
+
+                    if include_unmatched or annotation in doc.toponyms:
+                        processed_annotations.append(annotation)
+
+            sorted_annotations = sorted(processed_annotations, key=lambda x: x.start)
+
+            filtered_annotations = [
+                annotation
+                for i, annotation in enumerate(sorted_annotations)
+                if i == len(sorted_annotations) - 1
+                or annotation.end <= sorted_annotations[i + 1].start
+            ]
+
+            doc.set_ents(filtered_annotations)
 
             docs.append(doc)
 
