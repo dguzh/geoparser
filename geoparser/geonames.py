@@ -151,8 +151,6 @@ class GeoNames(Gazetteer):
         ):
             chunk.to_sql(table_name, conn, if_exists="append", index=False)
 
-        os.remove(file_path)
-
     def query_candidates(
         self,
         toponym: str,
