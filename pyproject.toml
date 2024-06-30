@@ -19,6 +19,7 @@ datasets = "^2.20.0"
 haversine = "^2.8.1"
 accelerate = "^0.31.0"
 requests-mock = "^1.12.1"
+pydantic = "^2.7.4"
 
 
 [tool.poetry.group.dev.dependencies]
