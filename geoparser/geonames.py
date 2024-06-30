@@ -10,12 +10,15 @@ import pandas as pd
 import requests
 from tqdm.auto import tqdm
 
+from geoparser.config import get_gazetteer_configs
+from geoparser.config.models import GazetteerData
 from geoparser.gazetteer import Gazetteer
 
 
 class GeoNames(Gazetteer):
     def __init__(self):
         super().__init__("geonames")
+        self.config = get_gazetteer_configs()["geonames"]
         self.location_description_template = "<name> (<feature_name>) COND[in, any{<admin2_name>, <admin1_name>, <country_name>}] <admin2_name>, <admin1_name>, <country_name>"
 
     def setup_database(self):
@@ -23,8 +26,9 @@ class GeoNames(Gazetteer):
 
         self.clean_dir()
 
-        self.download_data()
-        self.load_data()
+        for dataset in self.config.data:
+            self.download_data(dataset.url)
+            self.load_data(dataset)
 
         self.clean_dir(keep_db=True)
 
@@ -46,18 +50,9 @@ class GeoNames(Gazetteer):
                     except PermissionError:
                         shutil.rmtree(os.path.join(self.data_dir, file_name))
 
-    def download_data(self):
-        urls = [
-            "https://download.geonames.org/export/dump/allCountries.zip",
-            "https://download.geonames.org/export/dump/alternateNames.zip",
-            "https://download.geonames.org/export/dump/admin1CodesASCII.txt",
-            "https://download.geonames.org/export/dump/admin2Codes.txt",
-            "https://download.geonames.org/export/dump/countryInfo.txt",
-            "https://download.geonames.org/export/dump/featureCodes_en.txt",
-        ]
+    def download_data(self, url: str):
         os.makedirs(self.data_dir, exist_ok=True)
-        for url in urls:
-            self.download_file(url)
+        self.download_file(url)
 
     def download_file(self, url: str):
         filename = url.split("/")[-1]
@@ -79,247 +74,53 @@ class GeoNames(Gazetteer):
                 zip_ref.extractall(self.data_dir)
             os.remove(file_path)
 
-    def load_data(self):
+    def load_data(self, dataset: GazetteerData):
 
         conn = sqlite3.connect(self.db_path)
 
-        self.create_tables(conn)
-        self.populate_tables(conn)
+        self.create_tables(conn, dataset)
+        self.populate_tables(conn, dataset)
 
         conn.close()
 
-    def create_tables(self, conn: sqlite3.Connection):
+    def create_tables(self, conn: sqlite3.Connection, dataset: GazetteerData):
 
         cursor = conn.cursor()
 
-        cursor.execute(
-            """
-        CREATE TABLE IF NOT EXISTS allCountries (
-            geonameid INTEGER PRIMARY KEY,
-            name TEXT,
-            asciiname TEXT,
-            alternatenames TEXT,
-            latitude REAL,
-            longitude REAL,
-            feature_class TEXT,
-            feature_code TEXT,
-            country_code TEXT,
-            cc2 TEXT,
-            admin1_code TEXT,
-            admin2_code TEXT,
-            admin3_code TEXT,
-            admin4_code TEXT,
-            population INTEGER,
-            elevation INTEGER,
-            dem INTEGER,
-            timezone TEXT,
-            modification_date TEXT
-        )"""
+        columns = ", ".join(
+            [
+                f"{col.name} {col.type}{' PRIMARY KEY' if col.primary else ''}"
+                for col in dataset.columns
+            ]
         )
+        cursor.execute(f"CREATE TABLE IF NOT EXISTS {dataset.name} ({columns})")
 
-        cursor.execute(
-            """
-        CREATE VIRTUAL TABLE IF NOT EXISTS allCountries_fts USING fts5(
-            name,
-            content='allCountries',
-            content_rowid='geonameid',
-            tokenize="unicode61 tokenchars '.'"
-        )"""
-        )
-
-        cursor.execute(
-            """
-        CREATE TABLE IF NOT EXISTS alternateNames (
-            alternateNameId INTEGER PRIMARY KEY,
-            geonameid INTEGER,
-            isolanguage TEXT,
-            alternate_name TEXT,
-            isPreferredName BOOLEAN,
-            isShortName BOOLEAN,
-            isColloquial BOOLEAN,
-            isHistoric BOOLEAN,
-            fromPeriod TEXT,
-            toPeriod TEXT
-        )"""
-        )
-
-        cursor.execute(
-            """
-        CREATE VIRTUAL TABLE IF NOT EXISTS alternateNames_fts USING fts5(
-            alternate_name,
-            content='alternateNames',
-            content_rowid='alternateNameId',
-            tokenize="unicode61 tokenchars '.'"
-        )"""
-        )
-
-        cursor.execute(
-            """
-        CREATE TABLE IF NOT EXISTS admin1CodesASCII (
-            admin1_full_code TEXT PRIMARY KEY,
-            admin1_name TEXT,
-            admin1_asciiname TEXT,
-            admin1_geonameid INTEGER
-        )"""
-        )
-
-        cursor.execute(
-            """
-        CREATE TABLE IF NOT EXISTS admin2Codes (
-            admin2_full_code TEXT PRIMARY KEY,
-            admin2_name TEXT,
-            admin2_asciiname TEXT,
-            admin2_geonameid INTEGER
-        )"""
-        )
-
-        cursor.execute(
-            """
-        CREATE TABLE IF NOT EXISTS countryInfo (
-            ISO TEXT PRIMARY KEY,
-            ISO3 TEXT,
-            ISO_Numeric INTEGER,
-            fips TEXT,
-            country_name TEXT,
-            capital TEXT,
-            area REAL,
-            country_population INTEGER,
-            continent TEXT,
-            tld TEXT,
-            currencyCode TEXT,
-            currencyName TEXT,
-            Phone TEXT,
-            postalCodeFormat TEXT,
-            postalCodeRegex TEXT,
-            languages TEXT,
-            country_geonameid INTEGER,
-            neighbours TEXT,
-            equivalentFipsCode TEXT
-        )"""
-        )
-
-        cursor.execute(
-            """
-        CREATE TABLE IF NOT EXISTS featureCodes (
-            feature_full_code TEXT PRIMARY KEY,
-            feature_name TEXT,
-            feature_description TEXT
-        )"""
-        )
+        for virtual_table in dataset.virtual_tables:
+            args = ", ".join(virtual_table.args)
+            kwargs = ", ".join(
+                [f'{key}="{value}"' for key, value in virtual_table.kwargs.items()]
+            )
+            cursor.execute(
+                f"CREATE VIRTUAL TABLE IF NOT EXISTS {virtual_table.name} USING {virtual_table.using}({args}, {kwargs})"
+            )
 
         conn.commit()
 
-    def populate_tables(self, conn: sqlite3.Connection):
+    def populate_tables(self, conn: sqlite3.Connection, dataset: GazetteerData):
 
         cursor = conn.cursor()
-
         self.load_file_into_table(
             conn,
-            os.path.join(self.data_dir, "allCountries.txt"),
-            "allCountries",
-            [
-                "geonameid",
-                "name",
-                "asciiname",
-                "alternatenames",
-                "latitude",
-                "longitude",
-                "feature_class",
-                "feature_code",
-                "country_code",
-                "cc2",
-                "admin1_code",
-                "admin2_code",
-                "admin3_code",
-                "admin4_code",
-                "population",
-                "elevation",
-                "dem",
-                "timezone",
-                "modification_date",
-            ],
+            os.path.join(self.data_dir, f"{dataset.name}.txt"),
+            dataset.name,
+            [col.name for col in dataset.columns],
+            skiprows=dataset.skiprows,
         )
 
-        self.load_file_into_table(
-            conn,
-            os.path.join(self.data_dir, "alternateNames.txt"),
-            "alternateNames",
-            [
-                "alternateNameId",
-                "geonameid",
-                "isolanguage",
-                "alternate_name",
-                "isPreferredName",
-                "isShortName",
-                "isColloquial",
-                "isHistoric",
-                "fromPeriod",
-                "toPeriod",
-            ],
-        )
-
-        self.load_file_into_table(
-            conn,
-            os.path.join(self.data_dir, "admin1CodesASCII.txt"),
-            "admin1CodesASCII",
-            ["admin1_full_code", "admin1_name", "admin1_asciiname", "admin1_geonameid"],
-        )
-
-        self.load_file_into_table(
-            conn,
-            os.path.join(self.data_dir, "admin2Codes.txt"),
-            "admin2Codes",
-            ["admin2_full_code", "admin2_name", "admin2_asciiname", "admin2_geonameid"],
-        )
-
-        self.load_file_into_table(
-            conn,
-            os.path.join(self.data_dir, "countryInfo.txt"),
-            "countryInfo",
-            [
-                "ISO",
-                "ISO3",
-                "ISO_Numeric",
-                "fips",
-                "country_name",
-                "capital",
-                "area",
-                "country_population",
-                "continent",
-                "tld",
-                "currencyCode",
-                "currencyName",
-                "Phone",
-                "postalCodeFormat",
-                "postalCodeRegex",
-                "languages",
-                "country_geonameid",
-                "neighbours",
-                "equivalentFipsCode",
-            ],
-            skiprows=50,
-        )
-
-        self.load_file_into_table(
-            conn,
-            os.path.join(self.data_dir, "featureCodes_en.txt"),
-            "featureCodes",
-            ["feature_full_code", "feature_name", "feature_description"],
-        )
-
-        cursor.execute(
-            """
-        INSERT INTO allCountries_fts (rowid, name)
-        SELECT geonameid, name FROM allCountries
-        """
-        )
-
-        cursor.execute(
-            """
-        INSERT INTO alternateNames_fts (rowid, alternate_name)
-        SELECT alternateNameId, alternate_name FROM alternateNames
-        """
-        )
+        for virtual_table in dataset.virtual_tables:
+            cursor.execute(
+                f"INSERT INTO {virtual_table.name} (rowid, {virtual_table.args[0]}) SELECT {virtual_table.kwargs['content_rowid']}, {virtual_table.args[0]} FROM {dataset.name}"
+            )
 
         conn.commit()
 

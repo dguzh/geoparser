@@ -150,6 +150,7 @@
       type: TEXT
     - name: equivalentFipsCode
       type: TEXT
+    skiprows: 50
   - name: featureCodes_en
     url: https://download.geonames.org/export/dump/featureCodes_en.txt
     columns:

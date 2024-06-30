@@ -21,6 +21,7 @@ class GazetteerData(BaseModel):
     url: str
     columns: list[Column]
     virtual_tables: list[VirtualTable] = []
+    skiprows: t.Optional[int] = None
 
 
 class GazetteerConfig(BaseModel):
