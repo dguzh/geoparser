@@ -1,103 +1,162 @@
-geonames:
+- name: geonames
   data:
-    allCountries:
-      url: https://download.geonames.org/export/dump/allCountries.zip
-      columns:
-        geonameid: INTEGER
-        name: TEXT
-        asciiname: TEXT
-        alternatenames: TEXT
-        latitude: REAL
-        longitude: REAL
-        feature_class: TEXT
-        feature_code: TEXT
-        country_code: TEXT
-        cc2: TEXT
-        admin1_code: TEXT
-        admin2_code: TEXT
-        admin3_code: TEXT
-        admin4_code: TEXT
-        population: INTEGER
-        elevation: INTEGER
-        dem: INTEGER
-        timezone: TEXT
-        modification_date: TEXT
-      primary_key: geonameid
-      virtual_tables:
-        allCountries_fts:
-          using: fts5
-          args:
-            name: name
-          kwargs:
-            content: allCountries
-            content_rowid: geonameid
-            tokenize: "unicode61 tokenchars '.'"
-    alternateNames:
-      url: https://download.geonames.org/export/dump/alternateNames.zip
-      columns:
-        alternateNameId: INTEGER
-        geonameid: INTEGER
-        isolanguage: TEXT
-        alternate_name: TEXT
-        isPreferredName: BOOLEAN
-        isShortName: BOOLEAN
-        isColloquial: BOOLEAN
-        isHistoric: BOOLEAN
-        fromPeriod: TEXT
-        toPeriod: TEXT
-      primary_key: alternateNameId
-      virtual_tables:
-        alternateNames_fts:
-          using: fts5
-          args:
-            alternate_name: alternate_name
-          kwargs:
-            content: alternateNames
-            content_rowid: alternateNameId
-            tokenize: "unicode61 tokenchars '.'"
-    admin1CodesASCII:
-      url: https://download.geonames.org/export/dump/admin1CodesASCII.txt
-      columns:
-        admin1_full_code: TEXT
-        admin1_name: TEXT
-        admin1_asciiname: TEXT
-        admin1_geonameid: INTEGER
-      primary_key: admin1_full_code
-    admin2Codes:
-      url: https://download.geonames.org/export/dump/admin2Codes.txt
-      columns:
-        admin2_full_code: TEXT
-        admin2_name: TEXT
-        admin2_asciiname: TEXT
-        admin2_geonameid: INTEGER
-      primary_key: admin2_full_code
-    countryInfo:
-      url: https://download.geonames.org/export/dump/countryInfo.txt
-      columns:
-        ISO: TEXT
-        ISO3: TEXT
-        ISO_Numeric: INTEGER
-        fips: TEXT
-        country_name: TEXT
-        capital: TEXT
-        area: REAL
-        country_population: INTEGER
-        continent: TEXT
-        tld: TEXT
-        currencyCode: TEXT
-        currencyName: TEXT
-        Phone: TEXT
-        postalCodeFormat: TEXT
-        postalCodeRegex: TEXT
-        languages: TEXT
-        country_geonameid: INTEGER
-        neighbours: TEXT
-        equivalentFipsCode: TEXT
-      primary_key: ISO
-    featureCodes_en:
-      url: https://download.geonames.org/export/dump/featureCodes_en.txt
-      columns:
-        feature_full_code: TEXT
-        feature_name: TEXT
-        feature_description: TEXT
-      primary_key: feature_full_code
+  - name: allCountries
+    url: https://download.geonames.org/export/dump/allCountries.zip
+    columns:
+    - name: geonameid
+      type: INTEGER
+      primary: true
+    - name: name
+      type: TEXT
+    - name: asciiname
+      type: TEXT
+    - name: alternatenames
+      type: TEXT
+    - name: latitude
+      type: REAL
+    - name: longitude
+      type: REAL
+    - name: feature_class
+      type: TEXT
+    - name: feature_code
+      type: TEXT
+    - name: country_code
+      type: TEXT
+    - name: cc2
+      type: TEXT
+    - name: admin1_code
+      type: TEXT
+    - name: admin2_code
+      type: TEXT
+    - name: admin3_code
+      type: TEXT
+    - name: admin4_code
+      type: TEXT
+    - name: population
+      type: INTEGER
+    - name: elevation
+      type: INTEGER
+    - name: dem
+      type: INTEGER
+    - name: timezone
+      type: TEXT
+    - name: modification_date
+      type: TEXT
+    virtual_tables:
+    - name: allCountries_fts
+      using: fts5
+      args:
+      - name
+      kwargs:
+        content: allCountries
+        content_rowid: geonameid
+        tokenize: "unicode61 tokenchars '.'"
+  - name: alternateNames
+    url: https://download.geonames.org/export/dump/alternateNames.zip
+    columns:
+    - name: alternateNameId
+      type: INTEGER
+      primary: true
+    - name: geonameid
+      type: INTEGER
+    - name: isolanguage
+      type: TEXT
+    - name: alternate_name
+      type: TEXT
+    - name: isPreferredName
+      type: BOOLEAN
+    - name: isShortName
+      type: BOOLEAN
+    - name: isColloquial
+      type: BOOLEAN
+    - name: isHistoric
+      type: BOOLEAN
+    - name: fromPeriod
+      type: TEXT
+    - name: toPeriod
+      type: TEXT
+    virtual_tables:
+    - name: alternateNames_fts
+      using: fts5
+      args:
+      - alternate_name
+      kwargs:
+        content: alternateNames
+        content_rowid: alternateNameId
+        tokenize: "unicode61 tokenchars '.'"
+  - name: admin1CodesASCII
+    url: https://download.geonames.org/export/dump/admin1CodesASCII.txt
+    columns:
+    - name: admin1_full_code
+      type: TEXT
+      primary: true
+    - name: admin1_name
+      type: TEXT
+    - name: admin1_asciiname
+      type: TEXT
+    - name: admin1_geonameid
+      type: INTEGER
+  - name: admin2Codes
+    url: https://download.geonames.org/export/dump/admin2Codes.txt
+    columns:
+    - name: admin2_full_code
+      type: TEXT
+      primary: true
+    - name: admin2_name
+      type: TEXT
+    - name: admin2_asciiname
+      type: TEXT
+    - name: admin2_geonameid
+      type: INTEGER
+  - name: countryInfo
+    url: https://download.geonames.org/export/dump/countryInfo.txt
+    columns:
+    - name: ISO
+      type: TEXT
+      primary: true
+    - name: ISO3
+      type: TEXT
+    - name: ISO_Numeric
+      type: INTEGER
+    - name: fips
+      type: TEXT
+    - name: country_name
+      type: TEXT
+    - name: capital
+      type: TEXT
+    - name: area
+      type: REAL
+    - name: country_population
+      type: INTEGER
+    - name: continent
+      type: TEXT
+    - name: tld
+      type: TEXT
+    - name: currencyCode
+      type: TEXT
+    - name: currencyName
+      type: TEXT
+    - name: Phone
+      type: TEXT
+    - name: postalCodeFormat
+      type: TEXT
+    - name: postalCodeRegex
+      type: TEXT
+    - name: languages
+      type: TEXT
+    - name: country_geonameid
+      type: INTEGER
+    - name: neighbours
+      type: TEXT
+    - name: equivalentFipsCode
+      type: TEXT
+  - name: featureCodes_en
+    url: https://download.geonames.org/export/dump/featureCodes_en.txt
+    columns:
+    - name: feature_full_code
+      type: TEXT
+      primary: true
+    - name: feature_name
+      type: TEXT
+    - name: feature_description
+      type: TEXT
