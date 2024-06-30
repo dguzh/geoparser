@@ -12,21 +12,9 @@ pip install geoparser
 
 ### Dependencies
 
-Geoparser depends on the following Python libraries:
+Geoparser depends on the following Python libraries: See the [`pyproject.toml`](./pyproject.toml) for details.
 
-- **[accelerate](https://github.com/huggingface/accelerate)**
-- **[appdirs](https://github.com/ActiveState/appdirs)**
-- **[datasets](https://github.com/huggingface/datasets)**
-- **[haversine](https://github.com/mapado/haversine)**
-- **[numpy](https://numpy.org/)**
-- **[pandas](https://pandas.pydata.org/)**
-- **[requests](https://requests.readthedocs.io/en/latest/)**
-- **[sentence_transformers](https://www.sbert.net/)**
-- **[spacy](https://spacy.io/)**
-- **[torch](https://pytorch.org/)**
-- **[tqdm](https://tqdm.github.io/)**
-
-These dependencies are automatically installed when building Geoparser with pip.
+These dependencies are automatically installed when building Geoparser with pip or when installing locally with `poetry install`.
 
 **GPU support:** The performance of Geoparser benefits greatly from GPU processing. If you have a CUDA enabled GPU available, you can use it for toponym recognition with spaCy's transformer models as well as for toponym resolution using the SentenceTransformers models. To do so, install [PyTorch with CUDA support](https://pytorch.org/get-started/locally/) as well as the [GPU enabled version of spaCy](https://spacy.io/usage#gpu). 
 
