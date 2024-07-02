@@ -2,6 +2,7 @@
   data:
   - name: allCountries
     url: https://download.geonames.org/export/dump/allCountries.zip
+    extracted_file: allCountries.txt
     columns:
     - name: geonameid
       type: INTEGER
@@ -53,6 +54,7 @@
         tokenize: "unicode61 tokenchars '.'"
   - name: alternateNames
     url: https://download.geonames.org/export/dump/alternateNames.zip
+    extracted_file: alternateNames.txt
     columns:
     - name: alternateNameId
       type: INTEGER
@@ -86,6 +88,7 @@
         tokenize: "unicode61 tokenchars '.'"
   - name: admin1CodesASCII
     url: https://download.geonames.org/export/dump/admin1CodesASCII.txt
+    extracted_file: admin1CodesASCII.txt
     columns:
     - name: admin1_full_code
       type: TEXT
@@ -98,6 +101,7 @@
       type: INTEGER
   - name: admin2Codes
     url: https://download.geonames.org/export/dump/admin2Codes.txt
+    extracted_file: admin2Codes.txt
     columns:
     - name: admin2_full_code
       type: TEXT
@@ -110,6 +114,7 @@
       type: INTEGER
   - name: countryInfo
     url: https://download.geonames.org/export/dump/countryInfo.txt
+    extracted_file: countryInfo.txt
     columns:
     - name: ISO
       type: TEXT
@@ -153,6 +158,7 @@
     skiprows: 50
   - name: featureCodes
     url: https://download.geonames.org/export/dump/featureCodes_en.txt
+    extracted_file: featureCodes_en.txt
     columns:
     - name: feature_full_code
       type: TEXT

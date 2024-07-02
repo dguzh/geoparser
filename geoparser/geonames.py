@@ -111,7 +111,7 @@ class GeoNames(Gazetteer):
         cursor = conn.cursor()
         self.load_file_into_table(
             conn,
-            os.path.join(self.data_dir, f"{dataset.name}.txt"),
+            os.path.join(self.data_dir, dataset.extracted_file),
             dataset.name,
             [col.name for col in dataset.columns],
             skiprows=dataset.skiprows,

@@ -19,6 +19,7 @@ class VirtualTable(BaseModel):
 class GazetteerData(BaseModel):
     name: str
     url: str
+    extracted_file: str
     columns: list[Column]
     virtual_tables: list[VirtualTable] = []
     skiprows: t.Optional[int] = None
