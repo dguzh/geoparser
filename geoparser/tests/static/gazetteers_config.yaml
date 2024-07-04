@@ -1,0 +1,26 @@
+- name: test_gazetteer
+  data:
+  - name: full
+    url: https://test.test.org/path/to/file.zip
+    extracted_file: file.txt
+    skiprows: 50
+    columns:
+    - name: col1
+      type: INTEGER
+      primary: true
+    - name: col2
+      type: TEXT
+    virtual_tables:
+    - name: virtual1
+      using: anything
+      args:
+      - name
+      kwargs:
+        kwarg1: kwarg1
+        kwarg2: kwarg2
+  - name: minimal
+    url: https://test.test.org/path/to/file.zip
+    extracted_file: file.txt
+    columns:
+    - name: col1
+      type: INTEGER
