@@ -1,9 +1,10 @@
+import re
+
 import numpy as np
 from datasets import Dataset
 from haversine import haversine
 from sentence_transformers import SentenceTransformerTrainer, losses
 from sentence_transformers.training_args import SentenceTransformerTrainingArguments
-from spacy.matcher import PhraseMatcher
 from tqdm.auto import tqdm
 
 from geoparser.constants import MAX_ERROR
@@ -18,6 +19,50 @@ class GeoparserTrainer(Geoparser):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
+    def find_toponym(self, toponym: str, doc: GeoDoc, start_char: int, end_char: int):
+        matches = [
+            (m.start(), m.end())
+            for m in re.finditer(re.escape(toponym), doc.text, flags=re.IGNORECASE)
+        ]
+
+        best_match_chars = (0, 0)
+        best_match_dist = float("inf")
+
+        for match_start_char, match_end_char in matches:
+
+            match_dist = abs(match_start_char - start_char) + abs(
+                match_end_char - end_char
+            )
+            if match_dist < best_match_dist:
+
+                best_match_chars = (match_start_char, match_end_char)
+                best_match_dist = match_dist
+
+        return best_match_chars
+
+    def retokenize_toponym(self, doc: GeoDoc, start_char: int, end_char: int):
+        with doc.retokenize() as retokenizer:
+
+            expanded_span = doc.char_span(start_char, end_char, alignment_mode="expand")
+
+            if expanded_span:
+
+                for token in expanded_span:
+
+                    split_positions = [start_char - token.idx, end_char - token.idx]
+
+                    sub_tokens = [
+                        token.text[: split_positions[0]],
+                        token.text[split_positions[0] : split_positions[1]],
+                        token.text[split_positions[1] :],
+                    ]
+
+                    sub_tokens = [sub_token for sub_token in sub_tokens if sub_token]
+
+                    heads = [(token, 0) for sub_token in sub_tokens]
+
+                    retokenizer.split(token, sub_tokens, heads=heads)
+
     def annotate(
         self,
         corpus: list[tuple[str, list[tuple[str, int, int, int]]]],
@@ -25,46 +70,27 @@ class GeoparserTrainer(Geoparser):
     ):
         docs = []
 
-        matcher = PhraseMatcher(self.nlp.vocab)
-
         for text, annotations in tqdm(corpus):
             doc = self.nlp(text)
             processed_annotations = []
 
-            for toponym, start_char, end_char, loc_id in annotations:
+            for toponym, start_char, end_char, loc_id in sorted(
+                annotations, key=lambda x: x[1]
+            ):
 
-                if toponym == text[start_char:end_char]:
+                if toponym != text[start_char:end_char]:
+
+                    start_char, end_char = self.find_toponym(
+                        toponym, doc, start_char, end_char
+                    )
+
+                span = doc.char_span(start_char, end_char)
+
+                if not span and toponym in doc.text:
+
+                    self.retokenize_toponym(doc, start_char, end_char)
 
                     span = doc.char_span(start_char, end_char)
-
-                else:
-
-                    matcher.add("TOPONYM", [self.nlp(toponym)])
-
-                    matches = matcher(doc)
-
-                    if matches:
-
-                        best_match = None
-                        best_match_dist = float("inf")
-
-                        for match_id, start_idx, end_idx in matches:
-                            match_span = doc[start_idx:end_idx]
-                            match_dist = abs(match_span.start_char - start_char) + abs(
-                                match_span.end_char - end_char
-                            )
-
-                            if match_dist < best_match_dist:
-                                best_match = match_span
-                                best_match_dist = match_dist
-
-                        span = best_match
-
-                    else:
-
-                        span = None
-
-                    matcher.remove("TOPONYM")
 
                 if span:
 

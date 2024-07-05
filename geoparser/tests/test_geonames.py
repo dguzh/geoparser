@@ -44,10 +44,7 @@ def test_clean_dir(geonames: GeoNames, keep_db: bool):
     "url, filename",
     [
         ("https://my.url.org/path/to/a.txt", "a.txt"),
-        (
-            "https://my.url.org/path/to/a.zip",
-            "b.zip",
-        ),
+        ("https://my.url.org/path/to/b.zip", "b.zip"),
     ],
 )
 def test_download_file(
