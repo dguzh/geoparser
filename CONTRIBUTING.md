@@ -42,6 +42,16 @@ These resources can provide a good start:
 
 - [Official isort documentation](https://pycqa.github.io/isort/index.html)
 
+### Tests
+
+This project uses `pytest` for unit testing. You can run the tests as follows:
+
+```bash
+poetry run pytest
+```
+
+Before submitting a pull request, make sure all tests pass or that they have been updated for any API changes. When introducing new functionality, make sure to also add tests so that is covered from the beginning.
+
 ## Licensing
 
 See the [LICENSE](./LICENSE) file for the project's licensing.
