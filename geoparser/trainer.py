@@ -191,7 +191,9 @@ class GeoparserTrainer(Geoparser):
                 if correct_location:
 
                     candidate_ids = toponym.candidates
-                    candidate_locations = self.gazetteer.query_location_info(candidate_ids)
+                    candidate_locations = self.gazetteer.query_location_info(
+                        candidate_ids
+                    )
 
                     for candidate_location in candidate_locations:
                         description = self.gazetteer.get_location_description(
