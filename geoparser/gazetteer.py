@@ -13,7 +13,7 @@ from appdirs import user_data_dir
 from tqdm.auto import tqdm
 
 from geoparser.config import get_gazetteer_configs
-from geoparser.config.models import GazetteerData
+from geoparser.config.models import GazetteerData, VirtualTable
 
 
 class Gazetteer(ABC):
@@ -125,7 +125,9 @@ class LocalDBGazetteer(Gazetteer):
         os.makedirs(self.data_dir, exist_ok=True)
         self.download_file(url)
 
-    def download_file(self, url: str):
+    def download_file(
+        self, url: str, extract_zips: bool = True, remove_zip: bool = True
+    ):
         filename = url.split("/")[-1]
         file_path = os.path.join(self.data_dir, filename)
         response = requests.get(url, stream=True)
@@ -140,9 +142,13 @@ class LocalDBGazetteer(Gazetteer):
             for chunk in response.iter_content(chunk_size=1024):
                 size = f.write(chunk)
                 bar.update(size)
-        if file_path.endswith(".zip"):
-            with zipfile.ZipFile(file_path, "r") as zip_ref:
-                zip_ref.extractall(self.data_dir)
+        if extract_zips and file_path.endswith(".zip"):
+            self.extract_zip(file_path, remove=remove_zip)
+
+    def extract_zip(self, file_path: str, remove: bool = True):
+        with zipfile.ZipFile(file_path, "r") as zip_ref:
+            zip_ref.extractall(self.data_dir)
+        if remove:
             os.remove(file_path)
 
     def load_data(self, dataset: GazetteerData):
@@ -155,9 +161,12 @@ class LocalDBGazetteer(Gazetteer):
         conn.close()
 
     def create_tables(self, conn: sqlite3.Connection, dataset: GazetteerData):
+        self._create_table(conn, dataset)
+        for virtual_table in dataset.virtual_tables:
+            self._create_virtual_table(conn, virtual_table)
 
+    def _create_table(self, conn: sqlite3.Connection, dataset: GazetteerData):
         cursor = conn.cursor()
-
         columns = ", ".join(
             [
                 f"{col.name} {col.type}{' PRIMARY KEY' if col.primary else ''}"
@@ -165,21 +174,22 @@ class LocalDBGazetteer(Gazetteer):
             ]
         )
         cursor.execute(f"CREATE TABLE IF NOT EXISTS {dataset.name} ({columns})")
+        conn.commit()
 
-        for virtual_table in dataset.virtual_tables:
-            args = ", ".join(virtual_table.args)
-            kwargs = ", ".join(
-                [f'{key}="{value}"' for key, value in virtual_table.kwargs.items()]
-            )
-            cursor.execute(
-                f"CREATE VIRTUAL TABLE IF NOT EXISTS {virtual_table.name} USING {virtual_table.using}({args}, {kwargs})"
-            )
-
+    def _create_virtual_table(
+        self, conn: sqlite3.Connection, virtual_table: VirtualTable
+    ):
+        cursor = conn.cursor()
+        args = ", ".join(virtual_table.args)
+        kwargs = ", ".join(
+            [f'{key}="{value}"' for key, value in virtual_table.kwargs.items()]
+        )
+        cursor.execute(
+            f"CREATE VIRTUAL TABLE IF NOT EXISTS {virtual_table.name} USING {virtual_table.using}({args}, {kwargs})"
+        )
         conn.commit()
 
     def populate_tables(self, conn: sqlite3.Connection, dataset: GazetteerData):
-
-        cursor = conn.cursor()
         self.load_file_into_table(
             conn,
             os.path.join(self.data_dir, dataset.extracted_file),
@@ -187,13 +197,19 @@ class LocalDBGazetteer(Gazetteer):
             [col.name for col in dataset.columns],
             skiprows=dataset.skiprows,
         )
-
-        for virtual_table in dataset.virtual_tables:
-            cursor.execute(
-                f"INSERT INTO {virtual_table.name} (rowid, {virtual_table.args[0]}) SELECT {virtual_table.kwargs['content_rowid']}, {virtual_table.args[0]} FROM {dataset.name}"
-            )
-
         conn.commit()
+        for virtual_table in dataset.virtual_tables:
+            self.populate_virtual_table(conn, virtual_table, virtual_table)
+
+    @abstractmethod
+    def read_file(
+        self,
+        file_path: str,
+        columns: list[str] = None,
+        skiprows: t.Union[int, list[int], t.Callable] = None,
+        chunksize: int = 100000,
+    ) -> list[pd.DataFrame]:
+        pass
 
     def load_file_into_table(
         self,
@@ -204,23 +220,22 @@ class LocalDBGazetteer(Gazetteer):
         skiprows: t.Union[int, list[int], t.Callable] = None,
         chunksize: int = 100000,
     ):
-
-        chunks = pd.read_csv(
-            file_path,
-            delimiter="\t",
-            header=None,
-            names=columns,
-            chunksize=chunksize,
-            dtype=str,
-            skiprows=skiprows,
-        )
-
+        chunks = self.read_file(file_path, columns, skiprows, chunksize)
         for chunk in tqdm(
             chunks,
             desc=f"Loading {table_name}",
             total=math.ceil(sum(1 for row in open(file_path, "rb")) / chunksize),
         ):
             chunk.to_sql(table_name, conn, if_exists="append", index=False)
+
+    def populate_virtual_table(
+        self, conn: sqlite3.Connection, virtual_table: VirtualTable, table_name: str
+    ):
+        cursor = conn.cursor()
+        cursor.execute(
+            f"INSERT INTO {virtual_table.name} (rowid, {virtual_table.args[0]}) SELECT {virtual_table.kwargs['content_rowid']}, {virtual_table.args[0]} FROM {table_name}"
+        )
+        conn.commit()
 
     def execute_query(self, query: str, params: tuple[str, ...] = None) -> list:
         with sqlite3.connect(self.db_path) as conn:

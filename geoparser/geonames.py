@@ -1,4 +1,7 @@
 import re
+import typing as t
+
+import pandas as pd
 
 from geoparser.gazetteer import LocalDBGazetteer
 
@@ -7,6 +10,33 @@ class GeoNames(LocalDBGazetteer):
     def __init__(self):
         super().__init__("geonames")
         self.location_description_template = "<name> (<feature_name>) COND[in, any{<admin2_name>, <admin1_name>, <country_name>}] <admin2_name>, <admin1_name>, <country_name>"
+
+    def read_file(
+        self,
+        file_path: str,
+        columns: list[str] = None,
+        skiprows: t.Union[int, list[int], t.Callable] = None,
+        chunksize: int = 100000,
+    ) -> list[pd.DataFrame]:
+        return self.read_tsv(file_path, columns, skiprows, chunksize)
+
+    def read_tsv(
+        self,
+        file_path: str,
+        columns: list[str] = None,
+        skiprows: t.Union[int, list[int], t.Callable] = None,
+        chunksize: int = 100000,
+    ) -> list[pd.DataFrame]:
+        chunks = pd.read_csv(
+            file_path,
+            delimiter="\t",
+            header=None,
+            names=columns,
+            chunksize=chunksize,
+            dtype=str,
+            skiprows=skiprows,
+        )
+        return chunks
 
     def query_candidates(
         self,
