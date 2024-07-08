@@ -188,17 +188,19 @@ class GeoparserTrainer(Geoparser):
                 correct_id = toponym._.gold_loc_id
                 correct_location = self.gazetteer.query_location_info(correct_id)[0]
 
-                candidate_ids = toponym.candidates
-                candidate_locations = self.gazetteer.query_location_info(candidate_ids)
+                if correct_location:
 
-                for candidate_location in candidate_locations:
-                    description = self.gazetteer.get_location_description(
-                        candidate_location
-                    )
-                    label = 1 if candidate_location == correct_location else 0
-                    toponym_texts.append(context)
-                    candidate_texts.append(description)
-                    labels.append(label)
+                    candidate_ids = toponym.candidates
+                    candidate_locations = self.gazetteer.query_location_info(candidate_ids)
+
+                    for candidate_location in candidate_locations:
+                        description = self.gazetteer.get_location_description(
+                            candidate_location
+                        )
+                        label = 1 if candidate_location == correct_location else 0
+                        toponym_texts.append(context)
+                        candidate_texts.append(description)
+                        labels.append(label)
 
         return Dataset.from_dict(
             {
