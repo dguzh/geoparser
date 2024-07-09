@@ -49,7 +49,7 @@ class GeoparserTrainer(Geoparser):
 
                 for token in expanded_span:
 
-                    split_positions = [start_char - token.idx, end_char - token.idx]
+                    split_positions = [max(start_char - token.idx, 0), min(end_char - token.idx, len(token.text))]
 
                     sub_tokens = [
                         token.text[: split_positions[0]],
