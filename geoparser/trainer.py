@@ -81,6 +81,8 @@ class GeoparserTrainer(Geoparser):
                 annotations, key=lambda x: x[1]
             ):
 
+                toponym = toponym.strip()
+
                 if toponym != text[start_char:end_char]:
 
                     start_char, end_char = self.find_toponym(
