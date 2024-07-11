@@ -32,7 +32,7 @@ class GeoSpan(Span):
         token_limit = self.doc.geoparser.transformer.get_max_seq_length()
 
         sentences = list(self.doc.sents)
-        total_tokens = len(tokenizer.tokenize(self.doc.text))
+        total_tokens = self.doc.transformer_token_count
 
         if total_tokens <= token_limit:
             return self.doc[:]
