@@ -199,7 +199,7 @@ class LocalDBGazetteer(Gazetteer):
         )
         conn.commit()
         for virtual_table in dataset.virtual_tables:
-            self.populate_virtual_table(conn, virtual_table, virtual_table)
+            self.populate_virtual_table(conn, virtual_table, dataset.name)
 
     @abstractmethod
     def read_file(
