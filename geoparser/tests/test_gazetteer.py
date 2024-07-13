@@ -9,7 +9,7 @@ from geoparser.tests.utils import make_concrete
 
 @pytest.fixture
 def gazetteer() -> Gazetteer:
-    gazetteer = make_concrete(Gazetteer)(db_name="")
+    gazetteer = make_concrete(Gazetteer)()
     return gazetteer
 
 

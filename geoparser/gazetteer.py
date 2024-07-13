@@ -17,9 +17,6 @@ from geoparser.config.models import GazetteerData, VirtualTable
 
 
 class Gazetteer(ABC):
-    def __init__(self, db_name: str):
-        self.data_dir = user_data_dir("geoparser", "")
-        self.db_path = os.path.join(self.data_dir, db_name + ".db")
 
     @abstractmethod
     def query_candidates(self):
@@ -88,9 +85,46 @@ class Gazetteer(ABC):
 
 
 class LocalDBGazetteer(Gazetteer):
+    data_dir = user_data_dir("geoparser", "")
+
     def __init__(self, db_name: str):
-        super().__init__(db_name)
+        super().__init__()
+        self.db_path = os.path.join(LocalDBGazetteer.data_dir, db_name + ".db")
         self.config = get_gazetteer_configs()[db_name]
+        self.conn = None
+
+    def connect(func):
+        def call(self, *args, **kwargs):
+            self._initiate_connection()
+            func(self, *args, **kwargs)
+
+        return call
+
+    def commit(func):
+        def call(self, *args, **kwargs):
+            func(self, *args, **kwargs)
+            self._commit()
+
+        return call
+
+    def close(func):
+        def call(self, *args, **kwargs):
+            func(self, *args, **kwargs)
+            self._close_connection()
+
+        return call
+
+    def _initiate_connection(self):
+        self.conn = sqlite3.connect(self.db_path)
+
+    def _close_connection(self):
+        self.conn.close()
+
+    def _commit(self):
+        self.conn.commit()
+
+    def _get_cursor(self) -> sqlite3.Cursor:
+        return self.conn.cursor()
 
     def setup_database(self):
         print("Database setup...")
@@ -153,20 +187,19 @@ class LocalDBGazetteer(Gazetteer):
 
     def load_data(self, dataset: GazetteerData):
 
-        conn = sqlite3.connect(self.db_path)
+        self.create_tables(dataset)
+        self.populate_tables(dataset)
 
-        self.create_tables(conn, dataset)
-        self.populate_tables(conn, dataset)
-
-        conn.close()
-
-    def create_tables(self, conn: sqlite3.Connection, dataset: GazetteerData):
-        self._create_table(conn, dataset)
+    def create_tables(self, dataset: GazetteerData):
+        self._create_table(dataset)
         for virtual_table in dataset.virtual_tables:
-            self._create_virtual_table(conn, virtual_table)
+            self._create_virtual_table(virtual_table)
 
-    def _create_table(self, conn: sqlite3.Connection, dataset: GazetteerData):
-        cursor = conn.cursor()
+    @close
+    @commit
+    @connect
+    def _create_table(self, dataset: GazetteerData):
+        cursor = self._get_cursor()
         columns = ", ".join(
             [
                 f"{col.name} {col.type}{' PRIMARY KEY' if col.primary else ''}"
@@ -174,12 +207,12 @@ class LocalDBGazetteer(Gazetteer):
             ]
         )
         cursor.execute(f"CREATE TABLE IF NOT EXISTS {dataset.name} ({columns})")
-        conn.commit()
 
-    def _create_virtual_table(
-        self, conn: sqlite3.Connection, virtual_table: VirtualTable
-    ):
-        cursor = conn.cursor()
+    @close
+    @commit
+    @connect
+    def _create_virtual_table(self, virtual_table: VirtualTable):
+        cursor = self._get_cursor()
         args = ", ".join(virtual_table.args)
         kwargs = ", ".join(
             [f'{key}="{value}"' for key, value in virtual_table.kwargs.items()]
@@ -187,19 +220,16 @@ class LocalDBGazetteer(Gazetteer):
         cursor.execute(
             f"CREATE VIRTUAL TABLE IF NOT EXISTS {virtual_table.name} USING {virtual_table.using}({args}, {kwargs})"
         )
-        conn.commit()
 
-    def populate_tables(self, conn: sqlite3.Connection, dataset: GazetteerData):
+    def populate_tables(self, dataset: GazetteerData):
         self.load_file_into_table(
-            conn,
             os.path.join(self.data_dir, dataset.extracted_file),
             dataset.name,
             [col.name for col in dataset.columns],
             skiprows=dataset.skiprows,
         )
-        conn.commit()
         for virtual_table in dataset.virtual_tables:
-            self.populate_virtual_table(conn, virtual_table, dataset.name)
+            self.populate_virtual_table(virtual_table, dataset.name)
 
     @abstractmethod
     def read_file(
@@ -211,9 +241,11 @@ class LocalDBGazetteer(Gazetteer):
     ) -> list[pd.DataFrame]:
         pass
 
+    @close
+    @commit
+    @connect
     def load_file_into_table(
         self,
-        conn: sqlite3.Connection,
         file_path: str,
         table_name: str,
         columns: list[str],
@@ -226,19 +258,20 @@ class LocalDBGazetteer(Gazetteer):
             desc=f"Loading {table_name}",
             total=math.ceil(sum(1 for row in open(file_path, "rb")) / chunksize),
         ):
-            chunk.to_sql(table_name, conn, if_exists="append", index=False)
+            chunk.to_sql(table_name, self.conn, if_exists="append", index=False)
 
-    def populate_virtual_table(
-        self, conn: sqlite3.Connection, virtual_table: VirtualTable, table_name: str
-    ):
-        cursor = conn.cursor()
+    @close
+    @commit
+    @connect
+    def populate_virtual_table(self, virtual_table: VirtualTable, table_name: str):
+        cursor = self._get_cursor()
         cursor.execute(
             f"INSERT INTO {virtual_table.name} (rowid, {virtual_table.args[0]}) SELECT {virtual_table.kwargs['content_rowid']}, {virtual_table.args[0]} FROM {table_name}"
         )
-        conn.commit()
 
+    @close
+    @connect
     def execute_query(self, query: str, params: tuple[str, ...] = None) -> list:
-        with sqlite3.connect(self.db_path) as conn:
-            cursor = conn.cursor()
-            cursor.execute(query, params or ())
-            return cursor.fetchall()
+        cursor = self._get_cursor()
+        cursor.execute(query, params or ())
+        return cursor.fetchall()
