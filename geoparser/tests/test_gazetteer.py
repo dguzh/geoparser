@@ -1,4 +1,5 @@
 import re
+import sqlite3
 import types
 import typing as t
 from pathlib import Path
@@ -26,6 +27,7 @@ def localdb_gazetteer(monkeypatch, tmpdir: py.path.LocalPath) -> LocalDBGazettee
     localdb_gazetteer = make_concrete(LocalDBGazetteer)(db_name="test_gazetteer")
     localdb_gazetteer.data_dir = str(tmpdir)
     localdb_gazetteer.db_path = str(tmpdir / Path(localdb_gazetteer.db_path).name)
+    localdb_gazetteer.clean_dir()
     return localdb_gazetteer
 
 
@@ -260,6 +262,58 @@ def test_substitute_conditionals(
     assert gazetteer.substitute_conditionals(location, template) == expected
 
 
+@pytest.mark.parametrize(
+    "template,location,expected",
+    [
+        (  # base case
+            "COND[in, any{<admin2_name>, <admin1_name>, <country_name>}]",
+            {"admin2_name": "Geneva"},
+            "in",
+        ),
+        (  # does not substitute anything else
+            "asdfCOND[in, any{<admin2_name>, <admin1_name>, <country_name>}]asdf",
+            {
+                "admin2_name": "Geneva",
+                "admin1_name": "Geneva",
+                "country_name": "Switzerland",
+            },
+            "asdfinasdf",
+        ),
+        (  # no conditional
+            "asdf",
+            {
+                "admin3_name": "Geneva",
+            },
+            "asdf",
+        ),
+        (  # empty string
+            "",
+            {
+                "admin3_name": "Geneva",
+            },
+            "",
+        ),
+        (  # empty location
+            "asdf",
+            {},
+            "asdf",
+        ),
+        (  # empty template
+            "",
+            {"admin2_name": "Geneva"},
+            "",
+        ),
+    ],
+)
+def test_format_location_description(
+    gazetteer: Gazetteer,
+    template: str,
+    location: dict[str, str],
+    expected: t.Optional[str],
+):
+    assert gazetteer.substitute_conditionals(location, template) == expected
+
+
 @pytest.mark.parametrize("keep_db", [True, False])
 def test_clean_dir(localdb_gazetteer: LocalDBGazetteer, keep_db: bool):
     # create db files and other file
@@ -306,3 +360,21 @@ def test_download_file(
     files = [content.name for content in dir_content]
     # a.txt downloaded as is, b.zip has been extracted
     assert files == [re.sub("zip", "txt", filename)]
+
+
+def test_initiate_connection(localdb_gazetteer: LocalDBGazetteer):
+    localdb_gazetteer._initiate_connection()
+    assert type(localdb_gazetteer.conn) == sqlite3.Connection
+
+
+def test_close_connection(localdb_gazetteer: LocalDBGazetteer):
+    localdb_gazetteer._initiate_connection()
+    localdb_gazetteer._close_connection()
+    # sqlite3.ProgrammingError is raised when committing on closed db
+    with pytest.raises(sqlite3.ProgrammingError):
+        localdb_gazetteer._commit()
+
+
+def test_get_cursor(localdb_gazetteer: LocalDBGazetteer):
+    localdb_gazetteer._initiate_connection()
+    assert type(localdb_gazetteer._get_cursor()) == sqlite3.Cursor
