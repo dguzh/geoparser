@@ -1,16 +1,32 @@
+import re
 import types
 import typing as t
+from pathlib import Path
 
+import py
 import pytest
+from requests_mock.mocker import Mocker
 
-from geoparser.gazetteer import Gazetteer
-from geoparser.tests.utils import make_concrete
+from geoparser.gazetteer import Gazetteer, LocalDBGazetteer
+from geoparser.tests.utils import get_static_test_file, make_concrete
 
 
 @pytest.fixture
 def gazetteer() -> Gazetteer:
     gazetteer = make_concrete(Gazetteer)()
     return gazetteer
+
+
+@pytest.fixture
+def localdb_gazetteer(monkeypatch, tmpdir: py.path.LocalPath) -> LocalDBGazetteer:
+    monkeypatch.setattr(
+        "geoparser.config.config.get_config_file",
+        lambda _: get_static_test_file("gazetteers_config_valid.yaml"),
+    )
+    localdb_gazetteer = make_concrete(LocalDBGazetteer)(db_name="test_gazetteer")
+    localdb_gazetteer.data_dir = str(tmpdir)
+    localdb_gazetteer.db_path = str(tmpdir / Path(localdb_gazetteer.db_path).name)
+    return localdb_gazetteer
 
 
 @pytest.mark.parametrize(
@@ -242,3 +258,51 @@ def test_substitute_conditionals(
     expected: t.Optional[str],
 ):
     assert gazetteer.substitute_conditionals(location, template) == expected
+
+
+@pytest.mark.parametrize("keep_db", [True, False])
+def test_clean_dir(localdb_gazetteer: LocalDBGazetteer, keep_db: bool):
+    # create db files and other file
+    with open(localdb_gazetteer.db_path, "wb"), open(
+        Path(localdb_gazetteer.db_path).parent / "other.txt", "w"
+    ), open(Path(localdb_gazetteer.db_path).parent / "geonames.db-journal", "w"):
+        pass
+    # create subdirectory
+    (Path(localdb_gazetteer.db_path).parent / "subdir").mkdir(
+        parents=True, exist_ok=True
+    )
+    # clean tmpdir
+    localdb_gazetteer.clean_dir(keep_db=keep_db)
+    dir_content = Path(localdb_gazetteer.db_path).parent.glob("**/*")
+    n_files = len([content for content in dir_content if content.is_file()])
+    n_dirs = len([content for content in dir_content if content.is_dir()])
+    # only keep db file
+    if keep_db:
+        assert n_files == 2
+    if not keep_db:
+        assert n_files == 0
+    # always delete subdirectories
+    assert n_dirs == 0
+
+
+@pytest.mark.parametrize(
+    "url, filename",
+    [
+        ("https://my.url.org/path/to/a.txt", "a.txt"),
+        ("https://my.url.org/path/to/b.zip", "b.zip"),
+    ],
+)
+def test_download_file(
+    localdb_gazetteer: LocalDBGazetteer,
+    url: str,
+    filename: str,
+    requests_mock: Mocker,
+):
+    print(type(requests_mock))
+    with open(get_static_test_file(filename), "rb") as file:
+        requests_mock.get(url, body=file)
+        localdb_gazetteer.download_file(url=url)
+    dir_content = Path(localdb_gazetteer.db_path).parent.glob("**/*")
+    files = [content.name for content in dir_content]
+    # a.txt downloaded as is, b.zip has been extracted
+    assert files == [re.sub("zip", "txt", filename)]
