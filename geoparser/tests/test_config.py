@@ -27,9 +27,13 @@ def test_get_gazetteer_configs_valid(monkeypatch):
                     virtual_tables=[
                         VirtualTable(
                             name="virtual1",
-                            using="anything",
-                            args=["name"],
-                            kwargs={"kwarg1": "kwarg1", "kwarg2": "kwarg2"},
+                            using="fts5",
+                            args=["col2"],
+                            kwargs={
+                                "content": "full",
+                                "content_rowid": "col1",
+                                "tokenize": "unicode61 tokenchars '.'",
+                            },
                         )
                     ],
                 ),

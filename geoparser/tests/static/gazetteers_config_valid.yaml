@@ -12,12 +12,13 @@
       type: TEXT
     virtual_tables:
     - name: virtual1
-      using: anything
+      using: fts5
       args:
-      - name
+      - col2
       kwargs:
-        kwarg1: kwarg1
-        kwarg2: kwarg2
+        content: full
+        content_rowid: col1
+        tokenize: "unicode61 tokenchars '.'"
   - name: minimal
     url: https://test.test.org/path/to/file.zip
     extracted_file: file.txt
