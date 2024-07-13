@@ -49,7 +49,10 @@ class GeoparserTrainer(Geoparser):
 
                 for token in expanded_span:
 
-                    split_positions = [start_char - token.idx, end_char - token.idx]
+                    split_positions = [
+                        max(start_char - token.idx, 0),
+                        min(end_char - token.idx, len(token.text)),
+                    ]
 
                     sub_tokens = [
                         token.text[: split_positions[0]],
@@ -77,6 +80,8 @@ class GeoparserTrainer(Geoparser):
             for toponym, start_char, end_char, loc_id in sorted(
                 annotations, key=lambda x: x[1]
             ):
+
+                toponym = toponym.strip()
 
                 if toponym != text[start_char:end_char]:
 
@@ -188,17 +193,21 @@ class GeoparserTrainer(Geoparser):
                 correct_id = toponym._.gold_loc_id
                 correct_location = self.gazetteer.query_location_info(correct_id)[0]
 
-                candidate_ids = toponym.candidates
-                candidate_locations = self.gazetteer.query_location_info(candidate_ids)
+                if correct_location:
 
-                for candidate_location in candidate_locations:
-                    description = self.gazetteer.get_location_description(
-                        candidate_location
+                    candidate_ids = toponym.candidates
+                    candidate_locations = self.gazetteer.query_location_info(
+                        candidate_ids
                     )
-                    label = 1 if candidate_location == correct_location else 0
-                    toponym_texts.append(context)
-                    candidate_texts.append(description)
-                    labels.append(label)
+
+                    for candidate_location in candidate_locations:
+                        description = self.gazetteer.get_location_description(
+                            candidate_location
+                        )
+                        label = 1 if candidate_location == correct_location else 0
+                        toponym_texts.append(context)
+                        candidate_texts.append(description)
+                        labels.append(label)
 
         return Dataset.from_dict(
             {
