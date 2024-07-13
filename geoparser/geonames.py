@@ -17,7 +17,7 @@ class GeoNames(LocalDBGazetteer):
         columns: list[str] = None,
         skiprows: t.Union[int, list[int], t.Callable] = None,
         chunksize: int = 100000,
-    ) -> list[pd.DataFrame]:
+    ) -> t.Iterator[pd.DataFrame]:
         return self.read_tsv(file_path, columns, skiprows, chunksize)
 
     def read_tsv(
@@ -26,7 +26,7 @@ class GeoNames(LocalDBGazetteer):
         columns: list[str] = None,
         skiprows: t.Union[int, list[int], t.Callable] = None,
         chunksize: int = 100000,
-    ) -> list[pd.DataFrame]:
+    ) -> t.Iterator[pd.DataFrame]:
         chunks = pd.read_csv(
             file_path,
             delimiter="\t",
@@ -36,7 +36,9 @@ class GeoNames(LocalDBGazetteer):
             dtype=str,
             skiprows=skiprows,
         )
-        return chunks
+        if not chunksize:
+            chunks = [chunks]
+        return (chunk for chunk in chunks)
 
     def query_candidates(
         self,

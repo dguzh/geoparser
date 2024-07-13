@@ -238,7 +238,7 @@ class LocalDBGazetteer(Gazetteer):
         columns: list[str] = None,
         skiprows: t.Union[int, list[int], t.Callable] = None,
         chunksize: int = 100000,
-    ) -> list[pd.DataFrame]:
+    ) -> t.Iterator[pd.DataFrame]:
         pass
 
     @close
