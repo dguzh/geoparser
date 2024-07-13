@@ -131,8 +131,9 @@ class LocalDBGazetteer(Gazetteer):
 
         self.clean_dir()
 
+        os.makedirs(self.data_dir, exist_ok=True)
         for dataset in self.config.data:
-            self.download_data(dataset.url)
+            self.download_file(dataset.url)
             self.load_data(dataset)
 
         self.clean_dir(keep_db=True)
@@ -154,10 +155,6 @@ class LocalDBGazetteer(Gazetteer):
                         os.rmdir(os.path.join(self.data_dir, file_name))
                     except PermissionError:
                         shutil.rmtree(os.path.join(self.data_dir, file_name))
-
-    def download_data(self, url: str):
-        os.makedirs(self.data_dir, exist_ok=True)
-        self.download_file(url)
 
     def download_file(
         self, url: str, extract_zips: bool = True, remove_zip: bool = True
