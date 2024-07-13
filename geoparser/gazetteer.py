@@ -96,21 +96,24 @@ class LocalDBGazetteer(Gazetteer):
     def connect(func):
         def call(self, *args, **kwargs):
             self._initiate_connection()
-            func(self, *args, **kwargs)
+            ret = func(self, *args, **kwargs)
+            return ret
 
         return call
 
     def commit(func):
         def call(self, *args, **kwargs):
-            func(self, *args, **kwargs)
+            ret = func(self, *args, **kwargs)
             self._commit()
+            return ret
 
         return call
 
     def close(func):
         def call(self, *args, **kwargs):
-            func(self, *args, **kwargs)
+            ret = func(self, *args, **kwargs)
             self._close_connection()
+            return ret
 
         return call
 
@@ -253,7 +256,7 @@ class LocalDBGazetteer(Gazetteer):
         for chunk in tqdm(
             chunks,
             desc=f"Loading {table_name}",
-            total=math.ceil(sum(1 for row in open(file_path, "rb")) / chunksize),
+            total=math.ceil(sum(1 for _ in open(file_path, "rb")) / chunksize),
         ):
             chunk.to_sql(table_name, self.conn, if_exists="append", index=False)
 
