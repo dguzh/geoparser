@@ -1,0 +1,1000 @@
+AE.01.101	Abu Dhabi Municipality	Abu Dhabi Municipality	12047239
+AE.01.102	Al Ain Municipality	Al Ain Municipality	12047240
+AE.01.103	Al Dhafra	Al Dhafra	12047241
+AE.04.701	Al Fujairah Municipality	Al Fujairah Municipality	12047242
+AE.04.702	Dibba Al Fujairah Municipality	Dibba Al Fujairah Municipality	12047243
+AE.06.302	Dhaid	Dhaid	12060391
+AE.02.401	Ajman	Ajman	12060392
+AE.06.304	Khor Fakkan	Khor Fakkan	12060393
+AE.06.307	Dibba Al Hesn	Dibba Al Hesn	12060394
+AE.06.305	Kalba	Kalba	12060395
+AE.05.601	Ras Al Khaimah	Ras Al Khaimah	12060396
+AE.07.501	Umm AL Quwain	Umm AL Quwain	12060397
+AE.06.309	Milehah	Milehah	12060398
+AE.06.306	Al Madam	Al Madam	12060399
+AE.06.301	Sharjah	Sharjah	12060400
+AE.06.303	Al Hamriyah	Al Hamriyah	12060401
+AE.02.402	Manama	Manama	12060402
+AE.02.403	Masfout	Masfout	12060403
+AE.06.308	Al Batayih	Al Batayih	12060404
+AE.03.201	Dubai	Dubai	12060405
+AF.01.1109	Shighnan District	Shighnan District	1125426
+AF.08.609	Gēlān	Gelan	1140918
+AF.01.1114	Arghanj Khwāh	Arghanj Khwah	7052641
+AF.01.1115	Argō	Argo	7052663
+AF.01.1108	Bahārak	Baharak	7052664
+AF.01.1116	Darāyim	Darayim	7052665
+AF.01.1117	Darwāz-e Bālā	Darwaz-e Bala	7052666
+AF.01.1110	Darwāz-e Pā’īn	Darwaz-e Pa'in	7052667
+AF.01.1101	Faīẕābād	Faizabad	7052668
+AF.01.1107	Ishkāshim	Ishkashim	7052669
+AF.01.1103	Jurm	Jurm	7052670
+AF.01.1118	Khāsh	Khash	7052672
+AF.01.1111	Khwāhān	Khwahan	7052674
+AF.01.1102	Kishim	Kishim	7052679
+AF.01.1119	Kōhistān	Kohistan	7052680
+AF.01.1120	Kūf Āb	Kuf Ab	7052682
+AF.01.1112	Rāghistān	Raghistan	7052684
+AF.01.1113	Shahr-e Buzurg	Shahr-e Buzurg	7052686
+AF.01.1121	Shikī	Shiki	7052689
+AF.01.1122	Shuhadā	Shuhada	7052690
+AF.01.1123	Tagāb	Tagab	7052691
+AF.01.1124	Tashkān	Tashkan	7052692
+AF.01.1106	Wākhān	Wakhan	7052694
+AF.01.1125	Wardūj	Warduj	7052696
+AF.01.1126	Yaftal-e Suflá	Yaftal-e Sufla	7052701
+AF.01.1127	Yamgān	Yamgan	7052735
+AF.01.1128	Yāwān	Yawan	7052736
+AF.01.1105	Zaybāk	Zaybak	7052737
+AF.02.1902	Āb-e Kamarī	Ab-e Kamari	7052785
+AF.02.1905	Ghōrmāch	Ghormach	7052787
+AF.02.1904	Jowand	Jowand	7052790
+AF.02.1907	Muqur	Muqur	7052792
+AF.02.1906	Murghāb	Murghab	7052794
+AF.02.1903	Qādis	Qadis	7052795
+AF.02.1901	Qal‘ah-ye Now	Qal'ah-ye Now	7052796
+AF.03.1307	Andarāb	Andarab	7052857
+AF.03.1311	Baghlān-e Jadīd	Baghlan-e Jadid	7052897
+AF.03.1310	Būrkah	Burkah	7052899
+AF.03.1303	Dahanah-ye Ghōrī	Dahanah-ye Ghori	7052900
+AF.03.1312	Deh-e Şalāḩ	Deh-e Salah	7052901
+AF.03.1304	Dōshī	Doshi	7052902
+AF.03.1313	Firing wa Ghārū	Firing wa Gharu	7052903
+AF.03.1314	Guz̄argāh-e Nūr	Guzargah-e Nur	7052904
+AF.03.1306	Khinjān	Khinjan	7052905
+AF.03.1308	Khōst wa Firing	Khost wa Firing	7052906
+AF.03.1315	Khwājah Hijrān	Khwajah Hijran	7052907
+AF.03.1309	Nahrīn	Nahrin	7052908
+AF.03.1302	Pul-e Ḩişār	Pul-e Hisar	7052909
+AF.03.1305	Tālah wa Barfak	Talah wa Barfak	7052910
+AF.05.2803	Kahmard	Kahmard	7052911
+AF.05.2805	Panjāb	Panjab	7052912
+AF.05.2807	Sayghān	Sayghan	7052913
+AF.05.2806	Waras̄	Waras	7052915
+AF.05.2804	Yakāwlang	Yakawlang	7052916
+AF.06.2107	Anār Darah	Anar Darah	7052917
+AF.06.2102	Bakwāh	Bakwah	7052918
+AF.06.2105	Bālā Bulūk	Bala Buluk	7052919
+AF.06.2103	Gulistān	Gulistan	7052920
+AF.06.2106	Khāk-e Safēd	Khak-e Safed	7052921
+AF.06.2109	Lāsh-e Juwayn	Lash-e Juwayn	7052922
+AF.06.2104	Pur Chaman	Pur Chaman	7052923
+AF.06.2111	Pusht-e Rōd	Pusht-e Rod	7052924
+AF.06.2108	Qal‘ah-ye Kāh	Qal'ah-ye Kah	7052925
+AF.06.2110	Shayb Kōh	Shayb Koh	7052926
+AF.07.1811	Khān-e Chahār Bāgh	Khan-e Chahar Bagh	7052927
+AF.07.1803	Almār	Almar	7052928
+AF.07.1812	Andkhōy	Andkhoy	7052929
+AF.07.1806	Bal Chirāgh	Bal Chiragh	7052930
+AF.07.1809	Dowlatābād	Dowlatabad	7052931
+AF.07.1807	Gurzīwān	Gurziwan	7052932
+AF.07.1813	Khwājah Sabz Pōsh	Khwajah Sabz Posh	7052933
+AF.07.1805	Kōhistān	Kohistan	7052934
+AF.07.1801	Maīmanah	Maimanah	7052935
+AF.07.1802	Pas̲h̲tūn Kōṯ	Pashtun Kot	7052936
+AF.07.1804	Qaīşār	Qaisar	7052946
+AF.07.1810	Qaram Qōl	Qaram Qol	7052947
+AF.07.1814	Qurghān	Qurghan	7052948
+AF.07.1808	Shīrīn Tagāb	Shirin Tagab	7052949
+AF.08.611	Āb Band	Ab Band	7052950
+AF.08.605	Ajristān	Ajristan	7052952
+AF.08.614	Andaṟ	Andar	7052953
+AF.08.602	Bahrām-e Shahīd	Bahram-e Shahid	7052954
+AF.08.615	Deh Yak	Deh Yak	7052955
+AF.08.601	Ghaznī	Ghazni	7052956
+AF.08.612	Gīrō	Giro	7052957
+AF.08.607	Jāghūrī	Jaghuri	7052958
+AF.08.603	Khwājah ‘Omarī	Khwajah 'Omari	7052961
+AF.08.606	Mālistān	Malistan	7052962
+AF.08.608	Muqêr	Muqer	7052984
+AF.08.610	Nāwah	Nawah	7052985
+AF.08.604	Nāwur	Nawur	7052986
+AF.08.613	Qarah Bāgh	Qarah Bagh	7052988
+AF.08.617	Rashīdān	Rashidan	7052990
+AF.08.618	Wāghaz̧	Waghaz	7052992
+AF.08.619	Walī Muḩammad Shahīd Khūgyāṉī	Wali Muhammad Shahid Khugyani	7052994
+AF.08.616	Zanakhān	Zanakhan	7052996
+AF.09.2701	Chaghcharān	Chaghcharan	7052997
+AF.09.2708	Chahār Şadah	Chahar Sadah	7052998
+AF.09.2710	Dū Laīnah	Du Lainah	7052999
+AF.09.2709	Dowlatyār	Dowlatyar	7053000
+AF.09.2707	La‘l wa Sar Jangal	La'l wa Sar Jangal	7053002
+AF.09.2706	Pasāband	Pasaband	7053003
+AF.09.2704	Sāghar	Saghar	7053004
+AF.09.2702	Shahrak	Shahrak	7053010
+AF.09.2705	Taywarah	Taywarah	7053012
+AF.09.2703	Tūlak	Tulak	7053013
+AF.10.2305	Bāghrān	Baghran	7053015
+AF.10.2310	Dīshū	Dishu	7053017
+AF.10.2303	Kajakī	Kajaki	7053026
+AF.10.2301	Lashkar Gāh	Lashkar Gah	7053027
+AF.10.2304	Mūsá Qal‘ah	Musa Qal'ah	7053028
+AF.10.2308	Nād ‘Alī	Nad 'Ali	7053029
+AF.10.2302	Nahr-e Sarāj	Nahr-e Saraj	7053030
+AF.10.2309	Nāwah-ye Bārakzaī	Nawah-ye Barakzai	7053031
+AF.10.2313	Rēg-e Khān Neshīn	Reg-e Khan Neshin	7053033
+AF.10.2312	Sangīn	Sangin	7053034
+AF.10.2307	Wāshēr	Washer	7053035
+AF.11.2011	Adraskan	Adraskan	7053036
+AF.11.2015	Chisht-e Sharīf	Chisht-e Sharif	7053037
+AF.11.2013	Farsī	Farsi	7053038
+AF.11.2009	Ghōriyān	Ghoriyan	7053039
+AF.11.2007	Gulrān	Gulran	7053040
+AF.11.2002	Injīl	Injil	7053041
+AF.11.2005	Karukh	Karukh	7053042
+AF.11.2008	Kuhsān	Kuhsan	7053043
+AF.11.2006	Kushk	Kushk	7053044
+AF.11.2016	Kushk-e Kuhnah	Kushk-e Kuhnah	7053045
+AF.11.2003	Guz̄arah	Guzarah	7053046
+AF.11.2012	Ōbêh	Obeh	7053047
+AF.11.2004	Pas̲h̲tūn Zarghūn	Pashtun Zarghun	7053048
+AF.11.2014	Shīnḏanḏ	Shindand	7053049
+AF.11.2010	Zindah Jān	Zindah Jan	7053050
+AF.13.110	Bagrāmī	Bagrami	7053051
+AF.13.109	Chahār Āsyāb	Chahar Asyab	7053052
+AF.13.102	Deh-e Sabz	Deh-e Sabz	7053053
+AF.13.115	Farzah	Farzah	7053054
+AF.13.113	Gul Darah	Gul Darah	7053055
+AF.13.106	Istālif	Istalif	7053056
+AF.13.104	Kalakān	Kalakan	7053057
+AF.13.111	Khāk-e Jabār	Khak-e Jabar	7053058
+AF.13.103	Mīr Bachah Kōṯ	Mir Bachah Kot	7053059
+AF.13.114	Mūsahī	Musahi	7053060
+AF.13.108	Paghmān	Paghman	7053080
+AF.13.105	Qarah Bāgh	Qarah Bagh	7053081
+AF.13.107	Shakar Darah	Shakar Darah	7053083
+AF.14.206	Alah Sāy	Alah Say	7053084
+AF.14.202	Ḩişah-ye Awal-e Kōhistān	Hisah-ye Awal-e Kohistan	7053085
+AF.14.207	Ḩişah-ye Duwum-e Kōhistān	Hisah-ye Duwum-e Kohistan	7053086
+AF.14.203	Kōh Band	Koh Band	7053087
+AF.14.201	Maḩmūd-e Rāqī	Mahmud-e Raqi	7053088
+AF.14.204	Nijrāb	Nijrab	7053089
+AF.14.205	Tagāb	Tagab	7053090
+AF.23.2403	Shāh Walī Kōṯ	Shah Wali Kot	7053179
+AF.17.506	Azrah	Azrah	7053255
+AF.17.503	Barakī Barak	Baraki Barak	7053256
+AF.17.502	Charkh	Charkh	7053257
+AF.17.507	Kharwār	Kharwar	7053258
+AF.17.504	Khōshī	Khoshi	7053259
+AF.17.505	Muḩammad Āghah	Muhammad Aghah	7053260
+AF.17.501	Pul-e ‘Alam	Pul-e 'Alam	7053261
+AF.18.810	Achīn	Achin	7053262
+AF.18.817	Batī Kōṯ	Bati Kot	7053263
+AF.18.821	Bihsūd	Bihsud	7053264
+AF.18.806	Chaparhār	Chaparhar	7053265
+AF.18.820	Darah-ye Nūr	Darah-ye Nur	7053266
+AF.18.808	Deh Bālā	Deh Bala	7053267
+AF.18.812	Dur Bābā	Dur Baba	7053278
+AF.18.816	Gōshtah	Goshtah	7053279
+AF.18.803	Ḩişārak	Hisarak	7053280
+AF.18.801	Jalālābād	Jalalabad	7053281
+AF.18.818	Kāmah	Kamah	7053282
+AF.18.805	Khūgyāṉī	Khugyani	7053283
+AF.18.822	Kōṯ	Kot	7053284
+AF.18.819	Kūz Kunaṟ	Kuz Kunar	7053285
+AF.18.815	La‘lpūr	La'lpur	7053286
+AF.18.814	Mohmand Darah	Mohmand Darah	7053287
+AF.18.811	Nāziyān	Naziyan	7053288
+AF.18.807	Pachīr wa Āgām	Pachir wa Agam	7053289
+AF.18.809	Rōdāt	Rodat	7053290
+AF.18.804	Shērzād	Sherzad	7053291
+AF.18.813	Shīnwār	Shinwar	7053292
+AF.18.802	Surkh Rōd	Surkh Rod	7053293
+AF.19.2203	Chahār Burjak	Chahar Burjak	7053294
+AF.19.2202	Kang	Kang	7053295
+AF.19.2205	Khāsh Rōd	Khash Rod	7053296
+AF.19.2201	Zaranj	Zaranj	7053297
+AF.23.2404	Arghandāb	Arghandab	7053298
+AF.23.2412	Arghistān	Arghistan	7053299
+AF.23.2402	Dāmān	Daman	7053300
+AF.23.2406	Ghōrak	Ghorak	7053301
+AF.23.2405	Khākrēz	Khakrez	7053302
+AF.23.2413	Ma‘rūf	Ma'ruf	7053303
+AF.23.2407	Maywand	Maywand	7053304
+AF.23.2414	Myā Neshīn	Mya Neshin	7053305
+AF.23.2415	Nēsh	Nesh	7053306
+AF.23.2408	Panjwā’ī	Panjwa'i	7053307
+AF.23.2409	Rēgistān	Registan	7053308
+AF.23.2410	Shōrābak	Shorabak	7053309
+AF.23.2411	Spīn Bōldak	Spin Boldak	7053310
+AF.23.2416	Zhaṟêy	Zharey	7053311
+AF.24.1405	‘Alīābād	'Aliabad	7053312
+AF.24.1407	Dasht-e Archī	Dasht-e Archi	7053313
+AF.24.1402	Imām Şāḩib	Imam Sahib	7053315
+AF.24.1406	Khānābād	Khanabad	7053316
+AF.24.1403	Qal‘ah-ye Zāl	Qal'ah-ye Zal	7053317
+AF.26.1213	Bahārak	Baharak	7053318
+AF.26.1202	Bangī	Bangi	7053319
+AF.26.1209	Chāh Āb	Chah Ab	7053320
+AF.26.1204	Chāl	Chal	7053321
+AF.26.1211	Darqad	Darqad	7053322
+AF.26.1214	Dasht-e Qal‘ah	Dasht-e Qal'ah	7053323
+AF.26.1206	Farkhār	Farkhar	7053324
+AF.26.1215	Hazār Sumūch	Hazar Sumuch	7053325
+AF.26.1203	Ishkamish	Ishkamish	7053326
+AF.26.1207	Kalafgān	Kalafgan	7053327
+AF.26.1216	Khwājah Bahāwuddīn	Khwajah Bahawuddin	7053328
+AF.26.1212	Khwājah Ghār	Khwajah Ghar	7053329
+AF.26.1217	Namak Āb	Namak Ab	7053330
+AF.26.1208	Rustāq	Rustaq	7053331
+AF.26.1201	Tāluqān	Taluqan	7053332
+AF.26.1205	Warsaj	Warsaj	7053333
+AF.26.1210	Yangī Qal‘ah	Yangi Qal'ah	7053334
+AF.27.406	Chak-e Wardak	Chak-e Wardak	7053335
+AF.27.403	Ḩişah-ye Awal-e Bihsūd	Hisah-ye Awal-e Bihsud	7053337
+AF.27.409	Jaghatū	Jaghatu	7053338
+AF.27.402	Jalrayz	Jalrayz	7053339
+AF.27.401	Maīdān Shahr	Maidan Shahr	7053340
+AF.27.407	Sayyidābād	Sayyidabad	7053343
+AF.28.2503	Arghandāb	Arghandab	7053344
+AF.28.2508	Aṯghar	Atghar	7053345
+AF.28.2504	Dāychōpān	Daychopan	7053346
+AF.28.2510	Kākar	Kakar	7053347
+AF.28.2505	Mīzān	Mizan	7053768
+AF.28.2511	Now Bahār	Now Bahar	7053769
+AF.28.2502	Shāh Jōy	Shah Joy	7053770
+AF.28.2509	Shamulzaī	Shamulzai	7053771
+AF.28.2507	Shīnkaī	Shinkai	7053772
+AF.28.2506	Tarnêk wa Jaldak	Tarnek wa Jaldak	7053773
+AF.29.2909	Bêrmal	Bermal	7053774
+AF.29.2903	Ḏīlah	Dilah	7053775
+AF.29.2910	Giyān	Giyan	7053776
+AF.29.2906	Gōmal	Gomal	7053777
+AF.29.2916	Jānī Khēl	Jani Khel	7053778
+AF.29.2915	Mutā Khān	Muta Khan	7053779
+AF.29.2913	Nīkêh	Nikeh	7053780
+AF.29.2907	Ōmnah	Omnah	7053781
+AF.29.2911	Urgun District	Urgun District	7053782
+AF.29.2914	Sar Rowẕah	Sar Rowzah	7053783
+AF.29.2908	Saṟōbī	Sarobi	7053784
+AF.29.2901	Sharan	Sharan	7053785
+AF.29.2917	Têrwō	Terwo	7053786
+AF.29.2904	Wāzah Khwāh	Wazah Khwah	7053787
+AF.29.2905	Wuṟ Mamay	Wur Mamay	7053788
+AF.29.2918	Yaḩyá Khēl	Yahya Khel	7053789
+AF.29.2919	Yōsuf Khēl	Yosuf Khel	7053790
+AF.29.2902	Zarghūn Shahr	Zarghun Shahr	7053791
+AF.29.2912	Zīṟūk	Ziruk	7053792
+AF.30.1607	Chahār Bōlak	Chahar Bolak	7053793
+AF.30.1611	Chahār Kent	Chahar Kent	7053794
+AF.30.1608	Chimtāl	Chimtal	7053795
+AF.30.1612	Dehdādī	Dehdadi	7053796
+AF.30.1605	Dowlatābād	Dowlatabad	7053797
+AF.30.1613	Kaldār	Kaldar	7053798
+AF.30.1614	Khulm	Khulm	7053799
+AF.30.1610	Kishindeh	Kishindeh	7053800
+AF.30.1615	Mārmul	Marmul	7053801
+AF.30.1604	Shōr Tepah	Shor Tepah	7053805
+AF.30.1603	Zārī	Zari	7053806
+AF.31.1706	Āqchah	Aqchah	7053807
+AF.31.1703	Darzāb	Darzab	7053808
+AF.31.1708	Faīẕābād	Faizabad	7053809
+AF.31.1709	Khamyāb	Khamyab	7053810
+AF.31.1710	Khānaqāh	Khanaqah	7053811
+AF.31.1702	Khwājah Dū Kōh	Khwajah Du Koh	7053812
+AF.31.1707	Mardīān	Mardian	7053813
+AF.31.1704	Mingajik	Mingajik	7053814
+AF.31.1705	Qarqīn	Qarqin	7053815
+AF.31.1711	Qūsh Tepah	Qush Tepah	7053816
+AF.31.1701	Shibirghān	Shibirghan	7053817
+AF.32.1501	Aībak	Aibak	7053818
+AF.32.1503	Darah-ye Şūf-e Bālā	Darah-ye Suf-e Bala	7053819
+AF.32.1504	Darah-ye Şūf-e Pā’īn	Darah-ye Suf-e Pa'in	7053820
+AF.32.1507	Fayrōz Nakhchīr	Fayroz Nakhchir	7053821
+AF.32.1502	Ḩaẕrat-e Sulţān	Hazrat-e Sultan	7053822
+AF.32.1506	Khuram wa Sār Bāgh	Khuram wa Sar Bagh	7053823
+AF.32.1505	Rūy Dūāb	Ruy Duab	7053824
+AF.33.3104	Balkhāb	Balkhab	7053945
+AF.33.3107	Gōsfandī	Gosfandi	7053946
+AF.33.3103	Kōhistānāt	Kohistanat	7053947
+AF.33.3102	Sangchārak	Sangcharak	7053948
+AF.33.3101	Sar-e Pul	Sar-e Pul	7053949
+AF.33.3106	Şayād	Sayad	7053950
+AF.33.3105	Sōzmah Qal‘ah	Sozmah Qal'ah	7053951
+AF.34.1001	Asadābād	Asadabad	7053952
+AF.34.1003	Bar Kunaṟ	Bar Kunar	7053955
+AF.34.1009	Chapah Darah	Chapah Darah	7053956
+AF.34.1012	Tsowkêy	Tsowkey	7053957
+AF.34.1004	Dāngām	Dangam	7053958
+AF.34.1010	Darah-ye Pēch	Darah-ye Pech	7053959
+AF.34.1006	Ghāzīābād	Ghaziabad	7053960
+AF.34.1014	Khāş Kunaṟ	Khas Kunar	7053961
+AF.34.1002	Marawarah	Marawarah	7053962
+AF.34.1011	Narang	Narang	7053963
+AF.34.1005	Nāṟay	Naray	7053964
+AF.34.1013	Nūrgal	Nurgal	7053965
+AF.34.1007	Shīgal wa Shêltan	Shigal wa Sheltan	7053967
+AF.34.1008	Wuṯahpūr	Wutahpur	7053968
+AF.35.903	‘Alīngār	'Alingar	7053969
+AF.35.905	‘Alīsheng	'Alisheng	7053970
+AF.35.904	Dowlat Shāh	Dowlat Shah	7053971
+AF.35.901	Mehtar Lām	Mehtar Lam	7053972
+AF.35.902	Qarghah’ī	Qarghah'i	7053973
+AF.36.705	Aḩmadābād	Ahmadabad	7053975
+AF.36.708	Tsamkanī	Tsamkani	7053976
+AF.36.707	Ḏanḏ Paṯān	Dand Patan	7053977
+AF.36.701	Gardez	Gardez	7053978
+AF.36.711	Jājī	Jaji	7053979
+AF.36.706	Jānī Khēl	Jani Khel	7053980
+AF.36.709	Lajah Aḩmad Khēl	Lajah Ahmad Khel	7053981
+AF.36.710	Sayyid Karam	Sayyid Karam	7053982
+AF.36.703	Shwāk	Shwak	7053983
+AF.36.704	Dzadrān	Dzadran	7053984
+AF.36.702	Zurmat	Zurmat	7054005
+AF.37.3210	Bāk	Bak	7054006
+AF.37.3211	Gurbuz	Gurbuz	7054007
+AF.37.3202	Jājī Maīdān	Jaji Maidan	7054008
+AF.37.3201	Khōst	Khost	7054009
+AF.37.3206	Mandūzaī	Manduzai	7054013
+AF.37.3205	Mūsá Khēl	Musa Khel	7054014
+AF.37.3208	Nādir Shāh Kōṯ	Nadir Shah Kot	7054015
+AF.37.3212	Qalandar	Qalandar	7054016
+AF.37.3209	Şabarī	Sabari	7054017
+AF.37.3213	Shamul	Shamul	7054018
+AF.37.3204	Spērah	Sperah	7054019
+AF.37.3207	Têrayzaī	Terayzai	7054021
+AF.38.3005	Barg-e Matāl	Barg-e Matal	7054022
+AF.38.3007	Dū Āb	Du Ab	7054023
+AF.38.3002	Kāmdēsh	Kamdesh	7054025
+AF.38.3004	Mandōl	Mandol	7054026
+AF.38.3008	Nūrgarām	Nurgaram	7054027
+AF.38.3001	Pārūn	Parun	7054028
+AF.38.3006	Wāmā	Wama	7054029
+AF.38.3003	Wāygal	Waygal	7054030
+AF.39.2602	Chōrah	Chorah	7054031
+AF.39.2605	Deh Rāwud	Deh Rawud	7054032
+AF.39.2603	Khāş Uruzgān	Khas Uruzgan	7054033
+AF.39.2604	Shahīd-e Ḩasās	Shahid-e Hasas	7054034
+AF.39.2601	Tarīn Kōṯ	Tarin Kot	7054035
+AF.40.308	Bagrām	Bagram	7054036
+AF.40.301	Chārīkār	Charikar	7054037
+AF.40.302	Jabal us Sarāj	Jabal us Saraj	7054038
+AF.40.309	Kōh-e Şāfī	Koh-e Safi	7054039
+AF.40.303	Sālang	Salang	7054040
+AF.40.310	Sayyid Khēl	Sayyid Khel	7054041
+AF.40.306	Shaykh ‘Alī	Shaykh 'Ali	7054042
+AF.40.304	Shīnwārī	Shinwari	7054043
+AF.40.305	Siyāhgird Ghōrband	Siyahgird Ghorband	7054044
+AF.41.3406	Gaytī	Gayti	7054325
+AF.41.3402	Gīzāb	Gizab	7054326
+AF.41.3403	Ishtarlay	Ishtarlay	7054327
+AF.41.3404	Kajrān	Kajran	7054328
+AF.41.3405	Khadīr	Khadir	7054329
+AF.41.3407	Mīr Āmōr	Mir Amor	7054330
+AF.41.3401	Nīlī	Nili	7054331
+AF.41.3408	Sang-e Takht	Sang-e Takht	7054332
+AF.41.3409	Shahristān	Shahristan	7054334
+AF.42.3306	‘Unābah	'Unabah	7054336
+AF.42.3301	Bāzārak	Bazarak	7054337
+AF.42.3302	Darah	Darah	7054338
+AF.42.3303	Khinj	Khinj	7054339
+AF.42.3304	Parīān	Parian	7054340
+AF.42.3307	Rukhah	Rukhah	7054341
+AF.42.3305	Shutul	Shutul	7054342
+AF.13.101	Kabul	Kabul	7729752
+AF.24.1401	Kunduz	Kunduz	7729833
+AF.19.2204	Chakhansur	Chakhansur	7729835
+AF.06.2101	Farah	Farah	7729836
+AF.05.2801	Bamyan	Bamyan	7732055
+AF.03.1301	Puli Khumri	Puli Khumri	7732108
+AF.13.112	Surobi	Surobi	7732182
+AF.28.2501	Qalāt	Qalat	7732190
+AF.01.1104	Kuran Wa Munjan	Kuran Wa Munjan	7732208
+AF.05.2802	Shibar	Shibar	7732337
+AF.40.307	Surkhi Parsa	Surkhi Parsa	7732339
+AF.10.2311	Garmsīr	Garmsir	7732352
+AF.30.1602	Nahri Shahi	Nahri Shahi	7732365
+AF.30.1609	Sholgara	Sholgara	7732367
+AF.27.405	Day Mirdad	Day Mirdad	7732571
+AF.24.1404	Chahar Dara	Chahar Dara	7732594
+AF.37.3203	Tani	Tani	7732601
+AF.34.1015	Sirkanay	Sirkanay	7732642
+AF.27.404	Markazi Bihsud	Markazi Bihsud	7732663
+AF.27.408	Nirkh	Nirkh	7732666
+AF.30.1601	Mazār-e Sharīf	Mazar-e Sharif	8354719
+AF.11.2001	Herat District	Herat District	9166336
+AF.10.2306	Naw Zad	Naw Zad	9653598
+AF.23.2401	Kandahar District	Kandahar District	9653599
+AF.30.1606	Balkh District	Balkh District	11818971
+AL.40.10944368	Bashkia Berat	Bashkia Berat	10944368
+AL.40.10944369	Bashkia Kuçovë	Bashkia Kucove	10944369
+AL.40.10944370	Bashkia Poliçan	Bashkia Polican	10944370
+AL.40.10944371	Bashkia Skrapar	Bashkia Skrapar	10944371
+AL.40.10944372	Bashkia Ura Vajgurore	Bashkia Ura Vajgurore	10944372
+AL.41.10944373	Bashkia Bulqizë	Bashkia Bulqize	10944373
+AL.41.10944374	Bashkia Dibër	Bashkia Diber	10944374
+AL.41.10944375	Bashkia Klos	Bashkia Klos	10944375
+AL.41.10944376	Bashkia Mat	Bashkia Mat	10944376
+AL.42.10944377	Bashkia Durrës	Bashkia Durres	10944377
+AL.42.10944378	Bashkia Krujë	Bashkia Kruje	10944378
+AL.42.10944379	Bashkia Shijak	Bashkia Shijak	10944379
+AL.43.10944380	Bashkia Elbasan	Bashkia Elbasan	10944380
+AL.43.10944381	Bashkia Belsh	Bashkia Belsh	10944381
+AL.43.10944382	Bashkia Cërrik	Bashkia Cerrik	10944382
+AL.43.10944383	Bashkia Gramsh	Bashkia Gramsh	10944383
+AL.43.10944384	Bashkia Librazhd	Bashkia Librazhd	10944384
+AL.43.10944385	Bashkia Peqin	Bashkia Peqin	10944385
+AL.43.10944386	Bashkia Prrenjas	Bashkia Prrenjas	10944386
+AL.44.10944387	Bashkia Divjakë	Bashkia Divjake	10944387
+AL.44.10944388	Bashkia Fier	Bashkia Fier	10944388
+AL.44.10944389	Bashkia Lushnje	Bashkia Lushnje	10944389
+AL.44.10944390	Bashkia Mallakastër	Bashkia Mallakaster	10944390
+AL.44.10944391	Bashkia Patos	Bashkia Patos	10944391
+AL.44.10944392	Bashkia Roskovec	Bashkia Roskovec	10944392
+AL.45.10944393	Bashkia Dropull	Bashkia Dropull	10944393
+AL.45.10944394	Bashkia Gjirokastër	Bashkia Gjirokaster	10944394
+AL.45.10944395	Bashkia Kelcyrë	Bashkia Kelcyre	10944395
+AL.45.10944396	Bashkia Libohovë	Bashkia Libohove	10944396
+AL.45.10944397	Bashkia Memaliaj	Bashkia Memaliaj	10944397
+AL.45.10944398	Bashkia Përmet	Bashkia Permet	10944398
+AL.45.10944399	Bashkia Tepelenë	Bashkia Tepelene	10944399
+AL.46.10944400	Bashkia Devoll	Bashkia Devoll	10944400
+AL.46.10944401	Bashkia Kolonjë	Bashkia Kolonje	10944401
+AL.46.10944402	Bashkia Korçë	Bashkia Korce	10944402
+AL.46.10944403	Bashkia Maliq	Bashkia Maliq	10944403
+AL.46.10944404	Bashkia Pogradec	Bashkia Pogradec	10944404
+AL.46.10944405	Bashkia Pustec	Bashkia Pustec	10944405
+AL.47.10944406	Bashkia Has	Bashkia Has	10944406
+AL.47.10944407	Bashkia Kukës	Bashkia Kukes	10944407
+AL.47.10944408	Bashkia Tropojë	Bashkia Tropoje	10944408
+AL.48.10944409	Bashkia Kurbin	Bashkia Kurbin	10944409
+AL.48.10944410	Bashkia Lezhë	Bashkia Lezhe	10944410
+AL.48.10944411	Bashkia Mirditë	Bashkia Mirdite	10944411
+AL.49.10944412	Bashkia Fushë Arrës	Bashkia Fushe Arres	10944412
+AL.49.10944413	Bashkia Malësi e Madhe	Bashkia Malesi e Madhe	10944413
+AL.49.10944414	Bashkia Pukë	Bashkia Puke	10944414
+AL.49.10944415	Bashkia Shkodër	Bashkia Shkoder	10944415
+AL.49.10944416	Bashkia Vau i Dejës	Bashkia Vau i Dejes	10944416
+AL.50.10944417	Bashkia Kamëz	Bashkia Kamez	10944417
+AL.50.10944418	Bashkia Kavajë	Bashkia Kavaje	10944418
+AL.50.10944419	Bashkia Rrogozhinë	Bashkia Rrogozhine	10944419
+AL.50.10944420	Bashkia Tiranë	Bashkia Tirane	10944420
+AL.50.10944421	Bashkia Vorë	Bashkia Vore	10944421
+AL.51.10944422	Bashkia Delvinë	Bashkia Delvine	10944422
+AL.51.10944423	Bashkia Finiq	Bashkia Finiq	10944423
+AL.51.10944424	Bashkia Himarë	Bashkia Himare	10944424
+AL.51.10944425	Bashkia Konispol	Bashkia Konispol	10944425
+AL.51.10944426	Bashkia Sarandë	Bashkia Sarande	10944426
+AL.51.10944427	Bashkia Selenicë	Bashkia Selenice	10944427
+AL.51.10944428	Bashkia Vlorë	Bashkia Vlore	10944428
+AM.08.174761	Sisian	Sisian	174761
+AM.10.174959	Vayk'i Shrjan	Vayk'i Shrjan	174959
+AM.11.616200	Spandaryanskiy Rayon	Spandaryanskiy Rayon	616200
+AM.11.616205	Arabkir	Arabkir	616205
+AM.11.616233	Shaumyanskiy Rayon	Shaumyanskiy Rayon	616233
+AM.11.616323	Ordzhonikidzevskiy Rayon	Ordzhonikidzevskiy Rayon	616323
+AM.04.616436	Martuni	Martuni	616436
+AM.11.616485	Leninskiy Rayon	Leninskiy Rayon	616485
+AM.11.616624	Imeni Dvadtsati Shesti Komissarov Rayon	Imeni Dvadtsati Shesti Komissarov Rayon	616624
+AM.01.7874001	Achtarak	Achtarak	7874001
+AO.18.145530	Saurimo	Saurimo	145530
+AO.17.145723	Lucapa	Lucapa	145723
+AO.17.145775	Chitato	Chitato	145775
+AO.17.145897	Cambulo	Cambulo	145897
+AO.04.875819	Rivungo	Rivungo	875819
+AO.18.875968	Muconda	Muconda	875968
+AO.14.875997	Luena	Luena	875997
+AO.04.876017	Mavinga	Mavinga	876017
+AO.14.876125	Cameia	Cameia	876125
+AO.14.876129	Bundas	Bundas	876129
+AO.14.876176	Luau	Luau	876176
+AO.14.876198	Luacano	Luacano	876198
+AO.14.876232	Léua	Leua	876232
+AO.04.876291	Dirico	Dirico	876291
+AO.18.876307	Dala	Dala	876307
+AO.14.876631	Camanongue	Camanongue	876631
+AO.14.876723	Alto Zambeze	Alto Zambeze	876723
+AO.17.2236396	Xá-Muteba	Xa-Muteba	2236396
+AO.20.2236499	Viana	Viana	2236499
+AO.15.2236567	Uige Municipality	Uige Municipality	2236567
+AO.16.2236714	Tomboco	Tomboco	2236714
+AO.16.2236966	Soyo	Soyo	2236966
+AO.15.2236985	Songo	Songo	2236985
+AO.15.2237127	Sanza Pombo	Sanza Pombo	2237127
+AO.15.2237144	Santa Cruz	Santa Cruz	2237144
+AO.15.2237499	Quitexe Municipality	Quitexe Municipality	2237499
+AO.15.2238174	Quimbele	Quimbele	2238174
+AO.05.2238485	Quiculungo	Quiculungo	2238485
+AO.20.2238564	Quissama	Quissama	2238564
+AO.12.2238814	Quela	Quela	2238814
+AO.15.2238826	Puri	Puri	2238826
+AO.19.2238950	Município Pango Aluquém	Municipio Pango Aluquem	2238950
+AO.16.2239000	Nzeto	Nzeto	2239000
+AO.16.2239019	Nóqui	Noqui	2239019
+AO.15.2239067	Negage Municipality	Negage Municipality	2239067
+AO.19.2239093	Nambuangongo Municipality	Nambuangongo Municipality	2239093
+AO.12.2239335	Caculama	Caculama	2239335
+AO.15.2239352	Mucaba	Mucaba	2239352
+AO.16.2239519	Mbanza Congo	Mbanza Congo	2239519
+AO.12.2239696	Massango	Massango	2239696
+AO.12.2239711	Marimba	Marimba	2239711
+AO.15.2239731	Maquela do Zombo	Maquela do Zombo	2239731
+AO.12.2239859	Malanje Municipality	Malanje Municipality	2239859
+AO.05.2240384	Lucala	Lucala	2240384
+AO.17.2240415	Lubalo	Lubalo	2240415
+AO.20.2240445	Luanda Municipality	Luanda Municipality	2240445
+AO.03.2240660	Cacongo	Cacongo	2240660
+AO.12.2240685	Cunda-Dia-Baze	Cunda-Dia-Baze	2240685
+AO.12.2240688	Kiwaba Nzoji	Kiwaba Nzoji	2240688
+AO.20.2240756	Icolo e Bengo	Icolo e Bengo	2240756
+AO.05.2240905	Ngonguembo	Ngonguembo	2240905
+AO.05.2240974	Golungo Alto	Golungo Alto	2240974
+AO.19.2241454	Dembos	Dembos	2241454
+AO.19.2241484	Dande Municipality	Dande Municipality	2241484
+AO.15.2241498	Damba	Damba	2241498
+AO.16.2241620	Cuimba	Cuimba	2241620
+AO.17.2241628	Cuilo	Cuilo	2241628
+AO.17.2241665	Cuango	Cuango	2241665
+AO.05.2241967	Cazengo Municipality	Cazengo Municipality	2241967
+AO.17.2242051	Caungula	Caungula	2242051
+AO.17.2242427	Capenda Camulemba	Capenda Camulemba	2242427
+AO.12.2242475	Cahombo	Cahombo	2242475
+AO.05.2242801	Cambambe	Cambambe	2242801
+AO.12.2242997	Calandula	Calandula	2242997
+AO.12.2243120	Cacuso	Cacuso	2243120
+AO.20.2243171	Cacuaco Municipality	Cacuaco Municipality	2243171
+AO.03.2243267	Cabinda	Cabinda	2243267
+AO.15.2243355	Bungo	Bungo	2243355
+AO.19.2243420	Bula Atumba	Bula Atumba	2243420
+AO.15.2243441	Buengas	Buengas	2243441
+AO.03.2243457	Buco Zau	Buco Zau	2243457
+AO.05.2243535	Bolongongo	Bolongongo	2243535
+AO.15.2243631	Município Bembe	Municipio Bembe	2243631
+AO.03.2243645	Belize	Belize	2243645
+AO.05.2243811	Banga	Banga	2243811
+AO.15.2243908	Ambuila Municipality	Ambuila Municipality	2243908
+AO.19.2243911	Ambriz	Ambriz	2243911
+AO.05.2243916	Ambaca	Ambaca	2243916
+AO.15.2243921	Cangola	Cangola	2243921
+AO.06.3345496	Cela	Cela	3345496
+AO.13.3345516	Virei	Virei	3345516
+AO.08.3345667	Ucuma	Ucuma	3345667
+AO.13.3345788	Tômbwa	Tombwa	3345788
+AO.08.3345909	Chinjenje	Chinjenje	3345909
+AO.08.3345923	Chicala-Choloanga	Chicala-Choloanga	3345923
+AO.06.3346014	Sumbe	Sumbe	3346014
+AO.06.3346113	Seles	Seles	3346113
+AO.12.3346489	Quirima	Quirima	3346489
+AO.09.3346496	Quipungo	Quipungo	3346496
+AO.09.3346556	Quilengues	Quilengues	3346556
+AO.06.3346558	Quilenda	Quilenda	3346558
+AO.06.3346597	Quibala	Quibala	3346597
+AO.06.3346659	Porto Amboim	Porto Amboim	3346659
+AO.07.3346850	Ombadja	Ombadja	3346850
+AO.02.3346941	Nharea	Nharea	3346941
+AO.04.3347005	Nancova	Nancova	3347005
+AO.13.3347017	Namibe	Namibe	3347017
+AO.07.3347028	Namacunde	Namacunde	3347028
+AO.06.3347070	Mussende	Mussende	3347070
+AO.08.3347110	Mungo	Mungo	3347110
+AO.04.3347352	Menongue	Menongue	3347352
+AO.09.3347423	Matala	Matala	3347423
+AO.12.3347614	Luquembo	Luquembo	3347614
+AO.14.3347741	Luchazes	Luchazes	3347741
+AO.09.3347760	Lubango	Lubango	3347760
+AO.08.3347852	Longonjo	Longonjo	3347852
+AO.08.3347879	Londuimbali	Londuimbali	3347879
+AO.01.3347937	Lobito	Lobito	3347937
+AO.06.3347989	Libolo	Libolo	3347989
+AO.09.3348075	Cuvango	Cuvango	3348075
+AO.02.3348077	Cuito	Cuito	3348077
+AO.08.3348093	Cachiungo	Cachiungo	3348093
+AO.09.3348165	Jamba	Jamba	3348165
+AO.09.3348286	Humpata	Humpata	3348286
+AO.08.3348311	Huambo	Huambo	3348311
+AO.01.3348578	Ganda	Ganda	3348578
+AO.08.3348773	Ecunha	Ecunha	3348773
+AO.06.3348792	Ebo	Ebo	3348792
+AO.07.3348986	Cuvelai	Cuvelai	3348986
+AO.07.3349045	Curoca	Curoca	3349045
+AO.02.3349078	Cunhinga	Cunhinga	3349078
+AO.04.3349148	Cuito Cuanavale	Cuito Cuanavale	3349148
+AO.02.3349179	Cuemba	Cuemba	3349179
+AO.04.3349195	Cuchi	Cuchi	3349195
+AO.01.3349225	Cubal	Cubal	3349225
+AO.07.3349237	Cuanhama	Cuanhama	3349237
+AO.04.3349243	Cuangar	Cuangar	3349243
+AO.06.3349321	Conda	Conda	3349321
+AO.01.3349404	Chongoroi	Chongoroi	3349404
+AO.02.3349514	Chitembo	Chitembo	3349514
+AO.09.3349647	Chipindo	Chipindo	3349647
+AO.02.3349722	Chinguar	Chinguar	3349722
+AO.09.3349949	Chicomba	Chicomba	3349949
+AO.09.3349996	Chibia	Chibia	3349996
+AO.09.3350009	Gambos	Gambos	3350009
+AO.02.3350370	Catabola	Catabola	3350370
+AO.06.3350385	Cassongue	Cassongue	3350385
+AO.12.3350771	Cangandala	Cangandala	3350771
+AO.12.3350916	Cambundi-Catembo	Cambundi-Catembo	3350916
+AO.02.3351012	Município Camacupa	Municipio Camacupa	3351012
+AO.02.3351013	Camacupa	Camacupa	3351013
+AO.13.3351015	Camucuio	Camucuio	3351015
+AO.09.3351021	Caluquembe	Caluquembe	3351021
+AO.04.3351214	Calai	Calai	3351214
+AO.01.3351267	Caimbambo	Caimbambo	3351267
+AO.07.3351306	Cahama	Cahama	3351306
+AO.09.3351379	Caconda	Caconda	3351379
+AO.18.3351386	Cacolo	Cacolo	3351386
+AO.08.3351497	Caála	Caala	3351497
+AO.01.3351597	Bocoio	Bocoio	3351597
+AO.13.3351646	Bibala	Bibala	3351646
+AO.01.3351661	Benguela	Benguela	3351661
+AO.01.3351758	Município Balombo	Municipio Balombo	3351758
+AO.08.3351782	Bailundo	Bailundo	3351782
+AO.01.3351785	Baía Farta	Baia Farta	3351785
+AO.02.3351882	Andulo	Andulo	3351882
+AO.06.3351905	Amboim	Amboim	3351905
+AO.02.9212598	Barkeol	Barkeol	9212598
+AO.20.10401828	Município Cazenga	Municipio Cazenga	10401828
+AO.01.10440258	Catumbela	Catumbela	10440258
+AO.20.10440865	Belas	Belas	10440865
+AO.09.10449850	Cacula	Cacula	10449850
+AO.05.10450082	Samba Cajú	Samba Caju	10450082
+AR.01.06882	Partido de Zárate	Partido de Zarate	3427212
+AR.08.30113	Departamento de Villaguay	Departamento de Villaguay	3427426
+AR.01.06861	Partido de Vicente López	Partido de Vicente Lopez	3427504
+AR.03.22168	Veinticinco de Mayo	Veinticinco de Mayo	3427532
+AR.14.54119	Departamento de Veinticinco de Mayo	Departamento de Veinticinco de Mayo	3427535
+AR.08.30098	Departamento de Uruguay	Departamento de Uruguay	3427576
+AR.01.06840	Partido de Tres de Febrero	Partido de Tres de Febrero	3427655
+AR.01.06812	Partido de Tordillo	Partido de Tordillo	3427709
+AR.01.06805	Partido de Tigre	Partido de Tigre	3427753
+AR.03.22161	Departamento de Tapenagá	Departamento de Tapenaga	3427822
+AR.01.06791	Partido de Tandil	Partido de Tandil	3427832
+AR.08.30091	Departamento de Tala	Departamento de Tala	3427856
+AR.01.06784	Partido de Suipacha	Partido de Suipacha	3427896
+AR.06.18175	Departamento de Sauce	Departamento de Sauce	3428003
+AR.03.22154	Departamento de Sargento Cabral	Departamento de Sargento Cabral	3428032
+AR.01.06778	Partido de San Vicente	Partido de San Vicente	3428056
+AR.06.18168	Departamento de Santo Tomé	Departamento de Santo Tome	3428070
+AR.06.18161	Departamento de San Roque	Departamento de San Roque	3428491
+AR.01.06770	Partido de San Pedro	Partido de San Pedro	3428533
+AR.14.54112	Departamento de San Pedro	Departamento de San Pedro	3428569
+AR.06.18154	Departamento de San Miguel	Departamento de San Miguel	3428638
+AR.06.18147	Departamento de San Martín	Departamento de San Martin	3428679
+AR.06.18140	Departamento de San Luis del Palmar	Departamento de San Luis del Palmar	3428707
+AR.21.82098	Departamento de San Javier	Departamento de San Javier	3428973
+AR.14.54105	Departamento de San Javier	Departamento de San Javier	3428974
+AR.01.06756	Partido de San Isidro	Partido de San Isidro	3428983
+AR.14.54098	Departamento de San Ignacio	Departamento de San Ignacio	3429014
+AR.01.06749	Partido de San Fernando	Partido de San Fernando	3429088
+AR.03.22140	Departamento de San Fernando	Departamento de San Fernando	3429089
+AR.06.18133	Departamento de San Cosme	Departamento de San Cosme	3429156
+AR.01.06742	Partido de San Cayetano	Partido de San Cayetano	3429168
+AR.01.06735	San Antonio de Areco	San Antonio de Areco	3429247
+AR.01.06728	Partido de San Andrés de Giles	Partido de San Andres de Giles	3429308
+AR.01.06707	Partido de Saladillo	Partido de Saladillo	3429389
+AR.06.18126	Departamento de Saladas	Departamento de Saladas	3429402
+AR.01.06693	Partido de Roque Pérez	Partido de Roque Perez	3429449
+AR.01.06672	Partido de Rauch	Partido de Rauch	3429601
+AR.01.06658	Partido de Quilmes	Partido de Quilmes	3429651
+AR.03.22126	Departamento del Primero de Mayo	Departamento del Primero de Mayo	3429850
+AR.03.22119	Departamento de Presidencia de la Plaza	Departamento de Presidencia de la Plaza	3429865
+AR.09.34056	Departamento de Pirané	Departamento de Pirane	3429948
+AR.09.34049	Departamento de Pilcomayo	Departamento de Pilcomayo	3429978
+AR.01.06638	Partido de Pilar	Partido de Pilar	3429979
+AR.09.34042	Departamento de Pilagás	Departamento de Pilagas	3429982
+AR.01.06630	Partido de Pila	Partido de Pila	3429987
+AR.09.34035	Departamento de Patiño	Departamento de Patino	3430084
+AR.06.18119	Departamento de Paso de los Libres	Departamento de Paso de los Libres	3430103
+AR.08.30084	Departamento de Paraná	Departamento de Parana	3430146
+AR.14.54091	Departamento de Oberá	Departamento de Obera	3430339
+AR.08.30077	Departamento de Nogoyá	Departamento de Nogoya	3430412
+AR.01.06581	Partido de Necochea	Partido de Necochea	3430442
+AR.01.06574	Partido de Navarro	Partido de Navarro	3430454
+AR.01.06568	Partido de Morón	Partido de Moron	3430544
+AR.01.06560	Partido de Moreno	Partido de Moreno	3430550
+AR.06.18112	Departamento de Monte Caseros	Departamento de Monte Caseros	3430597
+AR.14.54084	Departamento de Montecarlo	Departamento de Montecarlo	3430599
+AR.01.06547	Partido de Monte	Partido de Monte	3430604
+AR.01.06539	Partido de Merlo	Partido de Merlo	3430696
+AR.01.06532	Partido de Mercedes	Partido de Mercedes	3430705
+AR.06.18105	Departamento de Mercedes	Departamento de Mercedes	3430706
+AR.06.18098	Departamento de Mburucuyá	Departamento de Mburucuya	3430759
+AR.01.06427	Partido de La Matanza	Partido de La Matanza	3430786
+AR.01.06648	Partido de Presidente Perón	Partido de Presidente Peron	3430859
+AR.01.06644	Partido de Pinamar	Partido de Pinamar	3430860
+AR.01.06525	Partido de Marcos Paz	Partido de Marcos Paz	3430867
+AR.01.06518	Partido de Mar Chiquita	Partido de Mar Chiquita	3430869
+AR.01.06511	Partido de Maipú	Partido de Maipu	3430945
+AR.01.06505	Partido de Magdalena	Partido de Magdalena	3430951
+AR.01.06497	Partido de Luján	Partido de Lujan	3430982
+AR.01.06490	Partido de Lomas de Zamora	Partido de Lomas de Zamora	3431270
+AR.01.06483	Partido de Lobos	Partido de Lobos	3431309
+AR.01.06476	Partido de Lobería	Partido de Loberia	3431318
+AR.03.22084	Departamento de Libertador General San Martín	Departamento de Libertador General San Martin	3431356
+AR.14.54077	Departamento de Libertador General San Martín	Departamento de Libertador General San Martin	3431357
+AR.03.22077	Departamento de Libertad	Departamento de Libertad	3431359
+AR.14.54070	Departamento de Leandro N. Alem	Departamento de Leandro N. Alem	3431390
+AR.06.18091	Departamento de Lavalle	Departamento de Lavalle	3431468
+AR.01.06455	Partido de Las Flores	Partido de Las Flores	3431782
+AR.01.06441	Partido de La Plata	Partido de La Plata	3432039
+AR.08.30070	Departamento de La Paz	Departamento de La Paz	3432077
+AR.01.06434	Partido de Lanús	Partido de Lanus	3432134
+AR.09.34021	Departamento de Laishí	Departamento de Laishi	3432407
+AR.01.06084	Partido de Benito Juárez	Partido de Benito Juarez	3433284
+AR.01.06412	Partido de José C. Paz	Partido de Jose C. Paz	3433328
+AR.06.18084	Departamento de Ituzaingó	Departamento de Ituzaingo	3433357
+AR.06.18077	Departamento de Itatí	Departamento de Itati	3433362
+AR.01.06655	Partido de Punta Indio	Partido de Punta Indio	3433417
+AR.14.54063	Departamento de Iguazú	Departamento de Iguazu	3433487
+AR.14.54056	Departamento de Guaraní	Departamento de Guarani	3433646
+AR.08.30056	Departamento de Gualeguaychú	Departamento de Gualeguaychu	3433657
+AR.08.30049	Departamento de Gualeguay	Departamento de Gualeguay	3433661
+AR.06.18070	Departamento de Goya	Departamento de Goya	3433714
+AR.01.06371	Partido de General San Martín	Partido de General San Martin	3433778
+AR.01.06364	Partido de General Rodríguez	Partido de General Rodriguez	3433780
+AR.01.06357	Partido de General Pueyrredón	Partido de General Pueyrredon	3433782
+AR.01.06343	Partido de General Paz	Partido de General Paz	3433785
+AR.06.18063	Departamento de General Paz	Departamento de General Paz	3433786
+AR.21.82049	General Obligado Department	General Obligado Department	3433788
+AR.14.54049	Departamento de General Manuel Belgrano	Departamento de General Manuel Belgrano	3433790
+AR.01.06336	Partido de General Lavalle	Partido de General Lavalle	3433794
+AR.01.06329	Partido de General Las Heras	Partido de General Las Heras	3433798
+AR.01.06315	Partido de General Madariaga	Partido de General Madariaga	3433800
+AR.01.06308	Partido de General Guido	Partido de General Guido	3433805
+AR.03.22056	Departamento de General Donovan	Departamento de General Donovan	3433811
+AR.01.06301	Partido de General Belgrano	Partido de General Belgrano	3433816
+AR.06.18056	Departamento de General Alvear	Departamento de General Alvear	3433819
+AR.01.06280	Partido de General Alvarado	Partido de General Alvarado	3433821
+AR.09.34014	Departamento de Formosa	Departamento de Formosa	3433898
+AR.01.06274	Partido de Florencio Varela	Partido de Florencio Varela	3433922
+AR.08.30042	Departamento de Feliciano	Departamento de Feliciano	3433947
+AR.08.30028	Departamento de Federación	Departamento de Federacion	3433958
+AR.01.06266	Partido de Exaltación de la Cruz	Partido de Exaltacion de la Cruz	3433977
+AR.01.06260	Partido de Esteban Echeverría	Partido de Esteban Echeverria	3434003
+AR.06.18049	Departamento de Esquina	Departamento de Esquina	3434094
+AR.01.06252	Partido de Escobar	Partido de Escobar	3434130
+AR.01.06245	Partido de Ensenada	Partido de Ensenada	3434140
+AR.06.18042	Departamento de Empedrado	Departamento de Empedrado	3434152
+AR.14.54042	Departamento de Eldorado	Departamento de Eldorado	3434672
+AR.01.06238	Partido de Dolores	Partido de Dolores	3435032
+AR.06.18035	Departamento de Curuzú Cuatiá	Departamento de Curuzu Cuatia	3435101
+AR.08.30015	Departamento de Concordia	Departamento de Concordia	3435260
+AR.06.18028	Departamento de Concepción	Departamento de Concepcion	3435269
+AR.14.54035	Departamento de Concepción de la Sierra	Departamento de Concepcion de la Sierra	3435270
+AR.08.30008	Departamento de Colón	Departamento de Colon	3435351
+AR.01.06224	Partido de Chivilcoy	Partido de Chivilcoy	3435406
+AR.01.06218	Partido de Chascomús	Partido de Chascomus	3435446
+AR.01.06168	Partido de Castelli	Partido de Castelli	3435603
+AR.01.06161	Partido de Carmen de Areco	Partido de Carmen de Areco	3435643
+AR.01.06140	Partido de Capitán Sarmiento	Partido de Capitan Sarmiento	3435689
+AR.06.18021	Departamento de Capital	Departamento de Capital	3435698
+AR.14.54028	Departamento de Capital	Departamento de Capital	3435699
+AR.01.06134	Partido de Canuelas	Partido de Canuelas	3435710
+AR.14.54021	Departamento de Candelaria	Departamento de Candelaria	3435732
+AR.01.06126	Partido de Campana	Partido de Campana	3435809
+AR.14.54014	Departamento de Cainguás	Departamento de Cainguas	3435844
+AR.01.06119	Partido de Brandsen	Partido de Brandsen	3435962
+AR.06.18014	Departamento de Berón de Astrada	Departamento de Beron de Astrada	3436028
+AR.03.22014	Departamento de Bermejo	Departamento de Bermejo	3436037
+AR.01.06098	Partido de Berisso	Partido de Berisso	3436038
+AR.01.06091	Partido de Berazategui	Partido de Berazategui	3436042
+AR.06.18007	Departamento de Bella Vista	Departamento de Bella Vista	3436058
+AR.01.06077	Partido de Arrecifes	Partido de Arrecifes	3436101
+AR.01.06070	Partido de Baradero	Partido de Baradero	3436149
+AR.01.06063	Partido de Balcarce	Partido de Balcarce	3436176
+AR.01.06049	Partido de Azul	Partido de Azul	3436197
+AR.01.06042	Partido de Ayacucho	Partido de Ayacucho	3436219
+AR.01.06035	Partido de Avellaneda	Partido de Avellaneda	3436227
+AR.14.54007	Departamento de Apóstoles	Departamento de Apostoles	3436309
+AR.01.06028	Partido de Almirante Brown	Partido de Almirante Brown	3436394
+AR.18.70133	Departamento de Zonda	Departamento de Zonda	3832079
+AR.15.58112	Departamento de Zapala	Departamento de Zapala	3832131
+AR.10.38112	Departamento de Yaví	Departamento de Yavi	3832287
+AR.01.06875	Partido de Villarino	Partido de Villarino	3832640
+AR.08.30105	Departamento de Victoria	Departamento de Victoria	3832932
+AR.21.82133	Departamento de Vera	Departamento de Vera	3833025
+AR.12.46056	Departamento de General Angel Peñaloza	Departamento de General Angel Penaloza	3833075
+AR.01.06854	Partido de Veinticinco de Mayo	Partido de Veinticinco de Mayo	3833100
+AR.16.62091	Departamento de Veinticinco de Mayo	Departamento de Veinticinco de Mayo	3833106
+AR.18.70126	Departamento de Veinticinco de Mayo	Departamento de Veinticinco de Mayo	3833107
+AR.02.10112	Departamento de Valle Viejo	Departamento de Valle Viejo	3833198
+AR.10.38105	Departamento de Valle Grande	Departamento de Valle Grande	3833218
+AR.18.70119	Departamento de Valle Fértil	Departamento de Valle Fertil	3833221
+AR.16.62084	Departamento de Valcheta	Departamento de Valcheta	3833280
+AR.11.42154	Departamento de Utracán	Departamento de Utracan	3833347
+AR.23.94014	Departamento de Ushuaia	Departamento de Ushuaia	3833365
+AR.05.14182	Departamento de Unión	Departamento de Union	3833419
+AR.18.70112	Departamento de Ullúm	Departamento de Ullum	3833446
+AR.13.50126	Departamento de Tupungato	Departamento de Tupungato	3833511
+AR.13.50119	Departamento de Tunuyán	Departamento de Tunuyan	3833519
+AR.10.38098	Departamento de Tumbaya	Departamento de Tumbaya	3833548
+AR.05.14175	Departamento de Tulumba	Departamento de Tulumba	3833554
+AR.01.06833	Partido de Tres Arroyos	Partido de Tres Arroyos	3833857
+AR.01.06826	Partido de Trenque Lauquen	Partido de Trenque Lauquen	3833874
+AR.11.42147	Departamento de Trenel	Departamento de Trenel	3833878
+AR.24.90112	Departamento de Trancas	Departamento de Trancas	3833945
+AR.05.14168	Departamento de Totoral	Departamento de Totoral	3834008
+AR.01.06819	Partido de Tornquist	Partido de Tornquist	3834182
+AR.11.42140	Departamento de Toay	Departamento de Toay	3834309
+AR.02.10105	Departamento de Tinogasta	Departamento de Tinogasta	3834360
+AR.10.38094	Departamento de Tilcara	Departamento de Tilcara	3834402
+AR.05.14161	Departamento de Tercero Arriba	Departamento de Tercero Arriba	3834506
+AR.04.26105	Departamento de Telsen	Departamento de Telsen	3834535
+AR.04.26098	Departamento de Tehuelches	Departamento de Tehuelches	3834560
+AR.01.06798	Partido de Tapalqué	Partido de Tapalque	3834646
+AR.10.38084	Departamento de Susques	Departamento de Susques	3834892
+AR.05.14154	Departamento de Sobremonte	Departamento de Sobremonte	3835180
+AR.22.86189	Departamento de Silípica	Departamento de Silipica	3835272
+AR.04.26091	Departamento de Sarmiento	Departamento de Sarmiento	3835705
+AR.18.70105	Departamento de Sarmiento	Departamento de Sarmiento	3835706
+AR.22.86182	Departamento de Sarmiento	Departamento de Sarmiento	3835707
+AR.17.66161	Departamento de Santa Victoria	Departamento de Santa Victoria	3835877
+AR.13.50112	Departamento de Santa Rosa	Departamento de Santa Rosa	3835984
+AR.02.10098	Departamento de Santa Rosa	Departamento de Santa Rosa	3835985
+AR.05.14147	Departamento de Santa María	Departamento de Santa Maria	3836128
+AR.02.10091	Departamento de Santa María	Departamento de Santa Maria	3836129
+AR.18.70098	Departamento de Santa Lucía	Departamento de Santa Lucia	3836188
+AR.10.38077	Departamento de Santa Catalina	Departamento de Santa Catalina	3836444
+AR.10.38070	Departamento de Santa Bárbara	Departamento de Santa Barbara	3836473
+AR.23.94007	Departamento de Río Grande	Departamento de Rio Grande	3836551
+AR.13.50105	Departamento de San Rafael	Departamento de San Rafael	3836668
+AR.10.38063	Departamento de San Pedro	Departamento de San Pedro	3836752
+AR.01.06763	Partido de San Nicolás	Partido de San Nicolas	3836848
+AR.13.50098	Departamento de San Martín	Departamento de San Martin	3836982
+AR.19.74063	Departamento de Libertador General San Martín	Departamento de Libertador General San Martin	3836983
+AR.21.82126	Departamento de San Martín	Departamento de San Martin	3836984
+AR.18.70091	Departamento de San Martín	Departamento de San Martin	3836985
+AR.22.86175	Departamento de San Martín	Departamento de San Martin	3836986
+AR.03.22147	Departamento de San Lorenzo	Departamento de San Lorenzo	3837081
+AR.21.82119	Departamento de San Lorenzo	Departamento de San Lorenzo	3837090
+AR.05.14140	Departamento de San Justo	Departamento de San Justo	3837121
+AR.21.82112	Departamento de San Justo	Departamento de San Justo	3837122
+AR.21.82105	San Jerónimo Department	San Jeronimo Department	3837460
+AR.05.14133	Departamento de San Javier	Departamento de San Javier	3837475
+AR.21.82091	Departamento de San Cristóbal	Departamento de San Cristobal	3837821
+AR.13.50091	Departamento de San Carlos	Departamento de San Carlos	3837885
+AR.17.66154	Departamento de San Carlos	Departamento de San Carlos	3837886
+AR.12.46119	Departamento de San Blas de los Sauces	Departamento de San Blas de los Sauces	3837918
+AR.16.62077	Departamento de San Antonio	Departamento de San Antonio	3838028
+AR.10.38056	Departamento de San Antonio	Departamento de San Antonio	3838029
+AR.05.14126	Departamento de San Alberto	Departamento de San Alberto	3838154
+AR.12.46126	Departamento de Sanagasta	Departamento de Sanagasta	3838186
+AR.01.06714	Partido de Salto	Partido de Salto	3838222
+AR.01.06721	Partido de Salliqueló	Partido de Salliquelo	3838240
+AR.22.86168	Departamento de Salavina	Departamento de Salavina	3838300
+AR.01.06700	Partido de Saavedra	Partido de Saavedra	3838468
+AR.17.66147	Departamento de Rosario de Lerma	Departamento de Rosario de Lerma	3838560
+AR.17.66140	Departamento de Rosario de la Frontera	Departamento de Rosario de la Frontera	3838563
+AR.21.82084	Rosario Department	Rosario Department	3838574
+AR.01.06686	Partido de Rojas	Partido de Rojas	3838646
+AR.22.86161	Departamento de Robles	Departamento de Robles	3838725
+AR.01.06679	Partido de Rivadavia	Partido de Rivadavia	3838745
+AR.12.46070	Departamento de General Juan F. Quiroga	Departamento de General Juan F. Quiroga	3838749
+AR.18.70084	Departamento de Rivadavia	Departamento de Rivadavia	3838750
+AR.13.50084	Departamento de Rivadavia	Departamento de Rivadavia	3838751
+AR.22.86154	Departamento de Rivadavia	Departamento de Rivadavia	3838752
+AR.17.66133	Departamento de Rivadavia	Departamento de Rivadavia	3838753
+AR.04.26084	Departamento de Río Senguerr	Departamento de Rio Senguerr	3838795
+AR.05.14119	Departamento de Río Segundo	Departamento de Rio Segundo	3838796
+AR.05.14112	Departamento de Río Seco	Departamento de Rio Seco	3838801
+AR.05.14105	Departamento de Río Primero	Departamento de Rio Primero	3838822
+AR.22.86147	Departamento de Río Hondo	Departamento de Rio Hondo	3838845
+AR.05.14098	Departamento de Río Cuarto	Departamento de Rio Cuarto	3838873
+AR.20.78049	Departamento de Río Chico	Departamento de Rio Chico	3838892
+AR.24.90077	Departamento de Río Chico	Departamento de Rio Chico	3838893
+AR.10.38049	Departamento de Rinconada	Departamento de Rinconada	3839021
+AR.11.42133	Departamento de Realicó	Departamento de Realico	3839281
+AR.04.26077	Departamento de Rawson	Departamento de Rawson	3839303
+AR.18.70077	Departamento de Rawson	Departamento de Rawson	3839304
+AR.11.42126	Departamento de Rancul	Departamento de Rancul	3839380
+AR.09.34063	Departamento de Ramón Lista	Departamento de Ramon Lista	3839414
+AR.01.06665	Partido de Ramallo	Partido de Ramallo	3839441
+AR.03.22133	Departamento de Quitilipi	Departamento de Quitilipi	3839489
+AR.11.42119	Departamento de Quemú Quemú	Departamento de Quemu Quemu	3839667
+AR.22.86140	Departamento de Quebrachos	Departamento de Quebrachos	3839792
+AR.05.14091	Departamento de Punilla	Departamento de Punilla	3839996
+AR.11.42112	Departamento de Puelén	Departamento de Puelen	3840188
+AR.01.06651	Partido de Puan	Partido de Puan	3840251
+AR.19.74021	Coronel Pringles	Coronel Pringles	3840260
+AR.05.14084	Departamento de Presidente Roque Sáenz Peña	Departamento de Presidente Roque Saenz Pena	3840292
+AR.02.10084	Departamento de Pomán	Departamento de Poman	3840808
+AR.18.70070	Departamento de Pocito	Departamento de Pocito	3840858
+AR.05.14077	Departamento de Pocho	Departamento de Pocho	3840865
+AR.16.62070	Departamento de Pilcaniyeu	Departamento de Pilcaniyeu	3841139
+AR.15.58098	Departamento de Picún Leufú	Departamento de Picun Leufu	3841298
+AR.15.58105	Departamento de Picunches	Departamento de Picunches	3841303
+AR.16.62063	Departamento de Pichi Mahuida	Departamento de Pichi Mahuida	3841356
+AR.01.06623	Partido de Pergamino	Partido de Pergamino	3841488
+AR.01.06616	Partido de Pellegrini	Partido de Pellegrini	3841610
+AR.22.86133	Departamento de Pellegrini	Departamento de Pellegrini	3841612
+AR.15.58091	Departamento de Pehuenches	Departamento de Pehuenches	3841673
+AR.01.06609	Partido de Pehuajó	Partido de Pehuajo	3841678
+AR.01.06602	Partido de Patagones	Partido de Patagones	3841799
+AR.04.26070	Departamento de Paso de Indios	Departamento de Paso de Indios	3841892
+AR.02.10077	Departamento de Paclín	Departamento de Paclin	3842418
+AR.17.66126	Departamento de Orán	Departamento de Oran	3842606
+AR.01.06595	Partido de Olavarría	Partido de Olavarria	3842669
+AR.22.86126	Departamento de Ojo de Agua	Departamento de Ojo de Agua	3842719
+AR.03.22112	Departamento de O’Higgins	Departamento de O'Higgins	3842751
+AR.01.06588	Partido de Nueve de Julio	Partido de Nueve de Julio	3842871
+AR.03.22105	Departamento de Nueve de Julio	Departamento de Nueve de Julio	3842872
+AR.16.62049	Departamento de Nueve de Julio	Departamento de Nueve de Julio	3842875
+AR.18.70063	Departamento de Nueve de Julio	Departamento de Nueve de Julio	3842876
+AR.21.82077	Departamento de Nueve de Julio	Departamento de Nueve de Julio	3842877
+AR.16.62056	Departamento de Ñorquincó	Departamento de Norquinco	3842988
+AR.15.58084	Departamento de Ñorquín	Departamento de Norquin	3842991
+AR.22.86119	Departamento de Moreno	Departamento de Moreno	3843684
+AR.24.90070	Departamento de Monteros	Departamento de Monteros	3843802
+AR.17.66119	Departamento de Molinos	Departamento de Molinos	3843991
+AR.22.86112	Departamento de Mitre	Departamento de Mitre	3844110
+AR.15.58077	Departamento de Minas	Departamento de Minas	3844208
+AR.05.14070	Departamento de Minas	Departamento de Minas	3844209
+AR.17.66112	Departamento de Metán	Departamento de Metan	3844297
+AR.03.22098	Departamento de Mayor Luis J. Fontana	Departamento de Mayor Luis J. Fontana	3844638
+AR.22.86098	Departamento de Juan F. Ibarra	Departamento de Juan F. Ibarra	3844706
+AR.09.34028	Departamento de Matacos	Departamento de Matacos	3844738
+AR.04.26063	Departamento de Mártires	Departamento de Martires	3844763
+AR.05.14063	Departamento de Marcos Juárez	Departamento de Marcos Juarez	3844898
+AR.11.42105	Departamento de Maracó	Departamento de Maraco	3844924
+AR.13.50077	Departamento de Malargüe	Departamento de Malarguee	3845180
+AR.03.22091	Departamento de Maipú	Departamento de Maipu	3845238
+AR.13.50070	Departamento de Maipú	Departamento de Maipu	3845244
+AR.20.78042	Departamento de Magallanes	Departamento de Magallanes	3845272
+AR.13.50063	Departamento de Luján	Departamento de Lujan	3845397
+AR.15.58070	Departamento de Los Lagos	Departamento de Los Lagos	3846077
+AR.17.66105	Departamento de Los Andes	Departamento de Los Andes	3846503
+AR.22.86105	Departamento de Loreto	Departamento de Loreto	3846597
+AR.15.58063	Departamento de Loncopué	Departamento de Loncopue	3846632
+AR.01.06469	Partido de Lincoln	Partido de Lincoln	3846861
+AR.11.42091	Departamento de Limay Mahuida	Departamento de Limay Mahuida	3846879
+AR.11.42084	Departamento de Lihuel-Calel	Departamento de Lihuel-Calel	3846896
+AR.11.42098	Departamento de Loventué	Departamento de Loventue	3846928
+AR.10.38035	Departamento de Ledesma	Departamento de Ledesma	3847087
+AR.01.06462	Partido de Leandro N. Alem	Partido de Leandro N. Alem	3847097
+AR.24.90056	Departamento de Leales	Departamento de Leales	3847102
+AR.17.66098	Departamento de La Viña	Departamento de La Vina	3847193
+AR.13.50056	Departamento de Lavalle	Departamento de Lavalle	3847327
+AR.13.50049	Departamento de Las Heras	Departamento de Las Heras	3848352
+AR.21.82070	Las Colonias Department	Las Colonias Department	3848539
+AR.01.06448	Partido de Laprida	Partido de Laprida	3849298
+AR.17.66091	Departamento de La Poma	Departamento de La Poma	3849374
+AR.13.50042	Departamento de La Paz	Departamento de La Paz	3849513
+AR.02.10070	Departamento de La Paz	Departamento de La Paz	3849514
+AR.04.26056	Departamento de Languiñeo	Departamento de Languineo	3849745
+AR.20.78035	Departamento de Lago Buenos Aires	Departamento de Lago Buenos Aires	3851119
+AR.20.78028	Departamento de Lago Argentino	Departamento de Lago Argentino	3851122
+AR.15.58056	Departamento de Lácar	Departamento de Lacar	3852288
+AR.21.82063	Departamento de La Capital	Departamento de La Capital	3852292
+AR.01.06413	Partido de Junín	Partido de Junin	3853351
+AR.13.50035	Departamento de Junín	Departamento de Junin	3853352
+AR.19.74049	Departamento de Junín	Departamento de Junin	3853353
+AR.05.14056	Departamento de Juárez Celman	Departamento de Juarez Celman	3853410
+AR.22.86091	Departamento de Jiménez	Departamento de Jimenez	3853500
+AR.18.70056	Departamento de Jáchal	Departamento de Jachal	3853596
+AR.05.14049	Departamento de Ischilín	Departamento de Ischilin	3853686
+AR.17.66070	Departamento de Iruya	Departamento de Iruya	3853698
+AR.21.82056	Iriondo Department	Iriondo Department	3853705
+AR.03.22070	Departamento de Independencia	Departamento de Independencia	3853853
+AR.12.46105	Departamento de Independencia	Departamento de Independencia	3853854
+AR.18.70049	Departamento de Iglesia	Departamento de Iglesia	3853914
+AR.10.38028	Departamento de Humahuaca	Departamento de Humahuaca	3853966
+AR.15.58049	Departamento de Huiliches	Departamento de Huiliches	3853984
+AR.11.42077	Departamento de Hucal	Departamento de Hucal	3854058
+AR.01.06406	Partido de Hipólito Yrigoyen	Partido de Hipolito Yrigoyen	3854283
+AR.20.78021	Departamento de Güer Aike	Departamento de Gueer Aike	3854444
+AR.13.50028	Departamento de Guaymallén	Departamento de Guaymallen	3854459
+AR.11.42070	Departamento de Guatraché	Departamento de Guatrache	3854492
+AR.22.86084	Departamento de Guasayán	Departamento de Guasayan	3854499
+AR.01.06399	Partido de Guaminí	Partido de Guamini	3854602
