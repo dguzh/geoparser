@@ -116,5 +116,4 @@ def test_query_location_info(
 ):
     info = geonames_real_data.query_location_info(location_ids=location_ids)
     for actual, expected in zip(info, expected):
-        print(actual)
         assert actual == expected
