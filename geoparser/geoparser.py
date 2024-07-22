@@ -74,6 +74,13 @@ class Geoparser:
         self.feature_filter = feature_filter
 
         print("Toponym Recognition...")
+        docs = self.recognize(texts, batch_size=batch_size)
+
+        print("Toponym Resolution...")
+        docs = self.resolve(docs, batch_size=batch_size)
+        return docs
+
+    def recognize(self, texts: list[str], batch_size: int = 8) -> list[GeoDoc]:
         docs = list(
             tqdm(
                 self.nlp.pipe(texts, batch_size=batch_size),
@@ -81,12 +88,9 @@ class Geoparser:
                 desc="Batches",
             )
         )
-
-        print("Toponym Resolution...")
-        self.resolve(docs, batch_size=batch_size)
         return docs
 
-    def resolve(self, docs: list[GeoDoc], batch_size: int = 8):
+    def resolve(self, docs: list[GeoDoc], batch_size: int = 8) -> list[GeoDoc]:
 
         candidate_ids = set()
         for doc in docs:
@@ -137,3 +141,4 @@ class Geoparser:
                         toponym._.loc_score = score
 
                     toponym_index += 1
+        return docs
