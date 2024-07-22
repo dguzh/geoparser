@@ -88,54 +88,78 @@ class Geoparser:
         return docs
 
     def resolve(self, docs: list[GeoDoc], batch_size: int = 8) -> list[GeoDoc]:
-
-        candidate_ids = set()
-        for doc in docs:
-            for toponym in doc.toponyms:
-                candidate_ids.update(toponym.candidates)
-
-        if candidate_ids:
-            candidate_ids = list(candidate_ids)
-            candidate_descriptions = [
-                self.gazetteer.get_location_description(location)
-                for location in self.gazetteer.query_location_info(candidate_ids)
-            ]
-            candidate_embeddings = self.transformer.encode(
-                candidate_descriptions,
-                batch_size=batch_size,
-                show_progress_bar=True,
-                convert_to_tensor=True,
+        if candidate_ids := self.get_candidate_ids(docs):
+            candidate_embeddings_lookup = self.get_candidate_embeddings_lookup(
+                candidate_ids, batch_size
             )
-            candidate_embeddings_lookup = dict(zip(candidate_ids, candidate_embeddings))
-
-            toponym_contexts = [
-                toponym.context.text for doc in docs for toponym in doc.toponyms
-            ]
-            toponym_embeddings = self.transformer.encode(
-                toponym_contexts,
-                batch_size=batch_size,
-                show_progress_bar=True,
-                convert_to_tensor=True,
-            )
+            toponym_embeddings = self.get_toponym_embeddings(docs, batch_size)
 
             toponym_index = 0
             for doc in docs:
                 for toponym in doc.toponyms:
-                    candidate_ids = toponym.candidates
-                    candidate_embeddings = [
-                        candidate_embeddings_lookup[candidate_id]
-                        for candidate_id in candidate_ids
-                    ]
-                    if candidate_embeddings:
-                        candidate_embeddings = torch.stack(candidate_embeddings)
-                        similarities = util.cos_sim(
-                            toponym_embeddings[toponym_index], candidate_embeddings
+                    if toponym.candidates:
+                        toponym._.loc_id, toponym._.loc_score = self.resolve_toponym(
+                            candidate_embeddings_lookup,
+                            toponym.candidates,
+                            toponym_embeddings,
+                            toponym_index,
                         )
-                        predicted_index = torch.argmax(similarities).item()
-                        predicted_id = candidate_ids[predicted_index]
-                        toponym._.loc_id = predicted_id
-                        score = float(similarities[0][predicted_index])
-                        toponym._.loc_score = score
-
                     toponym_index += 1
         return docs
+
+    def get_candidate_ids(self, docs: list[GeoDoc]) -> list[int]:
+        candidate_ids = set()
+        for doc in docs:
+            for toponym in doc.toponyms:
+                candidate_ids.update(toponym.candidates)
+        return list(candidate_ids)
+
+    def get_candidate_embeddings_lookup(
+        self, candidate_ids: list[int], batch_size: int = 8
+    ) -> dict[str, torch.Tensor]:
+        candidate_descriptions = [
+            self.gazetteer.get_location_description(location)
+            for location in self.gazetteer.query_location_info(candidate_ids)
+        ]
+        candidate_embeddings = self.transformer.encode(
+            candidate_descriptions,
+            batch_size=batch_size,
+            show_progress_bar=True,
+            convert_to_tensor=True,
+        )
+        return dict(zip(candidate_ids, candidate_embeddings))
+
+    def get_toponym_embeddings(
+        self, docs: list[GeoDoc], batch_size: int = 8
+    ) -> torch.Tensor:
+        toponym_contexts = [
+            toponym.context.text for doc in docs for toponym in doc.toponyms
+        ]
+        toponym_embeddings = self.transformer.encode(
+            toponym_contexts,
+            batch_size=batch_size,
+            show_progress_bar=True,
+            convert_to_tensor=True,
+        )
+        return toponym_embeddings
+
+    def resolve_toponym(
+        self,
+        candidate_embeddings_lookup: dict[str, torch.Tensor],
+        candidate_ids: list[int],
+        toponym_embeddings: torch.Tensor,
+        toponym_index: int,
+    ) -> tuple[int, float]:
+        candidate_embeddings = torch.stack(
+            [
+                candidate_embeddings_lookup[candidate_id]
+                for candidate_id in candidate_ids
+            ]
+        )
+        similarities = util.cos_sim(
+            toponym_embeddings[toponym_index], candidate_embeddings
+        )
+        predicted_index = torch.argmax(similarities).item()
+        predicted_id = candidate_ids[predicted_index]
+        score = float(similarities[0][predicted_index])
+        return predicted_id, score
