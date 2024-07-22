@@ -80,3 +80,26 @@ def test_setup_transformer(geoparser: Geoparser, transformer_model: str):
     ):
         model = geoparser.setup_transformer(transformer_model)
         assert isinstance(model, SentenceTransformer)
+
+
+@pytest.mark.parametrize("texts", [("tuple",), [str], ["str"], "str"])
+def test_parse(geoparser: Geoparser, texts):
+    with (
+        nullcontext()
+        if type(texts) is list and all(type(elem) is str for elem in texts)
+        else pytest.raises(TypeError)
+    ):
+        parsed = geoparser.parse(texts)
+        assert type(parsed) is list
+        for elem in parsed:
+            assert type(elem) is GeoDoc
+
+
+@pytest.mark.parametrize(
+    "texts", [["This is a text.", "This is also a text."], [""], []]
+)
+def test_recognize(geoparser: Geoparser, texts):
+    parsed = geoparser.parse(texts)
+    assert type(parsed) is list
+    for elem in parsed:
+        assert type(elem) is GeoDoc
