@@ -1,6 +1,4 @@
 import logging
-from importlib import import_module
-from typing import List, Set
 
 import spacy
 import torch
@@ -8,6 +6,7 @@ from sentence_transformers import SentenceTransformer, util
 from tqdm.auto import tqdm
 
 from geoparser.constants import GAZETTEERS
+from geoparser.gazetteer import Gazetteer
 from geoparser.geodoc import GeoDoc
 
 # Suppress token length warnings from transformers
@@ -27,7 +26,7 @@ class Geoparser:
         self.country_filter = None
         self.feature_filter = None
 
-    def setup_gazetteer(self, gazetteer: str):
+    def setup_gazetteer(self, gazetteer: str) -> type[Gazetteer]:
 
         if gazetteer in GAZETTEERS:
             gazetteer = GAZETTEERS[gazetteer.lower()]()
@@ -39,7 +38,7 @@ class Geoparser:
                 f"Invalid gazetteer name. Available gazetteers: {available}"
             )
 
-    def setup_spacy(self, spacy_model: str):
+    def setup_spacy(self, spacy_model: str) -> type[spacy.language.Language]:
         if not spacy.util.is_package(spacy_model):
             raise OSError(
                 f"spaCy model '{spacy_model}' not found. Run the following command to install it:\npython -m spacy download {spacy_model}"
@@ -54,19 +53,18 @@ class Geoparser:
             words=[t.text for t in nlp.tokenizer(text)],
             spaces=[t.whitespace_ for t in nlp.tokenizer(text)],
         )
-
         return nlp
 
-    def setup_transformer(self, transformer_model: str):
+    def setup_transformer(self, transformer_model: str) -> SentenceTransformer:
         return SentenceTransformer(transformer_model)
 
     def parse(
         self,
-        texts: List[str],
+        texts: list[str],
         batch_size: int = 8,
-        country_filter: List[str] = None,
-        feature_filter: List[str] = None,
-    ):
+        country_filter: list[str] = None,
+        feature_filter: list[str] = None,
+    ) -> list[GeoDoc]:
         if not isinstance(texts, list) or not all(
             isinstance(text, str) for text in texts
         ):
@@ -86,10 +84,9 @@ class Geoparser:
 
         print("Toponym Resolution...")
         self.resolve(docs, batch_size=batch_size)
-
         return docs
 
-    def resolve(self, docs: List[GeoDoc], batch_size: int = 8):
+    def resolve(self, docs: list[GeoDoc], batch_size: int = 8):
 
         candidate_ids = set()
         for doc in docs:
