@@ -19,12 +19,14 @@ class Geoparser:
         spacy_model: str = "en_core_web_trf",
         transformer_model: str = "dguzh/geo-all-distilroberta-v1",
         gazetteer: str = "geonames",
+        country_filter: list[str] = None,
+        feature_filter: list[str] = None,
     ):
         self.gazetteer = self.setup_gazetteer(gazetteer)
         self.nlp = self.setup_spacy(spacy_model)
         self.transformer = self.setup_transformer(transformer_model)
-        self.country_filter = None
-        self.feature_filter = None
+        self.country_filter = country_filter
+        self.feature_filter = feature_filter
 
     def setup_gazetteer(self, gazetteer: str) -> type[Gazetteer]:
 
@@ -62,16 +64,11 @@ class Geoparser:
         self,
         texts: list[str],
         batch_size: int = 8,
-        country_filter: list[str] = None,
-        feature_filter: list[str] = None,
     ) -> list[GeoDoc]:
         if not isinstance(texts, list) or not all(
             isinstance(text, str) for text in texts
         ):
             raise TypeError("Input must be a list of strings")
-
-        self.country_filter = country_filter
-        self.feature_filter = feature_filter
 
         print("Toponym Recognition...")
         docs = self.recognize(texts, batch_size=batch_size)

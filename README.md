@@ -148,10 +148,10 @@ all_coordinates = doc.locations['latitude', 'longitude']
 
 ### Geocoding Scope
 
-You can limit the scope of geocoding by specifying one or more countries and [GeoNames feature classes](https://www.geonames.org/export/codes.html). This ensures that Geoparser only encodes locations within the specified countries, and can limit the types of geographical features to consider. To use this feature, use the `country_filter` and `feature_filter` parameters in the `parse` method:
+You can limit the scope of geocoding by specifying one or more countries and [GeoNames feature classes](https://www.geonames.org/export/codes.html). This ensures that Geoparser only encodes locations within the specified countries, and can limit the types of geographical features to consider. To use this feature, use the `country_filter` and `feature_filter` parameters when initializing the Geoparser:
 
 ```python
-docs = geo.parse(texts, country_filter=['CH', 'DE', 'AT'], feature_filter=['A', 'P'])
+geo = Geoparser(spacy_model='en_core_web_sm', transformer_model='dguzh/geo-all-MiniLM-L6-v2', gazetteer='geonames', country_filter=['CH', 'DE', 'AT'], feature_filter=['A', 'P'])
 ```
 
 ### Example
