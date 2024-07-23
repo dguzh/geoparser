@@ -19,11 +19,11 @@ from geoparser.config.models import GazetteerData, VirtualTable
 class Gazetteer(ABC):
 
     @abstractmethod
-    def query_candidates(self):
+    def query_candidates(self) -> list[int]:
         pass
 
     @abstractmethod
-    def query_location_info(self):
+    def query_location_info(self) -> list[dict]:
         pass
 
     def get_location_description(

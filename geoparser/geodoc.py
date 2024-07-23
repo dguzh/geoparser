@@ -6,27 +6,24 @@ GeoSpan.set_extension("loc_id", default=None)
 GeoSpan.set_extension("loc_score", default=None)
 
 
+class Locations:
+    def __init__(self, data: list[dict]):
+        self.data = data
+
+    def __getitem__(self, key):
+        if isinstance(key, tuple):
+            return [
+                (tuple(item.get(k, None) for k in key) if item else (None,) * len(key))
+                for item in self.data
+            ]
+        else:
+            return [item.get(key, None) if item else None for item in self.data]
+
+    def __repr__(self):
+        return repr(self.data)
+
+
 class GeoDoc(Doc):
-
-    class Locations:
-        def __init__(self, data):
-            self.data = data
-
-        def __getitem__(self, key):
-            if isinstance(key, tuple):
-                return [
-                    (
-                        tuple(item.get(k, None) for k in key)
-                        if item
-                        else (None,) * len(key)
-                    )
-                    for item in self.data
-                ]
-            else:
-                return [item.get(key, None) if item else None for item in self.data]
-
-        def __repr__(self):
-            return repr(self.data)
 
     def __init__(self, geoparser, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -37,7 +34,7 @@ class GeoDoc(Doc):
 
     @property
     def locations(self):
-        return self.Locations(
+        return Locations(
             self.geoparser.gazetteer.query_location_info(
                 [toponym._.loc_id for toponym in self.toponyms]
             )
