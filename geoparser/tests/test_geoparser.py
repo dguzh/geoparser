@@ -12,7 +12,7 @@ from geoparser.geonames import GeoNames
 from geoparser.geoparser import Geoparser
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def geoparser() -> Geoparser:
     geoparser = Geoparser(
         spacy_model="en_core_web_sm",
@@ -22,14 +22,14 @@ def geoparser() -> Geoparser:
     return geoparser
 
 
-@pytest.fixture
+@pytest.fixture(scope="function")
 def geodocs(geoparser: Geoparser) -> list[GeoDoc]:
     texts = ["Roc Meler is a peak in Andorra."]
     docs = geoparser.recognize(texts)
     return docs
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def roc_meler_id() -> int:
     return 3039328
 

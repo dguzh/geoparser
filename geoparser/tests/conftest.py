@@ -1,3 +1,4 @@
+import tempfile
 from pathlib import Path
 
 import pandas as pd
@@ -8,15 +9,16 @@ from geoparser.geonames import GeoNames
 from geoparser.tests.utils import get_static_test_file
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def test_chunk_full() -> pd.DataFrame:
     data = {"col1": [1, 2, 3], "col2": ["a", "b", "c"]}
     return pd.DataFrame.from_dict(data)
 
 
-@pytest.fixture
-def geonames_real_data(tmpdir: py.path.LocalPath) -> GeoNames:
+@pytest.fixture(scope="session")
+def geonames_real_data() -> GeoNames:
     gazetteer = GeoNames()
+    tmpdir = py.path.local(tempfile.mkdtemp())
     gazetteer.data_dir = str(
         get_static_test_file(Path("gazetteers") / Path("geonames_1000"))
     )
