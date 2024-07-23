@@ -2,11 +2,13 @@ from contextlib import nullcontext
 
 import pytest
 import spacy
+import torch
 from sentence_transformers import SentenceTransformer
 
 from geoparser import constants as C
 from geoparser.gazetteer import Gazetteer
 from geoparser.geodoc import GeoDoc
+from geoparser.geonames import GeoNames
 from geoparser.geoparser import Geoparser
 
 
@@ -18,6 +20,18 @@ def geoparser() -> Geoparser:
         gazetteer="geonames",
     )
     return geoparser
+
+
+@pytest.fixture
+def geodocs(geoparser: Geoparser) -> list[GeoDoc]:
+    texts = ["Roc Meler is a peak in Andorra."]
+    docs = geoparser.recognize(texts)
+    return docs
+
+
+@pytest.fixture
+def roc_meler_id() -> int:
+    return 3039328
 
 
 @pytest.mark.parametrize("gazetteer", list(C.GAZETTEERS.keys()) + ["non_existing"])
@@ -103,3 +117,68 @@ def test_recognize(geoparser: Geoparser, texts):
     assert type(parsed) is list
     for elem in parsed:
         assert type(elem) is GeoDoc
+
+
+def test_get_candidate_ids(
+    geoparser: Geoparser,
+    geonames_real_data: GeoNames,
+    geodocs: list[GeoDoc],
+    roc_meler_id: int,
+):
+    geoparser.gazetteer = geonames_real_data
+    candidate_ids = geoparser.get_candidate_ids(geodocs)
+    assert type(candidate_ids) is list
+    for elem in candidate_ids:
+        assert type(elem) is int
+    assert candidate_ids == [roc_meler_id]
+
+
+def test_get_candidate_embeddings_lookup(geoparser: Geoparser, roc_meler_id: int):
+    candidate_ids = [roc_meler_id]
+    lookup = geoparser.get_candidate_embeddings_lookup(candidate_ids)
+    assert type(lookup) is dict
+    for key, value in lookup.items():
+        assert type(key) is int
+        assert key == roc_meler_id
+        assert type(value) is torch.Tensor
+
+
+def test_get_toponym_embeddings(geoparser: Geoparser, geodocs: list[GeoDoc]):
+    toponym_embeddings = geoparser.get_toponym_embeddings(geodocs)
+    assert type(toponym_embeddings) is torch.Tensor
+
+
+def test_resolve_toponym(
+    geoparser: Geoparser,
+    geonames_real_data: GeoNames,
+    geodocs: list[GeoDoc],
+    roc_meler_id: int,
+):
+    geoparser.gazetteer = geonames_real_data
+    candidate_ids = geoparser.get_candidate_ids(geodocs)
+    lookup = geoparser.get_candidate_embeddings_lookup(candidate_ids)
+    toponym_embeddings = geoparser.get_toponym_embeddings(geodocs)
+    predicted_id, score = geoparser.resolve_toponym(
+        lookup, candidate_ids, toponym_embeddings, 0
+    )
+    # roc meler will be matched
+    assert predicted_id == roc_meler_id
+    # score will not change as long as gazetteer,
+    # geodoc and transformer model stay the same
+    assert score == 0.6268957853317261
+
+
+def test_resolve(
+    geoparser: Geoparser,
+    geonames_real_data: GeoNames,
+    geodocs: list[GeoDoc],
+    roc_meler_id: int,
+):
+    geoparser.gazetteer = geonames_real_data
+    resolved_docs = geoparser.resolve(geodocs)
+    roc_meler = geodocs[0].toponyms[0]
+    # roc meler will be matched
+    assert roc_meler._.loc_id == roc_meler_id
+    # score will not change as long as gazetteer,
+    # geodoc and transformer model stay the same
+    assert roc_meler._.loc_score == 0.6268957853317261

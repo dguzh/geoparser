@@ -17,18 +17,6 @@ def geonames(tmpdir: py.path.LocalPath) -> GeoNames:
     return gazetteer
 
 
-@pytest.fixture
-def geonames_real_data(tmpdir: py.path.LocalPath) -> GeoNames:
-    gazetteer = GeoNames()
-    gazetteer.data_dir = str(
-        get_static_test_file(Path("gazetteers") / Path("geonames_1000"))
-    )
-    gazetteer.db_path = str(tmpdir / Path(gazetteer.db_path).name)
-    for dataset in gazetteer.config.data:
-        gazetteer.load_data(dataset)
-    return gazetteer
-
-
 def test_read_file(geonames: GeoNames, test_chunk_full: pd.DataFrame):
     test_chunk_full["col1"] = test_chunk_full["col1"].astype(str)
     file_content = [
