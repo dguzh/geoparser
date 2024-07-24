@@ -16,10 +16,13 @@ def andorra_id() -> int:
     return 3039328
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture(scope="session")
 def geodocs(geoparser: Geoparser) -> list[GeoDoc]:
-    texts = ["Roc Meler is a peak in Andorra."]
-    docs = geoparser.recognize(texts)
+    texts = [
+        "Roc Meler is a peak in Andorra.",
+        "Roc Meler is not in Germany.",
+    ]
+    docs = geoparser.parse(texts)
     return docs
 
 

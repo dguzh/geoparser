@@ -5,7 +5,7 @@ class GeoSpan(Span):
 
     def __eq__(self, other):
         return (
-            self.doc == other.doc
+            self.doc.text == other.doc.text
             and self.start == other.start
             and self.end == other.end
         )
