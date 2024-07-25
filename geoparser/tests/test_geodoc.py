@@ -7,8 +7,8 @@ from geoparser.geospan import GeoSpan
 
 
 @pytest.fixture(scope="session")
-def locations(geonames_real_data, andorra_id) -> Locations:
-    locations = Locations(geonames_real_data.query_location_info([andorra_id]))
+def locations(geonames_real_data, radio_andorra_id) -> Locations:
+    locations = Locations(geonames_real_data.query_location_info([radio_andorra_id]))
     return locations
 
 

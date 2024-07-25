@@ -101,24 +101,24 @@ def test_get_candidate_ids(
     geoparser_real_data: Geoparser,
     geonames_real_data: GeoNames,
     geodocs: list[GeoDoc],
-    andorra_id: int,
+    radio_andorra_id: int,
 ):
     candidate_ids = geoparser_real_data.get_candidate_ids(geodocs)
     assert type(candidate_ids) is list
     for elem in candidate_ids:
         assert type(elem) is int
-    assert candidate_ids == [andorra_id]
+    assert candidate_ids == [radio_andorra_id]
 
 
 def test_get_candidate_embeddings_lookup(
-    geoparser_real_data: Geoparser, andorra_id: int
+    geoparser_real_data: Geoparser, radio_andorra_id: int
 ):
-    candidate_ids = [andorra_id]
+    candidate_ids = [radio_andorra_id]
     lookup = geoparser_real_data.get_candidate_embeddings_lookup(candidate_ids)
     assert type(lookup) is dict
     for key, value in lookup.items():
         assert type(key) is int
-        assert key == andorra_id
+        assert key == radio_andorra_id
         assert type(value) is torch.Tensor
 
 
@@ -131,7 +131,7 @@ def test_resolve_toponym(
     geoparser_real_data: Geoparser,
     geonames_real_data: GeoNames,
     geodocs: list[GeoDoc],
-    andorra_id: int,
+    radio_andorra_id: int,
 ):
     geoparser_real_data.gazetteer = geonames_real_data
     candidate_ids = geoparser_real_data.get_candidate_ids(geodocs)
@@ -141,7 +141,7 @@ def test_resolve_toponym(
         lookup, candidate_ids, toponym_embeddings, 0
     )
     # roc meler will be matched
-    assert predicted_id == andorra_id
+    assert predicted_id == radio_andorra_id
     assert type(score) is float
 
 
@@ -149,10 +149,10 @@ def test_resolve(
     geoparser_real_data: Geoparser,
     geonames_real_data: GeoNames,
     geodocs: list[GeoDoc],
-    andorra_id: int,
+    radio_andorra_id: int,
 ):
     resolved_docs = geoparser_real_data.resolve(geodocs)
     roc_meler = geodocs[0].toponyms[0]
     # roc meler will be matched
-    assert roc_meler._.loc_id == andorra_id
+    assert roc_meler._.loc_id == radio_andorra_id
     assert type(roc_meler._.loc_score) is float

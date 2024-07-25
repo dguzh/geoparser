@@ -1,7 +1,17 @@
 import pytest
+from spacy.tokens import Span
 
 from geoparser.geodoc import GeoDoc
+from geoparser.geoparser import Geoparser
 from geoparser.geospan import GeoSpan
+
+sents = [
+    "This here is seven tokens.",  # 7 tokens
+    "This is six tokens.",  # 6 tokens
+    "Roc Meler is a peak in Andorra.",  # 10 tokens
+    "This is six tokens.",  # 6 tokens
+    "This here is seven tokens.",  # 7 tokens
+]
 
 
 @pytest.fixture(scope="session")
@@ -12,6 +22,13 @@ def first_geodoc(geodocs: list[GeoDoc]) -> GeoDoc:
 @pytest.fixture(scope="session")
 def second_geodoc(geodocs: list[GeoDoc]) -> GeoDoc:
     return geodocs[1]
+
+
+@pytest.fixture(scope="session")
+def geodoc_long_context(geoparser_real_data: Geoparser):
+    texts = [" ".join(sents)]
+    docs = geoparser_real_data.parse(texts)
+    return docs[0]
 
 
 @pytest.mark.parametrize(
@@ -97,7 +114,6 @@ def test_geospan_location(first_geodoc: GeoDoc):
 def test_geospan_score(first_geodoc: GeoDoc):
     geospan = first_geodoc.toponyms[0]
     score = geospan.score
-    expected = 0
     assert type(score) is float
 
 
@@ -107,3 +123,55 @@ def test_geospan_candidates(first_geodoc: GeoDoc):
     assert type(candidates) is list
     for elem in candidates:
         assert type(elem) is int
+
+
+@pytest.mark.parametrize(
+    "token_limit,expected",
+    [
+        (11, " ".join([sents[2]])),  # fits perfectly
+        (12, " ".join([sents[2]])),  # not enough for an additional sent
+        (  # one additional sent possible: prefix is added first
+            17,
+            " ".join(sents[1:3]),
+        ),
+        (  # not enough for an additional suffix sent
+            18,
+            " ".join(sents[1:3]),
+        ),
+        (  # prefix and suffix possible
+            23,
+            " ".join(sents[1:4]),
+        ),
+        (  # not enough for an additional prefix sent
+            24,
+            " ".join(sents[1:4]),
+        ),
+        (  # one additional sent possible: prefix is added first
+            31,
+            " ".join(sents[0:4]),
+        ),
+        (  # not enough for an additional suffix
+            32,
+            " ".join(sents[0:4]),
+        ),
+        (  # two prefix and suffix sents each possible
+            38,
+            " ".join(sents),
+        ),
+        (  # whole segment as context
+            1000,
+            " ".join(sents),
+        ),
+    ],
+)
+def test_geospan_context(
+    geodoc_long_context: GeoDoc, token_limit: int, expected: str, monkeypatch
+):
+    monkeypatch.setattr(
+        "geoparser.geoparser.SentenceTransformer.get_max_seq_length",
+        lambda _: token_limit,
+    )
+    geospan = geodoc_long_context.toponyms[0]
+    context = geospan.context
+    assert type(context) is Span
+    assert context.text == expected

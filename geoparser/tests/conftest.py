@@ -12,7 +12,7 @@ from geoparser.tests.utils import get_static_test_file
 
 
 @pytest.fixture(scope="session")
-def andorra_id() -> int:
+def radio_andorra_id() -> int:
     return 3039328
 
 
