@@ -9,6 +9,7 @@ from geoparser.geodoc import GeoDoc
 from geoparser.geonames import GeoNames
 from geoparser.geoparser import Geoparser
 from geoparser.tests.utils import get_static_test_file
+from geoparser.trainer import GeoparserTrainer
 
 
 @pytest.fixture(scope="session")
@@ -50,19 +51,28 @@ def geoparser() -> Geoparser:
 
 
 @pytest.fixture(scope="session")
-def geoparser_real_data(
-    geoparser: Geoparser, geonames_real_data: GeoNames
-) -> Geoparser:
-    geoparser = Geoparser(
+def geoparser_real_data(geonames_real_data: GeoNames) -> Geoparser:
+    geoparser_real_data = Geoparser(
         spacy_model="en_core_web_sm",
         transformer_model="dguzh/geo-all-MiniLM-L6-v2",
         gazetteer="geonames",
     )
-    geoparser.gazetteer = geonames_real_data
-    return geoparser
+    geoparser_real_data.gazetteer = geonames_real_data
+    return geoparser_real_data
 
 
 @pytest.fixture(scope="session")
 def test_chunk_full() -> pd.DataFrame:
     data = {"col1": [1, 2, 3], "col2": ["a", "b", "c"]}
     return pd.DataFrame.from_dict(data)
+
+
+@pytest.fixture(scope="session")
+def trainer_real_data(geonames_real_data: GeoNames) -> Geoparser:
+    trainer_real_data = GeoparserTrainer(
+        spacy_model="en_core_web_sm",
+        transformer_model="dguzh/geo-all-MiniLM-L6-v2",
+        gazetteer="geonames",
+    )
+    trainer_real_data.gazetteer = geonames_real_data
+    return trainer_real_data

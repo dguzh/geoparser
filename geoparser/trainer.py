@@ -19,7 +19,9 @@ class GeoparserTrainer(Geoparser):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-    def find_toponym(self, toponym: str, doc: GeoDoc, start_char: int, end_char: int):
+    def find_toponym(
+        self, toponym: str, doc: GeoDoc, start_char: int, end_char: int
+    ) -> tuple[int, int]:
         matches = [
             (m.start(), m.end())
             for m in re.finditer(re.escape(toponym), doc.text, flags=re.IGNORECASE)
@@ -62,7 +64,7 @@ class GeoparserTrainer(Geoparser):
 
                     sub_tokens = [sub_token for sub_token in sub_tokens if sub_token]
 
-                    heads = [(token, 0) for sub_token in sub_tokens]
+                    heads = [(token, 0) for _ in sub_tokens]
 
                     retokenizer.split(token, sub_tokens, heads=heads)
 
