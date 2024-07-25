@@ -76,19 +76,19 @@ def test_geospan_location(first_geodoc: GeoDoc):
     geospan = first_geodoc.toponyms[0]
     location = geospan.location
     expected = {
-        "geonameid": 3041563,
-        "name": "Andorra la Vella",
+        "geonameid": 3039328,
+        "name": "Radio Andorra",
         "admin2_geonameid": None,
         "admin2_name": None,
-        "admin1_geonameid": 3041566,
-        "admin1_name": "Andorra la Vella",
+        "admin1_geonameid": 3040684,
+        "admin1_name": "Encamp",
         "country_geonameid": 3041565,
         "country_name": "Andorra",
-        "feature_name": "capital of a political entity",
-        "latitude": 42.50779,
-        "longitude": 1.52109,
+        "feature_name": "radio station",
+        "latitude": 42.5282,
+        "longitude": 1.57089,
         "elevation": None,
-        "population": 20430,
+        "population": 0,
     }
     assert type(location) is dict
     assert location == expected

@@ -75,13 +75,13 @@ def test_setup_transformer(geoparser: Geoparser, transformer_model: str):
 
 
 @pytest.mark.parametrize("texts", [("tuple",), [str], ["str"], "str"])
-def test_parse(geoparser: Geoparser, texts):
+def test_parse(geoparser_real_data: Geoparser, texts):
     with (
         nullcontext()
         if type(texts) is list and all(type(elem) is str for elem in texts)
         else pytest.raises(TypeError)
     ):
-        parsed = geoparser.parse(texts)
+        parsed = geoparser_real_data.parse(texts)
         assert type(parsed) is list
         for elem in parsed:
             assert type(elem) is GeoDoc
@@ -90,30 +90,31 @@ def test_parse(geoparser: Geoparser, texts):
 @pytest.mark.parametrize(
     "texts", [["This is a text.", "This is also a text."], [""], []]
 )
-def test_recognize(geoparser: Geoparser, texts):
-    parsed = geoparser.parse(texts)
+def test_recognize(geoparser_real_data: Geoparser, texts):
+    parsed = geoparser_real_data.recognize(texts)
     assert type(parsed) is list
     for elem in parsed:
         assert type(elem) is GeoDoc
 
 
 def test_get_candidate_ids(
-    geoparser: Geoparser,
+    geoparser_real_data: Geoparser,
     geonames_real_data: GeoNames,
     geodocs: list[GeoDoc],
     andorra_id: int,
 ):
-    geoparser.gazetteer = geonames_real_data
-    candidate_ids = geoparser.get_candidate_ids(geodocs)
+    candidate_ids = geoparser_real_data.get_candidate_ids(geodocs)
     assert type(candidate_ids) is list
     for elem in candidate_ids:
         assert type(elem) is int
     assert candidate_ids == [andorra_id]
 
 
-def test_get_candidate_embeddings_lookup(geoparser: Geoparser, andorra_id: int):
+def test_get_candidate_embeddings_lookup(
+    geoparser_real_data: Geoparser, andorra_id: int
+):
     candidate_ids = [andorra_id]
-    lookup = geoparser.get_candidate_embeddings_lookup(candidate_ids)
+    lookup = geoparser_real_data.get_candidate_embeddings_lookup(candidate_ids)
     assert type(lookup) is dict
     for key, value in lookup.items():
         assert type(key) is int
@@ -121,22 +122,22 @@ def test_get_candidate_embeddings_lookup(geoparser: Geoparser, andorra_id: int):
         assert type(value) is torch.Tensor
 
 
-def test_get_toponym_embeddings(geoparser: Geoparser, geodocs: list[GeoDoc]):
-    toponym_embeddings = geoparser.get_toponym_embeddings(geodocs)
+def test_get_toponym_embeddings(geoparser_real_data: Geoparser, geodocs: list[GeoDoc]):
+    toponym_embeddings = geoparser_real_data.get_toponym_embeddings(geodocs)
     assert type(toponym_embeddings) is torch.Tensor
 
 
 def test_resolve_toponym(
-    geoparser: Geoparser,
+    geoparser_real_data: Geoparser,
     geonames_real_data: GeoNames,
     geodocs: list[GeoDoc],
     andorra_id: int,
 ):
-    geoparser.gazetteer = geonames_real_data
-    candidate_ids = geoparser.get_candidate_ids(geodocs)
-    lookup = geoparser.get_candidate_embeddings_lookup(candidate_ids)
-    toponym_embeddings = geoparser.get_toponym_embeddings(geodocs)
-    predicted_id, score = geoparser.resolve_toponym(
+    geoparser_real_data.gazetteer = geonames_real_data
+    candidate_ids = geoparser_real_data.get_candidate_ids(geodocs)
+    lookup = geoparser_real_data.get_candidate_embeddings_lookup(candidate_ids)
+    toponym_embeddings = geoparser_real_data.get_toponym_embeddings(geodocs)
+    predicted_id, score = geoparser_real_data.resolve_toponym(
         lookup, candidate_ids, toponym_embeddings, 0
     )
     # roc meler will be matched
@@ -145,13 +146,12 @@ def test_resolve_toponym(
 
 
 def test_resolve(
-    geoparser: Geoparser,
+    geoparser_real_data: Geoparser,
     geonames_real_data: GeoNames,
     geodocs: list[GeoDoc],
     andorra_id: int,
 ):
-    geoparser.gazetteer = geonames_real_data
-    resolved_docs = geoparser.resolve(geodocs)
+    resolved_docs = geoparser_real_data.resolve(geodocs)
     roc_meler = geodocs[0].toponyms[0]
     # roc meler will be matched
     assert roc_meler._.loc_id == andorra_id

@@ -17,12 +17,12 @@ def andorra_id() -> int:
 
 
 @pytest.fixture(scope="session")
-def geodocs(geoparser: Geoparser) -> list[GeoDoc]:
+def geodocs(geoparser_real_data: Geoparser) -> list[GeoDoc]:
     texts = [
         "Roc Meler is a peak in Andorra.",
         "Roc Meler is not in Germany.",
     ]
-    docs = geoparser.parse(texts)
+    docs = geoparser_real_data.parse(texts)
     return docs
 
 
@@ -46,6 +46,19 @@ def geoparser() -> Geoparser:
         transformer_model="dguzh/geo-all-MiniLM-L6-v2",
         gazetteer="geonames",
     )
+    return geoparser
+
+
+@pytest.fixture(scope="session")
+def geoparser_real_data(
+    geoparser: Geoparser, geonames_real_data: GeoNames
+) -> Geoparser:
+    geoparser = Geoparser(
+        spacy_model="en_core_web_sm",
+        transformer_model="dguzh/geo-all-MiniLM-L6-v2",
+        gazetteer="geonames",
+    )
+    geoparser.gazetteer = geonames_real_data
     return geoparser
 
 
