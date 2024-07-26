@@ -1,5 +1,9 @@
+import typing as t
+from contextlib import nullcontext
+
 import pytest
 
+from geoparser import constants as C
 from geoparser.geodoc import GeoDoc
 from geoparser.trainer import GeoparserTrainer
 
@@ -48,6 +52,12 @@ def geodocs_corpus(
     corpus_good_annotations: list[tuple[str, list[tuple[str, int, int, int]]]],
 ) -> list[GeoDoc]:
     return [trainer_real_data.nlp(seg[0]) for seg in corpus_good_annotations]
+
+
+@pytest.fixture(scope="function")
+def eval_doc(trainer_real_data: GeoparserTrainer) -> list[GeoDoc]:
+    text = "Germany is not Italy"
+    return trainer_real_data.nlp(text)
 
 
 def test_find_toponym(
@@ -137,3 +147,85 @@ def test_annotate(
         # check annotation boundaries
         for doc_ent, raw_ent in zip(doc.ents, sorted(raw_doc[1], key=lambda x: x[1])):
             assert doc[doc_ent.start : doc_ent.end].text == raw_ent[0]
+
+
+@pytest.mark.parametrize(
+    "distances,expected", [([0.0, 0.0], 0.0), ([1.0, 1.0], 0.06997644)]
+)
+def test_auc(
+    trainer_real_data: GeoparserTrainer, distances: list[float], expected: float
+):
+    assert trainer_real_data.calculate_auc(distances) == pytest.approx(
+        expected, rel=1e-5
+    )
+
+
+@pytest.mark.parametrize(
+    "predicted_id1,gold_id1,predicted_id2,gold_id2,expected",
+    [
+        (1, None, 1, None, None),  # all gold_id being None raises ZeroDivisionError
+        (1, 2, 1, 2, None),  # invalid gold_id has the same effect
+        (  # predicted_id is None
+            None,
+            1,
+            None,
+            1,
+            {
+                "Accuracy": 0.0,
+                "Accuracy@161km": 0.0,
+                "MeanErrorDistance": C.MAX_ERROR,
+                "AreaUnderTheCurve": 1.0,
+            },
+        ),
+        (  # perfect prediction
+            1,
+            1,
+            1,
+            1,
+            {
+                "Accuracy": 1.0,
+                "Accuracy@161km": 1.0,
+                "MeanErrorDistance": 0.0,
+                "AreaUnderTheCurve": 0.0,
+            },
+        ),
+        (  # not perfect, but both in Andorra
+            3039328,
+            2994701,
+            2994701,
+            3039328,
+            {
+                "Accuracy": 0.0,
+                "Accuracy@161km": 1.0,
+                "MeanErrorDistance": 15.480857,
+                "AreaUnderTheCurve": 0.282895,
+            },
+        ),
+    ],
+)
+def test_evaluate(
+    trainer_real_data: GeoparserTrainer,
+    eval_doc: list[GeoDoc],
+    predicted_id1: int,
+    gold_id1: int,
+    predicted_id2: int,
+    gold_id2: int,
+    expected: t.Optional[dict[str, float]],
+):
+    eval_doc.toponyms[0]._.loc_id, eval_doc.toponyms[0]._.gold_loc_id = (
+        predicted_id1,
+        gold_id1,
+    )
+    eval_doc.toponyms[1]._.loc_id, eval_doc.toponyms[1]._.gold_loc_id = (
+        predicted_id2,
+        gold_id2,
+    )
+    with (
+        pytest.raises(ZeroDivisionError)
+        if (gold_id1 is None and gold_id2 is None)
+        or 2 == gold_id1 == gold_id2  # 2 is used as an invalid id not in the gazetteer
+        else nullcontext()
+    ):
+        result = trainer_real_data.evaluate([eval_doc])
+        for key, result_value in result.items():
+            assert result_value == pytest.approx(expected[key], rel=1e-5)

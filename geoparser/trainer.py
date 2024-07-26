@@ -124,7 +124,17 @@ class GeoparserTrainer(Geoparser):
 
         return docs
 
-    def evaluate(self, eval_docs: list[GeoDoc]):
+    def calculate_auc(self, distances: list[float]):
+        adjusted_distances = (
+            np.array(distances) + 1
+        )  # Avoid zero distance for log scale
+        ln_distances = np.log(adjusted_distances)
+        auc = np.trapz(sorted(ln_distances)) / (
+            np.log(MAX_ERROR) * (len(ln_distances) - 1)
+        )
+        return auc
+
+    def evaluate(self, eval_docs: list[GeoDoc]) -> dict[str, float]:
         distances = []
 
         matches = 0
@@ -168,13 +178,7 @@ class GeoparserTrainer(Geoparser):
         mean_error_distance = np.mean(distances)
 
         # Calculate AUC
-        adjusted_distances = (
-            np.array(distances) + 1
-        )  # Avoid zero distance for log scale
-        ln_distances = np.log(adjusted_distances)
-        auc = np.trapz(sorted(ln_distances)) / (
-            np.log(MAX_ERROR) * (len(ln_distances) - 1)
-        )
+        auc = self.calculate_auc(distances)
 
         return {
             "Accuracy": accuracy,
