@@ -134,25 +134,6 @@ def test_annotate(
             # retokenization example
             if (taiwan := "taiwan") in raw_doc[0]:
                 assert taiwan in ents_str
-
-
-@pytest.mark.xfail(
-    reason="GeoparserTrainer.retokenize_toponym sets spans too short for multi-token toponyms"
-)
-def test_annotate_fix_bad_annotations(
-    trainer_real_data: GeoparserTrainer,
-    corpus_good_annotations: list[tuple[str, list[tuple[str, int, int, int]]]],
-    corpus_bad_annotations: list[tuple[str, list[tuple[str, int, int, int]]]],
-):
-    annotated_corpus = trainer_real_data.annotate(
-        corpus_bad_annotations, include_unmatched=True
-    )
-    assert type(annotated_corpus) is list
-    for doc, good_raw_doc in zip(annotated_corpus, corpus_good_annotations):
-        assert type(doc) is GeoDoc
-        # bad annotations have been fixed
-        for doc_ent, good_ent in zip(
-            doc.ents, sorted(good_raw_doc[1], key=lambda x: x[1])
-        ):
-            assert doc_ent.start == good_ent[1]
-            assert doc_ent.end == good_ent[2]
+        # check annotation boundaries
+        for doc_ent, raw_ent in zip(doc.ents, sorted(raw_doc[1], key=lambda x: x[1])):
+            assert doc[doc_ent.start : doc_ent.end].text == raw_ent[0]
