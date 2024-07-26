@@ -187,7 +187,7 @@ class GeoparserTrainer(Geoparser):
             "AreaUnderTheCurve": auc,
         }
 
-    def prepare_training_data(self, docs: list[GeoDoc]):
+    def prepare_training_data(self, docs: list[GeoDoc]) -> Dataset:
         toponym_texts = []
         candidate_texts = []
         labels = []

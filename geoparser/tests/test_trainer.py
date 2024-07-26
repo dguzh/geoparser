@@ -1,7 +1,10 @@
+import tempfile
 import typing as t
 from contextlib import nullcontext
+from pathlib import Path
 
 import pytest
+from datasets import Dataset
 
 from geoparser import constants as C
 from geoparser.geodoc import GeoDoc
@@ -58,6 +61,17 @@ def geodocs_corpus(
 def eval_doc(trainer_real_data: GeoparserTrainer) -> list[GeoDoc]:
     text = "Germany is not Italy"
     return trainer_real_data.nlp(text)
+
+
+@pytest.fixture(scope="session")
+def train_corpus(trainer_real_data: GeoparserTrainer) -> list[GeoDoc]:
+    corpus = [
+        (
+            "Ordino is a town in the mountains.",
+            [("Ordino", 0, 6, 3039678)],
+        ),
+    ]
+    return trainer_real_data.annotate(corpus, include_unmatched=True)
 
 
 def test_find_toponym(
@@ -229,3 +243,33 @@ def test_evaluate(
         result = trainer_real_data.evaluate([eval_doc])
         for key, result_value in result.items():
             assert result_value == pytest.approx(expected[key], rel=1e-5)
+
+
+def test_prepare_training_data(
+    trainer_real_data: GeoparserTrainer, train_corpus: list[GeoDoc]
+):
+    prepared = trainer_real_data.prepare_training_data(train_corpus)
+    assert type(prepared) is Dataset
+    assert (
+        len(prepared["toponym_texts"])
+        == len(prepared["candidate_texts"])
+        == len(prepared["label"])
+    )
+    for text, candidate_text, label in zip(
+        prepared["toponym_texts"], prepared["candidate_texts"], prepared["label"]
+    ):
+        assert text == train_corpus[0].text
+        candidates_labels = {
+            "Ordino (first-order administrative division) in Ordino, Andorra": 0,
+            "Ordino (seat of a first-order administrative division) in Ordino, Andorra": 1,
+        }
+        assert candidates_labels[candidate_text] == label
+
+
+def test_train(trainer_real_data: GeoparserTrainer, train_corpus: list[GeoDoc]):
+    output_dir = tempfile.mkdtemp()
+    # test if training runs without errors for a single epoch
+    trainer_real_data.train(train_corpus, epochs=1, output_path=output_dir)
+    # output path must not be empty
+    contents = Path(output_dir).iterdir()
+    assert next(contents, None) is not None
