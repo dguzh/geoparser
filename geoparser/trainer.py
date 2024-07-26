@@ -72,7 +72,7 @@ class GeoparserTrainer(Geoparser):
         self,
         corpus: list[tuple[str, list[tuple[str, int, int, int]]]],
         include_unmatched: bool = False,
-    ):
+    ) -> list[GeoDoc]:
         docs = []
 
         for text, annotations in tqdm(corpus):
