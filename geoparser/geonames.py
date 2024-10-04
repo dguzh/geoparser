@@ -51,56 +51,48 @@ class GeoNames(LocalDBGazetteer):
 
         toponym = " ".join([f'"{word}"' for word in toponym.split()])
 
-        base_query = """
-            WITH MinRankAllCountries AS (
-                SELECT MIN(rank) AS MinRank FROM allCountries_fts WHERE allCountries_fts MATCH ?
-            ),
-            MinRankAlternateNames AS (
-                SELECT MIN(rank) AS MinRank FROM alternateNames_fts WHERE alternateNames_fts MATCH ?
-            ),
-            CombinedResults AS (
-                SELECT allCountries_fts.rowid as geonameid, allCountries_fts.rank as rank
-                FROM allCountries_fts
-                WHERE allCountries_fts MATCH ?
+        id_field = self.config.id_field
 
-                UNION
-
-                SELECT alternateNames.geonameid, alternateNames_fts.rank as rank
-                FROM alternateNames_fts
-                JOIN alternateNames ON alternateNames_fts.rowid = alternateNames.alternateNameId
-                WHERE alternateNames_fts MATCH ?
+        base_query = f"""
+            WITH RankedMatches AS (
+                SELECT
+                    names_fts.{id_field},
+                    bm25(names_fts) AS rank
+                FROM names_fts
+                WHERE names_fts MATCH ?
+            ),
+            MinRank AS (
+                SELECT MIN(rank) AS MinRank FROM RankedMatches
             )
-            SELECT ac.geonameid
-            FROM CombinedResults cr
-            JOIN allCountries ac ON cr.geonameid = ac.geonameid
-            WHERE (cr.rank = (SELECT MinRank FROM MinRankAllCountries)
-                   OR cr.rank = (SELECT MinRank FROM MinRankAlternateNames))
+            SELECT ac.{id_field}
+            FROM RankedMatches
+            JOIN allCountries ac ON RankedMatches.{id_field} = ac.{id_field}
+            WHERE RankedMatches.rank = (SELECT MinRank FROM MinRank)
         """
 
         where_clauses = []
-        params = [toponym, toponym, toponym, toponym]
+        params = [toponym]
 
-        # Adding filters for country codes
+        # Add country filter if provided
         if country_filter:
-            where_clauses.append(
-                f"ac.country_code IN ({','.join(['?' for _ in country_filter])})"
-            )
+            placeholders = ",".join(["?"] * len(country_filter))
+            where_clauses.append(f"ac.country_code IN ({placeholders})")
             params.extend(country_filter)
 
-        # Adding filters for feature classes
+        # Add feature class filter if provided
         if feature_filter:
-            where_clauses.append(
-                f"ac.feature_class IN ({','.join(['?' for _ in feature_filter])})"
-            )
+            placeholders = ",".join(["?"] * len(feature_filter))
+            where_clauses.append(f"ac.feature_class IN ({placeholders})")
             params.extend(feature_filter)
 
-        # Append additional filters if present
+        # Append additional WHERE clauses
         if where_clauses:
-            base_query += f" AND {' AND '.join(where_clauses)}"
+            base_query += " AND " + " AND ".join(where_clauses)
 
-        base_query += " GROUP BY ac.geonameid ORDER BY cr.rank"
+        # Group by the identifier and order by rank if needed
+        base_query += f" GROUP BY ac.{id_field}"
 
-        # Execute query with the constructed parameters
+        # Execute the query and return the results
         result = self.execute_query(base_query, tuple(params))
         return [row[0] for row in result]
 

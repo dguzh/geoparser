@@ -1,4 +1,5 @@
 - name: geonames
+  id_field: geonameid
   data:
   - name: allCountries
     url: https://download.geonames.org/export/dump/allCountries.zip
@@ -43,49 +44,12 @@
       type: TEXT
     - name: modification_date
       type: TEXT
-    virtual_tables:
-    - name: allCountries_fts
-      using: fts5
-      args:
-      - name
-      kwargs:
-        content: allCountries
-        content_rowid: geonameid
-        tokenize: "unicode61 tokenchars '.'"
-  - name: alternateNames
-    url: https://download.geonames.org/export/dump/alternateNames.zip
-    extracted_file: alternateNames.txt
-    columns:
-    - name: alternateNameId
-      type: INTEGER
-      primary: true
-    - name: geonameid
-      type: INTEGER
-    - name: isolanguage
-      type: TEXT
-    - name: alternate_name
-      type: TEXT
-    - name: isPreferredName
-      type: BOOLEAN
-    - name: isShortName
-      type: BOOLEAN
-    - name: isColloquial
-      type: BOOLEAN
-    - name: isHistoric
-      type: BOOLEAN
-    - name: fromPeriod
-      type: TEXT
-    - name: toPeriod
-      type: TEXT
-    virtual_tables:
-    - name: alternateNames_fts
-      using: fts5
-      args:
-      - alternate_name
-      kwargs:
-        content: alternateNames
-        content_rowid: alternateNameId
-        tokenize: "unicode61 tokenchars '.'"
+    name_fields:
+    - field: name
+      split: false
+    - field: alternatenames
+      split: true
+      separator: ","
   - name: admin1CodesASCII
     url: https://download.geonames.org/export/dump/admin1CodesASCII.txt
     extracted_file: admin1CodesASCII.txt

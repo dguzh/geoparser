@@ -13,7 +13,7 @@ from appdirs import user_data_dir
 from tqdm.auto import tqdm
 
 from geoparser.config import get_gazetteer_configs
-from geoparser.config.models import GazetteerData, VirtualTable
+from geoparser.config.models import GazetteerData  # , VirtualTable
 
 
 class Gazetteer(ABC):
@@ -135,9 +135,14 @@ class LocalDBGazetteer(Gazetteer):
         self.clean_dir()
 
         os.makedirs(self.data_dir, exist_ok=True)
+
+        self.create_names_table()
+
         for dataset in self.config.data:
             self.download_file(dataset.url)
             self.load_data(dataset)
+
+        self.populate_names_fts_table()
 
         self.clean_dir(keep_db=True)
 
@@ -187,18 +192,44 @@ class LocalDBGazetteer(Gazetteer):
 
     def load_data(self, dataset: GazetteerData):
 
-        self.create_tables(dataset)
-        self.populate_tables(dataset)
+        self.create_table(dataset)
+        self.populate_table(dataset)
 
-    def create_tables(self, dataset: GazetteerData):
-        self._create_table(dataset)
-        for virtual_table in dataset.virtual_tables:
-            self._create_virtual_table(virtual_table)
+    # def create_tables(self, dataset: GazetteerData):
+    #     self._create_table(dataset)
+    #     for virtual_table in dataset.virtual_tables:
+    #         self._create_virtual_table(virtual_table)
 
     @close
     @commit
     @connect
-    def _create_table(self, dataset: GazetteerData):
+    def create_names_table(self):
+        cursor = self._get_cursor()
+        cursor.execute(
+            f"""
+            CREATE TABLE IF NOT EXISTS names (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                {self.config.id_field} INTEGER,
+                name TEXT
+            )
+        """
+        )
+        cursor.execute(
+            f"""
+            CREATE VIRTUAL TABLE IF NOT EXISTS names_fts USING fts5(
+                name,
+                {self.config.id_field} UNINDEXED,
+                content='names',
+                content_rowid='id',
+                tokenize="unicode61 tokenchars '.'"
+            )
+        """
+        )
+
+    @close
+    @commit
+    @connect
+    def create_table(self, dataset: GazetteerData):
         cursor = self._get_cursor()
         columns = ", ".join(
             [
@@ -208,28 +239,100 @@ class LocalDBGazetteer(Gazetteer):
         )
         cursor.execute(f"CREATE TABLE IF NOT EXISTS {dataset.name} ({columns})")
 
-    @close
-    @commit
-    @connect
-    def _create_virtual_table(self, virtual_table: VirtualTable):
-        cursor = self._get_cursor()
-        args = ", ".join(virtual_table.args)
-        kwargs = ", ".join(
-            [f'{key}="{value}"' for key, value in virtual_table.kwargs.items()]
-        )
-        cursor.execute(
-            f"CREATE VIRTUAL TABLE IF NOT EXISTS {virtual_table.name} USING {virtual_table.using}({args}, {kwargs})"
-        )
+    # @close
+    # @commit
+    # @connect
+    # def _create_virtual_table(self, virtual_table: VirtualTable):
+    #     cursor = self._get_cursor()
+    #     args = ", ".join(virtual_table.args)
+    #     kwargs = ", ".join(
+    #         [f'{key}="{value}"' for key, value in virtual_table.kwargs.items()]
+    #     )
+    #     cursor.execute(
+    #         f"CREATE VIRTUAL TABLE IF NOT EXISTS {virtual_table.name} USING {virtual_table.using}({args}, {kwargs})"
+    #     )
 
-    def populate_tables(self, dataset: GazetteerData):
+    def populate_table(self, dataset: GazetteerData):
         self.load_file_into_table(
             os.path.join(self.data_dir, dataset.extracted_file),
             dataset.name,
             [col.name for col in dataset.columns],
             skiprows=dataset.skiprows,
         )
-        for virtual_table in dataset.virtual_tables:
-            self.populate_virtual_table(virtual_table, dataset.name)
+
+        if dataset.name_fields:
+            self.populate_names_table(dataset)
+
+        # for virtual_table in dataset.virtual_tables:
+        #     self.populate_virtual_table(virtual_table, dataset.name)
+
+    @close
+    @commit
+    @connect
+    def populate_names_table(self, dataset: GazetteerData, chunksize: int = 100000):
+        name_fields = dataset.name_fields
+        id_field = self.config.id_field
+
+        fields_to_select = [id_field] + [nf.field for nf in name_fields]
+
+        query = f'SELECT {", ".join(fields_to_select)} FROM {dataset.name}'
+
+        cursor = self.conn.cursor()
+        cursor.execute(f"SELECT COUNT(*) FROM {dataset.name}")
+        total_rows = cursor.fetchone()[0]
+        total_chunks = math.ceil(total_rows / chunksize)
+
+        chunks = pd.read_sql_query(query, self.conn, chunksize=chunksize)
+
+        for chunk in tqdm(
+            chunks, desc=f"Loading names from {dataset.name}", total=total_chunks
+        ):
+            chunk[id_field] = chunk[id_field].astype(str)
+
+            name_dfs = []
+
+            for nf in name_fields:
+                field = nf.field
+                if field not in chunk.columns:
+                    continue
+
+                df = chunk[[id_field, field]].dropna()
+
+                if nf.split:
+                    separator = nf.separator
+                    df[field] = df[field].str.split(separator)
+                    df = df.explode(field)
+
+                df = df.rename(columns={field: "name"})
+                df = df[[id_field, "name"]]
+
+                name_dfs.append(df)
+
+            if name_dfs:
+                names_df = pd.concat(name_dfs, ignore_index=True)
+                names_df["name"] = names_df["name"].str.strip()
+                names_df = names_df[names_df["name"] != ""]
+
+                names_df.to_sql(
+                    "names",
+                    self.conn,
+                    if_exists="append",
+                    index=False,
+                    method="multi",
+                    chunksize=400,
+                )
+
+    @close
+    @commit
+    @connect
+    def populate_names_fts_table(self):
+        cursor = self._get_cursor()
+        cursor.execute(
+            f"""
+            INSERT INTO names_fts (rowid, name, {self.config.id_field})
+            SELECT id, name, {self.config.id_field} FROM names
+        """
+        )
 
     @abstractmethod
     def read_file(
@@ -260,14 +363,14 @@ class LocalDBGazetteer(Gazetteer):
         ):
             chunk.to_sql(table_name, self.conn, if_exists="append", index=False)
 
-    @close
-    @commit
-    @connect
-    def populate_virtual_table(self, virtual_table: VirtualTable, table_name: str):
-        cursor = self._get_cursor()
-        cursor.execute(
-            f"INSERT INTO {virtual_table.name} (rowid, {virtual_table.args[0]}) SELECT {virtual_table.kwargs['content_rowid']}, {virtual_table.args[0]} FROM {table_name}"
-        )
+    # @close
+    # @commit
+    # @connect
+    # def populate_virtual_table(self, virtual_table: VirtualTable, table_name: str):
+    #     cursor = self._get_cursor()
+    #     cursor.execute(
+    #         f"INSERT INTO {virtual_table.name} (rowid, {virtual_table.args[0]}) SELECT {virtual_table.kwargs['content_rowid']}, {virtual_table.args[0]} FROM {table_name}"
+    #     )
 
     @close
     @connect
