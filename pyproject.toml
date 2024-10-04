@@ -27,6 +27,7 @@ isort = "5.13.2"
 pytest = "^8.2.2"
 jupyter = "^1.0.0"
 requests-mock = "^1.12.1"
+en-core-web-sm = {url = "https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.7.1/en_core_web_sm-3.7.1.tar.gz"}
 
 [tool.isort]
 profile = "black"

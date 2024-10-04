@@ -1,5 +1,6 @@
 import re
 import sqlite3
+import tempfile
 import types
 import typing as t
 from pathlib import Path
@@ -13,19 +14,20 @@ from geoparser.gazetteer import Gazetteer, LocalDBGazetteer
 from geoparser.tests.utils import get_static_test_file, make_concrete
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def gazetteer() -> Gazetteer:
     gazetteer = make_concrete(Gazetteer)()
     return gazetteer
 
 
-@pytest.fixture
-def localdb_gazetteer(monkeypatch, tmpdir: py.path.LocalPath) -> LocalDBGazetteer:
+@pytest.fixture(scope="function")
+def localdb_gazetteer(monkeypatch) -> LocalDBGazetteer:
     monkeypatch.setattr(
         "geoparser.config.config.get_config_file",
         lambda _: get_static_test_file("gazetteers_config_valid.yaml"),
     )
     localdb_gazetteer = make_concrete(LocalDBGazetteer)(db_name="test_gazetteer")
+    tmpdir = py.path.local(tempfile.mkdtemp())
     localdb_gazetteer.data_dir = str(tmpdir)
     localdb_gazetteer.db_path = str(tmpdir / Path(localdb_gazetteer.db_path).name)
     localdb_gazetteer.clean_dir()

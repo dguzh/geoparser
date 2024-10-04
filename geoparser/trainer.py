@@ -19,7 +19,9 @@ class GeoparserTrainer(Geoparser):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-    def find_toponym(self, toponym: str, doc: GeoDoc, start_char: int, end_char: int):
+    def find_toponym(
+        self, toponym: str, doc: GeoDoc, start_char: int, end_char: int
+    ) -> tuple[int, int]:
         matches = [
             (m.start(), m.end())
             for m in re.finditer(re.escape(toponym), doc.text, flags=re.IGNORECASE)
@@ -62,7 +64,7 @@ class GeoparserTrainer(Geoparser):
 
                     sub_tokens = [sub_token for sub_token in sub_tokens if sub_token]
 
-                    heads = [(token, 0) for sub_token in sub_tokens]
+                    heads = [(token, 0) for _ in sub_tokens]
 
                     retokenizer.split(token, sub_tokens, heads=heads)
 
@@ -70,7 +72,7 @@ class GeoparserTrainer(Geoparser):
         self,
         corpus: list[tuple[str, list[tuple[str, int, int, int]]]],
         include_unmatched: bool = False,
-    ):
+    ) -> list[GeoDoc]:
         docs = []
 
         for text, annotations in tqdm(corpus):
@@ -122,7 +124,17 @@ class GeoparserTrainer(Geoparser):
 
         return docs
 
-    def evaluate(self, eval_docs: list[GeoDoc]):
+    def calculate_auc(self, distances: list[float]):
+        adjusted_distances = (
+            np.array(distances) + 1
+        )  # Avoid zero distance for log scale
+        ln_distances = np.log(adjusted_distances)
+        auc = np.trapz(sorted(ln_distances)) / (
+            np.log(MAX_ERROR) * (len(ln_distances) - 1)
+        )
+        return auc
+
+    def evaluate(self, eval_docs: list[GeoDoc]) -> dict[str, float]:
         distances = []
 
         matches = 0
@@ -166,13 +178,7 @@ class GeoparserTrainer(Geoparser):
         mean_error_distance = np.mean(distances)
 
         # Calculate AUC
-        adjusted_distances = (
-            np.array(distances) + 1
-        )  # Avoid zero distance for log scale
-        ln_distances = np.log(adjusted_distances)
-        auc = np.trapz(sorted(ln_distances)) / (
-            np.log(MAX_ERROR) * (len(ln_distances) - 1)
-        )
+        auc = self.calculate_auc(distances)
 
         return {
             "Accuracy": accuracy,
@@ -181,7 +187,7 @@ class GeoparserTrainer(Geoparser):
             "AreaUnderTheCurve": auc,
         }
 
-    def prepare_training_data(self, docs: list[GeoDoc]):
+    def prepare_training_data(self, docs: list[GeoDoc]) -> Dataset:
         toponym_texts = []
         candidate_texts = []
         labels = []

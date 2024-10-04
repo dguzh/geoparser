@@ -5,21 +5,21 @@ class GeoSpan(Span):
 
     def __eq__(self, other):
         return (
-            self.doc == other.doc
+            self.doc.text == other.doc.text
             and self.start == other.start
             and self.end == other.end
         )
 
     @property
-    def location(self):
+    def location(self) -> dict:
         return self.doc.geoparser.gazetteer.query_location_info(self._.loc_id)[0]
 
     @property
-    def score(self):
+    def score(self) -> float:
         return self._.loc_score
 
     @property
-    def candidates(self):
+    def candidates(self) -> list[int]:
         return self.doc.geoparser.gazetteer.query_candidates(
             self.text,
             self.doc.geoparser.country_filter,
@@ -49,6 +49,7 @@ class GeoSpan(Span):
             if i > 0:
                 prev_sentence = sentences[i - 1]
                 prev_tokens = tokenizer.tokenize(prev_sentence.text)
+                # leaves room for the CLS special token
                 if tokens_count + len(prev_tokens) < token_limit:
                     context_sentences.insert(0, prev_sentence)
                     tokens_count += len(prev_tokens)
@@ -58,6 +59,7 @@ class GeoSpan(Span):
             if j < len(sentences) - 1:
                 next_sentence = sentences[j + 1]
                 next_tokens = tokenizer.tokenize(next_sentence.text)
+                # leaves room for the CLS special token
                 if tokens_count + len(next_tokens) < token_limit:
                     context_sentences.append(next_sentence)
                     tokens_count += len(next_tokens)
