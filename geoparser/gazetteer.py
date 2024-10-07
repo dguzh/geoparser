@@ -13,7 +13,7 @@ from appdirs import user_data_dir
 from tqdm.auto import tqdm
 
 from geoparser.config import get_gazetteer_configs
-from geoparser.config.models import GazetteerData  # , VirtualTable
+from geoparser.config.models import GazetteerData
 
 
 class Gazetteer(ABC):
@@ -195,11 +195,6 @@ class LocalDBGazetteer(Gazetteer):
         self.create_table(dataset)
         self.populate_table(dataset)
 
-    # def create_tables(self, dataset: GazetteerData):
-    #     self._create_table(dataset)
-    #     for virtual_table in dataset.virtual_tables:
-    #         self._create_virtual_table(virtual_table)
-
     @close
     @commit
     @connect
@@ -209,7 +204,7 @@ class LocalDBGazetteer(Gazetteer):
             f"""
             CREATE TABLE IF NOT EXISTS names (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                {self.config.id_field} INTEGER,
+                {self.config.location_identifier} INTEGER,
                 name TEXT
             )
         """
@@ -218,7 +213,7 @@ class LocalDBGazetteer(Gazetteer):
             f"""
             CREATE VIRTUAL TABLE IF NOT EXISTS names_fts USING fts5(
                 name,
-                {self.config.id_field} UNINDEXED,
+                {self.config.location_identifier} UNINDEXED,
                 content='names',
                 content_rowid='id',
                 tokenize="unicode61 tokenchars '.'"
@@ -239,19 +234,6 @@ class LocalDBGazetteer(Gazetteer):
         )
         cursor.execute(f"CREATE TABLE IF NOT EXISTS {dataset.name} ({columns})")
 
-    # @close
-    # @commit
-    # @connect
-    # def _create_virtual_table(self, virtual_table: VirtualTable):
-    #     cursor = self._get_cursor()
-    #     args = ", ".join(virtual_table.args)
-    #     kwargs = ", ".join(
-    #         [f'{key}="{value}"' for key, value in virtual_table.kwargs.items()]
-    #     )
-    #     cursor.execute(
-    #         f"CREATE VIRTUAL TABLE IF NOT EXISTS {virtual_table.name} USING {virtual_table.using}({args}, {kwargs})"
-    #     )
-
     def populate_table(self, dataset: GazetteerData):
         self.load_file_into_table(
             os.path.join(self.data_dir, dataset.extracted_file),
@@ -260,22 +242,19 @@ class LocalDBGazetteer(Gazetteer):
             skiprows=dataset.skiprows,
         )
 
-        if dataset.name_fields:
+        if dataset.toponym_columns:
             self.populate_names_table(dataset)
-
-        # for virtual_table in dataset.virtual_tables:
-        #     self.populate_virtual_table(virtual_table, dataset.name)
 
     @close
     @commit
     @connect
     def populate_names_table(self, dataset: GazetteerData, chunksize: int = 100000):
-        name_fields = dataset.name_fields
-        id_field = self.config.id_field
+        toponym_columns = dataset.toponym_columns
+        location_identifier = self.config.location_identifier
 
-        fields_to_select = [id_field] + [nf.field for nf in name_fields]
+        columns_to_select = [location_identifier] + [tc.name for tc in toponym_columns]
 
-        query = f'SELECT {", ".join(fields_to_select)} FROM {dataset.name}'
+        query = f'SELECT {", ".join(columns_to_select)} FROM {dataset.name}'
 
         cursor = self.conn.cursor()
         cursor.execute(f"SELECT COUNT(*) FROM {dataset.name}")
@@ -287,24 +266,24 @@ class LocalDBGazetteer(Gazetteer):
         for chunk in tqdm(
             chunks, desc=f"Loading names from {dataset.name}", total=total_chunks
         ):
-            chunk[id_field] = chunk[id_field].astype(str)
+            chunk[location_identifier] = chunk[location_identifier].astype(str)
 
             name_dfs = []
 
-            for nf in name_fields:
-                field = nf.field
-                if field not in chunk.columns:
+            for tc in toponym_columns:
+                name = tc.name
+                if name not in chunk.columns:
                     continue
 
-                df = chunk[[id_field, field]].dropna()
+                df = chunk[[location_identifier, name]].dropna()
 
-                if nf.split:
-                    separator = nf.separator
-                    df[field] = df[field].str.split(separator)
-                    df = df.explode(field)
+                if tc.separator:
+                    separator = tc.separator
+                    df[name] = df[name].str.split(separator)
+                    df = df.explode(name)
 
-                df = df.rename(columns={field: "name"})
-                df = df[[id_field, "name"]]
+                df = df.rename(columns={name: "name"})
+                df = df[[location_identifier, "name"]]
 
                 name_dfs.append(df)
 
@@ -329,8 +308,8 @@ class LocalDBGazetteer(Gazetteer):
         cursor = self._get_cursor()
         cursor.execute(
             f"""
-            INSERT INTO names_fts (rowid, name, {self.config.id_field})
-            SELECT id, name, {self.config.id_field} FROM names
+            INSERT INTO names_fts (rowid, name, {self.config.location_identifier})
+            SELECT id, name, {self.config.location_identifier} FROM names
         """
         )
 
@@ -362,15 +341,6 @@ class LocalDBGazetteer(Gazetteer):
             total=math.ceil(sum(1 for _ in open(file_path, "rb")) / chunksize),
         ):
             chunk.to_sql(table_name, self.conn, if_exists="append", index=False)
-
-    # @close
-    # @commit
-    # @connect
-    # def populate_virtual_table(self, virtual_table: VirtualTable, table_name: str):
-    #     cursor = self._get_cursor()
-    #     cursor.execute(
-    #         f"INSERT INTO {virtual_table.name} (rowid, {virtual_table.args[0]}) SELECT {virtual_table.kwargs['content_rowid']}, {virtual_table.args[0]} FROM {table_name}"
-    #     )
 
     @close
     @connect

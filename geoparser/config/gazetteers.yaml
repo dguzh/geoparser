@@ -1,5 +1,5 @@
 - name: geonames
-  id_field: geonameid
+  location_identifier: geonameid
   data:
   - name: allCountries
     url: https://download.geonames.org/export/dump/allCountries.zip
@@ -44,11 +44,9 @@
       type: TEXT
     - name: modification_date
       type: TEXT
-    name_fields:
-    - field: name
-      split: false
-    - field: alternatenames
-      split: true
+    toponym_columns:
+    - name: name
+    - name: alternatenames
       separator: ","
   - name: admin1CodesASCII
     url: https://download.geonames.org/export/dump/admin1CodesASCII.txt

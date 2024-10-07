@@ -51,12 +51,12 @@ class GeoNames(LocalDBGazetteer):
 
         toponym = " ".join([f'"{word}"' for word in toponym.split()])
 
-        id_field = self.config.id_field
+        location_identifier = self.config.location_identifier
 
         base_query = f"""
             WITH RankedMatches AS (
                 SELECT
-                    names_fts.{id_field},
+                    names_fts.{location_identifier},
                     bm25(names_fts) AS rank
                 FROM names_fts
                 WHERE names_fts MATCH ?
@@ -64,9 +64,9 @@ class GeoNames(LocalDBGazetteer):
             MinRank AS (
                 SELECT MIN(rank) AS MinRank FROM RankedMatches
             )
-            SELECT ac.{id_field}
+            SELECT ac.{location_identifier}
             FROM RankedMatches
-            JOIN allCountries ac ON RankedMatches.{id_field} = ac.{id_field}
+            JOIN allCountries ac ON RankedMatches.{location_identifier} = ac.{location_identifier}
             WHERE RankedMatches.rank = (SELECT MinRank FROM MinRank)
         """
 
@@ -85,14 +85,11 @@ class GeoNames(LocalDBGazetteer):
             where_clauses.append(f"ac.feature_class IN ({placeholders})")
             params.extend(feature_filter)
 
-        # Append additional WHERE clauses
         if where_clauses:
             base_query += " AND " + " AND ".join(where_clauses)
 
-        # Group by the identifier and order by rank if needed
-        base_query += f" GROUP BY ac.{id_field}"
+        base_query += f" GROUP BY ac.{location_identifier}"
 
-        # Execute the query and return the results
         result = self.execute_query(base_query, tuple(params))
         return [row[0] for row in result]
 

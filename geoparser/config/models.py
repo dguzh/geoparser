@@ -9,16 +9,8 @@ class Column(BaseModel):
     primary: bool = False
 
 
-# class VirtualTable(BaseModel):
-#     name: str
-#     using: t.Optional[str] = None
-#     args: list[str]
-#     kwargs: dict[str, str]
-
-
-class NameField(BaseModel):
-    field: str
-    split: bool
+class ToponymColumn(BaseModel):
+    name: str
     separator: t.Optional[str] = None
 
 
@@ -27,12 +19,11 @@ class GazetteerData(BaseModel):
     url: str
     extracted_file: str
     columns: list[Column]
-    # virtual_tables: list[VirtualTable] = []
-    name_fields: list[NameField] = []
+    toponym_columns: list[ToponymColumn] = []
     skiprows: t.Optional[int] = None
 
 
 class GazetteerConfig(BaseModel):
     name: str
-    id_field: str
+    location_identifier: str
     data: list[GazetteerData]
