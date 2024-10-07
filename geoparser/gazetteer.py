@@ -139,7 +139,7 @@ class LocalDBGazetteer(Gazetteer):
         self.create_names_table()
 
         for dataset in self.config.data:
-            self.download_file(dataset.url)
+            self.download_file(dataset)
             self.load_data(dataset)
 
         self.populate_names_fts_table()
@@ -164,31 +164,30 @@ class LocalDBGazetteer(Gazetteer):
                     except PermissionError:
                         shutil.rmtree(os.path.join(self.data_dir, file_name))
 
-    def download_file(
-        self, url: str, extract_zips: bool = True, remove_zip: bool = True
-    ):
+    def download_file(self, dataset: GazetteerData):
+        url = dataset.url
         filename = url.split("/")[-1]
         file_path = os.path.join(self.data_dir, filename)
-        response = requests.get(url, stream=True)
-        response.raise_for_status()
-        with open(file_path, "wb") as f, tqdm(
-            desc=f"Downloading {filename}",
-            total=int(response.headers.get("content-length", 0)),
-            unit="iB",
-            unit_scale=True,
-            unit_divisor=1024,
-        ) as bar:
-            for chunk in response.iter_content(chunk_size=1024):
-                size = f.write(chunk)
-                bar.update(size)
-        if extract_zips and file_path.endswith(".zip"):
-            self.extract_zip(file_path, remove=remove_zip)
+        if not os.path.exists(file_path):
+            response = requests.get(url, stream=True)
+            response.raise_for_status()
+            with open(file_path, "wb") as f, tqdm(
+                desc=f"Downloading {filename}",
+                total=int(response.headers.get("content-length", 0)),
+                unit="iB",
+                unit_scale=True,
+                unit_divisor=1024,
+            ) as bar:
+                for chunk in response.iter_content(chunk_size=1024):
+                    size = f.write(chunk)
+                    bar.update(size)
+        if file_path.endswith(".zip"):
+            self.extract_zip(file_path, dataset.extracted_files)
 
-    def extract_zip(self, file_path: str, remove: bool = True):
+    def extract_zip(self, file_path: str, extracted_files: t.List[str]):
         with zipfile.ZipFile(file_path, "r") as zip_ref:
-            zip_ref.extractall(self.data_dir)
-        if remove:
-            os.remove(file_path)
+            for file_name in extracted_files:
+                zip_ref.extract(file_name, self.data_dir)
 
     def load_data(self, dataset: GazetteerData):
 
@@ -236,7 +235,7 @@ class LocalDBGazetteer(Gazetteer):
 
     def populate_table(self, dataset: GazetteerData):
         self.load_file_into_table(
-            os.path.join(self.data_dir, dataset.extracted_file),
+            os.path.join(self.data_dir, dataset.extracted_files[0]),
             dataset.name,
             [col.name for col in dataset.columns],
             skiprows=dataset.skiprows,
@@ -338,7 +337,7 @@ class LocalDBGazetteer(Gazetteer):
         for chunk in tqdm(
             chunks,
             desc=f"Loading {table_name}",
-            total=math.ceil(sum(1 for _ in open(file_path, "rb")) / chunksize),
+            # total=math.ceil(sum(1 for _ in open(file_path, "rb")) / chunksize),
         ):
             chunk.to_sql(table_name, self.conn, if_exists="append", index=False)
 

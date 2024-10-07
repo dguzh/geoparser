@@ -17,7 +17,7 @@ class ToponymColumn(BaseModel):
 class GazetteerData(BaseModel):
     name: str
     url: str
-    extracted_file: str
+    extracted_files: list[str]
     columns: list[Column]
     toponym_columns: list[ToponymColumn] = []
     skiprows: t.Optional[int] = None
