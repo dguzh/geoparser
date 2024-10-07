@@ -1,8 +1,11 @@
 import re
 import typing as t
+
 import geopandas as gpd
 import pandas as pd
+
 from geoparser.gazetteer import LocalDBGazetteer
+
 
 class SwissNames3D(LocalDBGazetteer):
     def __init__(self):
@@ -24,12 +27,12 @@ class SwissNames3D(LocalDBGazetteer):
         columns: list[str] = None,
         chunksize: int = 100000,
     ) -> t.Iterator[pd.DataFrame]:
-        
+
         gdf = gpd.read_file(file_path)
         gdf = gdf.to_wkt()
         if columns:
             gdf = gdf[columns]
-        
+
         total_rows = len(gdf)
         for i in range(0, total_rows, chunksize):
             yield gdf.iloc[i : i + chunksize]
