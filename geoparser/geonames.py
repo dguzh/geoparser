@@ -40,108 +40,33 @@ class GeoNames(LocalDBGazetteer):
             chunks = [chunks]
         return (chunk for chunk in chunks)
 
-    def query_candidates(
-        self,
-        toponym: str,
-        country_filter: list[str] = None,
-        feature_filter: list[str] = None,
-    ) -> list[int]:
+    @LocalDBGazetteer.close
+    @LocalDBGazetteer.commit
+    @LocalDBGazetteer.connect
+    def populate_locations_table(self):
+        cursor = self._get_cursor()
 
-        toponym = re.sub(r"\"", "", toponym).strip()
-
-        toponym = " ".join([f'"{word}"' for word in toponym.split()])
-
-        location_identifier = self.config.location_identifier
-
-        base_query = f"""
-            WITH RankedMatches AS (
-                SELECT
-                    names_fts.{location_identifier},
-                    bm25(names_fts) AS rank
-                FROM names_fts
-                WHERE names_fts MATCH ?
-            ),
-            MinRank AS (
-                SELECT MIN(rank) AS MinRank FROM RankedMatches
+        insert_query = """
+            INSERT INTO locations (
+                geonameid, name, feature_type, latitude, longitude, elevation, population,
+                admin2_geonameid, admin1_geonameid, country_geonameid
             )
-            SELECT ac.{location_identifier}
-            FROM RankedMatches
-            JOIN allCountries ac ON RankedMatches.{location_identifier} = ac.{location_identifier}
-            WHERE RankedMatches.rank = (SELECT MinRank FROM MinRank)
+            SELECT
+                ac.geonameid,
+                ac.name,
+                fc.feature_name AS feature_type,
+                ac.latitude,
+                ac.longitude,
+                ac.elevation,
+                ac.population,
+                a2.admin2_geonameid,
+                a1.admin1_geonameid,
+                ci.country_geonameid
+            FROM
+                allCountries ac
+            LEFT JOIN featureCodes fc ON ac.feature_class || '.' || ac.feature_code = fc.feature_full_code
+            LEFT JOIN countryInfo ci ON ac.country_code = ci.ISO
+            LEFT JOIN admin1CodesASCII a1 ON ci.ISO || '.' || ac.admin1_code = a1.admin1_full_code
+            LEFT JOIN admin2Codes a2 ON ci.ISO || '.' || ac.admin1_code || '.' || ac.admin2_code = a2.admin2_full_code
         """
-
-        where_clauses = []
-        params = [toponym]
-
-        # Add country filter if provided
-        if country_filter:
-            placeholders = ",".join(["?"] * len(country_filter))
-            where_clauses.append(f"ac.country_code IN ({placeholders})")
-            params.extend(country_filter)
-
-        # Add feature class filter if provided
-        if feature_filter:
-            placeholders = ",".join(["?"] * len(feature_filter))
-            where_clauses.append(f"ac.feature_class IN ({placeholders})")
-            params.extend(feature_filter)
-
-        if where_clauses:
-            base_query += " AND " + " AND ".join(where_clauses)
-
-        base_query += f" GROUP BY ac.{location_identifier}"
-
-        result = self.execute_query(base_query, tuple(params))
-        return [row[0] for row in result]
-
-    def query_location_info(
-        self, location_ids: list[int], batch_size: int = 500
-    ) -> list[dict]:
-
-        if not isinstance(location_ids, list):
-            location_ids = [location_ids]
-
-        batches = [
-            location_ids[i : i + batch_size]
-            for i in range(0, len(location_ids), batch_size)
-        ]
-
-        results_dict = {}
-
-        for batch in batches:
-
-            placeholders = ",".join("?" for _ in batch)
-
-            query = f"""
-            SELECT geonameid, name, admin2_geonameid, admin2_name, admin1_geonameid, admin1_name, country_geonameid, country_name, feature_name, latitude, longitude, elevation, population
-            FROM allCountries
-            LEFT JOIN countryInfo ON allCountries.country_code = countryInfo.ISO
-            LEFT JOIN admin1CodesASCII ON countryInfo.ISO || '.' || allCountries.admin1_code = admin1CodesASCII.admin1_full_code
-            LEFT JOIN admin2Codes ON countryInfo.ISO || '.' || allCountries.admin1_code || '.' || allCountries.admin2_code = admin2Codes.admin2_full_code
-            LEFT JOIN featureCodes ON allCountries.feature_class || '.' || allCountries.feature_code = featureCodes.feature_full_code
-            WHERE geonameid IN ({placeholders})
-            """
-
-            results = self.execute_query(query, batch)
-
-            results_dict.update(
-                {
-                    row[0]: {
-                        "geonameid": row[0],
-                        "name": row[1],
-                        "admin2_geonameid": row[2],
-                        "admin2_name": row[3],
-                        "admin1_geonameid": row[4],
-                        "admin1_name": row[5],
-                        "country_geonameid": row[6],
-                        "country_name": row[7],
-                        "feature_name": row[8],
-                        "latitude": row[9],
-                        "longitude": row[10],
-                        "elevation": row[11],
-                        "population": row[12],
-                    }
-                    for row in results
-                }
-            )
-
-        return [results_dict.get(location_id, None) for location_id in location_ids]
+        cursor.execute(insert_query)

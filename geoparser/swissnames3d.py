@@ -1,3 +1,4 @@
+import os
 import re
 import typing as t
 
@@ -19,75 +20,138 @@ class SwissNames3D(LocalDBGazetteer):
         skiprows: t.Union[int, list[int], t.Callable] = None,
         chunksize: int = 100000,
     ) -> t.Iterator[pd.DataFrame]:
-        return self.read_shapefile(file_path, columns, chunksize)
+        return self.read_shapefile(file_path, columns)
 
     def read_shapefile(
         self,
         file_path: str,
         columns: list[str] = None,
-        chunksize: int = 100000,
     ) -> t.Iterator[pd.DataFrame]:
 
         gdf = gpd.read_file(file_path)
-        gdf = gdf.to_wkt()
-        if columns:
-            gdf = gdf[columns]
+        df = pd.DataFrame(gdf)
+        df = df[columns]
 
-        total_rows = len(gdf)
-        for i in range(0, total_rows, chunksize):
-            yield gdf.iloc[i : i + chunksize]
+        chunks = [df]
+        return (chunk for chunk in chunks)
 
-    def query_candidates(
-        self,
-        toponym: str,
-        country_filter: list[str] = None,
-        feature_filter: list[str] = None,
-    ) -> list[int]:
+    @LocalDBGazetteer.close
+    @LocalDBGazetteer.commit
+    @LocalDBGazetteer.connect
+    def populate_locations_table(self):
+        data_frames = []
 
-        toponym = re.sub(r"\"", "", toponym).strip()
+        for dataset in self.config.data:
+            file_path = os.path.join(self.data_dir, dataset.extracted_files[0])
+            gdf = gpd.read_file(file_path)
+            data_frames.append(gdf)
 
-        toponym = " ".join([f'"{word}"' for word in toponym.split()])
+        locations_gdf = gpd.GeoDataFrame(pd.concat(data_frames, ignore_index=True))
 
-        location_identifier = self.config.location_identifier
+        gemeinde_path = os.path.join(
+            self.data_dir, "swissBOUNDARIES3D_1_5_TLM_HOHEITSGEBIET.shp"
+        )
+        bezirk_path = os.path.join(
+            self.data_dir, "swissBOUNDARIES3D_1_5_TLM_BEZIRKSGEBIET.shp"
+        )
+        kanton_path = os.path.join(
+            self.data_dir, "swissBOUNDARIES3D_1_5_TLM_KANTONSGEBIET.shp"
+        )
 
-        base_query = f"""
-            WITH RankedMatches AS (
-                SELECT
-                    names_fts.{location_identifier},
-                    bm25(names_fts) AS rank
-                FROM names_fts
-                WHERE names_fts MATCH ?
-            ),
-            MinRank AS (
-                SELECT MIN(rank) AS MinRank FROM RankedMatches
+        gemeinde_gdf = gpd.read_file(gemeinde_path)
+        bezirk_gdf = gpd.read_file(bezirk_path)
+        kanton_gdf = gpd.read_file(kanton_path)
+
+        gemeinde_gdf["geometry"] = gemeinde_gdf["geometry"].buffer(200)
+        bezirk_gdf["geometry"] = bezirk_gdf["geometry"].buffer(200)
+        kanton_gdf["geometry"] = kanton_gdf["geometry"].buffer(200)
+
+        locations_gdf = gpd.sjoin(
+            locations_gdf,
+            gemeinde_gdf[["UUID", "NAME", "geometry"]],
+            how="left",
+            predicate="within",
+            lsuffix=None,
+            rsuffix="gemeinde",
+        )
+        locations_gdf = gpd.sjoin(
+            locations_gdf,
+            bezirk_gdf[["UUID", "NAME", "geometry"]],
+            how="left",
+            predicate="within",
+            lsuffix=None,
+            rsuffix="bezirk",
+        )
+        locations_gdf = gpd.sjoin(
+            locations_gdf,
+            kanton_gdf[["UUID", "NAME", "geometry"]],
+            how="left",
+            predicate="within",
+            lsuffix=None,
+            rsuffix="kanton",
+        )
+
+        def extract_coordinates(geometry):
+            if geometry.geom_type == "Point":
+                return geometry.x, geometry.y
+            else:
+                centroid = geometry.centroid
+                return centroid.x, centroid.y
+
+        locations_gdf["E"], locations_gdf["N"] = zip(
+            *locations_gdf["geometry"].apply(extract_coordinates)
+        )
+
+        locations_gdf.rename(
+            columns={
+                "UUID": "UUID",
+                "NAME": "NAME",
+                "OBJEKTART": "OBJEKTART",
+                "E": "E",
+                "N": "N",
+                "UUID_gemeinde": "GEMEINDE_UUID",
+                "NAME_gemeinde": "GEMEINDE_NAME",
+                "UUID_bezirk": "BEZIRK_UUID",
+                "NAME_bezirk": "BEZIRK_NAME",
+                "UUID_kanton": "KANTON_UUID",
+                "NAME_kanton": "KANTON_NAME",
+            },
+            inplace=True,
+        )
+
+        locations_gdf = locations_gdf[
+            [
+                "UUID",
+                "NAME",
+                "OBJEKTART",
+                "E",
+                "N",
+                "GEMEINDE_UUID",
+                "GEMEINDE_NAME",
+                "BEZIRK_UUID",
+                "BEZIRK_NAME",
+                "KANTON_UUID",
+                "KANTON_NAME",
+            ]
+        ]
+
+        locations_gdf = (
+            locations_gdf.groupby("UUID")
+            .agg(
+                {
+                    "NAME": lambda x: "/".join(sorted(set(x))),
+                    "OBJEKTART": "first",
+                    "E": "first",
+                    "N": "first",
+                    "GEMEINDE_UUID": "first",
+                    "GEMEINDE_NAME": "first",
+                    "BEZIRK_UUID": "first",
+                    "BEZIRK_NAME": "first",
+                    "KANTON_UUID": "first",
+                    "KANTON_NAME": "first",
+                }
             )
-            SELECT {location_identifier}
-            FROM RankedMatches
-            WHERE RankedMatches.rank = (SELECT MinRank FROM MinRank)
-        """
+            .reset_index()
+        )
 
-        where_clauses = []
-        params = [toponym]
-
-        # # Add country filter if provided
-        # if country_filter:
-        #     placeholders = ",".join(["?"] * len(country_filter))
-        #     where_clauses.append(f"ac.country_code IN ({placeholders})")
-        #     params.extend(country_filter)
-
-        # # Add feature class filter if provided
-        # if feature_filter:
-        #     placeholders = ",".join(["?"] * len(feature_filter))
-        #     where_clauses.append(f"ac.feature_class IN ({placeholders})")
-        #     params.extend(feature_filter)
-
-        # if where_clauses:
-        #     base_query += " AND " + " AND ".join(where_clauses)
-
-        # base_query += f" GROUP BY ac.{location_identifier}"
-
-        result = self.execute_query(base_query, tuple(params))
-        return [row[0] for row in result]
-
-    def query_location_info():
-        pass
+        locations_gdf.to_sql("locations", self.conn, if_exists="append", index=False)

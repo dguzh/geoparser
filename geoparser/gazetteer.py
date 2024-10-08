@@ -85,12 +85,12 @@ class Gazetteer(ABC):
 
 
 class LocalDBGazetteer(Gazetteer):
-    data_dir = user_data_dir("geoparser", "")
 
-    def __init__(self, db_name: str):
+    def __init__(self, gazetteer_name: str):
         super().__init__()
-        self.db_path = os.path.join(LocalDBGazetteer.data_dir, db_name + ".db")
-        self.config = get_gazetteer_configs()[db_name]
+        self.data_dir = os.path.join(user_data_dir("geoparser", ""), gazetteer_name)
+        self.db_path = os.path.join(self.data_dir, gazetteer_name + ".db")
+        self.config = get_gazetteer_configs()[gazetteer_name]
         self.conn = None
 
     def connect(func):
@@ -129,6 +129,13 @@ class LocalDBGazetteer(Gazetteer):
     def _get_cursor(self) -> sqlite3.Cursor:
         return self.conn.cursor()
 
+    @close
+    @connect
+    def execute_query(self, query: str, params: tuple[str, ...] = None) -> list:
+        cursor = self._get_cursor()
+        cursor.execute(query, params or ())
+        return cursor.fetchall()
+
     def setup_database(self):
         print("Database setup...")
 
@@ -136,13 +143,20 @@ class LocalDBGazetteer(Gazetteer):
 
         os.makedirs(self.data_dir, exist_ok=True)
 
-        self.create_names_table()
-
         for dataset in self.config.data:
             self.download_file(dataset)
             self.load_data(dataset)
 
+        self.create_names_table()
+        self.populate_names_table()
+
+        self.create_names_fts_table()
         self.populate_names_fts_table()
+
+        self.create_locations_table()
+        self.populate_locations_table()
+
+        self.drop_redundant_tables()
 
         self.clean_dir(keep_db=True)
 
@@ -163,6 +177,16 @@ class LocalDBGazetteer(Gazetteer):
                         os.rmdir(os.path.join(self.data_dir, file_name))
                     except PermissionError:
                         shutil.rmtree(os.path.join(self.data_dir, file_name))
+
+    @close
+    @commit
+    @connect
+    def drop_redundant_tables(self):
+        cursor = self._get_cursor()
+        tables_to_drop = [dataset.name for dataset in self.config.data]
+        for table in tables_to_drop:
+            cursor.execute(f"DROP TABLE IF EXISTS {table};")
+        cursor.execute("VACUUM;")
 
     def download_file(self, dataset: GazetteerData):
         url = dataset.url
@@ -190,40 +214,13 @@ class LocalDBGazetteer(Gazetteer):
                 zip_ref.extract(file_name, self.data_dir)
 
     def load_data(self, dataset: GazetteerData):
-
-        self.create_table(dataset)
-        self.populate_table(dataset)
-
-    @close
-    @commit
-    @connect
-    def create_names_table(self):
-        cursor = self._get_cursor()
-        cursor.execute(
-            f"""
-            CREATE TABLE IF NOT EXISTS names (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                {self.config.location_identifier} INTEGER,
-                name TEXT
-            )
-        """
-        )
-        cursor.execute(
-            f"""
-            CREATE VIRTUAL TABLE IF NOT EXISTS names_fts USING fts5(
-                name,
-                {self.config.location_identifier} UNINDEXED,
-                content='names',
-                content_rowid='id',
-                tokenize="unicode61 tokenchars '.'"
-            )
-        """
-        )
+        self.create_data_table(dataset)
+        self.populate_data_table(dataset)
 
     @close
     @commit
     @connect
-    def create_table(self, dataset: GazetteerData):
+    def create_data_table(self, dataset: GazetteerData):
         cursor = self._get_cursor()
         columns = ", ".join(
             [
@@ -233,83 +230,12 @@ class LocalDBGazetteer(Gazetteer):
         )
         cursor.execute(f"CREATE TABLE IF NOT EXISTS {dataset.name} ({columns})")
 
-    def populate_table(self, dataset: GazetteerData):
+    def populate_data_table(self, dataset: GazetteerData):
         self.load_file_into_table(
             os.path.join(self.data_dir, dataset.extracted_files[0]),
             dataset.name,
             [col.name for col in dataset.columns],
             skiprows=dataset.skiprows,
-        )
-
-        if dataset.toponym_columns:
-            self.populate_names_table(dataset)
-
-    @close
-    @commit
-    @connect
-    def populate_names_table(self, dataset: GazetteerData, chunksize: int = 100000):
-        toponym_columns = dataset.toponym_columns
-        location_identifier = self.config.location_identifier
-
-        columns_to_select = [location_identifier] + [tc.name for tc in toponym_columns]
-
-        query = f'SELECT {", ".join(columns_to_select)} FROM {dataset.name}'
-
-        cursor = self.conn.cursor()
-        cursor.execute(f"SELECT COUNT(*) FROM {dataset.name}")
-        total_rows = cursor.fetchone()[0]
-        total_chunks = math.ceil(total_rows / chunksize)
-
-        chunks = pd.read_sql_query(query, self.conn, chunksize=chunksize)
-
-        for chunk in tqdm(
-            chunks, desc=f"Loading names from {dataset.name}", total=total_chunks
-        ):
-            chunk[location_identifier] = chunk[location_identifier].astype(str)
-
-            name_dfs = []
-
-            for tc in toponym_columns:
-                name = tc.name
-                if name not in chunk.columns:
-                    continue
-
-                df = chunk[[location_identifier, name]].dropna()
-
-                if tc.separator:
-                    separator = tc.separator
-                    df[name] = df[name].str.split(separator)
-                    df = df.explode(name)
-
-                df = df.rename(columns={name: "name"})
-                df = df[[location_identifier, "name"]]
-
-                name_dfs.append(df)
-
-            if name_dfs:
-                names_df = pd.concat(name_dfs, ignore_index=True)
-                names_df["name"] = names_df["name"].str.strip()
-                names_df = names_df[names_df["name"] != ""]
-
-                names_df.to_sql(
-                    "names",
-                    self.conn,
-                    if_exists="append",
-                    index=False,
-                    method="multi",
-                    chunksize=400,
-                )
-
-    @close
-    @commit
-    @connect
-    def populate_names_fts_table(self):
-        cursor = self._get_cursor()
-        cursor.execute(
-            f"""
-            INSERT INTO names_fts (rowid, name, {self.config.location_identifier})
-            SELECT id, name, {self.config.location_identifier} FROM names
-        """
         )
 
     @abstractmethod
@@ -342,8 +268,185 @@ class LocalDBGazetteer(Gazetteer):
             chunk.to_sql(table_name, self.conn, if_exists="append", index=False)
 
     @close
+    @commit
     @connect
-    def execute_query(self, query: str, params: tuple[str, ...] = None) -> list:
+    def create_names_table(self):
         cursor = self._get_cursor()
-        cursor.execute(query, params or ())
-        return cursor.fetchall()
+        cursor.execute(
+            f"""
+            CREATE TABLE IF NOT EXISTS names (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                {self.config.location_identifier} INTEGER,
+                name TEXT
+            )
+        """
+        )
+
+    @close
+    @commit
+    @connect
+    def populate_names_table(self, chunksize: int = 100000):
+        for dataset in self.config.data:
+            if dataset.toponym_columns:
+
+                toponym_columns = dataset.toponym_columns
+                location_identifier = self.config.location_identifier
+
+                columns_to_select = [location_identifier] + [
+                    tc.name for tc in toponym_columns
+                ]
+
+                query = f'SELECT {", ".join(columns_to_select)} FROM {dataset.name}'
+
+                cursor = self.conn.cursor()
+                cursor.execute(f"SELECT COUNT(*) FROM {dataset.name}")
+                total_rows = cursor.fetchone()[0]
+                total_chunks = math.ceil(total_rows / chunksize)
+
+                chunks = pd.read_sql_query(query, self.conn, chunksize=chunksize)
+
+                for chunk in tqdm(
+                    chunks,
+                    desc=f"Loading names from {dataset.name}",
+                    total=total_chunks,
+                ):
+                    chunk[location_identifier] = chunk[location_identifier].astype(str)
+
+                    name_dfs = []
+
+                    for tc in toponym_columns:
+                        name = tc.name
+                        if name not in chunk.columns:
+                            continue
+
+                        df = chunk[[location_identifier, name]].dropna()
+
+                        if tc.separator:
+                            separator = tc.separator
+                            df[name] = df[name].str.split(separator)
+                            df = df.explode(name)
+
+                        df = df.rename(columns={name: "name"})
+                        df = df[[location_identifier, "name"]]
+
+                        name_dfs.append(df)
+
+                    if name_dfs:
+                        names_df = pd.concat(name_dfs, ignore_index=True)
+                        names_df["name"] = names_df["name"].str.strip()
+                        names_df = names_df[names_df["name"] != ""]
+
+                        names_df.to_sql(
+                            "names",
+                            self.conn,
+                            if_exists="append",
+                            index=False,
+                            method="multi",
+                            chunksize=400,
+                        )
+
+    @close
+    @commit
+    @connect
+    def create_names_fts_table(self):
+        cursor = self._get_cursor()
+        cursor.execute(
+            f"""
+            CREATE VIRTUAL TABLE IF NOT EXISTS names_fts USING fts5(
+                name,
+                {self.config.location_identifier} UNINDEXED,
+                content='names',
+                content_rowid='id',
+                tokenize="unicode61 tokenchars '.'"
+            )
+        """
+        )
+
+    @close
+    @commit
+    @connect
+    def populate_names_fts_table(self):
+        cursor = self._get_cursor()
+        cursor.execute(
+            f"""
+            INSERT INTO names_fts (rowid, name, {self.config.location_identifier})
+            SELECT id, name, {self.config.location_identifier} FROM names
+        """
+        )
+
+    @close
+    @commit
+    @connect
+    def create_locations_table(self):
+        columns = self.config.location_columns
+        cursor = self._get_cursor()
+        columns_def = ", ".join(
+            f"{col.name} {col.type}{' PRIMARY KEY' if col.primary else ''}"
+            for col in columns
+        )
+        cursor.execute(f"CREATE TABLE IF NOT EXISTS locations ({columns_def})")
+
+    @abstractmethod
+    def populate_locations_table(self):
+        pass
+
+    def query_candidates(
+        self,
+        toponym: str,
+        country_filter: list[str] = None,
+        feature_filter: list[str] = None,
+    ) -> list[int]:
+
+        location_identifier = self.config.location_identifier
+
+        toponym = re.sub(r"\"", "", toponym).strip()
+        toponym = " ".join([f'"{word}"' for word in toponym.split()])
+
+        query = f"""
+            WITH RankedMatches AS (
+                SELECT
+                    names_fts.{location_identifier},
+                    bm25(names_fts) AS rank
+                FROM names_fts
+                WHERE names_fts MATCH ?
+            ),
+            MinRank AS (
+                SELECT MIN(rank) AS MinRank FROM RankedMatches
+            )
+            SELECT {location_identifier}
+            FROM RankedMatches
+            WHERE RankedMatches.rank = (SELECT MinRank FROM MinRank)
+            GROUP BY {location_identifier}
+        """
+
+        result = self.execute_query(query, (toponym,))
+        return [row[0] for row in result]
+
+    def query_location_info(
+        self, location_ids: list[int], batch_size: int = 500
+    ) -> list[dict]:
+        location_identifier = self.config.location_identifier
+
+        if not isinstance(location_ids, list):
+            location_ids = [location_ids]
+
+        batches = [
+            location_ids[i : i + batch_size]
+            for i in range(0, len(location_ids), batch_size)
+        ]
+        results_dict = {}
+
+        for batch in batches:
+            placeholders = ",".join("?" for _ in batch)
+            query = f"""
+                SELECT *
+                FROM locations
+                WHERE {location_identifier} IN ({placeholders})
+            """
+            results = self.execute_query(query, batch)
+
+            columns = [col.name for col in self.config.location_columns]
+            for row in results:
+                results_dict[row[0]] = dict(zip(columns, row))
+
+        return [results_dict.get(location_id, None) for location_id in location_ids]

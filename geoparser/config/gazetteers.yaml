@@ -1,5 +1,33 @@
 - name: geonames
   location_identifier: geonameid
+  location_columns:
+  - name: geonameid
+    type: INTEGER
+    primary: true
+  - name: name
+    type: TEXT
+  - name: feature_type
+    type: TEXT
+  - name: latitude
+    type: REAL
+  - name: longitude
+    type: REAL
+  - name: elevation
+    type: INTEGER
+  - name: population
+    type: INTEGER
+  - name: admin2_geonameid
+    type: INTEGER
+  - name: admin2_name
+    type: TEXT
+  - name: admin1_geonameid
+    type: INTEGER
+  - name: admin1_name
+    type: TEXT
+  - name: country_geonameid
+    type: INTEGER
+  - name: country_name
+    type: TEXT
   data:
   - name: allCountries
     url: https://download.geonames.org/export/dump/allCountries.zip
@@ -136,6 +164,30 @@
       type: TEXT
 - name: swissnames3d
   location_identifier: UUID
+  location_columns:
+  - name: UUID
+    type: TEXT
+    primary: true
+  - name: NAME
+    type: TEXT
+  - name: OBJEKTART
+    type: TEXT
+  - name: E
+    type: REAL
+  - name: N
+    type: REAL
+  - name: GEMEINDE_UUID
+    type: TEXT
+  - name: GEMEINDE_NAME
+    type: TEXT
+  - name: BEZIRK_UUID
+    type: TEXT
+  - name: BEZIRK_NAME
+    type: TEXT
+  - name: KANTON_UUID
+    type: TEXT
+  - name: KANTON_NAME
+    type: TEXT
   data:
   - name: swissNAMES3D_PKT
     url: https://data.geo.admin.ch/ch.swisstopo.swissnames3d/swissnames3d_2024/swissnames3d_2024_2056.shp.zip
@@ -168,8 +220,6 @@
       type: TEXT
     - name: NAMENGRUPP
       type: TEXT
-    - name: geometry
-      type: GEOMETRY
     toponym_columns:
     - name: NAME
   - name: swissNAMES3D_LIN
@@ -201,8 +251,6 @@
       type: TEXT
     - name: NAMENGRUPP
       type: TEXT
-    - name: geometry
-      type: GEOMETRY
     toponym_columns:
     - name: NAME
   - name: swissNAMES3D_PLY
@@ -236,8 +284,6 @@
       type: TEXT
     - name: ISCED
       type: TEXT
-    - name: geometry
-      type: GEOMETRY
     toponym_columns:
     - name: NAME
   - name: swissBOUNDARIES3D_1_5_TLM_HOHEITSGEBIET
@@ -296,8 +342,6 @@
         type: INTEGER
       - name: HIST_NR
         type: INTEGER
-      - name: geometry
-        type: GEOMETRY
     toponym_columns:
       - name: NAME
   - name: swissBOUNDARIES3D_1_5_TLM_BEZIRKSGEBIET
@@ -350,8 +394,6 @@
         type: TEXT
       - name: EINWOHNERZ
         type: INTEGER
-      - name: geometry
-        type: GEOMETRY
     toponym_columns:
     - name: NAME
   - name: swissBOUNDARIES3D_1_5_TLM_KANTONSGEBIET
@@ -402,7 +444,5 @@
         type: TEXT
       - name: EINWOHNERZ
         type: INTEGER
-      - name: geometry
-        type: GEOMETRY
     toponym_columns:
     - name: NAME

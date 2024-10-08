@@ -26,4 +26,5 @@ class GazetteerData(BaseModel):
 class GazetteerConfig(BaseModel):
     name: str
     location_identifier: str
+    location_columns: list[Column]
     data: list[GazetteerData]
