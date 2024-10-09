@@ -321,6 +321,23 @@ class LocalDBGazetteer(Gazetteer):
                         df = df.rename(columns={name: "name"})
                         df = df[[location_identifier, "name"]]
 
+                        if tc.geoqualifier_pattern:
+                            pattern = re.compile(tc.geoqualifier_pattern)
+
+                            stripped_df = df.copy()
+                            stripped_df["name"] = stripped_df["name"].apply(
+                                lambda n: (
+                                    pattern.sub("", n).strip()
+                                    if isinstance(n, str)
+                                    else n
+                                )
+                            )
+
+                            df = pd.concat([df, stripped_df], ignore_index=True)
+                            df = df.drop_duplicates(
+                                subset=[location_identifier, "name"]
+                            )
+
                         name_dfs.append(df)
 
                     if name_dfs:

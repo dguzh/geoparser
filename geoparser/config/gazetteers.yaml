@@ -222,6 +222,7 @@
       type: TEXT
     toponym_columns:
     - name: NAME
+      geoqualifier_pattern: \s(?:\((?:[A-Z]{2})\)|[A-Z]{2})$
   - name: swissNAMES3D_LIN
     url: https://data.geo.admin.ch/ch.swisstopo.swissnames3d/swissnames3d_2024/swissnames3d_2024_2056.shp.zip
     extracted_files:
@@ -253,6 +254,7 @@
       type: TEXT
     toponym_columns:
     - name: NAME
+      geoqualifier_pattern: \s(?:\((?:[A-Z]{2})\)|[A-Z]{2})$
   - name: swissNAMES3D_PLY
     url: https://data.geo.admin.ch/ch.swisstopo.swissnames3d/swissnames3d_2024/swissnames3d_2024_2056.shp.zip
     extracted_files:
@@ -286,6 +288,7 @@
       type: TEXT
     toponym_columns:
     - name: NAME
+      geoqualifier_pattern: \s(?:\((?:[A-Z]{2})\)|[A-Z]{2})$
   - name: swissBOUNDARIES3D_1_5_TLM_HOHEITSGEBIET
     url: https://data.geo.admin.ch/ch.swisstopo.swissboundaries3d/swissboundaries3d_2024-01/swissboundaries3d_2024-01_2056_5728.shp.zip
     extracted_files:
@@ -344,6 +347,7 @@
         type: INTEGER
     toponym_columns:
       - name: NAME
+        geoqualifier_pattern: \s(?:\((?:[A-Z]{2})\)|[A-Z]{2})$
   - name: swissBOUNDARIES3D_1_5_TLM_BEZIRKSGEBIET
     url: https://data.geo.admin.ch/ch.swisstopo.swissboundaries3d/swissboundaries3d_2024-01/swissboundaries3d_2024-01_2056_5728.shp.zip
     extracted_files:
@@ -396,6 +400,7 @@
         type: INTEGER
     toponym_columns:
     - name: NAME
+      geoqualifier_pattern: \s(?:\((?:[A-Z]{2})\)|[A-Z]{2})$
   - name: swissBOUNDARIES3D_1_5_TLM_KANTONSGEBIET
     url: https://data.geo.admin.ch/ch.swisstopo.swissboundaries3d/swissboundaries3d_2024-01/swissboundaries3d_2024-01_2056_5728.shp.zip
     extracted_files:
@@ -446,3 +451,4 @@
         type: INTEGER
     toponym_columns:
     - name: NAME
+      geoqualifier_pattern: \s(?:\((?:[A-Z]{2})\)|[A-Z]{2})$

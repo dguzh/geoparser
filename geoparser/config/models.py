@@ -12,6 +12,7 @@ class Column(BaseModel):
 class ToponymColumn(BaseModel):
     name: str
     separator: t.Optional[str] = None
+    geoqualifier_pattern: t.Optional[str] = None
 
 
 class GazetteerData(BaseModel):
