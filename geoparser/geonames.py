@@ -1,8 +1,11 @@
+import math
 import re
 import typing as t
 
 import pandas as pd
+from tqdm.auto import tqdm
 
+from geoparser.config.models import GazetteerData
 from geoparser.gazetteer import LocalDBGazetteer
 
 
@@ -17,16 +20,11 @@ class GeoNames(LocalDBGazetteer):
         columns: list[str] = None,
         skiprows: t.Union[int, list[int], t.Callable] = None,
         chunksize: int = 100000,
-    ) -> t.Iterator[pd.DataFrame]:
-        return self.read_tsv(file_path, columns, skiprows, chunksize)
+    ) -> t.Tuple[t.Iterator[pd.DataFrame], int]:
 
-    def read_tsv(
-        self,
-        file_path: str,
-        columns: list[str] = None,
-        skiprows: t.Union[int, list[int], t.Callable] = None,
-        chunksize: int = 100000,
-    ) -> t.Iterator[pd.DataFrame]:
+        total_lines = sum(1 for _ in open(file_path, "rb"))
+        n_chunks = math.ceil(total_lines / chunksize)
+
         chunks = pd.read_csv(
             file_path,
             delimiter="\t",
@@ -38,7 +36,8 @@ class GeoNames(LocalDBGazetteer):
         )
         if not chunksize:
             chunks = [chunks]
-        return (chunk for chunk in chunks)
+
+        return (chunk for chunk in chunks), n_chunks
 
     @LocalDBGazetteer.close
     @LocalDBGazetteer.commit
@@ -49,24 +48,27 @@ class GeoNames(LocalDBGazetteer):
         insert_query = """
             INSERT INTO locations (
                 geonameid, name, feature_type, latitude, longitude, elevation, population,
-                admin2_geonameid, admin1_geonameid, country_geonameid
+                admin2_geonameid, admin2_name, admin1_geonameid, admin1_name, country_geonameid, country_name
             )
             SELECT
                 ac.geonameid,
                 ac.name,
-                fc.feature_name AS feature_type,
+                fc.name AS feature_type,
                 ac.latitude,
                 ac.longitude,
                 ac.elevation,
                 ac.population,
-                a2.admin2_geonameid,
-                a1.admin1_geonameid,
-                ci.country_geonameid
+                a2.geonameid AS admin2_geonameid,
+                a2.name AS admin2_name,
+                a1.geonameid AS admin1_geonameid,
+                a1.name AS admin1_name,
+                ci.geonameid AS country_geonameid,
+                ci.Country AS country_name
             FROM
                 allCountries ac
-            LEFT JOIN featureCodes fc ON ac.feature_class || '.' || ac.feature_code = fc.feature_full_code
+            LEFT JOIN featureCodes fc ON ac.feature_class || '.' || ac.feature_code = fc.code
             LEFT JOIN countryInfo ci ON ac.country_code = ci.ISO
-            LEFT JOIN admin1CodesASCII a1 ON ci.ISO || '.' || ac.admin1_code = a1.admin1_full_code
-            LEFT JOIN admin2Codes a2 ON ci.ISO || '.' || ac.admin1_code || '.' || ac.admin2_code = a2.admin2_full_code
+            LEFT JOIN admin1CodesASCII a1 ON ci.ISO || '.' || ac.admin1_code = a1.code
+            LEFT JOIN admin2Codes a2 ON ci.ISO || '.' || ac.admin1_code || '.' || ac.admin2_code = a2.code
         """
         cursor.execute(insert_query)

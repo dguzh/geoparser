@@ -82,28 +82,28 @@
     extracted_files:
     - admin1CodesASCII.txt
     columns:
-    - name: admin1_full_code
+    - name: code
       type: TEXT
       primary: true
-    - name: admin1_name
+    - name: name
       type: TEXT
-    - name: admin1_asciiname
+    - name: asciiname
       type: TEXT
-    - name: admin1_geonameid
+    - name: geonameid
       type: INTEGER
   - name: admin2Codes
     url: https://download.geonames.org/export/dump/admin2Codes.txt
     extracted_files:
     - admin2Codes.txt
     columns:
-    - name: admin2_full_code
+    - name: code
       type: TEXT
       primary: true
-    - name: admin2_name
+    - name: name
       type: TEXT
-    - name: admin2_asciiname
+    - name: asciiname
       type: TEXT
-    - name: admin2_geonameid
+    - name: geonameid
       type: INTEGER
   - name: countryInfo
     url: https://download.geonames.org/export/dump/countryInfo.txt
@@ -119,35 +119,35 @@
       type: INTEGER
     - name: fips
       type: TEXT
-    - name: country_name
+    - name: Country
       type: TEXT
-    - name: capital
+    - name: Capital
       type: TEXT
-    - name: area
+    - name: Area
       type: REAL
-    - name: country_population
+    - name: Population
       type: INTEGER
-    - name: continent
+    - name: Continent
       type: TEXT
     - name: tld
       type: TEXT
-    - name: currencyCode
+    - name: CurrencyCode
       type: TEXT
-    - name: currencyName
+    - name: CurrencyName
       type: TEXT
     - name: Phone
       type: TEXT
-    - name: postalCodeFormat
+    - name: PostalCodeFormat
       type: TEXT
-    - name: postalCodeRegex
+    - name: PostalCodeRegex
       type: TEXT
-    - name: languages
+    - name: Languages
       type: TEXT
-    - name: country_geonameid
+    - name: geonameid
       type: INTEGER
     - name: neighbours
       type: TEXT
-    - name: equivalentFipsCode
+    - name: EquivalentFipsCode
       type: TEXT
     skiprows: 50
   - name: featureCodes
@@ -155,12 +155,12 @@
     extracted_files:
     - featureCodes_en.txt
     columns:
-    - name: feature_full_code
+    - name: code
       type: TEXT
       primary: true
-    - name: feature_name
+    - name: name
       type: TEXT
-    - name: feature_description
+    - name: description
       type: TEXT
 - name: swissnames3d
   location_identifier: UUID

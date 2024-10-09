@@ -19,21 +19,14 @@ class SwissNames3D(LocalDBGazetteer):
         columns: list[str] = None,
         skiprows: t.Union[int, list[int], t.Callable] = None,
         chunksize: int = 100000,
-    ) -> t.Iterator[pd.DataFrame]:
-        return self.read_shapefile(file_path, columns)
-
-    def read_shapefile(
-        self,
-        file_path: str,
-        columns: list[str] = None,
-    ) -> t.Iterator[pd.DataFrame]:
+    ) -> t.Tuple[t.Iterator[pd.DataFrame], int]:
 
         gdf = gpd.read_file(file_path)
         df = pd.DataFrame(gdf)
         df = df[columns]
 
         chunks = [df]
-        return (chunk for chunk in chunks)
+        return (chunk for chunk in chunks), 1
 
     @LocalDBGazetteer.close
     @LocalDBGazetteer.commit

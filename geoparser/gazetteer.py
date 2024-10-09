@@ -217,27 +217,6 @@ class LocalDBGazetteer(Gazetteer):
         self.create_data_table(dataset)
         self.populate_data_table(dataset)
 
-    @close
-    @commit
-    @connect
-    def create_data_table(self, dataset: GazetteerData):
-        cursor = self._get_cursor()
-        columns = ", ".join(
-            [
-                f"{col.name} {col.type}{' PRIMARY KEY' if col.primary else ''}"
-                for col in dataset.columns
-            ]
-        )
-        cursor.execute(f"CREATE TABLE IF NOT EXISTS {dataset.name} ({columns})")
-
-    def populate_data_table(self, dataset: GazetteerData):
-        self.load_file_into_table(
-            os.path.join(self.data_dir, dataset.extracted_files[0]),
-            dataset.name,
-            [col.name for col in dataset.columns],
-            skiprows=dataset.skiprows,
-        )
-
     @abstractmethod
     def read_file(
         self,
@@ -251,19 +230,32 @@ class LocalDBGazetteer(Gazetteer):
     @close
     @commit
     @connect
-    def load_file_into_table(
-        self,
-        file_path: str,
-        table_name: str,
-        columns: list[str],
-        skiprows: t.Union[int, list[int], t.Callable] = None,
-        chunksize: int = 100000,
-    ):
-        chunks = self.read_file(file_path, columns, skiprows, chunksize)
+    def create_data_table(self, dataset: GazetteerData):
+        cursor = self._get_cursor()
+        columns = ", ".join(
+            [
+                f"{col.name} {col.type}{' PRIMARY KEY' if col.primary else ''}"
+                for col in dataset.columns
+            ]
+        )
+        cursor.execute(f"CREATE TABLE IF NOT EXISTS {dataset.name} ({columns})")
+
+    @close
+    @commit
+    @connect
+    def populate_data_table(self, dataset: GazetteerData):
+        file_path = os.path.join(self.data_dir, dataset.extracted_files[0])
+        table_name = dataset.name
+        columns = [col.name for col in dataset.columns]
+        skiprows = dataset.skiprows
+        chunksize = 100000
+
+        chunks, n_chunks = self.read_file(file_path, columns, skiprows, chunksize)
+
         for chunk in tqdm(
             chunks,
             desc=f"Loading {table_name}",
-            # total=math.ceil(sum(1 for _ in open(file_path, "rb")) / chunksize),
+            total=n_chunks,
         ):
             chunk.to_sql(table_name, self.conn, if_exists="append", index=False)
 
