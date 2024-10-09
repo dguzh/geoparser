@@ -12,7 +12,14 @@ from geoparser.gazetteer import LocalDBGazetteer
 class GeoNames(LocalDBGazetteer):
     def __init__(self):
         super().__init__("geonames")
-        self.location_description_template = "<name> (<feature_name>) COND[in, any{<admin2_name>, <admin1_name>, <country_name>}] <admin2_name>, <admin1_name>, <country_name>"
+        self.location_description_template = lambda x: (
+            f'{x["name"] if x["name"] else ""}'
+            f'{" (" + x["feature_type"] + ")" if x["feature_type"] else ""}'
+            f'{" in" if any((x["admin2_name"], x["admin1_name"], x["country_name"])) else ""}'
+            f'{" " + x["admin2_name"] + "," if x["admin2_name"] else ""}'
+            f'{" " + x["admin1_name"] + "," if x["admin1_name"] else ""}'
+            f'{" " + x["country_name"] if x["country_name"] else ""}'
+        ).strip(" ,")
 
     def read_file(
         self,

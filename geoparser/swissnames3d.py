@@ -11,7 +11,14 @@ from geoparser.gazetteer import LocalDBGazetteer
 class SwissNames3D(LocalDBGazetteer):
     def __init__(self):
         super().__init__("swissnames3d")
-        self.location_description_template = "<NAME> (<OBJEKTART>) COND[in, any{<BEZIRK_NAME>, <KANTON_NAME>}] <BEZIRK_NAME>, <KANTON_NAME>"
+        self.location_description_template = lambda x: (
+            f'{x["NAME"] if x["NAME"] else ""}'
+            f'{" (" + x["OBJEKTART"] + ")" if x["OBJEKTART"] else ""}'
+            f'{" in" if any((x["GEMEINDE_NAME"], x["BEZIRK_NAME"], x["KANTON_NAME"])) else ""}'
+            f'{" " + x["GEMEINDE_NAME"] + "," if x["GEMEINDE_NAME"] else ""}'
+            f'{" " + x["BEZIRK_NAME"] + "," if x["BEZIRK_NAME"] else ""}'
+            f'{" " + x["KANTON_NAME"] if x["KANTON_NAME"] else ""}'
+        ).strip(" ,")
 
     def read_file(
         self,
