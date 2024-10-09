@@ -21,7 +21,7 @@ class Gazetteer(ABC):
     def get_location_description(
         self, location: dict[str, t.Union[int, str, float]]
     ) -> str:
-        return self.location_description_template(location)
+        return self.create_location_description(location)
 
 
 class LocalDBGazetteer(Gazetteer):

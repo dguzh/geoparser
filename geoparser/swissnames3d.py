@@ -11,14 +11,69 @@ from geoparser.gazetteer import LocalDBGazetteer
 class SwissNames3D(LocalDBGazetteer):
     def __init__(self):
         super().__init__("swissnames3d")
-        self.location_description_template = lambda x: (
-            f'{x["NAME"] if x["NAME"] else ""}'
-            f'{" (" + x["OBJEKTART"] + ")" if x["OBJEKTART"] else ""}'
-            f'{" in" if any((x["GEMEINDE_NAME"], x["BEZIRK_NAME"], x["KANTON_NAME"])) else ""}'
-            f'{" " + x["GEMEINDE_NAME"] + "," if x["GEMEINDE_NAME"] else ""}'
-            f'{" " + x["BEZIRK_NAME"] + "," if x["BEZIRK_NAME"] else ""}'
-            f'{" " + x["KANTON_NAME"] if x["KANTON_NAME"] else ""}'
-        ).strip(" ,")
+
+    def create_location_description(self, location):
+        name = location["NAME"] or ""
+        objektart = f' ({location["OBJEKTART"]})' if location["OBJEKTART"] else ""
+
+        in_condition = any(
+            [
+                location["GEMEINDE_NAME"]
+                and location["OBJEKTART"]
+                not in [
+                    "Gemeindegebiet",
+                    "Bezirk",
+                    "Kanton",
+                ],
+                location["BEZIRK_NAME"]
+                and location["OBJEKTART"]
+                not in [
+                    "Bezirk",
+                    "Kanton",
+                ],
+                location["KANTON_NAME"]
+                and location["OBJEKTART"]
+                not in [
+                    "Kanton",
+                ],
+            ]
+        )
+        in_text = " in" if in_condition else ""
+
+        gemeinde = (
+            f' {location["GEMEINDE_NAME"]},'
+            if location["GEMEINDE_NAME"]
+            and location["OBJEKTART"]
+            not in [
+                "Gemeindegebiet",
+                "Bezirk",
+                "Kanton",
+            ]
+            else ""
+        )
+
+        bezirk = (
+            f' {location["BEZIRK_NAME"]},'
+            if location["BEZIRK_NAME"]
+            and location["OBJEKTART"]
+            not in [
+                "Bezirk",
+                "Kanton",
+            ]
+            else ""
+        )
+
+        kanton = (
+            f' {location["KANTON_NAME"]}'
+            if location["KANTON_NAME"]
+            and location["OBJEKTART"]
+            not in [
+                "Kanton",
+            ]
+            else ""
+        )
+
+        return f"{name}{objektart}{in_text}{gemeinde}{bezirk}{kanton}".strip(" ,")
 
     def read_file(
         self,
@@ -93,10 +148,10 @@ class SwissNames3D(LocalDBGazetteer):
 
         def extract_coordinates(geometry):
             if geometry.geom_type == "Point":
-                return geometry.x, geometry.y
+                return int(geometry.x), int(geometry.y)
             else:
                 centroid = geometry.centroid
-                return centroid.x, centroid.y
+                return int(centroid.x), int(centroid.y)
 
         locations_gdf["E"], locations_gdf["N"] = zip(
             *locations_gdf["geometry"].apply(extract_coordinates)

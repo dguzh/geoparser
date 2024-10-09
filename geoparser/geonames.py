@@ -3,23 +3,76 @@ import re
 import typing as t
 
 import pandas as pd
-from tqdm.auto import tqdm
 
-from geoparser.config.models import GazetteerData
 from geoparser.gazetteer import LocalDBGazetteer
 
 
 class GeoNames(LocalDBGazetteer):
     def __init__(self):
         super().__init__("geonames")
-        self.location_description_template = lambda x: (
-            f'{x["name"] if x["name"] else ""}'
-            f'{" (" + x["feature_type"] + ")" if x["feature_type"] else ""}'
-            f'{" in" if any((x["admin2_name"], x["admin1_name"], x["country_name"])) else ""}'
-            f'{" " + x["admin2_name"] + "," if x["admin2_name"] else ""}'
-            f'{" " + x["admin1_name"] + "," if x["admin1_name"] else ""}'
-            f'{" " + x["country_name"] if x["country_name"] else ""}'
-        ).strip(" ,")
+
+    def create_location_description(self, location):
+        name = location["name"] or ""
+        feature = f' ({location["feature_type"]})' if location["feature_type"] else ""
+
+        in_condition = any(
+            [
+                location["admin2_name"]
+                and location["feature_type"]
+                not in [
+                    "second-order administrative division",
+                    "first-order administrative division",
+                    "independent political entity",
+                ],
+                location["admin1_name"]
+                and location["feature_type"]
+                not in [
+                    "first-order administrative division",
+                    "independent political entity",
+                ],
+                location["country_name"]
+                and location["feature_type"]
+                not in [
+                    "independent political entity",
+                ],
+            ]
+        )
+        in_text = " in" if in_condition else ""
+
+        admin2 = (
+            f' {location["admin2_name"]},'
+            if location["admin2_name"]
+            and location["feature_type"]
+            not in [
+                "second-order administrative division",
+                "first-order administrative division",
+                "independent political entity",
+            ]
+            else ""
+        )
+
+        admin1 = (
+            f' {location["admin1_name"]},'
+            if location["admin1_name"]
+            and location["feature_type"]
+            not in [
+                "first-order administrative division",
+                "independent political entity",
+            ]
+            else ""
+        )
+
+        country = (
+            f' {location["country_name"]}'
+            if location["country_name"]
+            and location["feature_type"]
+            not in [
+                "independent political entity",
+            ]
+            else ""
+        )
+
+        return f"{name}{feature}{in_text}{admin2}{admin1}{country}".strip(" ,")
 
     def read_file(
         self,

@@ -173,9 +173,9 @@
   - name: OBJEKTART
     type: TEXT
   - name: E
-    type: REAL
+    type: INTEGER
   - name: N
-    type: REAL
+    type: INTEGER
   - name: GEMEINDE_UUID
     type: TEXT
   - name: GEMEINDE_NAME
