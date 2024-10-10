@@ -1,27 +1,49 @@
-- name: test_gazetteer
+- name: test-full
+  location_identifier: testid
+  location_columns:
+  - name: testid
+    type: INTEGER
+    primary: true
+  - name: testname
+    type: TEXT
   data:
-  - name: full
-    url: https://test.test.org/path/to/file.zip
-    extracted_file: file.txt
-    skiprows: 50
+  - name: data1
+    url: https://data1.org/path/to/data1.zip
+    extracted_files:
+    - data1.txt
     columns:
-    - name: col1
+    - name: testid
       type: INTEGER
       primary: true
-    - name: col2
+    - name: testname
       type: TEXT
-    virtual_tables:
-    - name: virtual1
-      using: fts5
-      args:
-      - col2
-      kwargs:
-        content: full
-        content_rowid: col1
-        tokenize: "unicode61 tokenchars '.'"
-  - name: minimal
-    url: https://test.test.org/path/to/file.zip
-    extracted_file: file.txt
+    skiprows: 50
+  - name: data2
+    url: https://data2.org/path/to/data2.zip
+    extracted_files:
+    - data2.txt
     columns:
-    - name: col1
+    - name: testcode
+      type: TEXT
+      primary: true
+    - name: testname
+      type: TEXT
+    toponym_columns:
+    - name: testminimal
+    - name: testseparator
+      separator: ","
+- name: test-minimal
+  location_identifier: testid
+  location_columns:
+  - name: testid
+    type: INTEGER
+    primary: true
+  data:
+  - name: data1
+    url: https://data1.org/path/to/data1.zip
+    extracted_files:
+    - data1.txt
+    columns:
+    - name: testid
       type: INTEGER
+      primary: true

@@ -2,7 +2,12 @@ import pydantic
 import pytest
 
 from geoparser.config import get_gazetteer_configs
-from geoparser.config.models import Column, GazetteerConfig, GazetteerData, VirtualTable
+from geoparser.config.models import (
+    Column,
+    GazetteerConfig,
+    GazetteerData,
+    ToponymColumn,
+)
 from geoparser.tests.utils import get_static_test_file
 
 
@@ -12,39 +17,52 @@ def test_get_gazetteer_configs_valid(monkeypatch):
         lambda _: get_static_test_file("gazetteers_config_valid.yaml"),
     )
     expected = {
-        "test_gazetteer": GazetteerConfig(
-            name="test_gazetteer",
+        "test-full": GazetteerConfig(
+            name="test-full",
+            location_identifier="testid",
+            location_columns=[
+                Column(name="testid", type="INTEGER", primary=True),
+                Column(name="testname", type="TEXT"),
+            ],
             data=[
                 GazetteerData(
-                    name="full",
-                    url="https://test.test.org/path/to/file.zip",
-                    extracted_file="file.txt",
-                    skiprows=50,
+                    name="data1",
+                    url="https://data1.org/path/to/data1.zip",
+                    extracted_files=["data1.txt"],
                     columns=[
-                        Column(name="col1", type="INTEGER", primary=True),
-                        Column(name="col2", type="TEXT"),
+                        Column(name="testid", type="INTEGER", primary=True),
+                        Column(name="testname", type="TEXT"),
                     ],
-                    virtual_tables=[
-                        VirtualTable(
-                            name="virtual1",
-                            using="fts5",
-                            args=["col2"],
-                            kwargs={
-                                "content": "full",
-                                "content_rowid": "col1",
-                                "tokenize": "unicode61 tokenchars '.'",
-                            },
-                        )
-                    ],
+                    skiprows=50,
                 ),
                 GazetteerData(
-                    name="minimal",
-                    url="https://test.test.org/path/to/file.zip",
-                    extracted_file="file.txt",
-                    columns=[Column(name="col1", type="INTEGER")],
+                    name="data2",
+                    url="https://data2.org/path/to/data2.zip",
+                    extracted_files=["data2.txt"],
+                    columns=[
+                        Column(name="testcode", type="TEXT", primary=True),
+                        Column(name="testname", type="TEXT"),
+                    ],
+                    toponym_columns=[
+                        ToponymColumn(name="testminimal"),
+                        ToponymColumn(name="testseparator", separator=","),
+                    ],
                 ),
             ],
-        )
+        ),
+        "test-minimal": GazetteerConfig(
+            name="test-minimal",
+            location_identifier="testid",
+            location_columns=[Column(name="testid", type="INTEGER", primary=True)],
+            data=[
+                GazetteerData(
+                    name="data1",
+                    url="https://data1.org/path/to/data1.zip",
+                    extracted_files=["data1.txt"],
+                    columns=[Column(name="testid", type="INTEGER", primary=True)],
+                ),
+            ],
+        ),
     }
     actual = get_gazetteer_configs()
     assert actual == expected
