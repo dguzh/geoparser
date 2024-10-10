@@ -1,8 +1,38 @@
 - name: geonames
+  location_identifier: geonameid
+  location_columns:
+  - name: geonameid
+    type: INTEGER
+    primary: true
+  - name: name
+    type: TEXT
+  - name: feature_type
+    type: TEXT
+  - name: latitude
+    type: REAL
+  - name: longitude
+    type: REAL
+  - name: elevation
+    type: INTEGER
+  - name: population
+    type: INTEGER
+  - name: admin2_geonameid
+    type: INTEGER
+  - name: admin2_name
+    type: TEXT
+  - name: admin1_geonameid
+    type: INTEGER
+  - name: admin1_name
+    type: TEXT
+  - name: country_geonameid
+    type: INTEGER
+  - name: country_name
+    type: TEXT
   data:
   - name: allCountries
     url: https://download.geonames.org/export/dump/allCountries.zip
-    extracted_file: allCountries.txt
+    extracted_files:
+    - allCountries.txt
     columns:
     - name: geonameid
       type: INTEGER
@@ -43,78 +73,42 @@
       type: TEXT
     - name: modification_date
       type: TEXT
-    virtual_tables:
-    - name: allCountries_fts
-      using: fts5
-      args:
-      - name
-      kwargs:
-        content: allCountries
-        content_rowid: geonameid
-        tokenize: "unicode61 tokenchars '.'"
-  - name: alternateNames
-    url: https://download.geonames.org/export/dump/alternateNames.zip
-    extracted_file: alternateNames.txt
-    columns:
-    - name: alternateNameId
-      type: INTEGER
-      primary: true
-    - name: geonameid
-      type: INTEGER
-    - name: isolanguage
-      type: TEXT
-    - name: alternate_name
-      type: TEXT
-    - name: isPreferredName
-      type: BOOLEAN
-    - name: isShortName
-      type: BOOLEAN
-    - name: isColloquial
-      type: BOOLEAN
-    - name: isHistoric
-      type: BOOLEAN
-    - name: fromPeriod
-      type: TEXT
-    - name: toPeriod
-      type: TEXT
-    virtual_tables:
-    - name: alternateNames_fts
-      using: fts5
-      args:
-      - alternate_name
-      kwargs:
-        content: alternateNames
-        content_rowid: alternateNameId
-        tokenize: "unicode61 tokenchars '.'"
+    toponym_columns:
+    - name: name
+    - name: alternatenames
+      separator: ","
   - name: admin1CodesASCII
     url: https://download.geonames.org/export/dump/admin1CodesASCII.txt
-    extracted_file: admin1CodesASCII.txt
+    extracted_files:
+    - admin1CodesASCII.txt
     columns:
-    - name: admin1_full_code
+    - name: code
       type: TEXT
       primary: true
-    - name: admin1_name
+    - name: name
       type: TEXT
-    - name: admin1_asciiname
+    - name: asciiname
       type: TEXT
-    - name: admin1_geonameid
+    - name: geonameid
       type: INTEGER
   - name: admin2Codes
     url: https://download.geonames.org/export/dump/admin2Codes.txt
-    extracted_file: admin2Codes.txt
+    extracted_files:
+    - admin2Codes.txt
     columns:
-    - name: admin2_full_code
+    - name: code
       type: TEXT
       primary: true
-    - name: admin2_name
+    - name: name
       type: TEXT
-    - name: admin2_asciiname
+    - name: asciiname
       type: TEXT
-    - name: admin2_geonameid
+    - name: geonameid
       type: INTEGER
   - name: countryInfo
     url: https://download.geonames.org/export/dump/countryInfo.txt
-    extracted_file: countryInfo.txt
+    extracted_files:
+    - countryInfo.txt
     columns:
     - name: ISO
       type: TEXT
@@ -125,45 +119,336 @@
       type: INTEGER
     - name: fips
       type: TEXT
-    - name: country_name
+    - name: Country
       type: TEXT
-    - name: capital
+    - name: Capital
       type: TEXT
-    - name: area
+    - name: Area
       type: REAL
-    - name: country_population
+    - name: Population
       type: INTEGER
-    - name: continent
+    - name: Continent
       type: TEXT
     - name: tld
       type: TEXT
-    - name: currencyCode
+    - name: CurrencyCode
       type: TEXT
-    - name: currencyName
+    - name: CurrencyName
       type: TEXT
     - name: Phone
       type: TEXT
-    - name: postalCodeFormat
+    - name: PostalCodeFormat
       type: TEXT
-    - name: postalCodeRegex
+    - name: PostalCodeRegex
       type: TEXT
-    - name: languages
+    - name: Languages
       type: TEXT
-    - name: country_geonameid
+    - name: geonameid
       type: INTEGER
     - name: neighbours
       type: TEXT
-    - name: equivalentFipsCode
+    - name: EquivalentFipsCode
       type: TEXT
     skiprows: 50
   - name: featureCodes
     url: https://download.geonames.org/export/dump/featureCodes_en.txt
-    extracted_file: featureCodes_en.txt
+    extracted_files:
+    - featureCodes_en.txt
     columns:
-    - name: feature_full_code
+    - name: code
       type: TEXT
       primary: true
-    - name: feature_name
+    - name: name
       type: TEXT
-    - name: feature_description
+    - name: description
       type: TEXT
+- name: swissnames3d
+  location_identifier: UUID
+  location_columns:
+  - name: UUID
+    type: TEXT
+    primary: true
+  - name: NAME
+    type: TEXT
+  - name: OBJEKTART
+    type: TEXT
+  - name: E
+    type: INTEGER
+  - name: N
+    type: INTEGER
+  - name: GEMEINDE_UUID
+    type: TEXT
+  - name: GEMEINDE_NAME
+    type: TEXT
+  - name: BEZIRK_UUID
+    type: TEXT
+  - name: BEZIRK_NAME
+    type: TEXT
+  - name: KANTON_UUID
+    type: TEXT
+  - name: KANTON_NAME
+    type: TEXT
+  data:
+  - name: swissNAMES3D_PKT
+    url: https://data.geo.admin.ch/ch.swisstopo.swissnames3d/swissnames3d_2024/swissnames3d_2024_2056.shp.zip
+    extracted_files:
+      - swissNAMES3D_PKT.shp
+      - swissNAMES3D_PKT.dbf
+      - swissNAMES3D_PKT.shx
+      - swissNAMES3D_PKT.prj
+      - swissNAMES3D_PKT.cpg
+    columns:
+    - name: UUID
+      type: TEXT
+    - name: OBJEKTART
+      type: TEXT
+    - name: OBJEKTKLAS
+      type: TEXT
+    - name: HOEHE
+      type: REAL
+    - name: GEBAEUDENU
+      type: TEXT
+    - name: NAME_UUID
+      type: TEXT
+    - name: NAME
+      type: TEXT
+    - name: STATUS
+      type: TEXT
+    - name: SPRACHCODE
+      type: TEXT
+    - name: NAMEN_TYP
+      type: TEXT
+    - name: NAMENGRUPP
+      type: TEXT
+    toponym_columns:
+    - name: NAME
+      geoqualifier_pattern: \s(?:\((?:[A-Z]{2})\)|[A-Z]{2})$
+  - name: swissNAMES3D_LIN
+    url: https://data.geo.admin.ch/ch.swisstopo.swissnames3d/swissnames3d_2024/swissnames3d_2024_2056.shp.zip
+    extracted_files:
+      - swissNAMES3D_LIN.shp
+      - swissNAMES3D_LIN.dbf
+      - swissNAMES3D_LIN.shx
+      - swissNAMES3D_LIN.prj
+      - swissNAMES3D_LIN.cpg
+    columns:
+    - name: UUID
+      type: TEXT
+    - name: OBJEKTART
+      type: TEXT
+    - name: OBJEKTKLAS
+      type: TEXT
+    - name: KUNSTBAUTE
+      type: TEXT
+    - name: NAME_UUID
+      type: TEXT
+    - name: NAME
+      type: TEXT
+    - name: STATUS
+      type: TEXT
+    - name: SPRACHCODE
+      type: TEXT
+    - name: NAMEN_TYP
+      type: TEXT
+    - name: NAMENGRUPP
+      type: TEXT
+    toponym_columns:
+    - name: NAME
+      geoqualifier_pattern: \s(?:\((?:[A-Z]{2})\)|[A-Z]{2})$
+  - name: swissNAMES3D_PLY
+    url: https://data.geo.admin.ch/ch.swisstopo.swissnames3d/swissnames3d_2024/swissnames3d_2024_2056.shp.zip
+    extracted_files:
+      - swissNAMES3D_PLY.shp
+      - swissNAMES3D_PLY.dbf
+      - swissNAMES3D_PLY.shx
+      - swissNAMES3D_PLY.prj
+      - swissNAMES3D_PLY.cpg
+    columns:
+    - name: UUID
+      type: TEXT
+    - name: OBJEKTART
+      type: TEXT
+    - name: OBJEKTKLAS
+      type: TEXT
+    - name: EINWOHNERK
+      type: TEXT
+    - name: NAME_UUID
+      type: TEXT
+    - name: NAME
+      type: TEXT
+    - name: STATUS
+      type: TEXT
+    - name: SPRACHCODE
+      type: TEXT
+    - name: NAMEN_TYP
+      type: TEXT
+    - name: NAMENGRUPP
+      type: TEXT
+    - name: ISCED
+      type: TEXT
+    toponym_columns:
+    - name: NAME
+      geoqualifier_pattern: \s(?:\((?:[A-Z]{2})\)|[A-Z]{2})$
+  - name: swissBOUNDARIES3D_1_5_TLM_HOHEITSGEBIET
+    url: https://data.geo.admin.ch/ch.swisstopo.swissboundaries3d/swissboundaries3d_2024-01/swissboundaries3d_2024-01_2056_5728.shp.zip
+    extracted_files:
+      - swissBOUNDARIES3D_1_5_TLM_HOHEITSGEBIET.shp
+      - swissBOUNDARIES3D_1_5_TLM_HOHEITSGEBIET.dbf
+      - swissBOUNDARIES3D_1_5_TLM_HOHEITSGEBIET.shx
+      - swissBOUNDARIES3D_1_5_TLM_HOHEITSGEBIET.prj
+      - swissBOUNDARIES3D_1_5_TLM_HOHEITSGEBIET.cpg
+    columns:
+      - name: UUID
+        type: TEXT
+        primary: true
+      - name: DATUM_AEND
+        type: DATE
+      - name: DATUM_ERST
+        type: DATE
+      - name: ERSTELL_J
+        type: INTEGER
+      - name: ERSTELL_M
+        type: TEXT
+      - name: GRUND_AEND
+        type: TEXT
+      - name: HERKUNFT
+        type: TEXT
+      - name: HERKUNFT_J
+        type: INTEGER
+      - name: HERKUNFT_M
+        type: TEXT
+      - name: REVISION_J
+        type: INTEGER
+      - name: REVISION_M
+        type: TEXT
+      - name: REVISION_Q
+        type: TEXT
+      - name: OBJEKTART
+        type: TEXT
+      - name: BFS_NUMMER
+        type: INTEGER
+      - name: BEZIRKSNUM
+        type: INTEGER
+      - name: KANTONSNUM
+        type: INTEGER
+      - name: NAME
+        type: TEXT
+      - name: GEM_FLAECH
+        type: REAL
+      - name: SEE_FLAECH
+        type: REAL
+      - name: ICC
+        type: TEXT
+      - name: SHN
+        type: TEXT
+      - name: EINWOHNERZ
+        type: INTEGER
+      - name: HIST_NR
+        type: INTEGER
+    toponym_columns:
+      - name: NAME
+        geoqualifier_pattern: \s(?:\((?:[A-Z]{2})\)|[A-Z]{2})$
+  - name: swissBOUNDARIES3D_1_5_TLM_BEZIRKSGEBIET
+    url: https://data.geo.admin.ch/ch.swisstopo.swissboundaries3d/swissboundaries3d_2024-01/swissboundaries3d_2024-01_2056_5728.shp.zip
+    extracted_files:
+      - swissBOUNDARIES3D_1_5_TLM_BEZIRKSGEBIET.shp
+      - swissBOUNDARIES3D_1_5_TLM_BEZIRKSGEBIET.dbf
+      - swissBOUNDARIES3D_1_5_TLM_BEZIRKSGEBIET.shx
+      - swissBOUNDARIES3D_1_5_TLM_BEZIRKSGEBIET.prj
+      - swissBOUNDARIES3D_1_5_TLM_BEZIRKSGEBIET.cpg
+    columns:
+      - name: UUID
+        type: TEXT
+        primary: true
+      - name: DATUM_AEND
+        type: DATE
+      - name: DATUM_ERST
+        type: DATE
+      - name: ERSTELL_J
+        type: INTEGER
+      - name: ERSTELL_M
+        type: TEXT
+      - name: GRUND_AEND
+        type: TEXT
+      - name: HERKUNFT
+        type: TEXT
+      - name: HERKUNFT_J
+        type: INTEGER
+      - name: HERKUNFT_M
+        type: TEXT
+      - name: REVISION_J
+        type: INTEGER
+      - name: REVISION_M
+        type: TEXT
+      - name: REVISION_Q
+        type: TEXT
+      - name: OBJEKTART
+        type: TEXT
+      - name: BEZIRKSNUM
+        type: INTEGER
+      - name: SEE_FLAECH
+        type: REAL
+      - name: BEZIRKSFLA
+        type: REAL
+      - name: NAME
+        type: TEXT
+      - name: KANTONSNUM
+        type: INTEGER
+      - name: ICC
+        type: TEXT
+      - name: EINWOHNERZ
+        type: INTEGER
+    toponym_columns:
+    - name: NAME
+      geoqualifier_pattern: \s(?:\((?:[A-Z]{2})\)|[A-Z]{2})$
+  - name: swissBOUNDARIES3D_1_5_TLM_KANTONSGEBIET
+    url: https://data.geo.admin.ch/ch.swisstopo.swissboundaries3d/swissboundaries3d_2024-01/swissboundaries3d_2024-01_2056_5728.shp.zip
+    extracted_files:
+      - swissBOUNDARIES3D_1_5_TLM_KANTONSGEBIET.shp
+      - swissBOUNDARIES3D_1_5_TLM_KANTONSGEBIET.dbf
+      - swissBOUNDARIES3D_1_5_TLM_KANTONSGEBIET.shx
+      - swissBOUNDARIES3D_1_5_TLM_KANTONSGEBIET.prj
+      - swissBOUNDARIES3D_1_5_TLM_KANTONSGEBIET.cpg
+    columns:
+      - name: UUID
+        type: TEXT
+        primary: true
+      - name: DATUM_AEND
+        type: DATE
+      - name: DATUM_ERST
+        type: DATE
+      - name: ERSTELL_J
+        type: INTEGER
+      - name: ERSTELL_M
+        type: TEXT
+      - name: GRUND_AEND
+        type: TEXT
+      - name: HERKUNFT
+        type: TEXT
+      - name: HERKUNFT_J
+        type: INTEGER
+      - name: HERKUNFT_M
+        type: TEXT
+      - name: REVISION_J
+        type: INTEGER
+      - name: REVISION_M
+        type: TEXT
+      - name: REVISION_Q
+        type: TEXT
+      - name: OBJEKTART
+        type: TEXT
+      - name: KANTONSNUM
+        type: INTEGER
+      - name: SEE_FLAECH
+        type: REAL
+      - name: KANTONSFLA
+        type: REAL
+      - name: NAME
+        type: TEXT
+      - name: ICC
+        type: TEXT
+      - name: EINWOHNERZ
+        type: INTEGER
+    toponym_columns:
+    - name: NAME
+      geoqualifier_pattern: \s(?:\((?:[A-Z]{2})\)|[A-Z]{2})$
