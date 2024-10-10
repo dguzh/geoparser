@@ -18,6 +18,10 @@ from geoparser.config.models import GazetteerData
 
 class Gazetteer(ABC):
 
+    @abstractmethod
+    def create_location_description(self, location: dict[str, str]) -> str:
+        pass
+
     def get_location_description(
         self, location: dict[str, t.Union[int, str, float]]
     ) -> str:
@@ -342,8 +346,6 @@ class LocalDBGazetteer(Gazetteer):
     def query_candidates(
         self,
         toponym: str,
-        country_filter: list[str] = None,
-        feature_filter: list[str] = None,
     ) -> list[int]:
 
         location_identifier = self.config.location_identifier
