@@ -37,6 +37,13 @@ def geonames_real_data() -> GeoNames:
     gazetteer.db_path = str(tmpdir / Path(gazetteer.db_path).name)
     for dataset in gazetteer.config.data:
         gazetteer.load_data(dataset)
+    gazetteer.create_names_table()
+    gazetteer.populate_names_table()
+    gazetteer.create_names_fts_table()
+    gazetteer.populate_names_fts_table()
+    gazetteer.create_locations_table()
+    gazetteer.populate_locations_table()
+    gazetteer.drop_redundant_tables()
     return gazetteer
 
 
