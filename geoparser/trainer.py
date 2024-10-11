@@ -8,10 +8,10 @@ from sentence_transformers.training_args import SentenceTransformerTrainingArgum
 from tqdm.auto import tqdm
 
 from geoparser.constants import MAX_ERROR
+from geoparser.geodatacollator import GeoDataCollator
 from geoparser.geodoc import GeoDoc
 from geoparser.geoparser import Geoparser
 from geoparser.geospan import GeoSpan
-from geoparser.geodatacollator import GeoDataCollator
 
 GeoSpan.set_extension("gold_loc_id", default=None)
 
@@ -208,7 +208,9 @@ class GeoparserTrainer(Geoparser):
                     )
 
                     for candidate_location in candidate_locations:
-                        candidate_input = self.prepare_candidate_input(candidate_location)
+                        candidate_input = self.prepare_candidate_input(
+                            candidate_location
+                        )
                         label = 1 if candidate_location == correct_location else 0
                         toponym_inputs.append(toponym_input)
                         candidate_inputs.append(candidate_input)

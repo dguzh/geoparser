@@ -8,8 +8,8 @@ from tqdm.auto import tqdm
 from geoparser.constants import GAZETTEERS
 from geoparser.gazetteer import Gazetteer
 from geoparser.geodoc import GeoDoc
-from geoparser.geospan import GeoSpan
 from geoparser.geopooling import GeoPooling
+from geoparser.geospan import GeoSpan
 from geoparser.geotransformer import GeoTransformer
 
 # Suppress token length warnings from transformers
@@ -127,7 +127,9 @@ class Geoparser:
         self, candidate_ids: list[int], batch_size: int = 8
     ) -> dict[str, torch.Tensor]:
         candidate_locations = self.gazetteer.query_location_info(candidate_ids)
-        candidate_inputs = [self.prepare_candidate_input(location) for location in candidate_locations]
+        candidate_inputs = [
+            self.prepare_candidate_input(location) for location in candidate_locations
+        ]
         candidate_embeddings = self.transformer.encode(
             candidate_inputs,
             batch_size=batch_size,
@@ -145,9 +147,9 @@ class Geoparser:
         end_char = start_char + len(toponym_name)
 
         candidate_input = {
-                "text": description,
-                "toponym_positions": (start_char, end_char),
-            }
+            "text": description,
+            "toponym_positions": (start_char, end_char),
+        }
 
         return candidate_input
 
@@ -173,9 +175,9 @@ class Geoparser:
         toponym_end_char = toponym.end_char - toponym.context.start_char
 
         toponym_input = {
-                "text": context_text,
-                "toponym_positions": (toponym_start_char, toponym_end_char),
-            }
+            "text": context_text,
+            "toponym_positions": (toponym_start_char, toponym_end_char),
+        }
 
         return toponym_input
 

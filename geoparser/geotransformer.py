@@ -1,5 +1,6 @@
-import os
 import json
+import os
+
 import torch
 from sentence_transformers.models import Transformer
 from transformers import AutoModel, AutoTokenizer
