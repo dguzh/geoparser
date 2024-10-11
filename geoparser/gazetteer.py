@@ -354,8 +354,8 @@ class LocalDBGazetteer(Gazetteer):
         query = f"""
             WITH RankedMatches AS (
                 SELECT
-                    names_fts.{location_identifier},
-                    bm25(names_fts) AS rank
+                    {location_identifier},
+                    rank
                 FROM names_fts
                 WHERE names_fts MATCH ?
             ),
