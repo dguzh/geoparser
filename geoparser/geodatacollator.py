@@ -1,5 +1,4 @@
 import torch
-from sentence_transformers.data_collator import SentenceTransformerDataCollator
 
 
 class GeoDataCollator:
