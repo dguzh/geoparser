@@ -11,6 +11,7 @@ from geoparser.constants import MAX_ERROR
 from geoparser.geodoc import GeoDoc
 from geoparser.geoparser import Geoparser
 from geoparser.geospan import GeoSpan
+from geoparser.geodatacollator import GeoDataCollator
 
 GeoSpan.set_extension("gold_loc_id", default=None)
 
@@ -188,13 +189,13 @@ class GeoparserTrainer(Geoparser):
         }
 
     def prepare_training_data(self, docs: list[GeoDoc]) -> Dataset:
-        toponym_texts = []
-        candidate_texts = []
+        toponym_inputs = []
+        candidate_inputs = []
         labels = []
 
         for doc in tqdm(docs):
             for toponym in doc.toponyms:
-                context = toponym.context.text
+                toponym_input = self.prepare_toponym_input(toponym)
 
                 correct_id = toponym._.gold_loc_id
                 correct_location = self.gazetteer.query_location_info(correct_id)[0]
@@ -207,18 +208,16 @@ class GeoparserTrainer(Geoparser):
                     )
 
                     for candidate_location in candidate_locations:
-                        description = self.gazetteer.get_location_description(
-                            candidate_location
-                        )
+                        candidate_input = self.prepare_candidate_input(candidate_location)
                         label = 1 if candidate_location == correct_location else 0
-                        toponym_texts.append(context)
-                        candidate_texts.append(description)
+                        toponym_inputs.append(toponym_input)
+                        candidate_inputs.append(candidate_input)
                         labels.append(label)
 
         return Dataset.from_dict(
             {
-                "toponym_texts": toponym_texts,
-                "candidate_texts": candidate_texts,
+                "toponym_inputs": toponym_inputs,
+                "candidate_inputs": candidate_inputs,
                 "label": labels,
             }
         )
@@ -240,13 +239,17 @@ class GeoparserTrainer(Geoparser):
             per_device_train_batch_size=batch_size,
             warmup_ratio=0.1,
             save_strategy="no",
+            remove_unused_columns=False,
         )
+
+        data_collator = GeoDataCollator(tokenize_fn=self.transformer.tokenize)
 
         trainer = SentenceTransformerTrainer(
             model=self.transformer,
             args=training_args,
             train_dataset=train_dataset,
             loss=train_loss,
+            data_collator=data_collator,
         )
 
         trainer.train()
