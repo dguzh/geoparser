@@ -352,15 +352,13 @@ class LocalDBGazetteer(Gazetteer):
         toponym = " ".join([f'"{word}"' for word in toponym.split()])
 
         query = f"""
-            WITH RankedMatches AS (
-                SELECT
-                    {location_identifier},
-                    rank
+            WITH MinRank AS (
+                SELECT MIN(rank) AS MinRank FROM names_fts WHERE names_fts MATCH ?
+            ),
+            RankedMatches AS (
+                SELECT {location_identifier}, bm25(names_fts) as rank
                 FROM names_fts
                 WHERE names_fts MATCH ?
-            ),
-            MinRank AS (
-                SELECT MIN(rank) AS MinRank FROM RankedMatches
             )
             SELECT {location_identifier}
             FROM RankedMatches
@@ -368,7 +366,7 @@ class LocalDBGazetteer(Gazetteer):
             GROUP BY {location_identifier}
         """
 
-        result = self.execute_query(query, (toponym,))
+        result = self.execute_query(query, (toponym, toponym))
         return [row[0] for row in result]
 
     def query_location_info(
