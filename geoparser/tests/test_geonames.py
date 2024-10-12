@@ -1,22 +1,8 @@
-import tempfile
-import typing as t
-from pathlib import Path
-
 import pandas as pd
-import py
 import pytest
 
 from geoparser.geonames import GeoNames
 from geoparser.tests.utils import get_static_test_file
-
-
-@pytest.fixture(scope="session")
-def geonames() -> GeoNames:
-    tmpdir = py.path.local(tempfile.mkdtemp())
-    gazetteer = GeoNames()
-    gazetteer.data_dir = str(tmpdir)
-    gazetteer.db_path = str(tmpdir / Path(gazetteer.db_path).name)
-    return gazetteer
 
 
 @pytest.mark.parametrize(
@@ -62,9 +48,9 @@ def geonames() -> GeoNames:
     ],
 )
 def test_create_location_description_base(
-    geonames: GeoNames, location: dict, expected: str
+    geonames_patched: GeoNames, location: dict, expected: str
 ):
-    actual = geonames.create_location_description(location)
+    actual = geonames_patched.create_location_description(location)
     assert actual == expected
 
 
@@ -116,7 +102,7 @@ def test_create_location_description_base(
             },
             "Uster (second-order administrative division) in Zürich, Switzerland",
         ),
-        (  # description for second-order admin divisions will not include admin1 and admin2 even if part of location
+        (  # description for second-order admin divisions will not include admin2 even if part of location
             {
                 "name": "Uster",
                 "feature_type": "second-order administrative division",
@@ -129,15 +115,15 @@ def test_create_location_description_base(
     ],
 )
 def test_create_location_description_divisions(
-    geonames: GeoNames, location: dict, expected: str
+    geonames_patched: GeoNames, location: dict, expected: str
 ):
-    actual = geonames.create_location_description(location)
+    actual = geonames_patched.create_location_description(location)
     assert actual == expected
 
 
-def test_read_file(geonames: GeoNames, test_chunk_full: pd.DataFrame):
+def test_read_file(geonames_patched: GeoNames, test_chunk_full: pd.DataFrame):
     test_chunk_full["col1"] = test_chunk_full["col1"].astype(str)
-    file_content, n_chunks = geonames.read_file(
+    file_content, n_chunks = geonames_patched.read_file(
         get_static_test_file("test.tsv"),
         ["col1", "col2"],
     )

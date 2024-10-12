@@ -8,6 +8,7 @@ import pytest
 from geoparser.geodoc import GeoDoc
 from geoparser.geonames import GeoNames
 from geoparser.geoparser import Geoparser
+from geoparser.swissnames3d import SwissNames3D
 from geoparser.tests.utils import get_static_test_file
 from geoparser.trainer import GeoparserTrainer
 
@@ -77,6 +78,37 @@ def geoparser_real_data(geonames_real_data: GeoNames) -> Geoparser:
     )
     geoparser_real_data.gazetteer = geonames_real_data
     return geoparser_real_data
+
+
+@pytest.fixture(scope="function")
+def swissnames3d_patched() -> SwissNames3D:
+    gazetteer = SwissNames3D()
+    tmpdir = py.path.local(tempfile.mkdtemp())
+    gazetteer.data_dir = str(
+        get_static_test_file(Path("gazetteers") / Path("swissnames3d_1000"))
+    )
+    gazetteer.db_path = str(tmpdir / Path(gazetteer.db_path).name)
+    return gazetteer
+
+
+@pytest.fixture(scope="session")
+def swissnames3d_real_data() -> SwissNames3D:
+    gazetteer = SwissNames3D()
+    tmpdir = py.path.local(tempfile.mkdtemp())
+    gazetteer.data_dir = str(
+        get_static_test_file(Path("gazetteers") / Path("swissnames3d_1000"))
+    )
+    gazetteer.db_path = str(tmpdir / Path(gazetteer.db_path).name)
+    for dataset in gazetteer.config.data:
+        gazetteer.load_data(dataset)
+    gazetteer.create_names_table()
+    gazetteer.populate_names_table()
+    gazetteer.create_names_fts_table()
+    gazetteer.populate_names_fts_table()
+    gazetteer.create_locations_table()
+    gazetteer.populate_locations_table()
+    gazetteer.drop_redundant_tables()
+    return gazetteer
 
 
 @pytest.fixture(scope="session")
