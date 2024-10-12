@@ -11,27 +11,27 @@ class GeoNames(LocalDBGazetteer):
     def __init__(self):
         super().__init__("geonames")
 
-    def create_location_description(self, location):
+    def create_location_description(self, location: dict[str, str]) -> str:
         name = location["name"] or ""
         feature = f' ({location["feature_type"]})' if location["feature_type"] else ""
 
         in_condition = any(
             [
-                location["admin2_name"]
-                and location["feature_type"]
+                location.get("admin2_name")
+                and location.get("feature_type")
                 not in [
                     "second-order administrative division",
                     "first-order administrative division",
                     "independent political entity",
                 ],
-                location["admin1_name"]
-                and location["feature_type"]
+                location.get("admin1_name")
+                and location.get("feature_type")
                 not in [
                     "first-order administrative division",
                     "independent political entity",
                 ],
-                location["country_name"]
-                and location["feature_type"]
+                location.get("country_name")
+                and location.get("feature_type")
                 not in [
                     "independent political entity",
                 ],
@@ -40,9 +40,9 @@ class GeoNames(LocalDBGazetteer):
         in_text = " in" if in_condition else ""
 
         admin2 = (
-            f' {location["admin2_name"]},'
-            if location["admin2_name"]
-            and location["feature_type"]
+            f' {location.get("admin2_name")},'
+            if location.get("admin2_name")
+            and location.get("feature_type")
             not in [
                 "second-order administrative division",
                 "first-order administrative division",
@@ -52,9 +52,9 @@ class GeoNames(LocalDBGazetteer):
         )
 
         admin1 = (
-            f' {location["admin1_name"]},'
-            if location["admin1_name"]
-            and location["feature_type"]
+            f' {location.get("admin1_name")},'
+            if location.get("admin1_name")
+            and location.get("feature_type")
             not in [
                 "first-order administrative division",
                 "independent political entity",
@@ -63,9 +63,9 @@ class GeoNames(LocalDBGazetteer):
         )
 
         country = (
-            f' {location["country_name"]}'
-            if location["country_name"]
-            and location["feature_type"]
+            f' {location.get("country_name")}'
+            if location.get("country_name")
+            and location.get("feature_type")
             not in [
                 "independent political entity",
             ]
