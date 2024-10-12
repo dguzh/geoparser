@@ -16,17 +16,17 @@ def test_locations_repr(locations: Locations):
     assert (
         locations.__repr__() == "[{'geonameid': 3039328, "
         "'name': 'Radio Andorra', "
+        "'feature_type': 'radio station', "
+        "'latitude': 42.5282, "
+        "'longitude': 1.57089, "
+        "'elevation': None, "
+        "'population': 0, "
         "'admin2_geonameid': None, "
         "'admin2_name': None, "
         "'admin1_geonameid': 3040684, "
         "'admin1_name': 'Encamp', "
         "'country_geonameid': 3041565, "
-        "'country_name': 'Andorra', "
-        "'feature_name': 'radio station', "
-        "'latitude': 42.5282, "
-        "'longitude': 1.57089, "
-        "'elevation': None, "
-        "'population': 0}]"
+        "'country_name': 'Andorra'}]"
     )
 
 
