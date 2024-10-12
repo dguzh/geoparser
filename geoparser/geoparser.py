@@ -8,6 +8,9 @@ from tqdm.auto import tqdm
 from geoparser.constants import GAZETTEERS
 from geoparser.gazetteer import Gazetteer
 from geoparser.geodoc import GeoDoc
+from geoparser.geopooling import GeoPooling
+from geoparser.geospan import GeoSpan
+from geoparser.geotransformer import GeoTransformer
 
 # Suppress token length warnings from transformers
 logging.getLogger("transformers.tokenization_utils_base").setLevel(logging.ERROR)
@@ -58,7 +61,13 @@ class Geoparser:
         return nlp
 
     def setup_transformer(self, transformer_model: str) -> SentenceTransformer:
-        return SentenceTransformer(transformer_model)
+        geotransformer_model = GeoTransformer(transformer_model)
+        geopooling_model = GeoPooling(
+            geotransformer_model.get_word_embedding_dimension()
+        )
+        model = SentenceTransformer(modules=[geotransformer_model, geopooling_model])
+
+        return model
 
     def parse(
         self,
@@ -117,31 +126,60 @@ class Geoparser:
     def get_candidate_embeddings_lookup(
         self, candidate_ids: list[int], batch_size: int = 8
     ) -> dict[str, torch.Tensor]:
-        candidate_descriptions = [
-            self.gazetteer.get_location_description(location)
-            for location in self.gazetteer.query_location_info(candidate_ids)
+        candidate_locations = self.gazetteer.query_location_info(candidate_ids)
+        candidate_inputs = [
+            self.prepare_candidate_input(location) for location in candidate_locations
         ]
         candidate_embeddings = self.transformer.encode(
-            candidate_descriptions,
+            candidate_inputs,
             batch_size=batch_size,
             show_progress_bar=True,
             convert_to_tensor=True,
         )
+
         return dict(zip(candidate_ids, candidate_embeddings))
+
+    def prepare_candidate_input(self, candidate_location: dict) -> dict:
+        description = self.gazetteer.get_location_description(candidate_location)
+        toponym_name = candidate_location["name"]
+
+        start_char = description.lower().find(toponym_name.lower())
+        end_char = start_char + len(toponym_name)
+
+        candidate_input = {
+            "text": description,
+            "toponym_positions": (start_char, end_char),
+        }
+
+        return candidate_input
 
     def get_toponym_embeddings(
         self, docs: list[GeoDoc], batch_size: int = 8
     ) -> torch.Tensor:
-        toponym_contexts = [
-            toponym.context.text for doc in docs for toponym in doc.toponyms
-        ]
+        toponym_inputs = []
+        for doc in docs:
+            for toponym in doc.toponyms:
+                toponym_input = self.prepare_toponym_input(toponym)
+                toponym_inputs.append(toponym_input)
         toponym_embeddings = self.transformer.encode(
-            toponym_contexts,
+            toponym_inputs,
             batch_size=batch_size,
             show_progress_bar=True,
             convert_to_tensor=True,
         )
         return toponym_embeddings
+
+    def prepare_toponym_input(self, toponym: GeoSpan) -> dict:
+        context_text = toponym.context.text
+        toponym_start_char = toponym.start_char - toponym.context.start_char
+        toponym_end_char = toponym.end_char - toponym.context.start_char
+
+        toponym_input = {
+            "text": context_text,
+            "toponym_positions": (toponym_start_char, toponym_end_char),
+        }
+
+        return toponym_input
 
     def resolve_toponym(
         self,
