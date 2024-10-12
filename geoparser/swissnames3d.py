@@ -13,26 +13,26 @@ class SwissNames3D(LocalDBGazetteer):
         super().__init__("swissnames3d")
 
     def create_location_description(self, location: dict[str, str]) -> str:
-        name = location["NAME"] or ""
-        objektart = f' ({location["OBJEKTART"]})' if location["OBJEKTART"] else ""
+        name = location.get("NAME") or ""
+        objektart = f' ({location["OBJEKTART"]})' if location.get("OBJEKTART") else ""
 
         in_condition = any(
             [
-                location["GEMEINDE_NAME"]
-                and location["OBJEKTART"]
+                location.get("GEMEINDE_NAME")
+                and location.get("OBJEKTART")
                 not in [
                     "Gemeindegebiet",
                     "Bezirk",
                     "Kanton",
                 ],
-                location["BEZIRK_NAME"]
-                and location["OBJEKTART"]
+                location.get("BEZIRK_NAME")
+                and location.get("OBJEKTART")
                 not in [
                     "Bezirk",
                     "Kanton",
                 ],
-                location["KANTON_NAME"]
-                and location["OBJEKTART"]
+                location.get("KANTON_NAME")
+                and location.get("OBJEKTART")
                 not in [
                     "Kanton",
                 ],
@@ -41,9 +41,9 @@ class SwissNames3D(LocalDBGazetteer):
         in_text = " in" if in_condition else ""
 
         gemeinde = (
-            f' {location["GEMEINDE_NAME"]},'
-            if location["GEMEINDE_NAME"]
-            and location["OBJEKTART"]
+            f' {location.get("GEMEINDE_NAME")},'
+            if location.get("GEMEINDE_NAME")
+            and location.get("OBJEKTART")
             not in [
                 "Gemeindegebiet",
                 "Bezirk",
@@ -53,9 +53,9 @@ class SwissNames3D(LocalDBGazetteer):
         )
 
         bezirk = (
-            f' {location["BEZIRK_NAME"]},'
-            if location["BEZIRK_NAME"]
-            and location["OBJEKTART"]
+            f' {location.get("BEZIRK_NAME")},'
+            if location.get("BEZIRK_NAME")
+            and location.get("OBJEKTART")
             not in [
                 "Bezirk",
                 "Kanton",
@@ -64,9 +64,9 @@ class SwissNames3D(LocalDBGazetteer):
         )
 
         kanton = (
-            f' {location["KANTON_NAME"]}'
-            if location["KANTON_NAME"]
-            and location["OBJEKTART"]
+            f' {location.get("KANTON_NAME")}'
+            if location.get("KANTON_NAME")
+            and location.get("OBJEKTART")
             not in [
                 "Kanton",
             ]
