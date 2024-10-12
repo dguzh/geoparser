@@ -19,17 +19,6 @@ def geonames() -> GeoNames:
     return gazetteer
 
 
-def test_read_file(geonames: GeoNames, test_chunk_full: pd.DataFrame):
-    test_chunk_full["col1"] = test_chunk_full["col1"].astype(str)
-    file_content, n_chunks = geonames.read_file(
-        get_static_test_file("test.tsv"),
-        ["col1", "col2"],
-    )
-    file_content = list(file_content)
-    assert len(file_content) == n_chunks
-    assert file_content[0].equals(test_chunk_full)
-
-
 @pytest.mark.parametrize(
     "location,expected",
     [
@@ -144,3 +133,52 @@ def test_create_location_description_divisions(
 ):
     actual = geonames.create_location_description(location)
     assert actual == expected
+
+
+def test_read_file(geonames: GeoNames, test_chunk_full: pd.DataFrame):
+    test_chunk_full["col1"] = test_chunk_full["col1"].astype(str)
+    file_content, n_chunks = geonames.read_file(
+        get_static_test_file("test.tsv"),
+        ["col1", "col2"],
+    )
+    file_content = list(file_content)
+    assert len(file_content) == n_chunks
+    assert file_content[0].equals(test_chunk_full)
+
+
+def test_populate_locations_table(geonames_patched: GeoNames):
+    # setup: load data and create tables
+    geonames = geonames_patched
+    for dataset in geonames.config.data:
+        geonames.load_data(dataset)
+    geonames.create_names_table()
+    geonames.populate_names_table()
+    geonames.create_names_fts_table()
+    geonames.populate_names_fts_table()
+    geonames.create_locations_table()
+    # actual test: populate locations table
+    query = "SELECT * FROM locations"
+    geonames._initiate_connection()
+    cursor = geonames._get_cursor()
+    rows = cursor.execute(query).fetchall()
+    assert not rows
+    geonames.populate_locations_table()
+    rows = cursor.execute(query).fetchall()
+    # test data has 1000 rows
+    assert len(rows) == 1000
+    expected_columns = [
+        "geonameid",
+        "name",
+        "feature_type",
+        "latitude",
+        "longitude",
+        "elevation",
+        "population",
+        "admin2_geonameid",
+        "admin2_name",
+        "admin1_geonameid",
+        "admin1_name",
+        "country_geonameid",
+        "country_name",
+    ]
+    assert len(rows[0]) == len(expected_columns)

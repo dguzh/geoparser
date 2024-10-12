@@ -27,6 +27,17 @@ def geodocs(geoparser_real_data: Geoparser) -> list[GeoDoc]:
     return docs
 
 
+@pytest.fixture(scope="function")
+def geonames_patched() -> GeoNames:
+    gazetteer = GeoNames()
+    tmpdir = py.path.local(tempfile.mkdtemp())
+    gazetteer.data_dir = str(
+        get_static_test_file(Path("gazetteers") / Path("geonames_1000"))
+    )
+    gazetteer.db_path = str(tmpdir / Path(gazetteer.db_path).name)
+    return gazetteer
+
+
 @pytest.fixture(scope="session")
 def geonames_real_data() -> GeoNames:
     gazetteer = GeoNames()
