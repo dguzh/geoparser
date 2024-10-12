@@ -101,7 +101,7 @@ def test_geospan_location(first_geodoc: GeoDoc):
         "admin1_name": "Encamp",
         "country_geonameid": 3041565,
         "country_name": "Andorra",
-        "feature_name": "radio station",
+        "feature_type": "radio station",
         "latitude": 42.5282,
         "longitude": 1.57089,
         "elevation": None,
