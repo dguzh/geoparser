@@ -85,16 +85,10 @@ def swissnames3d_patched() -> SwissNames3D:
     gazetteer = SwissNames3D()
     tmpdir = py.path.local(tempfile.mkdtemp())
     gazetteer.data_dir = str(
-        get_static_test_file(Path("gazetteers") / Path("swissnames3d_1000"))
+        get_static_test_file(Path("gazetteers") / Path("swissnames_subset"))
     )
     gazetteer.db_path = str(tmpdir / Path(gazetteer.db_path).name)
     return gazetteer
-
-
-@pytest.fixture(scope="session")
-def test_chunk_full() -> pd.DataFrame:
-    data = {"col1": [1, 2, 3], "col2": ["a", "b", "c"]}
-    return pd.DataFrame.from_dict(data)
 
 
 @pytest.fixture(scope="session")

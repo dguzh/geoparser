@@ -1,6 +1,26 @@
+import pandas as pd
 import pytest
 
 from geoparser.swissnames3d import SwissNames3D
+from geoparser.tests.utils import get_static_test_file
+
+
+@pytest.fixture(scope="session")
+def test_chunk_shp() -> pd.DataFrame:
+    data = {
+        "UUID": ["{C3DF411C-0083-494F-8FF6-B2BB0B8AB2B2}"],
+        "OBJEKTART": ["Haltestelle Bahn"],
+        "OBJEKTKLAS": ["TLM_HALTESTELLE"],
+        "HOEHE": [-999998.0000000001],
+        "GEBAEUDENU": ["k_W"],
+        "NAME_UUID": ["{2B6C2710-CD80-47B1-B9B7-9C01BCD35EAF}"],
+        "NAME": ["St. Gallen Marktplatz"],
+        "STATUS": ["offiziell"],
+        "SPRACHCODE": ["Hochdeutsch inkl. Lokalsprachen"],
+        "NAMEN_TYP": ["einfacher Name"],
+        "NAMENGRUPP": [None],
+    }
+    return pd.DataFrame.from_dict(data)
 
 
 @pytest.mark.parametrize(
@@ -117,3 +137,27 @@ def test_create_location_description_divisions(
 ):
     actual = swissnames3d_patched.create_location_description(location)
     assert actual == expected
+
+
+def test_read_file(swissnames3d_patched: SwissNames3D, test_chunk_shp: pd.DataFrame):
+    file = get_static_test_file("minimal.shp")
+    columns = [
+        "UUID",
+        "OBJEKTART",
+        "OBJEKTKLAS",
+        "HOEHE",
+        "GEBAEUDENU",
+        "NAME_UUID",
+        "NAME",
+        "STATUS",
+        "SPRACHCODE",
+        "NAMEN_TYP",
+        "NAMENGRUPP",
+    ]
+    file_content, n_chunks = swissnames3d_patched.read_file(
+        file,
+        columns,
+    )
+    file_content = list(file_content)
+    assert len(file_content) == n_chunks
+    assert file_content[0].equals(test_chunk_shp)

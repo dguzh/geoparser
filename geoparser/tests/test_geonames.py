@@ -5,6 +5,12 @@ from geoparser.geonames import GeoNames
 from geoparser.tests.utils import get_static_test_file
 
 
+@pytest.fixture(scope="session")
+def test_chunk_tsv() -> pd.DataFrame:
+    data = {"col1": [1, 2, 3], "col2": ["a", "b", "c"]}
+    return pd.DataFrame.from_dict(data)
+
+
 @pytest.mark.parametrize(
     "location,expected",
     [
@@ -121,15 +127,15 @@ def test_create_location_description_divisions(
     assert actual == expected
 
 
-def test_read_file(geonames_patched: GeoNames, test_chunk_full: pd.DataFrame):
-    test_chunk_full["col1"] = test_chunk_full["col1"].astype(str)
+def test_read_file(geonames_patched: GeoNames, test_chunk_tsv: pd.DataFrame):
+    test_chunk_tsv["col1"] = test_chunk_tsv["col1"].astype(str)
     file_content, n_chunks = geonames_patched.read_file(
         get_static_test_file("test.tsv"),
         ["col1", "col2"],
     )
     file_content = list(file_content)
     assert len(file_content) == n_chunks
-    assert file_content[0].equals(test_chunk_full)
+    assert file_content[0].equals(test_chunk_tsv)
 
 
 def test_populate_locations_table(geonames_patched: GeoNames):
