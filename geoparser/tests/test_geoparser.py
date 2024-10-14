@@ -99,7 +99,6 @@ def test_recognize(geoparser_real_data: Geoparser, texts):
 
 def test_get_candidate_ids(
     geoparser_real_data: Geoparser,
-    geonames_real_data: GeoNames,
     geodocs: list[GeoDoc],
     radio_andorra_id: int,
 ):

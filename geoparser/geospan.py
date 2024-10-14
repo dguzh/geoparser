@@ -20,11 +20,7 @@ class GeoSpan(Span):
 
     @property
     def candidates(self) -> list[int]:
-        return self.doc.geoparser.gazetteer.query_candidates(
-            self.text,
-            self.doc.geoparser.country_filter,
-            self.doc.geoparser.feature_filter,
-        )
+        return self.doc.geoparser.gazetteer.query_candidates(self.text)
 
     @property
     def context(self):

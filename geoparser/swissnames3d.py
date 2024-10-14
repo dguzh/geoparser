@@ -12,7 +12,7 @@ class SwissNames3D(LocalDBGazetteer):
     def __init__(self):
         super().__init__("swissnames3d")
 
-    def create_location_description(self, location):
+    def create_location_description(self, location: dict[str, str]) -> str:
         name = location["NAME"] or ""
         objektart = f' ({location["OBJEKTART"]})' if location["OBJEKTART"] else ""
 

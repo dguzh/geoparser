@@ -260,7 +260,7 @@ def test_prepare_training_data(
     ):
         assert text == train_corpus[0].text
         candidates_labels = {
-            "Ordino (first-order administrative division) in Ordino, Andorra": 0,
+            "Ordino (first-order administrative division) in Andorra": 0,
             "Ordino (seat of a first-order administrative division) in Ordino, Andorra": 1,
         }
         assert candidates_labels[candidate_text] == label

@@ -1,3 +1,2 @@
-- name: test_gazetteer
-  data:
-  - name: invalid
+- name: test-invalid
+  location_identifier: 12
