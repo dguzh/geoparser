@@ -251,19 +251,19 @@ def test_prepare_training_data(
     prepared = trainer_real_data.prepare_training_data(train_corpus)
     assert type(prepared) is Dataset
     assert (
-        len(prepared["toponym_texts"])
-        == len(prepared["candidate_texts"])
+        len(prepared["toponym_inputs"])
+        == len(prepared["candidate_inputs"])
         == len(prepared["label"])
     )
-    for text, candidate_text, label in zip(
-        prepared["toponym_texts"], prepared["candidate_texts"], prepared["label"]
+    for toponym_input, candidate_input, label in zip(
+        prepared["toponym_inputs"], prepared["candidate_inputs"], prepared["label"]
     ):
-        assert text == train_corpus[0].text
+        assert toponym_input["text"] == train_corpus[0].text
         candidates_labels = {
             "Ordino (first-order administrative division) in Ordino, Andorra": 0,
             "Ordino (seat of a first-order administrative division) in Ordino, Andorra": 1,
         }
-        assert candidates_labels[candidate_text] == label
+        assert candidates_labels[candidate_input["text"]] == label
 
 
 def test_train(trainer_real_data: GeoparserTrainer, train_corpus: list[GeoDoc]):
