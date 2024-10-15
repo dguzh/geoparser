@@ -2,6 +2,7 @@ import argparse
 
 from geoparser.constants import GAZETTEERS, MODES
 
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -14,11 +15,12 @@ def parse_args() -> argparse.Namespace:
         "gazetteer",
         type=str,
         choices=GAZETTEERS.keys(),
-        nargs='?',
+        nargs="?",
         help="Specify the gazetteer to set up (required for 'download' mode)",
     )
     args = parser.parse_args()
     return args
+
 
 def main(args: argparse.Namespace):
     if args.mode == MODES["download"]:
@@ -29,10 +31,12 @@ def main(args: argparse.Namespace):
         gazetteer.setup_database()
     elif args.mode == MODES["annotator"]:
         from geoparser.annotator import GeoparserAnnotator
+
         annotator = GeoparserAnnotator()
         annotator.run()
     else:
         print(f"Unknown mode: {args.mode}")
+
 
 if __name__ == "__main__":
     args = parse_args()
