@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Geoparser Annotator</title>
+    <!-- Bootstrap CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+</head>
+<body>
+
+<!-- Navbar -->
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+    <div class="container-fluid">
+      <a class="navbar-brand" href="{{ url_for('index') }}">Geoparser Annotator</a>
+    </div>
+</nav>
+
+<!-- Main content -->
+<div class="container mt-5">
+    <div class="jumbotron text-center">
+        <h1 class="display-4">Geoparser Annotator</h1>
+        <p class="lead">An easy way to annotate toponyms in text documents.</p>
+        <hr class="my-4">
+        <p>Get started by uploading your documents.</p>
+        <a class="btn btn-primary btn-lg" href="{{ url_for('upload') }}" role="button">Upload Documents</a>
+    </div>
+</div>
+
+<!-- Bootstrap JS -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
