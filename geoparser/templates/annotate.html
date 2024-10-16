@@ -9,11 +9,19 @@
     <style>
         /* Toponym styles */
         .toponym {
-            background-color: #f1948a;
+            background-color: #ffc107;
             cursor: pointer;
+            padding: 0 3px;
+            border-radius: 8px;
+            color: white;
         }
+        /* Highlighted Toponym */
         .toponym.annotated {
-            background-color: #85c1e9;
+            background-color: #0d6efd;
+            cursor: pointer;
+            padding: 0 3px;
+            border-radius: 8px;
+            color: white;
         }
         /* Progress bar styles */
         .progress {
@@ -28,20 +36,25 @@
         .candidate:hover {
             background-color: #f0f0f0;
         }
-        /* Main content adjustments */
-        #document-text {
-            /* Adjustments if needed */
+        /* Ensure the parent container takes the full available height */
+        #main-content, #sidebar {
+            display: flex;
+            flex-direction: column;
+            height: calc(100vh - 56px); /* Adjusted to match the navbar height */
+            padding: 0;
         }
-        /* Titles */
+        /* Scrollable document list */
+        #document-list, #document-text {
+            overflow-y: auto;
+            flex-grow: 1;
+            padding: 1rem;
+            margin: 0;
+        }
+        /* Adjust margins for the document title */
         h2 {
             font-size: 1.5em;
-        }
-        /* Sidebar adjustments */
-        #sidebar {
-            overflow-y: auto;
-            height: calc(100vh - 56px);
-            position: sticky;
-            top: 56px;
+            padding-left: 1rem;
+            padding-right: 1rem;
         }
         /* Fix for modal overflow */
         .modal-lg {
@@ -85,7 +98,7 @@
         <!-- Main Content -->
         <div class="col-md-10" id="main-content">
             <h2 class="mt-3">{{ doc.filename }}</h2>
-            <div id="document-text" class="mt-4">
+            <div id="document-text">
                 {{ pre_annotated_text | safe }}
             </div>
         </div>
@@ -101,10 +114,18 @@
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
       <div class="modal-body">
+        <!-- Query Text Input -->
+        <div class="mb-3">
+            <label for="query-text-input" class="form-label">Search Candidates for:</label>
+            <div class="input-group">
+                <input type="text" id="query-text-input" class="form-control">
+                <button id="search-button" class="btn btn-primary">Search</button>
+            </div>
+        </div>
         <div class="row">
             <!-- Filter Panel -->
             <div class="col-md-4">
-                <div id="modal-filter-panel">
+                <div id="modal-filter-panel" class="form-control">
                     <!-- Filters will be populated here -->
                 </div>
             </div>
@@ -128,7 +149,7 @@
     document.addEventListener('DOMContentLoaded', function() {
         // Variables for the current document
         var docIndex = {{ doc_index }};
-    
+
         // Initialize progress bars for all documents
         {% for doc_item in documents %}
             (function() {
@@ -141,19 +162,48 @@
                 progressBar.setAttribute('aria-valuenow', percentage);
             })();
         {% endfor %}
-    
+
         // Variables for the current document
         var totalToponyms = {{ doc['total_toponyms'] }};
         var annotatedToponyms = {{ doc['annotated_toponyms'] }};
         var progressBar = document.getElementById('progress-bar-' + docIndex);
-    
+
         var toponyms = document.querySelectorAll('.toponym');
         toponyms.forEach(function(toponym) {
             toponym.addEventListener('click', function(event) {
                 var start = parseInt(toponym.getAttribute('data-start'));
                 var end = parseInt(toponym.getAttribute('data-end'));
                 var text = toponym.textContent;
-    
+
+                // Store current toponym info for use in modal
+                var currentToponym = {
+                    start: start,
+                    end: end,
+                    text: text,
+                    element: toponym
+                };
+
+                // Show the annotation modal
+                showAnnotationModal(currentToponym);
+            });
+        });
+
+        function showAnnotationModal(currentToponym) {
+            var modal = new bootstrap.Modal(document.getElementById('annotationModal'));
+            var modalCandidateList = document.getElementById('modal-candidate-list');
+            var modalFilterPanel = document.getElementById('modal-filter-panel');
+            var queryTextInput = document.getElementById('query-text-input');
+            var searchButton = document.getElementById('search-button');
+            var modalTitle = document.querySelector('#annotationModal .modal-title');
+
+            // Set the modal title to the toponym text
+            modalTitle.textContent = currentToponym.text;
+
+            // Set the query text input to the toponym text
+            queryTextInput.value = currentToponym.text;
+
+            // Function to fetch candidates based on query text
+            function fetchCandidates(queryText) {
                 fetch('{{ url_for("get_candidates") }}', {
                     method: 'POST',
                     headers: {
@@ -161,174 +211,193 @@
                     },
                     body: JSON.stringify({
                         'doc_index': docIndex,
-                        'start': start,
-                        'end': end,
-                        'text': text
+                        'start': currentToponym.start,
+                        'end': currentToponym.end,
+                        'text': currentToponym.text,
+                        'query_text': queryText
                     })
                 })
                 .then(response => response.json())
                 .then(data => {
-                    showAnnotationModal(data.candidates, data.filter_attributes, data.existing_loc_id, function(selected_loc_id) {
-                        fetch('{{ url_for("save_annotation") }}', {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json'
-                            },
-                            body: JSON.stringify({
-                                'doc_index': docIndex,
-                                'annotation': {
-                                    'toponym': text,
-                                    'start': start,
-                                    'end': end,
-                                    'loc_id': selected_loc_id
-                                }
-                            })
-                        })
-                        .then(response => response.json())
-                        .then(data => {
-                            if (data.status === 'success') {
-                                // Update the toponym's class immediately
-                                if (!toponym.classList.contains('annotated')) {
-                                    annotatedToponyms += 1;
-                                    toponym.classList.add('annotated');
-                                }
-                                // Update progress bar for the current document
-                                var progressPercentage = totalToponyms > 0 ? (annotatedToponyms / totalToponyms) * 100 : 0;
-                                progressBar.style.width = progressPercentage + '%';
-                                progressBar.setAttribute('aria-valuenow', progressPercentage);
-
-                                // Update progress bar in the sidebar
-                                var sidebarProgressBar = document.getElementById('progress-bar-' + docIndex);
-                                sidebarProgressBar.style.width = progressPercentage + '%';
-                                sidebarProgressBar.setAttribute('aria-valuenow', progressPercentage);
-                            }
-                        });
-                    });
-                });
-            });
-        });
-    
-        function showAnnotationModal(candidates, filterAttributes, existing_loc_id, callback) {
-            var currentFilters = {};
-            var filterInputs = {};
-    
-            var modal = new bootstrap.Modal(document.getElementById('annotationModal'));
-            var modalCandidateList = document.getElementById('modal-candidate-list');
-            var modalFilterPanel = document.getElementById('modal-filter-panel');
-    
-            // Clear previous content
-            modalCandidateList.innerHTML = '';
-            modalFilterPanel.innerHTML = '';
-    
-            // Prepare unique values for each filter attribute
-            var attributeValues = {};
-            filterAttributes.forEach(function(attribute) {
-                attributeValues[attribute] = new Set();
-            });
-    
-            candidates.forEach(function(candidate) {
-                var attributes = candidate.attributes;
-                filterAttributes.forEach(function(attribute) {
-                    if (attributes[attribute]) {
-                        attributeValues[attribute].add(attributes[attribute]);
-                    }
-                });
-            });
-    
-            // Create drop-down filters
-            filterAttributes.forEach(function(attribute) {
-                var label = document.createElement('label');
-                label.textContent = 'Filter by ' + attribute;
-                label.classList.add('form-label');
-    
-                var select = document.createElement('select');
-                select.dataset.attribute = attribute;
-                select.classList.add('form-select', 'mb-3');
-    
-                // Add an empty option
-                var emptyOption = document.createElement('option');
-                emptyOption.value = '';
-                emptyOption.textContent = 'All';
-                select.appendChild(emptyOption);
-    
-                // Add options from attributeValues
-                Array.from(attributeValues[attribute]).sort().forEach(function(value) {
-                    var option = document.createElement('option');
-                    option.value = value;
-                    option.textContent = value;
-                    select.appendChild(option);
-                });
-    
-                modalFilterPanel.appendChild(label);
-                modalFilterPanel.appendChild(select);
-                filterInputs[attribute] = select;
-            });
-    
-            // Add event listeners to filter inputs
-            Object.keys(filterInputs).forEach(function(attribute) {
-                filterInputs[attribute].addEventListener('change', function() {
-                    var selectedValue = filterInputs[attribute].value.toLowerCase();
-                    currentFilters[attribute] = selectedValue;
-                    applyFilters();
-                });
-            });
-    
-            // Add 'None of the above' option
-            var noneOption = document.createElement('div');
-            noneOption.classList.add('candidate', 'p-2', 'border', 'mb-2');
-            noneOption.textContent = 'None';
-            noneOption.dataset.locId = null;
-            noneOption.addEventListener('click', function() {
-                modal.hide();
-                callback(null);
-            });
-            modalCandidateList.appendChild(noneOption);
-    
-            // Append candidateDivs to candidateContainer
-            candidates.forEach(function(candidate) {
-                var candidateDiv = document.createElement('div');
-                candidateDiv.classList.add('candidate', 'p-2', 'border', 'mb-2');
-                candidateDiv.innerHTML = '<strong>' + candidate.description + '</strong>';
-                candidateDiv.dataset.locId = candidate.loc_id;
-                candidateDiv.dataset.attributes = JSON.stringify(candidate.attributes);
-    
-                // Highlight if this candidate is the existing selection
-                if (existing_loc_id && candidate.loc_id == existing_loc_id) {
-                    candidateDiv.classList.add('bg-primary', 'text-white');
-                }
-    
-                candidateDiv.addEventListener('click', function() {
-                    modal.hide();
-                    callback(candidateDiv.dataset.locId);
-                });
-                modalCandidateList.appendChild(candidateDiv);
-            });
-    
-            // Function to apply filters
-            function applyFilters() {
-                var candidatesDivs = modalCandidateList.querySelectorAll('.candidate');
-                candidatesDivs.forEach(function(candidateDiv) {
-                    if (!candidateDiv.dataset.attributes) {
-                        candidateDiv.style.display = 'block';
-                        return;
-                    }
-                    var attributes = JSON.parse(candidateDiv.dataset.attributes);
-                    var showCandidate = true;
-                    Object.keys(currentFilters).forEach(function(attribute) {
-                        var filterValue = currentFilters[attribute];
-                        var attributeValue = attributes[attribute] ? attributes[attribute].toString().toLowerCase() : '';
-                        if (filterValue && attributeValue !== filterValue) {
-                            showCandidate = false;
-                        }
-                    });
-                    candidateDiv.style.display = showCandidate ? 'block' : 'none';
+                    populateCandidates(data.candidates, data.filter_attributes, data.existing_loc_id);
                 });
             }
-    
+
+            // Function to populate candidates and filters
+            function populateCandidates(candidates, filterAttributes, existing_loc_id) {
+                var currentFilters = {};
+                var filterInputs = {};
+
+                // Clear previous content
+                modalCandidateList.innerHTML = '';
+                modalFilterPanel.innerHTML = '';
+
+                // Prepare unique values for each filter attribute
+                var attributeValues = {};
+                filterAttributes.forEach(function(attribute) {
+                    attributeValues[attribute] = new Set();
+                });
+
+                candidates.forEach(function(candidate) {
+                    var attributes = candidate.attributes;
+                    filterAttributes.forEach(function(attribute) {
+                        if (attributes[attribute]) {
+                            attributeValues[attribute].add(attributes[attribute]);
+                        }
+                    });
+                });
+
+                // Create drop-down filters
+                filterAttributes.forEach(function(attribute) {
+                    var label = document.createElement('label');
+                    label.textContent = 'Filter by ' + attribute;
+                    label.classList.add('form-label');
+
+                    var select = document.createElement('select');
+                    select.dataset.attribute = attribute;
+                    select.classList.add('form-select', 'mb-3');
+
+                    // Add an empty option
+                    var emptyOption = document.createElement('option');
+                    emptyOption.value = '';
+                    emptyOption.textContent = 'All';
+                    select.appendChild(emptyOption);
+
+                    // Add options from attributeValues
+                    Array.from(attributeValues[attribute]).sort().forEach(function(value) {
+                        var option = document.createElement('option');
+                        option.value = value;
+                        option.textContent = value;
+                        select.appendChild(option);
+                    });
+
+                    modalFilterPanel.appendChild(label);
+                    modalFilterPanel.appendChild(select);
+                    filterInputs[attribute] = select;
+                });
+
+                // Add event listeners to filter inputs
+                Object.keys(filterInputs).forEach(function(attribute) {
+                    filterInputs[attribute].addEventListener('change', function() {
+                        var selectedValue = filterInputs[attribute].value.toLowerCase();
+                        currentFilters[attribute] = selectedValue;
+                        applyFilters();
+                    });
+                });
+
+                // Add 'None of the above' option
+                var noneOption = document.createElement('div');
+                noneOption.classList.add('candidate', 'p-2', 'border', 'mb-2');
+                noneOption.textContent = 'None';
+                noneOption.dataset.locId = null;
+                noneOption.addEventListener('click', function() {
+                    modal.hide();
+                    saveAnnotation(null);
+                });
+                modalCandidateList.appendChild(noneOption);
+
+                // Append candidateDivs to candidateContainer
+                candidates.forEach(function(candidate) {
+                    var candidateDiv = document.createElement('div');
+                    candidateDiv.classList.add('candidate', 'p-2', 'border', 'mb-2');
+                    candidateDiv.innerHTML = '<strong>' + candidate.description + '</strong>';
+                    candidateDiv.dataset.locId = candidate.loc_id;
+                    candidateDiv.dataset.attributes = JSON.stringify(candidate.attributes);
+
+                    // Highlight if this candidate is the existing selection
+                    if (existing_loc_id && candidate.loc_id == existing_loc_id) {
+                        candidateDiv.classList.add('bg-primary', 'text-white');
+                    }
+
+                    candidateDiv.addEventListener('click', function() {
+                        modal.hide();
+                        saveAnnotation(candidateDiv.dataset.locId);
+                    });
+                    modalCandidateList.appendChild(candidateDiv);
+                });
+
+                // Function to apply filters
+                function applyFilters() {
+                    var candidatesDivs = modalCandidateList.querySelectorAll('.candidate');
+                    candidatesDivs.forEach(function(candidateDiv) {
+                        if (!candidateDiv.dataset.attributes) {
+                            candidateDiv.style.display = 'block';
+                            return;
+                        }
+                        var attributes = JSON.parse(candidateDiv.dataset.attributes);
+                        var showCandidate = true;
+                        Object.keys(currentFilters).forEach(function(attribute) {
+                            var filterValue = currentFilters[attribute];
+                            var attributeValue = attributes[attribute] ? attributes[attribute].toString().toLowerCase() : '';
+                            if (filterValue && attributeValue !== filterValue) {
+                                showCandidate = false;
+                            }
+                        });
+                        candidateDiv.style.display = showCandidate ? 'block' : 'none';
+                    });
+                }
+            }
+
+            // Fetch initial candidates using the toponym text
+            fetchCandidates(queryTextInput.value);
+
+            // Add event listener to search button
+            searchButton.addEventListener('click', function() {
+                var queryText = queryTextInput.value.trim();
+                fetchCandidates(queryText);
+            });
+
+            // Add 'Enter' key support for the query text input
+            queryTextInput.addEventListener('keydown', function(event) {
+                if (event.key === 'Enter') {
+                    event.preventDefault();
+                    searchButton.click();
+                }
+            });
+
+            // Function to save the annotation
+            function saveAnnotation(loc_id) {
+                fetch('{{ url_for("save_annotation") }}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        'doc_index': docIndex,
+                        'annotation': {
+                            'toponym': currentToponym.text,
+                            'start': currentToponym.start,
+                            'end': currentToponym.end,
+                            'loc_id': loc_id
+                        }
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        // Update the toponym's class immediately
+                        var toponymElement = currentToponym.element;
+                        if (!toponymElement.classList.contains('annotated')) {
+                            annotatedToponyms += 1;
+                            toponymElement.classList.add('annotated');
+                        }
+                        // Update progress bar for the current document
+                        var progressPercentage = totalToponyms > 0 ? (annotatedToponyms / totalToponyms) * 100 : 0;
+                        progressBar.style.width = progressPercentage + '%';
+                        progressBar.setAttribute('aria-valuenow', progressPercentage);
+
+                        // Update progress bar in the sidebar
+                        var sidebarProgressBar = document.getElementById('progress-bar-' + docIndex);
+                        sidebarProgressBar.style.width = progressPercentage + '%';
+                        sidebarProgressBar.setAttribute('aria-valuenow', progressPercentage);
+                    }
+                });
+            }
+
             // Show the modal
             modal.show();
         }
-    
+
         // Clear Cache Confirmation Script
         document.getElementById('clear-cache-button').addEventListener('click', function() {
             if (confirm('Are you sure you want to clear the cache? All annotations will be deleted. Please download the annotations before clearing the cache.')) {
@@ -337,27 +406,27 @@
                 .then(data => {
                     if (data.status === 'success') {
                         alert('Cache cleared.');
-    
+
                         // Reset the annotations on the page
                         // Remove 'annotated' class from all toponyms
                         var toponyms = document.querySelectorAll('.toponym');
                         toponyms.forEach(function(toponym) {
                             toponym.classList.remove('annotated');
                         });
-    
+
                         // Reset annotatedToponyms count
                         annotatedToponyms = 0;
-    
+
                         // Update progress bar for the current document
                         var progressPercentage = 0;
                         progressBar.style.width = progressPercentage + '%';
                         progressBar.setAttribute('aria-valuenow', progressPercentage);
-    
+
                         // Update progress bar in the sidebar
                         var sidebarProgressBar = document.getElementById('progress-bar-' + docIndex);
                         sidebarProgressBar.style.width = progressPercentage + '%';
                         sidebarProgressBar.setAttribute('aria-valuenow', progressPercentage);
-    
+
                         // Reset progress bars for all documents
                         {% for doc_item in documents %}
                             (function() {

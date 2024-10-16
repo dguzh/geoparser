@@ -136,12 +136,16 @@ class GeoparserAnnotator(Geoparser):
             start = data["start"]
             end = data["end"]
             toponym_text = data["text"]
+            query_text = data.get("query_text", "").strip()  # Get query_text if provided
 
             doc = self.documents[doc_index]["doc_obj"]
             annotations = self.documents[doc_index]["annotations"]
 
-            # Get candidate IDs and locations
-            candidates = self.gazetteer.query_candidates(toponym_text)
+            # Use query_text if provided, else use toponym_text
+            search_text = query_text if query_text else toponym_text
+
+            # Get candidate IDs and locations based on the search_text
+            candidates = self.gazetteer.query_candidates(search_text)
             candidate_locations = self.gazetteer.query_location_info(candidates)
 
             # Prepare candidate descriptions and attributes
