@@ -21,7 +21,7 @@ class GeoparserAnnotator(Geoparser):
             os.path.join(os.path.dirname(__file__), "templates")
         )
         self.app = Flask(__name__, template_folder=template_dir)
-        self.app.config["SECRET_KEY"] = "your-secret-key"
+        self.app.config["SECRET_KEY"] = "dev"
         self.documents = []
         # Define the cache file path
         self.cache_dir = os.path.join(user_data_dir("geoparser", ""), "annotator")
@@ -100,11 +100,7 @@ class GeoparserAnnotator(Geoparser):
 
                 doc_obj_item = doc_item["doc_obj"]
                 # Identify toponyms
-                toponyms = [
-                    ent
-                    for ent in doc_obj_item.ents
-                    if ent.label_ in ["GPE", "LOC", "FAC", "ANNOT"]
-                ]
+                toponyms = doc_obj_item.toponyms
                 doc_item["total_toponyms"] = len(toponyms)
 
                 # Count annotated toponyms
@@ -114,8 +110,8 @@ class GeoparserAnnotator(Geoparser):
                 )
                 annotated_count = sum(
                     1
-                    for ent in toponyms
-                    if (ent.start_char, ent.end_char) in annotated_toponym_set
+                    for toponym in toponyms
+                    if (toponym.start_char, toponym.end_char) in annotated_toponym_set
                 )
                 doc_item["annotated_toponyms"] = annotated_count
 
@@ -219,19 +215,15 @@ class GeoparserAnnotator(Geoparser):
 
             # Recalculate progress for the current document
             doc_obj = doc["doc_obj"]
-            toponyms = [
-                ent
-                for ent in doc_obj.ents
-                if ent.label_ in ["GPE", "LOC", "FAC", "ANNOT"]
-            ]
+            toponyms = doc_obj.toponyms
             total_toponyms = len(toponyms)
             annotated_toponym_set = set(
                 (ann["start"], ann["end"]) for ann in annotations
             )
             annotated_count = sum(
                 1
-                for ent in toponyms
-                if (ent.start_char, ent.end_char) in annotated_toponym_set
+                for toponym in toponyms
+                if (toponym.start_char, toponym.end_char) in annotated_toponym_set
             )
             doc["total_toponyms"] = total_toponyms
             doc["annotated_toponyms"] = annotated_count
@@ -303,30 +295,29 @@ class GeoparserAnnotator(Geoparser):
         last_idx = 0
         annotated_spans = set((ann["start"], ann["end"]) for ann in doc_annotations)
 
-        for ent in doc_obj.ents:
-            if ent.label_ in ["GPE", "LOC", "FAC", "ANNOT"]:
-                # Escape the text before the entity
-                before_entity = Markup.escape(text[last_idx : ent.start_char])
-                html_parts.append(before_entity)
+        for toponym in doc_obj.toponyms:
+            # Escape the text before the toponym
+            before_toponym = Markup.escape(text[last_idx : toponym.start_char])
+            html_parts.append(before_toponym)
 
-                # Check if the toponym has been annotated
-                annotated = (ent.start_char, ent.end_char) in annotated_spans
+            # Check if the toponym has been annotated
+            annotated = (toponym.start_char, toponym.end_char) in annotated_spans
 
-                # Create the span for the entity
-                entity_text = Markup.escape(ent.text)
-                span = Markup(
-                    '<span class="toponym {annotated_class}" data-start="{start}" data-end="{end}">{text}</span>'
-                ).format(
-                    annotated_class="annotated" if annotated else "",
-                    start=ent.start_char,
-                    end=ent.end_char,
-                    text=entity_text,
-                )
-                html_parts.append(span)
-                last_idx = ent.end_char
-        # Append the remaining text after the last entity
-        after_entity = Markup.escape(text[last_idx:])
-        html_parts.append(after_entity)
+            # Create the span for the toponym
+            toponym_text = Markup.escape(toponym.text)
+            span = Markup(
+                '<span class="toponym {annotated_class}" data-start="{start}" data-end="{end}">{text}</span>'
+            ).format(
+                annotated_class="annotated" if annotated else "",
+                start=toponym.start_char,
+                end=toponym.end_char,
+                text=toponym_text,
+            )
+            html_parts.append(span)
+            last_idx = toponym.end_char
+        # Append the remaining text after the last toponym
+        after_toponym = Markup.escape(text[last_idx:])
+        html_parts.append(after_toponym)
         # Combine all parts into a single Markup object
         html = Markup("").join(html_parts)
         return html
