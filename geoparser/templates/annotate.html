@@ -83,12 +83,21 @@
             <h2 class="mt-3">Documents</h2>
             <ul id="document-list" class="list-unstyled">
                 {% for doc_item in documents %}
+                    {% set total = doc_item['total_toponyms'] %}
+                    {% set annotated = doc_item['annotated_toponyms'] %}
+                    {% if total > 0 %}
+                        {% set percentage = (annotated / total * 100) | round(2) %}
+                    {% else %}
+                        {% set percentage = 0 %}
+                    {% endif %}
                 <li class="mb-3">
                     <a href="{{ url_for('annotate', doc_index=loop.index0) }}" class="{% if loop.index0 == doc_index %}text-primary{% else %}text-dark{% endif %}" style="text-decoration: none;">
                         {{ doc_item['filename'] }}
                     </a>
                     <div class="progress">
-                        <div id="progress-bar-{{ loop.index0 }}" class="progress-bar" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
+                        <div id="progress-bar-{{ loop.index0 }}" class="progress-bar" role="progressbar"
+                             style="width: {{ percentage }}%; transition: none;"
+                             aria-valuenow="{{ percentage }}" aria-valuemin="0" aria-valuemax="100"></div>
                     </div>
                 </li>
                 {% endfor %}
@@ -150,18 +159,27 @@
         // Variables for the current document
         var docIndex = {{ doc_index }};
 
-        // Initialize progress bars for all documents
-        {% for doc_item in documents %}
-            (function() {
-                var index = {{ loop.index0 }};
-                var progressBar = document.getElementById('progress-bar-' + index);
-                var total = {{ doc_item['total_toponyms'] }};
-                var annotated = {{ doc_item['annotated_toponyms'] }};
-                var percentage = total > 0 ? (annotated / total) * 100 : 0;
-                progressBar.style.width = percentage + '%';
-                progressBar.setAttribute('aria-valuenow', percentage);
-            })();
-        {% endfor %}
+        // Restore the scroll position of the document list
+        var documentList = document.getElementById('document-list');
+        var savedScrollTop = sessionStorage.getItem('documentListScrollTop');
+        if (savedScrollTop !== null) {
+            documentList.scrollTop = savedScrollTop;
+        }
+
+        // Add event listener to document links to save scroll position before navigating
+        var documentLinks = document.querySelectorAll('#document-list a');
+        documentLinks.forEach(function(link) {
+            link.addEventListener('click', function() {
+                // Save the scroll position
+                sessionStorage.setItem('documentListScrollTop', documentList.scrollTop);
+            });
+        });
+
+        // Remove the inline transition style from progress bars after initial load
+        var progressBars = document.querySelectorAll('#document-list .progress-bar');
+        progressBars.forEach(function(progressBar) {
+            progressBar.style.transition = '';
+        });
 
         // Variables for the current document
         var totalToponyms = {{ doc['total_toponyms'] }};

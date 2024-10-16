@@ -136,7 +136,9 @@ class GeoparserAnnotator(Geoparser):
             start = data["start"]
             end = data["end"]
             toponym_text = data["text"]
-            query_text = data.get("query_text", "").strip()  # Get query_text if provided
+            query_text = data.get(
+                "query_text", ""
+            ).strip()  # Get query_text if provided
 
             doc = self.documents[doc_index]["doc_obj"]
             annotations = self.documents[doc_index]["annotations"]
