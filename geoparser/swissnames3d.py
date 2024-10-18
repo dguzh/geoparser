@@ -209,4 +209,6 @@ class SwissNames3D(LocalDBGazetteer):
             .reset_index()
         )
 
-        locations_gdf.to_sql("locations", self.conn, if_exists="append", index=False)
+        locations_gdf.to_sql(
+            "locations", self._local.conn, if_exists="append", index=False
+        )
