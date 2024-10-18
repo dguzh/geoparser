@@ -5,8 +5,8 @@ import shutil
 import sqlite3
 import typing as t
 import zipfile
-from threading import local
 from abc import ABC, abstractmethod
+from threading import local
 
 import pandas as pd
 import requests
@@ -63,11 +63,11 @@ class LocalDBGazetteer(Gazetteer):
         return call
 
     def _initiate_connection(self):
-        if not hasattr(self._local, 'conn') or self._local.conn is None:
+        if not hasattr(self._local, "conn") or self._local.conn is None:
             self._local.conn = sqlite3.connect(self.db_path)
 
     def _close_connection(self):
-        if hasattr(self._local, 'conn'):
+        if hasattr(self._local, "conn"):
             self._local.conn.close()
             self._local.conn = None
 
