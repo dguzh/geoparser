@@ -5,6 +5,8 @@
     <title>Annotate Document</title>
     <!-- Bootstrap CSS -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <!-- Bootstrap Icons CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
     <!-- Custom CSS -->
     <style>
         /* Toponym styles */
@@ -69,8 +71,8 @@
     <div class="container-fluid">
         <a class="navbar-brand" href="{{ url_for('index') }}">Geoparser Annotator</a>
         <div class="ms-auto">
-            <a href="{{ url_for('download_annotations') }}" class="btn btn-outline-light me-2">Download</a>
-            <button type="button" class="btn btn-outline-light" id="clear-cache-button">Clear</button>
+            <a href="{{ url_for('download_annotations', session_id=session_id) }}" class="btn btn-outline-light me-2">Download</a>
+            <button type="button" class="btn btn-outline-light" id="clear-annotations-button">Clear</button>
         </div>
     </div>
 </nav>
@@ -80,7 +82,13 @@
     <div class="row">
         <!-- Left Sidebar (Documents) -->
         <div class="col-md-2 bg-light border-end" id="sidebar">
-            <h2 class="mt-3">Documents</h2>
+            <div class="d-flex align-items-center mt-3 mb-2" style="padding-right: 1rem">
+                <h2 class="flex-grow-1 mb-0">Documents</h2>
+                <!-- Add Document Button -->
+                <button type="button" class="btn btn-primary btn-sm" id="add-document-btn" title="Add Document">
+                    <i class="bi bi-file-earmark-plus"></i>
+                </button>
+            </div>
             <ul id="document-list" class="list-unstyled">
                 {% for doc_item in documents %}
                     {% set total = doc_item['total_toponyms'] %}
@@ -91,17 +99,59 @@
                         {% set percentage = 0 %}
                     {% endif %}
                 <li class="mb-3">
-                    <a href="{{ url_for('annotate', doc_index=loop.index0) }}" class="{% if loop.index0 == doc_index %}text-primary{% else %}text-dark{% endif %}" style="text-decoration: none;">
-                        {{ doc_item['filename'] }}
-                    </a>
+                    <div class="d-flex align-items-center justify-content-between">
+                        <a href="{{ url_for('annotate', session_id=session_id, doc_index=doc_item.doc_index) }}"
+                           class="{% if doc_item.doc_index == doc_index %}text-primary{% else %}text-dark{% endif %}"
+                           style="text-decoration: none;">
+                            {{ doc_item['filename'] }}
+                        </a>
+                        <!-- Remove Document Button -->
+                        <button type="button" class="btn btn-sec btn-sm remove-document-btn" data-doc-index="{{ doc_item.doc_index }}" title="Remove Document">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </div>
                     <div class="progress">
-                        <div id="progress-bar-{{ loop.index0 }}" class="progress-bar" role="progressbar"
+                        <div id="progress-bar-{{ doc_item.doc_index }}" class="progress-bar" role="progressbar"
                              style="width: {{ percentage }}%; transition: none;"
                              aria-valuenow="{{ percentage }}" aria-valuemin="0" aria-valuemax="100"></div>
                     </div>
                 </li>
                 {% endfor %}
             </ul>
+        </div>
+
+        <!-- Modal for Adding Documents -->
+        <div class="modal fade" id="addDocumentModal" tabindex="-1" aria-labelledby="addDocumentModalLabel" aria-hidden="true">
+          <div class="modal-dialog">
+            <div class="modal-content">
+              <form id="add-document-form" enctype="multipart/form-data">
+                <div class="modal-header">
+                  <h5 class="modal-title">Add Documents</h5>
+                  <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                  <!-- File Upload -->
+                  <div class="mb-3">
+                    <label for="files" class="form-label">Select Documents:</label>
+                    <input type="file" class="form-control" name="files[]" multiple required>
+                  </div>
+                  <!-- SpaCy Model Selection -->
+                  <div class="mb-3">
+                    <label for="spacy_model" class="form-label">Select SpaCy Model:</label>
+                    <select class="form-select" id="spacy_model" name="spacy_model" required>
+                        {% for model in spacy_models %}
+                            <option value="{{ model }}">{{ model }}</option>
+                        {% endfor %}
+                    </select>
+                  </div>
+                </div>
+                <div class="modal-footer">
+                  <button type="submit" class="btn btn-primary">Add Documents</button>
+                  <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                </div>
+              </form>
+            </div>
+          </div>
         </div>
 
         <!-- Main Content -->
@@ -158,6 +208,10 @@
     document.addEventListener('DOMContentLoaded', function() {
         // Variables for the current document
         var docIndex = {{ doc_index }};
+        var sessionId = '{{ session_id }}';
+        var totalToponyms = {{ total_toponyms }};
+        var annotatedToponyms = {{ annotated_toponyms }};
+        var progressBar = document.getElementById('progress-bar-' + docIndex);
 
         // Restore the scroll position of the document list
         var documentList = document.getElementById('document-list');
@@ -181,11 +235,7 @@
             progressBar.style.transition = '';
         });
 
-        // Variables for the current document
-        var totalToponyms = {{ doc['total_toponyms'] }};
-        var annotatedToponyms = {{ doc['annotated_toponyms'] }};
-        var progressBar = document.getElementById('progress-bar-' + docIndex);
-
+        // Event listeners for toponyms
         var toponyms = document.querySelectorAll('.toponym');
         toponyms.forEach(function(toponym) {
             toponym.addEventListener('click', function(event) {
@@ -228,6 +278,7 @@
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({
+                        'session_id': sessionId,
                         'doc_index': docIndex,
                         'start': currentToponym.start,
                         'end': currentToponym.end,
@@ -389,6 +440,7 @@
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({
+                        'session_id': sessionId,
                         'doc_index': docIndex,
                         'annotation': {
                             'toponym': currentToponym.text,
@@ -403,9 +455,12 @@
                     if (data.status === 'success') {
                         // Update the toponym's class immediately
                         var toponymElement = currentToponym.element;
-                        if (!toponymElement.classList.contains('annotated')) {
+                        if (loc_id !== '' && !toponymElement.classList.contains('annotated')) {
                             annotatedToponyms += 1;
                             toponymElement.classList.add('annotated');
+                        } else if (loc_id === '' && toponymElement.classList.contains('annotated')) {
+                            annotatedToponyms -= 1;
+                            toponymElement.classList.remove('annotated');
                         }
                         // Update progress bar for the current document
                         var progressPercentage = totalToponyms > 0 ? (annotatedToponyms / totalToponyms) * 100 : 0;
@@ -424,14 +479,13 @@
             modal.show();
         }
 
-        // Clear Cache Confirmation Script
-        document.getElementById('clear-cache-button').addEventListener('click', function() {
-            if (confirm('Are you sure you want to clear the cache? All annotations will be deleted. Please download the annotations before clearing the cache.')) {
-                fetch('{{ url_for("clear_cache") }}', { method: 'POST' })
+        // Clear Annotations Confirmation Script
+        document.getElementById('clear-annotations-button').addEventListener('click', function() {
+            if (confirm('Are you sure you want to clear the annotations for all the documents in this session? This action cannot be undone.')) {
+                fetch('{{ url_for("clear_annotations", session_id=session_id) }}', { method: 'POST' })
                 .then(response => response.json())
                 .then(data => {
                     if (data.status === 'success') {
-                        alert('Cache cleared.');
 
                         // Reset the annotations on the page
                         // Remove 'annotated' class from all toponyms
@@ -456,17 +510,75 @@
                         // Reset progress bars for all documents
                         {% for doc_item in documents %}
                             (function() {
-                                var index = {{ loop.index0 }};
+                                var index = {{ doc_item.doc_index }};
                                 var progressBar = document.getElementById('progress-bar-' + index);
                                 progressBar.style.width = '0%';
                                 progressBar.setAttribute('aria-valuenow', 0);
                             })();
                         {% endfor %}
                     } else {
-                        alert('Failed to clear cache.');
+                        alert('Failed to clear annotations.');
                     }
                 });
             }
+        });
+
+        // Add Document Button
+        var addDocumentBtn = document.getElementById('add-document-btn');
+        var addDocumentModal = new bootstrap.Modal(document.getElementById('addDocumentModal'));
+        var addDocumentForm = document.getElementById('add-document-form');
+
+        addDocumentBtn.addEventListener('click', function() {
+            addDocumentModal.show();
+        });
+
+        addDocumentForm.addEventListener('submit', function(event) {
+            event.preventDefault();
+            var formData = new FormData(addDocumentForm);
+            formData.append('session_id', sessionId);
+
+            fetch('{{ url_for("add_documents") }}', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    // Reload the page to reflect new documents
+                    window.location.reload();
+                } else {
+                    alert('Failed to add documents.');
+                }
+            });
+        });
+
+        // Remove Document Buttons
+        var removeDocumentBtns = document.querySelectorAll('.remove-document-btn');
+        removeDocumentBtns.forEach(function(btn) {
+            btn.addEventListener('click', function(event) {
+                var docIndex = btn.getAttribute('data-doc-index');
+                if (confirm('Are you sure you want to remove this document? All annotations for this document will be lost.')) {
+                    fetch('{{ url_for("remove_document") }}', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            'session_id': sessionId,
+                            'doc_index': docIndex
+                        })
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.status === 'success') {
+                            // Reload the page to reflect document removal
+                            window.location.href = '{{ url_for("annotate", session_id=session_id, doc_index=0) }}';
+                        } else {
+                            alert('Failed to remove document.');
+                        }
+                    });
+                }
+            });
         });
     });
 </script>

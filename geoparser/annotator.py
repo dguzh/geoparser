@@ -1,12 +1,16 @@
 import json
+import uuid
 import os
 import threading
 import webbrowser
+from datetime import datetime
 from pathlib import Path
 
 import spacy
 from appdirs import user_data_dir
-from flask import Flask, jsonify, redirect, render_template, request, send_file, url_for
+from flask import (Flask, jsonify, redirect, render_template, request, send_file,
+                   url_for, after_this_request)
+from werkzeug.utils import secure_filename
 from markupsafe import Markup
 from spacy.util import get_installed_models
 
@@ -16,17 +20,18 @@ from geoparser.geoparser import Geoparser
 
 class GeoparserAnnotator(Geoparser):
     def __init__(self, *args, **kwargs):
-        super().__init__(spacy_model="en_core_web_sm", *args, **kwargs)
+        # Do not initialize spacy model here
+        super().__init__(transformer_model="dguzh/geo-all-MiniLM-L6-v2", *args, **kwargs)
         template_dir = os.path.abspath(
             os.path.join(os.path.dirname(__file__), "templates")
         )
         self.app = Flask(__name__, template_folder=template_dir)
         self.app.config["SECRET_KEY"] = "dev"
-        self.documents = []
-        # Define the cache file path
+        self.sessions = {}  # Store sessions with their IDs
+        self.current_session_id = None
+        # Define the cache directory
         self.cache_dir = os.path.join(user_data_dir("geoparser", ""), "annotator")
         os.makedirs(self.cache_dir, exist_ok=True)  # Ensure the directory exists
-        self.cache_file_path = os.path.join(self.cache_dir, "annotations.json")
         self.setup_routes()
 
     def run(self, debug=False):
@@ -41,8 +46,8 @@ class GeoparserAnnotator(Geoparser):
         def index():
             return render_template("index.html")
 
-        @self.app.route("/upload", methods=["GET", "POST"])
-        def upload():
+        @self.app.route("/start_new_session", methods=["GET", "POST"])
+        def start_new_session():
             gazetteers = GAZETTEERS
             spacy_models = list(get_installed_models())
 
@@ -57,91 +62,192 @@ class GeoparserAnnotator(Geoparser):
                 self.gazetteer = self.setup_gazetteer(selected_gazetteer)
                 self.nlp = self.setup_spacy(selected_spacy_model)
 
+                # Process uploaded files and create a new session
+                session_id = uuid.uuid4().hex
+                session = {
+                    "session_id": session_id,
+                    "created_at": datetime.now().isoformat(),
+                    "last_updated": datetime.now().isoformat(),
+                    "gazetteer": selected_gazetteer,
+                    "spacy_model": selected_spacy_model,
+                    "documents": [],
+                }
+
                 # Process uploaded files
-                self.process_uploaded_files(uploaded_files)
+                for file in uploaded_files:
+                    text = file.read().decode("utf-8")
+                    doc = self.nlp(text)
+                    toponyms = [
+                        {
+                            "text": top.text,
+                            "start": top.start_char,
+                            "end": top.end_char,
+                            "loc_id": "",  # Empty string indicates not annotated yet
+                        }
+                        for top in doc.toponyms
+                    ]
+                    session["documents"].append(
+                        {
+                            "filename": file.filename,
+                            "text": text,
+                            "toponyms": toponyms,
+                        }
+                    )
 
-                # Handle uploaded annotation file
-                annotation_file = request.files.get("annotation_file")
-                if annotation_file and annotation_file.filename:
-                    # Overwrite the cache with the uploaded annotations
-                    annotations_data = json.load(annotation_file.stream)
-                    with open(self.cache_file_path, "w", encoding="utf-8") as f:
-                        json.dump(annotations_data, f, ensure_ascii=False, indent=4)
-                    # Load annotations into self.documents
-                    self.load_annotations()
-                else:
-                    # Load annotations from the cache if it exists
-                    self.load_annotations()
+                # Save session to cache
+                session_file_path = os.path.join(self.cache_dir, f"{session_id}.json")
+                with open(session_file_path, "w", encoding="utf-8") as f:
+                    json.dump(session, f, ensure_ascii=False, indent=4)
 
-                return redirect(url_for("annotate", doc_index=0))
+                # Update current session
+                self.current_session_id = session_id
+                self.sessions[session_id] = session
 
-            # Check if cache exists
-            cache_exists = os.path.exists(self.cache_file_path)
+                return redirect(url_for("annotate", session_id=session_id, doc_index=0))
+
             return render_template(
-                "upload.html",
+                "start_new_session.html",
                 gazetteers=gazetteers,
                 spacy_models=spacy_models,
-                cache_exists=cache_exists,
             )
 
-        @self.app.route("/annotate")
-        def annotate():
+        @self.app.route("/continue_session", methods=["GET", "POST"])
+        def continue_session():
+            # Get list of cached sessions
+            cached_sessions = self.get_cached_sessions()
+
+            if request.method == "POST":
+                action = request.form.get("action")
+                if action == "load_cached":
+                    selected_session_id = request.form.get("cached_session")
+                    if not selected_session_id:
+                        return redirect(url_for("continue_session"))
+
+                    # Load selected session directly without creating a new session
+                    session = self.load_session_from_cache(selected_session_id)
+                    if not session:
+                        return redirect(url_for("continue_session"))
+
+                    # Update current session
+                    self.current_session_id = selected_session_id
+                    self.sessions[selected_session_id] = session
+
+                    # Redirect to annotate page
+                    return redirect(url_for("annotate", session_id=selected_session_id, doc_index=0))
+
+                elif action == "load_file":
+                    # Handle uploaded session file
+                    session_file = request.files.get("session_file")
+                    if session_file and session_file.filename:
+                        session_data = json.load(session_file.stream)
+                        session_id = session_data.get("session_id")
+                        if not session_id:
+                            # Generate a new session_id if not present
+                            session_id = uuid.uuid4().hex
+                            session_data["session_id"] = session_id
+
+                        # Save session to cache
+                        session_file_path = os.path.join(self.cache_dir, f"{session_id}.json")
+                        with open(session_file_path, "w", encoding="utf-8") as f:
+                            json.dump(session_data, f, ensure_ascii=False, indent=4)
+
+                        # Update current session
+                        self.current_session_id = session_id
+                        self.sessions[session_id] = session_data
+
+                        # Redirect to annotate page
+                        return redirect(url_for("annotate", session_id=session_id, doc_index=0))
+                    else:
+                        return redirect(url_for("continue_session"))
+                else:
+                    return redirect(url_for("continue_session"))
+
+            return render_template(
+                "continue_session.html", cached_sessions=cached_sessions
+            )
+
+        @self.app.route("/annotate/<session_id>")
+        def annotate(session_id):
             doc_index = int(request.args.get("doc_index", 0))
-            doc = self.documents[doc_index]
-            doc_obj = doc.get("doc_obj")
-            if not doc_obj:
-                doc_obj = self.nlp(doc["text"])
-                doc["doc_obj"] = doc_obj
+            session = self.load_session_from_cache(session_id)
+            if not session:
+                return redirect(url_for("index"))
 
-            # Process all documents to calculate progress
-            for doc_item in self.documents:
-                if "doc_obj" not in doc_item:
-                    doc_item["doc_obj"] = self.nlp(doc_item["text"])
+            self.current_session_id = session_id
+            self.sessions[session_id] = session
 
-                doc_obj_item = doc_item["doc_obj"]
-                # Identify toponyms
-                toponyms = doc_obj_item.toponyms
-                doc_item["total_toponyms"] = len(toponyms)
+            if doc_index >= len(session["documents"]):
+                # If the document index is out of range, redirect to the first document
+                return redirect(url_for("annotate", session_id=session_id, doc_index=0))
 
-                # Count annotated toponyms
-                annotations = doc_item.get("annotations", [])
-                annotated_toponym_set = set(
-                    (ann["start"], ann["end"]) for ann in annotations
-                )
-                annotated_count = sum(
-                    1
-                    for toponym in toponyms
-                    if (toponym.start_char, toponym.end_char) in annotated_toponym_set
-                )
-                doc_item["annotated_toponyms"] = annotated_count
+            doc = session["documents"][doc_index]
 
+            # Prepare pre-annotated text
             pre_annotated_text = self.get_pre_annotated_text(
-                doc_obj, doc.get("annotations", [])
+                doc["text"], doc["toponyms"]
             )
+
+            # Prepare documents list with progress
+            documents = []
+            for idx, doc_item in enumerate(session["documents"]):
+                total_toponyms = len(doc_item["toponyms"])
+                annotated_toponyms = sum(
+                    1 for t in doc_item["toponyms"] if t["loc_id"] != ""
+                )
+                documents.append(
+                    {
+                        "filename": doc_item["filename"],
+                        "total_toponyms": total_toponyms,
+                        "annotated_toponyms": annotated_toponyms,
+                        "doc_index": idx,
+                    }
+                )
+
+            # Pass spaCy models to the template
+            spacy_models = list(get_installed_models())
+
+            total_toponyms = len(doc["toponyms"])
+            annotated_toponyms = sum(1 for t in doc["toponyms"] if t["loc_id"] != "")
 
             return render_template(
                 "annotate.html",
                 doc=doc,
                 doc_index=doc_index,
                 pre_annotated_text=pre_annotated_text,
-                total_docs=len(self.documents),
+                total_docs=len(session["documents"]),
                 gazetteer=self.gazetteer,
-                documents=self.documents,
+                documents=documents,
+                session_id=session_id,
+                total_toponyms=total_toponyms,
+                annotated_toponyms=annotated_toponyms,
+                spacy_models=spacy_models  # Include spaCy models for the modal
             )
 
         @self.app.route("/get_candidates", methods=["POST"])
         def get_candidates():
             data = request.json
+            session_id = data["session_id"]
             doc_index = data["doc_index"]
             start = data["start"]
             end = data["end"]
             toponym_text = data["text"]
-            query_text = data.get(
-                "query_text", ""
-            ).strip()  # Get query_text if provided
+            query_text = data.get("query_text", "").strip()
 
-            doc = self.documents[doc_index]["doc_obj"]
-            annotations = self.documents[doc_index]["annotations"]
+            session = self.load_session_from_cache(session_id)
+            if not session:
+                return jsonify({"error": "Session not found"}), 404
+
+            doc = session["documents"][doc_index]
+            toponym = next(
+                (
+                    t
+                    for t in doc["toponyms"]
+                    if t["start"] == start and t["end"] == end
+                ),
+                None,
+            )
+            if not toponym:
+                return jsonify({"error": "Toponym not found"}), 404
 
             # Use query_text if provided, else use toponym_text
             search_text = query_text if query_text else toponym_text
@@ -174,18 +280,7 @@ class GeoparserAnnotator(Geoparser):
                 and not col.name.endswith(location_identifier)
             ]
 
-            # Find existing annotation for this toponym
-            existing_annotation = next(
-                (
-                    ann
-                    for ann in annotations
-                    if ann["start"] == start and ann["end"] == end
-                ),
-                None,
-            )
-            existing_loc_id = (
-                existing_annotation["loc_id"] if existing_annotation else None
-            )
+            existing_loc_id = toponym.get("loc_id", "")
 
             return jsonify(
                 {
@@ -198,182 +293,266 @@ class GeoparserAnnotator(Geoparser):
         @self.app.route("/save_annotation", methods=["POST"])
         def save_annotation():
             data = request.json
+            session_id = data["session_id"]
             doc_index = data["doc_index"]
             annotation = data["annotation"]
-            doc = self.documents[doc_index]
-            annotations = doc.get("annotations", [])
 
-            # Check if the annotation already exists
-            for idx, existing_annotation in enumerate(annotations):
-                if (
-                    existing_annotation["start"] == annotation["start"]
-                    and existing_annotation["end"] == annotation["end"]
-                ):
-                    # Update the existing annotation
-                    annotations[idx] = annotation
-                    break
-            else:
-                # If the annotation does not exist, append it
-                annotations.append(annotation)
+            session = self.load_session_from_cache(session_id)
+            if not session:
+                return jsonify({"error": "Session not found"}), 404
 
-            doc["annotations"] = annotations
-            self.save_annotations()  # Save to cache file
+            doc = session["documents"][doc_index]
+            toponyms = doc["toponyms"]
+            toponym = next(
+                (
+                    t
+                    for t in toponyms
+                    if t["start"] == annotation["start"] and t["end"] == annotation["end"]
+                ),
+                None,
+            )
+            if not toponym:
+                return jsonify({"error": "Toponym not found"}), 404
+
+            # Update the loc_id
+            toponym["loc_id"] = annotation["loc_id"] if annotation["loc_id"] else ""
+
+            # Update last_updated timestamp
+            session["last_updated"] = datetime.now().isoformat()
+
+            # Save session
+            session_file_path = os.path.join(self.cache_dir, f"{session_id}.json")
+            with open(session_file_path, "w", encoding="utf-8") as f:
+                json.dump(session, f, ensure_ascii=False, indent=4)
 
             # Recalculate progress for the current document
-            doc_obj = doc["doc_obj"]
-            toponyms = doc_obj.toponyms
             total_toponyms = len(toponyms)
-            annotated_toponym_set = set(
-                (ann["start"], ann["end"]) for ann in annotations
+            annotated_toponyms = sum(1 for t in toponyms if t["loc_id"] != "")
+            progress_percentage = (
+                (annotated_toponyms / total_toponyms) * 100 if total_toponyms > 0 else 0
             )
-            annotated_count = sum(
-                1
-                for toponym in toponyms
-                if (toponym.start_char, toponym.end_char) in annotated_toponym_set
-            )
-            doc["total_toponyms"] = total_toponyms
-            doc["annotated_toponyms"] = annotated_count
 
             return jsonify(
                 {
                     "status": "success",
-                    "annotated_toponyms": annotated_count,
+                    "annotated_toponyms": annotated_toponyms,
                     "total_toponyms": total_toponyms,
+                    "progress_percentage": progress_percentage,
                 }
             )
 
-        @self.app.route("/download_annotations")
-        def download_annotations():
-            if os.path.exists(self.cache_file_path):
-                return send_file(self.cache_file_path, as_attachment=True)
-            else:
-                return "No annotations to download.", 404
+        @self.app.route("/download_annotations/<session_id>")
+        def download_annotations(session_id):
+            session = self.load_session_from_cache(session_id)
+            if not session:
+                return "Session not found.", 404
 
-        @self.app.route("/get_progress")
-        def get_progress():
-            progress = []
-            for i, doc in enumerate(self.documents):
-                doc_obj = doc.get("doc_obj")
-                if doc_obj:
-                    total_toponyms = len(doc_obj.toponyms)
-                else:
-                    total_toponyms = 0
-                annotated_toponyms = len(doc["annotations"])
-                progress.append(
-                    {
-                        "filename": doc["filename"],
-                        "total_toponyms": total_toponyms,
-                        "annotated_toponyms": annotated_toponyms,
-                        "doc_index": i,
-                    }
-                )
-            return jsonify({"progress": progress})
+            # Prepare annotations file for download
+            annotations_data = session
 
-        @self.app.route("/clear_cache", methods=["POST"])
-        def clear_cache():
-            try:
-                # Remove the cache file if it exists
-                if os.path.exists(self.cache_file_path):
-                    os.remove(self.cache_file_path)
+            # Save to a temporary file
+            temp_file_path = os.path.join(self.cache_dir, f"{session_id}_download.json")
+            with open(temp_file_path, "w", encoding="utf-8") as f:
+                json.dump(annotations_data, f, ensure_ascii=False, indent=4)
 
-                # Clear annotations from self.documents
-                for doc in self.documents:
-                    doc["annotations"] = []
+            @after_this_request
+            def remove_file(response):
+                try:
+                    os.remove(temp_file_path)
+                except Exception as error:
+                    print("Error removing or closing downloaded file handle", error)
+                return response
 
-                # Save the empty annotations to the cache
-                self.save_annotations()
-
-                return jsonify({"status": "success"})
-            except Exception as e:
-                return jsonify({"status": "error", "message": str(e)})
-
-    def process_uploaded_files(self, uploaded_files):
-        self.documents = []
-        for file in uploaded_files:
-            text = file.read().decode("utf-8")
-            self.documents.append(
-                {"filename": file.filename, "text": text, "annotations": []}
+            return send_file(
+                temp_file_path,
+                as_attachment=True,
+                download_name=f"annotations_{session_id}.json",
             )
 
-    def get_pre_annotated_text(self, doc_obj, doc_annotations):
-        text = doc_obj.text
+        @self.app.route("/delete_session/<session_id>", methods=["POST"])
+        def delete_session(session_id):
+            session_file_path = os.path.join(self.cache_dir, f"{session_id}.json")
+            if os.path.exists(session_file_path):
+                os.remove(session_file_path)
+                # Remove from sessions dictionary
+                self.sessions.pop(session_id, None)
+                # Issue 4 Fix: Redirect back to continue_session page
+                return jsonify({"status": "success"})
+            else:
+                return jsonify({"status": "error", "message": "Session not found."})
+
+        @self.app.route("/clear_annotations/<session_id>", methods=["POST"])
+        def clear_annotations(session_id):
+            session = self.load_session_from_cache(session_id)
+            if not session:
+                return jsonify({"status": "error", "message": "Session not found."})
+
+            # Issue 6 Fix: Clear annotations by setting loc_id to empty string
+            for doc in session["documents"]:
+                for toponym in doc["toponyms"]:
+                    toponym["loc_id"] = ""
+
+            # Save updated session
+            session_file_path = os.path.join(self.cache_dir, f"{session_id}.json")
+            with open(session_file_path, "w", encoding="utf-8") as f:
+                json.dump(session, f, ensure_ascii=False, indent=4)
+
+            return jsonify({"status": "success"})
+
+        @self.app.route("/add_documents", methods=["POST"])
+        def add_documents():
+            session_id = request.form.get('session_id')
+            session = self.load_session_from_cache(session_id)
+            if not session:
+                return jsonify({"status": "error", "message": "Session not found."})
+
+            uploaded_files = request.files.getlist("files[]")
+            selected_spacy_model = request.form.get("spacy_model")
+
+            if not uploaded_files or not selected_spacy_model:
+                return jsonify({"status": "error", "message": "No files or SpaCy model selected."})
+
+            # Re-initialize nlp with selected model
+            self.nlp = self.setup_spacy(selected_spacy_model)
+
+            # Process uploaded files
+            for file in uploaded_files:
+                filename = secure_filename(file.filename)
+                text = file.read().decode("utf-8")
+                doc = self.nlp(text)
+                toponyms = [
+                    {
+                        "text": top.text,
+                        "start": top.start_char,
+                        "end": top.end_char,
+                        "loc_id": "",  # Empty string indicates not annotated yet
+                    }
+                    for top in doc.toponyms
+                ]
+                session["documents"].append(
+                    {
+                        "filename": filename,
+                        "text": text,
+                        "toponyms": toponyms,
+                    }
+                )
+
+            # Save updated session
+            session_file_path = os.path.join(self.cache_dir, f"{session_id}.json")
+            with open(session_file_path, "w", encoding="utf-8") as f:
+                json.dump(session, f, ensure_ascii=False, indent=4)
+
+            return jsonify({"status": "success"})
+
+        @self.app.route("/remove_document", methods=["POST"])
+        def remove_document():
+            data = request.json
+            session_id = data.get("session_id")
+            doc_index = int(data.get("doc_index"))
+
+            session = self.load_session_from_cache(session_id)
+            if not session:
+                return jsonify({"status": "error", "message": "Session not found."})
+
+            if 0 <= doc_index < len(session["documents"]):
+                # Remove the document
+                del session["documents"][doc_index]
+
+                # Save updated session
+                session_file_path = os.path.join(self.cache_dir, f"{session_id}.json")
+                with open(session_file_path, "w", encoding="utf-8") as f:
+                    json.dump(session, f, ensure_ascii=False, indent=4)
+
+                return jsonify({"status": "success"})
+            else:
+                return jsonify({"status": "error", "message": "Invalid document index."})
+
+    def get_cached_sessions(self):
+        sessions = []
+        for filename in os.listdir(self.cache_dir):
+            if filename.endswith(".json") and not filename.endswith("_download.json"):
+                session_file_path = os.path.join(self.cache_dir, filename)
+                try:
+                    with open(session_file_path, "r", encoding="utf-8") as f:
+                        session_data = json.load(f)
+                        session_id = session_data.get("session_id", filename[:-5])
+
+                        # Format creation date
+                        created_at = session_data.get("created_at", "Unknown")
+                        try:
+                            created_at_dt = datetime.fromisoformat(created_at)
+                            created_at_formatted = created_at_dt.strftime("%Y-%m-%d %H:%M:%S")
+                        except ValueError:
+                            created_at_formatted = created_at
+
+                        # Format last updated date
+                        last_updated = session_data.get("last_updated", "Unknown")
+                        try:
+                            last_updated_dt = datetime.fromisoformat(last_updated)
+                            last_updated_formatted = last_updated_dt.strftime("%Y-%m-%d %H:%M:%S")
+                        except ValueError:
+                            last_updated_formatted = last_updated
+
+                        gazetteer = session_data.get("gazetteer", "Unknown")
+                        num_documents = len(session_data.get("documents", []))
+                        sessions.append(
+                            {
+                                "session_id": session_id,
+                                "created_at": created_at_formatted,
+                                "last_updated": last_updated_formatted,
+                                "gazetteer": gazetteer,
+                                "num_documents": num_documents,
+                            }
+                        )
+                except Exception as e:
+                    print(f"Failed to load session {filename}: {e}")
+                    continue
+        # Sort sessions by last updated date descending
+        sessions.sort(key=lambda x: x["last_updated"], reverse=True)
+        return sessions
+
+    def load_session_from_cache(self, session_id):
+        if session_id in self.sessions:
+            return self.sessions[session_id]
+        session_file_path = os.path.join(self.cache_dir, f"{session_id}.json")
+        if os.path.exists(session_file_path):
+            try:
+                with open(session_file_path, "r", encoding="utf-8") as f:
+                    session_data = json.load(f)
+                    self.sessions[session_id] = session_data
+                    return session_data
+            except Exception as e:
+                print(f"Failed to load session {session_id}: {e}")
+                return None
+        else:
+            return None
+
+    def get_pre_annotated_text(self, text, toponyms):
         html_parts = []
         last_idx = 0
-        annotated_spans = set((ann["start"], ann["end"]) for ann in doc_annotations)
-
-        for toponym in doc_obj.toponyms:
+        for toponym in sorted(toponyms, key=lambda x: x["start"]):
+            start_char = toponym["start"]
+            end_char = toponym["end"]
+            annotated = toponym["loc_id"] != ""
             # Escape the text before the toponym
-            before_toponym = Markup.escape(text[last_idx : toponym.start_char])
+            before_toponym = Markup.escape(text[last_idx:start_char])
             html_parts.append(before_toponym)
 
-            # Check if the toponym has been annotated
-            annotated = (toponym.start_char, toponym.end_char) in annotated_spans
-
             # Create the span for the toponym
-            toponym_text = Markup.escape(toponym.text)
+            toponym_text = Markup.escape(text[start_char:end_char])
             span = Markup(
                 '<span class="toponym {annotated_class}" data-start="{start}" data-end="{end}">{text}</span>'
             ).format(
                 annotated_class="annotated" if annotated else "",
-                start=toponym.start_char,
-                end=toponym.end_char,
+                start=start_char,
+                end=end_char,
                 text=toponym_text,
             )
             html_parts.append(span)
-            last_idx = toponym.end_char
+            last_idx = end_char
         # Append the remaining text after the last toponym
         after_toponym = Markup.escape(text[last_idx:])
         html_parts.append(after_toponym)
         # Combine all parts into a single Markup object
         html = Markup("").join(html_parts)
         return html
-
-    def save_annotations(self):
-        # Create a serializable copy of self.documents without non-serializable or unnecessary objects
-        serializable_documents = []
-        for doc in self.documents:
-            doc_copy = doc.copy()
-            # Remove non-serializable items
-            if "doc_obj" in doc_copy:
-                del doc_copy["doc_obj"]
-            # Remove calculated attributes
-            if "annotated_toponyms" in doc_copy:
-                del doc_copy["annotated_toponyms"]
-            if "total_toponyms" in doc_copy:
-                del doc_copy["total_toponyms"]
-            serializable_documents.append(doc_copy)
-
-        # Save annotations to the cache file
-        with open(self.cache_file_path, "w", encoding="utf-8") as f:
-            json.dump(serializable_documents, f, ensure_ascii=False, indent=4)
-
-    def load_annotations(self):
-        if os.path.exists(self.cache_file_path):
-            try:
-                with open(self.cache_file_path, "r", encoding="utf-8") as f:
-                    annotations_data = json.load(f)
-
-                # Update self.documents with annotations from the cache
-                doc_mapping = {doc["filename"]: doc for doc in self.documents}
-                for cached_doc in annotations_data:
-                    filename = cached_doc["filename"]
-                    if filename in doc_mapping:
-                        doc = doc_mapping[filename]
-                        doc["annotations"] = cached_doc.get("annotations", [])
-                        # Re-initialize 'doc_obj' if necessary
-                        if "doc_obj" not in doc:
-                            doc["doc_obj"] = self.nlp(doc["text"])
-                    else:
-                        # If the document is not in the current session, skip it
-                        continue
-            except (json.JSONDecodeError, ValueError):
-                # Handle empty or invalid cache file
-                print("Cache file is empty or invalid. Initializing annotations.")
-                for doc in self.documents:
-                    doc["annotations"] = []
-                # Save empty annotations to the cache
-                self.save_annotations()
-        else:
-            # Initialize annotations for each document
-            for doc in self.documents:
-                doc["annotations"] = []
