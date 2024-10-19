@@ -1,18 +1,26 @@
 import json
-import uuid
 import os
 import threading
+import uuid
 import webbrowser
 from datetime import datetime
 from pathlib import Path
 
 import spacy
 from appdirs import user_data_dir
-from flask import (Flask, jsonify, redirect, render_template, request, send_file,
-                   url_for, after_this_request)
-from werkzeug.utils import secure_filename
+from flask import (
+    Flask,
+    after_this_request,
+    jsonify,
+    redirect,
+    render_template,
+    request,
+    send_file,
+    url_for,
+)
 from markupsafe import Markup
 from spacy.util import get_installed_models
+from werkzeug.utils import secure_filename
 
 from geoparser.constants import GAZETTEERS
 from geoparser.geoparser import Geoparser
@@ -21,7 +29,9 @@ from geoparser.geoparser import Geoparser
 class GeoparserAnnotator(Geoparser):
     def __init__(self, *args, **kwargs):
         # Do not initialize spacy model here
-        super().__init__(transformer_model="dguzh/geo-all-MiniLM-L6-v2", *args, **kwargs)
+        super().__init__(
+            transformer_model="dguzh/geo-all-MiniLM-L6-v2", *args, **kwargs
+        )
         template_dir = os.path.abspath(
             os.path.join(os.path.dirname(__file__), "templates")
         )
@@ -133,7 +143,9 @@ class GeoparserAnnotator(Geoparser):
                     self.sessions[selected_session_id] = session
 
                     # Redirect to annotate page
-                    return redirect(url_for("annotate", session_id=selected_session_id, doc_index=0))
+                    return redirect(
+                        url_for("annotate", session_id=selected_session_id, doc_index=0)
+                    )
 
                 elif action == "load_file":
                     # Handle uploaded session file
@@ -147,7 +159,9 @@ class GeoparserAnnotator(Geoparser):
                             session_data["session_id"] = session_id
 
                         # Save session to cache
-                        session_file_path = os.path.join(self.cache_dir, f"{session_id}.json")
+                        session_file_path = os.path.join(
+                            self.cache_dir, f"{session_id}.json"
+                        )
                         with open(session_file_path, "w", encoding="utf-8") as f:
                             json.dump(session_data, f, ensure_ascii=False, indent=4)
 
@@ -156,7 +170,9 @@ class GeoparserAnnotator(Geoparser):
                         self.sessions[session_id] = session_data
 
                         # Redirect to annotate page
-                        return redirect(url_for("annotate", session_id=session_id, doc_index=0))
+                        return redirect(
+                            url_for("annotate", session_id=session_id, doc_index=0)
+                        )
                     else:
                         return redirect(url_for("continue_session"))
                 else:
@@ -220,7 +236,7 @@ class GeoparserAnnotator(Geoparser):
                 session_id=session_id,
                 total_toponyms=total_toponyms,
                 annotated_toponyms=annotated_toponyms,
-                spacy_models=spacy_models  # Include spaCy models for the modal
+                spacy_models=spacy_models,  # Include spaCy models for the modal
             )
 
         @self.app.route("/get_candidates", methods=["POST"])
@@ -239,11 +255,7 @@ class GeoparserAnnotator(Geoparser):
 
             doc = session["documents"][doc_index]
             toponym = next(
-                (
-                    t
-                    for t in doc["toponyms"]
-                    if t["start"] == start and t["end"] == end
-                ),
+                (t for t in doc["toponyms"] if t["start"] == start and t["end"] == end),
                 None,
             )
             if not toponym:
@@ -307,7 +319,8 @@ class GeoparserAnnotator(Geoparser):
                 (
                     t
                     for t in toponyms
-                    if t["start"] == annotation["start"] and t["end"] == annotation["end"]
+                    if t["start"] == annotation["start"]
+                    and t["end"] == annotation["end"]
                 ),
                 None,
             )
@@ -401,7 +414,7 @@ class GeoparserAnnotator(Geoparser):
 
         @self.app.route("/add_documents", methods=["POST"])
         def add_documents():
-            session_id = request.form.get('session_id')
+            session_id = request.form.get("session_id")
             session = self.load_session_from_cache(session_id)
             if not session:
                 return jsonify({"status": "error", "message": "Session not found."})
@@ -410,7 +423,9 @@ class GeoparserAnnotator(Geoparser):
             selected_spacy_model = request.form.get("spacy_model")
 
             if not uploaded_files or not selected_spacy_model:
-                return jsonify({"status": "error", "message": "No files or SpaCy model selected."})
+                return jsonify(
+                    {"status": "error", "message": "No files or SpaCy model selected."}
+                )
 
             # Re-initialize nlp with selected model
             self.nlp = self.setup_spacy(selected_spacy_model)
@@ -465,7 +480,9 @@ class GeoparserAnnotator(Geoparser):
 
                 return jsonify({"status": "success"})
             else:
-                return jsonify({"status": "error", "message": "Invalid document index."})
+                return jsonify(
+                    {"status": "error", "message": "Invalid document index."}
+                )
 
     def get_cached_sessions(self):
         sessions = []
@@ -481,7 +498,9 @@ class GeoparserAnnotator(Geoparser):
                         created_at = session_data.get("created_at", "Unknown")
                         try:
                             created_at_dt = datetime.fromisoformat(created_at)
-                            created_at_formatted = created_at_dt.strftime("%Y-%m-%d %H:%M:%S")
+                            created_at_formatted = created_at_dt.strftime(
+                                "%Y-%m-%d %H:%M:%S"
+                            )
                         except ValueError:
                             created_at_formatted = created_at
 
@@ -489,7 +508,9 @@ class GeoparserAnnotator(Geoparser):
                         last_updated = session_data.get("last_updated", "Unknown")
                         try:
                             last_updated_dt = datetime.fromisoformat(last_updated)
-                            last_updated_formatted = last_updated_dt.strftime("%Y-%m-%d %H:%M:%S")
+                            last_updated_formatted = last_updated_dt.strftime(
+                                "%Y-%m-%d %H:%M:%S"
+                            )
                         except ValueError:
                             last_updated_formatted = last_updated
 
