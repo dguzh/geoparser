@@ -23,7 +23,7 @@ def test_init_geoparser_gazetteers(gazetteer: str):
         )
 
 
-@pytest.mark.parametrize("spacy_model", ["en_core_web_sm", "en_core_web_trf"])
+@pytest.mark.parametrize("spacy_model", ["en_core_web_sm", "mk_core_news_sm"])
 def test_init_geoparser_spacy_model(spacy_model: str):
     # raises error if spacy model has not been installed yet
     with nullcontext() if spacy_model == "en_core_web_sm" else pytest.raises(OSError):
