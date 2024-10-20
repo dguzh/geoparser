@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Annotate Document</title>
+    <!-- Bootstrap CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <!-- Bootstrap Icons CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
+    <!-- Custom CSS -->
+    <style>
+        /* Toponym styles */
+        .toponym {
+            background-color: #ffc107;
+            cursor: pointer;
+            padding: 0 3px;
+            border-radius: 8px;
+            color: white;
+        }
+        /* Highlighted Toponym */
+        .toponym.annotated {
+            background-color: #0d6efd;
+            cursor: pointer;
+            padding: 0 3px;
+            border-radius: 8px;
+            color: white;
+        }
+        /* Progress bar styles */
+        .progress {
+            height: 10px;
+            margin-top: 5px;
+        }
+        /* Candidate list */
+        .candidate {
+            margin-bottom: 5px;
+            cursor: pointer;
+        }
+        .candidate:hover {
+            background-color: #f0f0f0;
+        }
+        /* Ensure the parent container takes the full available height */
+        #main-content, #sidebar {
+            display: flex;
+            flex-direction: column;
+            height: calc(100vh - 56px); /* Adjusted to match the navbar height */
+            padding: 0;
+        }
+        /* Scrollable document list */
+        #document-list, #document-text {
+            overflow-y: auto;
+            flex-grow: 1;
+            padding: 1rem;
+            margin: 0;
+        }
+        /* Adjust margins for the document title */
+        h2 {
+            font-size: 1.5em;
+            padding-left: 1rem;
+            padding-right: 1rem;
+        }
+        /* Fix for modal overflow */
+        .modal-lg {
+            max-width: 90%;
+        }
+    </style>
+</head>
+<body>
+
+<!-- Navbar -->
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+    <div class="container-fluid">
+        <a class="navbar-brand" href="{{ url_for('index') }}">Geoparser Annotator</a>
+        <div class="ms-auto">
+            <a href="{{ url_for('download_annotations', session_id=session_id) }}" class="btn btn-outline-light me-2">Download</a>
+            <button type="button" class="btn btn-outline-light" id="clear-annotations-button">Clear</button>
+        </div>
+    </div>
+</nav>
+
+<!-- Main content -->
+<div class="container-fluid">
+    <div class="row">
+        <!-- Left Sidebar (Documents) -->
+        <div class="col-md-2 bg-light border-end" id="sidebar">
+            <div class="d-flex align-items-center mt-3 mb-2" style="padding-right: 1rem">
+                <h2 class="flex-grow-1 mb-0">Documents</h2>
+                <!-- Add Document Button -->
+                <button type="button" class="btn btn-primary btn-sm" id="add-document-btn" title="Add Document">
+                    <i class="bi bi-file-earmark-plus"></i>
+                </button>
+            </div>
+            <ul id="document-list" class="list-unstyled">
+                {% for doc_item in documents %}
+                    {% set total = doc_item['total_toponyms'] %}
+                    {% set annotated = doc_item['annotated_toponyms'] %}
+                    {% if total > 0 %}
+                        {% set percentage = (annotated / total * 100) | round(2) %}
+                    {% else %}
+                        {% set percentage = 0 %}
+                    {% endif %}
+                <li class="mb-3">
+                    <div class="d-flex align-items-center justify-content-between">
+                        <a href="{{ url_for('annotate', session_id=session_id, doc_index=doc_item.doc_index) }}"
+                           class="{% if doc_item.doc_index == doc_index %}text-primary{% else %}text-dark{% endif %}"
+                           style="text-decoration: none;">
+                            {{ doc_item['filename'] }}
+                        </a>
+                        <!-- Remove Document Button -->
+                        <button type="button" class="btn btn-sec btn-sm remove-document-btn" data-doc-index="{{ doc_item.doc_index }}" title="Remove Document">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </div>
+                    <div class="progress">
+                        <div id="progress-bar-{{ doc_item.doc_index }}" class="progress-bar" role="progressbar"
+                             style="width: {{ percentage }}%; transition: none;"
+                             aria-valuenow="{{ percentage }}" aria-valuemin="0" aria-valuemax="100"></div>
+                    </div>
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+
+        <!-- Modal for Adding Documents -->
+        <div class="modal fade" id="addDocumentModal" tabindex="-1" aria-labelledby="addDocumentModalLabel" aria-hidden="true">
+          <div class="modal-dialog">
+            <div class="modal-content">
+              <form id="add-document-form" enctype="multipart/form-data">
+                <div class="modal-header">
+                  <h5 class="modal-title">Add Documents</h5>
+                  <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                  <!-- File Upload -->
+                  <div class="mb-3">
+                    <label for="files" class="form-label">Select Documents:</label>
+                    <input type="file" class="form-control" name="files[]" multiple required>
+                  </div>
+                  <!-- SpaCy Model Selection -->
+                  <div class="mb-3">
+                    <label for="spacy_model" class="form-label">Select SpaCy Model:</label>
+                    <select class="form-select" id="spacy_model" name="spacy_model" required>
+                        {% for model in spacy_models %}
+                            <option value="{{ model }}">{{ model }}</option>
+                        {% endfor %}
+                    </select>
+                  </div>
+                </div>
+                <div class="modal-footer">
+                  <button type="submit" class="btn btn-primary">Add Documents</button>
+                  <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="col-md-10" id="main-content">
+            <h2 class="mt-3">{{ doc.filename }}</h2>
+            <div id="document-text">
+                {{ pre_annotated_text | safe }}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Annotation Modal -->
+<div class="modal fade" id="annotationModal" tabindex="-1" aria-labelledby="annotationModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">{{ toponym_text }}</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <!-- Query Text Input -->
+        <div class="mb-3">
+            <label for="query-text-input" class="form-label">Search Candidates for:</label>
+            <div class="input-group">
+                <input type="text" id="query-text-input" class="form-control">
+                <button id="search-button" class="btn btn-primary">Search</button>
+            </div>
+        </div>
+        <div class="row">
+            <!-- Filter Panel -->
+            <div class="col-md-4">
+                <div id="modal-filter-panel" class="form-control">
+                    <!-- Filters will be populated here -->
+                </div>
+            </div>
+            <!-- Candidate List -->
+            <div class="col-md-8">
+                <div id="modal-candidate-list" style="max-height: 60vh; overflow-y: auto;">
+                    <!-- Candidates will be populated here -->
+                </div>
+            </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Bootstrap JS and Dependencies -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+<!-- Custom JavaScript -->
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Variables for the current document
+        var docIndex = {{ doc_index }};
+        var sessionId = '{{ session_id }}';
+        var totalToponyms = {{ total_toponyms }};
+        var annotatedToponyms = {{ annotated_toponyms }};
+        var progressBar = document.getElementById('progress-bar-' + docIndex);
+
+        // Restore the scroll position of the document list
+        var documentList = document.getElementById('document-list');
+        var savedScrollTop = sessionStorage.getItem('documentListScrollTop');
+        if (savedScrollTop !== null) {
+            documentList.scrollTop = savedScrollTop;
+        }
+
+        // Add event listener to document links to save scroll position before navigating
+        var documentLinks = document.querySelectorAll('#document-list a');
+        documentLinks.forEach(function(link) {
+            link.addEventListener('click', function() {
+                // Save the scroll position
+                sessionStorage.setItem('documentListScrollTop', documentList.scrollTop);
+            });
+        });
+
+        // Remove the inline transition style from progress bars after initial load
+        var progressBars = document.querySelectorAll('#document-list .progress-bar');
+        progressBars.forEach(function(progressBar) {
+            progressBar.style.transition = '';
+        });
+
+        // Event listeners for toponyms
+        var toponyms = document.querySelectorAll('.toponym');
+        toponyms.forEach(function(toponym) {
+            toponym.addEventListener('click', function(event) {
+                var start = parseInt(toponym.getAttribute('data-start'));
+                var end = parseInt(toponym.getAttribute('data-end'));
+                var text = toponym.textContent;
+
+                // Store current toponym info for use in modal
+                var currentToponym = {
+                    start: start,
+                    end: end,
+                    text: text,
+                    element: toponym
+                };
+
+                // Show the annotation modal
+                showAnnotationModal(currentToponym);
+            });
+        });
+
+        function showAnnotationModal(currentToponym) {
+            var modal = new bootstrap.Modal(document.getElementById('annotationModal'));
+            var modalCandidateList = document.getElementById('modal-candidate-list');
+            var modalFilterPanel = document.getElementById('modal-filter-panel');
+            var queryTextInput = document.getElementById('query-text-input');
+            var searchButton = document.getElementById('search-button');
+            var modalTitle = document.querySelector('#annotationModal .modal-title');
+
+            // Set the modal title to the toponym text
+            modalTitle.textContent = currentToponym.text;
+
+            // Set the query text input to the toponym text
+            queryTextInput.value = currentToponym.text;
+
+            // Function to fetch candidates based on query text
+            function fetchCandidates(queryText) {
+                fetch('{{ url_for("get_candidates") }}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        'session_id': sessionId,
+                        'doc_index': docIndex,
+                        'start': currentToponym.start,
+                        'end': currentToponym.end,
+                        'text': currentToponym.text,
+                        'query_text': queryText
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    populateCandidates(data.candidates, data.filter_attributes, data.existing_loc_id);
+                });
+            }
+
+            // Function to populate candidates and filters
+            function populateCandidates(candidates, filterAttributes, existing_loc_id) {
+                var currentFilters = {};
+                var filterInputs = {};
+
+                // Clear previous content
+                modalCandidateList.innerHTML = '';
+                modalFilterPanel.innerHTML = '';
+
+                // Prepare unique values for each filter attribute
+                var attributeValues = {};
+                filterAttributes.forEach(function(attribute) {
+                    attributeValues[attribute] = new Set();
+                });
+
+                candidates.forEach(function(candidate) {
+                    var attributes = candidate.attributes;
+                    filterAttributes.forEach(function(attribute) {
+                        if (attributes[attribute]) {
+                            attributeValues[attribute].add(attributes[attribute]);
+                        }
+                    });
+                });
+
+                // Create drop-down filters
+                filterAttributes.forEach(function(attribute) {
+                    var label = document.createElement('label');
+                    label.textContent = 'Filter by ' + attribute;
+                    label.classList.add('form-label');
+
+                    var select = document.createElement('select');
+                    select.dataset.attribute = attribute;
+                    select.classList.add('form-select', 'mb-3');
+
+                    // Add an empty option
+                    var emptyOption = document.createElement('option');
+                    emptyOption.value = '';
+                    emptyOption.textContent = 'All';
+                    select.appendChild(emptyOption);
+
+                    // Add options from attributeValues
+                    Array.from(attributeValues[attribute]).sort().forEach(function(value) {
+                        var option = document.createElement('option');
+                        option.value = value;
+                        option.textContent = value;
+                        select.appendChild(option);
+                    });
+
+                    modalFilterPanel.appendChild(label);
+                    modalFilterPanel.appendChild(select);
+                    filterInputs[attribute] = select;
+                });
+
+                // Add event listeners to filter inputs
+                Object.keys(filterInputs).forEach(function(attribute) {
+                    filterInputs[attribute].addEventListener('change', function() {
+                        var selectedValue = filterInputs[attribute].value.toLowerCase();
+                        currentFilters[attribute] = selectedValue;
+                        applyFilters();
+                    });
+                });
+
+                // Add 'None of the above' option
+                var noneOption = document.createElement('div');
+                noneOption.classList.add('candidate', 'p-2', 'border', 'mb-2');
+                noneOption.textContent = 'None';
+                noneOption.dataset.locId = null;
+                noneOption.addEventListener('click', function() {
+                    modal.hide();
+                    saveAnnotation(null);
+                });
+                modalCandidateList.appendChild(noneOption);
+
+                // Append candidateDivs to candidateContainer
+                candidates.forEach(function(candidate) {
+                    var candidateDiv = document.createElement('div');
+                    candidateDiv.classList.add('candidate', 'p-2', 'border', 'mb-2');
+                    candidateDiv.innerHTML = '<strong>' + candidate.description + '</strong>';
+                    candidateDiv.dataset.locId = candidate.loc_id;
+                    candidateDiv.dataset.attributes = JSON.stringify(candidate.attributes);
+
+                    // Highlight if this candidate is the existing selection
+                    if (existing_loc_id && candidate.loc_id == existing_loc_id) {
+                        candidateDiv.classList.add('bg-primary', 'text-white');
+                    }
+
+                    candidateDiv.addEventListener('click', function() {
+                        modal.hide();
+                        saveAnnotation(candidateDiv.dataset.locId);
+                    });
+                    modalCandidateList.appendChild(candidateDiv);
+                });
+
+                // Function to apply filters
+                function applyFilters() {
+                    var candidatesDivs = modalCandidateList.querySelectorAll('.candidate');
+                    candidatesDivs.forEach(function(candidateDiv) {
+                        if (!candidateDiv.dataset.attributes) {
+                            candidateDiv.style.display = 'block';
+                            return;
+                        }
+                        var attributes = JSON.parse(candidateDiv.dataset.attributes);
+                        var showCandidate = true;
+                        Object.keys(currentFilters).forEach(function(attribute) {
+                            var filterValue = currentFilters[attribute];
+                            var attributeValue = attributes[attribute] ? attributes[attribute].toString().toLowerCase() : '';
+                            if (filterValue && attributeValue !== filterValue) {
+                                showCandidate = false;
+                            }
+                        });
+                        candidateDiv.style.display = showCandidate ? 'block' : 'none';
+                    });
+                }
+            }
+
+            // Remove existing event listeners from the search button
+            searchButton.removeEventListener('click', searchButton._listener);
+
+            // Define a new search listener function
+            searchButton._listener = function() {
+                var queryText = queryTextInput.value.trim();
+                fetchCandidates(queryText);
+            };
+
+            // Add the new event listener to the search button
+            searchButton.addEventListener('click', searchButton._listener);
+
+            // Add 'Enter' key support for the query text input
+            queryTextInput.removeEventListener('keydown', queryTextInput._listener);
+            queryTextInput._listener = function(event) {
+                if (event.key === 'Enter') {
+                    event.preventDefault();
+                    searchButton.click();
+                }
+            };
+            queryTextInput.addEventListener('keydown', queryTextInput._listener);
+
+            // Fetch initial candidates using the toponym text
+            fetchCandidates(queryTextInput.value);
+
+            // Function to save the annotation
+            function saveAnnotation(loc_id) {
+                fetch('{{ url_for("save_annotation") }}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        'session_id': sessionId,
+                        'doc_index': docIndex,
+                        'annotation': {
+                            'toponym': currentToponym.text,
+                            'start': currentToponym.start,
+                            'end': currentToponym.end,
+                            'loc_id': loc_id
+                        }
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        // Update the toponym's class immediately
+                        var toponymElement = currentToponym.element;
+                        if (loc_id !== '' && !toponymElement.classList.contains('annotated')) {
+                            annotatedToponyms += 1;
+                            toponymElement.classList.add('annotated');
+                        } else if (loc_id === '' && toponymElement.classList.contains('annotated')) {
+                            annotatedToponyms -= 1;
+                            toponymElement.classList.remove('annotated');
+                        }
+                        // Update progress bar for the current document
+                        var progressPercentage = totalToponyms > 0 ? (annotatedToponyms / totalToponyms) * 100 : 0;
+                        progressBar.style.width = progressPercentage + '%';
+                        progressBar.setAttribute('aria-valuenow', progressPercentage);
+
+                        // Update progress bar in the sidebar
+                        var sidebarProgressBar = document.getElementById('progress-bar-' + docIndex);
+                        sidebarProgressBar.style.width = progressPercentage + '%';
+                        sidebarProgressBar.setAttribute('aria-valuenow', progressPercentage);
+                    }
+                });
+            }
+
+            // Show the modal
+            modal.show();
+        }
+
+        // Clear Annotations Confirmation Script
+        document.getElementById('clear-annotations-button').addEventListener('click', function() {
+            if (confirm('Are you sure you want to clear the annotations for all the documents in this session? This action cannot be undone.')) {
+                fetch('{{ url_for("clear_annotations", session_id=session_id) }}', { method: 'POST' })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+
+                        // Reset the annotations on the page
+                        // Remove 'annotated' class from all toponyms
+                        var toponyms = document.querySelectorAll('.toponym');
+                        toponyms.forEach(function(toponym) {
+                            toponym.classList.remove('annotated');
+                        });
+
+                        // Reset annotatedToponyms count
+                        annotatedToponyms = 0;
+
+                        // Update progress bar for the current document
+                        var progressPercentage = 0;
+                        progressBar.style.width = progressPercentage + '%';
+                        progressBar.setAttribute('aria-valuenow', progressPercentage);
+
+                        // Update progress bar in the sidebar
+                        var sidebarProgressBar = document.getElementById('progress-bar-' + docIndex);
+                        sidebarProgressBar.style.width = progressPercentage + '%';
+                        sidebarProgressBar.setAttribute('aria-valuenow', progressPercentage);
+
+                        // Reset progress bars for all documents
+                        {% for doc_item in documents %}
+                            (function() {
+                                var index = {{ doc_item.doc_index }};
+                                var progressBar = document.getElementById('progress-bar-' + index);
+                                progressBar.style.width = '0%';
+                                progressBar.setAttribute('aria-valuenow', 0);
+                            })();
+                        {% endfor %}
+                    } else {
+                        alert('Failed to clear annotations.');
+                    }
+                });
+            }
+        });
+
+        // Add Document Button
+        var addDocumentBtn = document.getElementById('add-document-btn');
+        var addDocumentModal = new bootstrap.Modal(document.getElementById('addDocumentModal'));
+        var addDocumentForm = document.getElementById('add-document-form');
+
+        addDocumentBtn.addEventListener('click', function() {
+            addDocumentModal.show();
+        });
+
+        addDocumentForm.addEventListener('submit', function(event) {
+            event.preventDefault();
+            var formData = new FormData(addDocumentForm);
+            formData.append('session_id', sessionId);
+
+            fetch('{{ url_for("add_documents") }}', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    // Reload the page to reflect new documents
+                    window.location.reload();
+                } else {
+                    alert('Failed to add documents.');
+                }
+            });
+        });
+
+        // Remove Document Buttons
+        var removeDocumentBtns = document.querySelectorAll('.remove-document-btn');
+        removeDocumentBtns.forEach(function(btn) {
+            btn.addEventListener('click', function(event) {
+                var docIndex = btn.getAttribute('data-doc-index');
+                if (confirm('Are you sure you want to remove this document? All annotations for this document will be lost.')) {
+                    fetch('{{ url_for("remove_document") }}', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            'session_id': sessionId,
+                            'doc_index': docIndex
+                        })
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.status === 'success') {
+                            // Reload the page to reflect document removal
+                            window.location.href = '{{ url_for("annotate", session_id=session_id, doc_index=0) }}';
+                        } else {
+                            alert('Failed to remove document.');
+                        }
+                    });
+                }
+            });
+        });
+    });
+</script>
+</body>
+</html>
