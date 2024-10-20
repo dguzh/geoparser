@@ -158,19 +158,20 @@ def test_populate_locations_table(geonames_patched: GeoNames):
     rows = cursor.execute(query).fetchall()
     # test data has 1000 rows
     assert len(rows) == 1000
-    expected_columns = [
-        "geonameid",
-        "name",
-        "feature_type",
-        "latitude",
-        "longitude",
-        "elevation",
-        "population",
-        "admin2_geonameid",
-        "admin2_name",
-        "admin1_geonameid",
-        "admin1_name",
-        "country_geonameid",
-        "country_name",
-    ]
-    assert len(rows[0]) == len(expected_columns)
+    actual_first_row = rows[0]
+    expected_first_row = (
+        2994701,
+        "Roc Meler",
+        "peak",
+        42.58765,
+        1.7418,
+        2811,
+        0,
+        None,
+        None,
+        3041203,
+        "Canillo",
+        3041565,
+        "Andorra",
+    )
+    assert actual_first_row == expected_first_row

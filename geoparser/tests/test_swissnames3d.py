@@ -161,3 +161,39 @@ def test_read_file(swissnames3d_patched: SwissNames3D, test_chunk_shp: pd.DataFr
     file_content = list(file_content)
     assert len(file_content) == n_chunks
     assert file_content[0].equals(test_chunk_shp)
+
+
+def test_populate_locations_table(swissnames3d_patched: SwissNames3D):
+    # setup: create other tables
+    for dataset in swissnames3d_patched.config.data:
+        swissnames3d_patched.load_data(dataset)
+    swissnames3d_patched.create_names_table()
+    swissnames3d_patched.populate_names_table()
+    swissnames3d_patched.create_names_fts_table()
+    swissnames3d_patched.populate_names_fts_table()
+    swissnames3d_patched.create_locations_table()
+    # actual test: populate locations table
+    query = "SELECT * FROM locations"
+    swissnames3d_patched._initiate_connection()
+    cursor = swissnames3d_patched._get_cursor()
+    rows = cursor.execute(query).fetchall()
+    assert not rows
+    swissnames3d_patched.populate_locations_table()
+    rows = cursor.execute(query).fetchall()
+    # test data has 7946 rows
+    assert len(rows) == 7946
+    actual_first_row = rows[0]
+    expected_first_row = (
+        "{00021F94-DE61-4EDA-BFFA-579FC7FD8628}",
+        "Hinteres Böhleli",
+        "Flurname swisstopo",
+        2748272,
+        1244316,
+        "{7E5D446E-92FA-41D4-9CDC-D956A9023139}",
+        "Appenzell",
+        None,
+        None,
+        "{05D55405-466B-4ECC-83C7-A906DEB0D607}",
+        "St. Gallen",
+    )
+    assert actual_first_row == expected_first_row
