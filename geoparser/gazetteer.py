@@ -30,13 +30,13 @@ class Gazetteer(ABC):
 
 
 class LocalDBGazetteer(Gazetteer):
-    _local = local()
 
     def __init__(self, gazetteer_name: str):
         super().__init__()
         self.data_dir = os.path.join(user_data_dir("geoparser", ""), gazetteer_name)
         self.db_path = os.path.join(self.data_dir, gazetteer_name + ".db")
         self.config = get_gazetteer_configs()[gazetteer_name]
+        self._local = local()
 
     def connect(func):
         def call(self, *args, **kwargs):

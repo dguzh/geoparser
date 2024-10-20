@@ -101,7 +101,6 @@ def test_get_cursor(localdb_gazetteer: LocalDBGazetteer):
     assert type(localdb_gazetteer._get_cursor()) == sqlite3.Cursor
 
 
-@pytest.mark.xfail(reason="test not yet adapted for threading changes")
 def test_execute_query(localdb_gazetteer: LocalDBGazetteer):
     query1 = "CREATE TABLE IF NOT EXISTS asdf (asdf TEXT)"
     query2 = "SELECT name FROM sqlite_master"
