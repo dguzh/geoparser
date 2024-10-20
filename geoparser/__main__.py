@@ -1,6 +1,6 @@
 import argparse
 
-from geoparser.constants import GAZETTEERS, MODES
+from geoparser.constants import DEFAULT_TRANSFORMER_MODEL, GAZETTEERS, MODES
 
 
 def parse_args() -> argparse.Namespace:
@@ -18,6 +18,12 @@ def parse_args() -> argparse.Namespace:
         nargs="?",
         help="Specify the gazetteer to set up (required for 'download' mode)",
     )
+    parser.add_argument(
+        "--transformer-model",
+        type=str,
+        default=DEFAULT_TRANSFORMER_MODEL,
+        help="Specify the transformer model in annotator mode",
+    )
     args = parser.parse_args()
     return args
 
@@ -32,7 +38,7 @@ def main(args: argparse.Namespace):
     elif args.mode == MODES["annotator"]:
         from geoparser.annotator import GeoparserAnnotator
 
-        annotator = GeoparserAnnotator()
+        annotator = GeoparserAnnotator(args.transformer_model)
         annotator.run()
     else:
         print(f"Unknown mode: {args.mode}")
