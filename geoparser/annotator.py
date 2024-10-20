@@ -66,7 +66,7 @@ class GeoparserAnnotator(Geoparser):
                 selected_gazetteer = request.form.get("gazetteer")
                 selected_spacy_model = request.form.get("spacy_model")
 
-                # Re-initialize gazetteer and nlp with selected options
+                # Initialize gazetteer and nlp with selected options
                 self.gazetteer = self.setup_gazetteer(selected_gazetteer)
                 self.nlp = self.setup_spacy(selected_spacy_model)
 
