@@ -1,5 +1,6 @@
 import sqlite3
 import tempfile
+import typing as t
 from pathlib import Path
 
 import pandas as pd
@@ -9,7 +10,61 @@ from requests_mock.mocker import Mocker
 
 from geoparser.config.models import Column, GazetteerData
 from geoparser.gazetteer import LocalDBGazetteer
+from geoparser.geonames import GeoNames
 from geoparser.tests.utils import get_static_test_file, make_concrete
+
+
+def check_table_creation(
+    gazetteer: t.Type[LocalDBGazetteer], table_name: str, method: str, *args, **kwargs
+):
+    """
+    helper function for checking if a table has been created properly.
+
+    provide LocalDBGazetteer (subclass) instance, a table name and
+    the instance method for creating the table. any number of args
+    and kwargs can be added.
+    """
+    # 1. table does not exist before creation
+    tables_query = "SELECT name FROM sqlite_master"
+    gazetteer._initiate_connection()
+    cursor = gazetteer._get_cursor()
+    tables_before = cursor.execute(tables_query).fetchall()
+    assert tables_before == [] or table_name not in tables_before[0]
+    # 2. create table with specified method
+    getattr(gazetteer, method)(*args, **kwargs)
+    # 3. table exists after creation
+    tables_after = cursor.execute(tables_query).fetchall()
+    assert len(tables_after) == 1 and table_name in tables_after[0]
+
+
+def check_table_population(
+    gazetteer: t.Type[LocalDBGazetteer],
+    table_name: str,
+    method: str,
+    expected_first_row: tuple[any, ...],
+    *args,
+    **kwargs,
+):
+    """
+    helper function for checking if a table has been populated properly.
+
+    provide LocalDBGazetteer (subclass) instance, a table name and
+    the instance method for populating the table. the function checks
+    if the expected first row has been added to the table. any number
+    of args and kwargs can be added.
+    """
+    # 1. table is empty before populating it
+    rows_query = f"SELECT * FROM {table_name}"
+    gazetteer._initiate_connection()
+    cursor = gazetteer._get_cursor()
+    rows_before = cursor.execute(rows_query).fetchall()
+    assert rows_before == []
+    # 2. populating the table with specified method
+    getattr(gazetteer, method)(*args, **kwargs)
+    # 3. table contains a specific first row
+    rows_after = cursor.execute(rows_query).fetchall()
+    assert len(rows_after) > 0
+    assert rows_after[0] == expected_first_row
 
 
 @pytest.fixture(scope="function")
@@ -82,6 +137,48 @@ def test_download_file(
     # a.txt downloaded as is, b.zip has been extracted and is still around
     zipfile = [raw_file] if raw_file.endswith(".zip") else []
     assert sorted(files) == sorted(dataset.extracted_files + zipfile)
+
+
+def test_create_data_table(geonames_patched: GeoNames):
+    table_data = geonames_patched.config.data[0]
+    check_table_creation(
+        geonames_patched, table_data.name, "create_data_table", table_data
+    )
+
+
+def test_populate_data_table(geonames_patched: GeoNames):
+    table_data = geonames_patched.config.data[0]
+    # setup: create table
+    geonames_patched.create_data_table(table_data)
+    # actual test: table is empty at first, then contains a specific row
+    expected_first_row = (
+        2994701,
+        "Roc Meler",
+        "Roc Meler",
+        "Roc Mele,Roc Meler,Roc Mélé",
+        42.58765,
+        1.7418,
+        "T",
+        "PK",
+        "AD",
+        "AD,FR",
+        "02",
+        None,
+        None,
+        None,
+        0,
+        2811,
+        2348,
+        "Europe/Andorra",
+        "2023-10-03",
+    )
+    check_table_population(
+        geonames_patched,
+        table_data.name,
+        "populate_data_table",
+        expected_first_row,
+        table_data,
+    )
 
 
 def test_initiate_connection(localdb_gazetteer: LocalDBGazetteer):
