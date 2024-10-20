@@ -34,7 +34,7 @@ def check_table_creation(
     getattr(gazetteer, method)(*args, **kwargs)
     # 3. table exists after creation
     tables_after = cursor.execute(tables_query).fetchall()
-    assert len(tables_after) == 1 and table_name in tables_after[0]
+    assert len(tables_after) > len(tables_before) and table_name in tables_after[0]
 
 
 def check_table_population(
@@ -179,6 +179,79 @@ def test_populate_data_table(geonames_patched: GeoNames):
         expected_first_row,
         table_data,
     )
+
+
+def test_create_names_table(geonames_patched: GeoNames):
+    check_table_creation(geonames_patched, "names", "create_names_table")
+
+
+def test_populate_names_table(geonames_patched: GeoNames):
+    # setup: create tables from previous steps
+    for dataset in geonames_patched.config.data:
+        geonames_patched.load_data(dataset)
+    geonames_patched.create_names_table()
+    # actual test: table is empty at first, then contains a specific row
+    expected_first_row = (
+        1,
+        2994701,
+        "Roc Meler",
+    )
+    check_table_population(
+        geonames_patched,
+        "names",
+        "populate_names_table",
+        expected_first_row,
+    )
+
+
+def test_create_names_fts_table(geonames_patched: GeoNames):
+    check_table_creation(geonames_patched, "names_fts", "create_names_fts_table")
+
+
+def test_populate_names_fts_table(geonames_patched: GeoNames):
+    # setup: create tables from previous steps
+    for dataset in geonames_patched.config.data:
+        geonames_patched.load_data(dataset)
+    geonames_patched.create_names_table()
+    geonames_patched.populate_names_table()
+    geonames_patched.create_names_fts_table()
+    # 1. table has some rows before populating it further
+    rows_query = f"SELECT * FROM names_fts"
+    geonames_patched._initiate_connection()
+    cursor = geonames_patched._get_cursor()
+    rows_before = cursor.execute(rows_query).fetchall()
+    # 2. populating the table with specified method
+    geonames_patched.populate_names_fts_table()
+    # 3. there are no changes to table rows
+    rows_after = cursor.execute(rows_query).fetchall()
+    assert rows_before == rows_after
+
+
+def test_create_locations_table(geonames_patched: GeoNames):
+    check_table_creation(geonames_patched, "locations", "create_locations_table")
+
+
+def test_drop_redundant_tables(geonames_patched: GeoNames):
+    # setup: create tables from previous steps
+    for dataset in geonames_patched.config.data:
+        geonames_patched.load_data(dataset)
+    geonames_patched.create_names_table()
+    geonames_patched.populate_names_table()
+    geonames_patched.create_names_fts_table()
+    geonames_patched.populate_names_fts_table()
+    geonames_patched.create_locations_table()
+    geonames_patched.populate_locations_table()
+    # 1. all data tables are redundant
+    redundant_tables = [dataset.name for dataset in geonames_patched.config.data]
+    tables_query = "SELECT name FROM sqlite_master"
+    geonames_patched._initiate_connection()
+    cursor = geonames_patched._get_cursor()
+    geonames_patched._commit()
+    # 2. removing redundant tables
+    geonames_patched.drop_redundant_tables()
+    # all redundant tables have been dropped
+    tables_after = cursor.execute(tables_query).fetchall()[0]
+    assert all([table not in tables_after for table in redundant_tables])
 
 
 def test_initiate_connection(localdb_gazetteer: LocalDBGazetteer):
