@@ -56,7 +56,15 @@ These files are temporarily stored in your system's user-specific data directory
 
 Please ensure you have enough disk space available. The final size of the downloaded GeoNames data will be approximately 3.2 GB, increasing temporarily to around 5 GB during the download and setup process.
 
-**Note:** The library currently only supports the GeoNames gazetteer, but the framework allows for future extensions with other knowledge bases.
+#### Downloading multiple gazetteers
+
+You can use the same command mentioned above to set up multiple gazetteers:
+
+```bash
+python -m geoparser download geonames swissnames3d
+```
+
+
 
 ## Usage
 
