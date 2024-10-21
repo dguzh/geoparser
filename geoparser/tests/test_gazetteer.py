@@ -101,9 +101,9 @@ def test_get_cursor(localdb_gazetteer: LocalDBGazetteer):
     assert type(localdb_gazetteer._get_cursor()) == sqlite3.Cursor
 
 
-# def test_execute_query(localdb_gazetteer: LocalDBGazetteer):
-#     query1 = "CREATE TABLE IF NOT EXISTS asdf (asdf TEXT)"
-#     query2 = "SELECT name FROM sqlite_master"
-#     localdb_gazetteer.execute_query(query1)
-#     tables = [table for table in localdb_gazetteer.execute_query(query2)[0]]
-#     assert ["asdf"] == tables
+def test_execute_query(localdb_gazetteer: LocalDBGazetteer):
+    query1 = "CREATE TABLE IF NOT EXISTS asdf (asdf TEXT)"
+    query2 = "SELECT name FROM sqlite_master"
+    localdb_gazetteer.execute_query(query1)
+    tables = [table for table in localdb_gazetteer.execute_query(query2)[0]]
+    assert ["asdf"] == tables
