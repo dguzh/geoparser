@@ -80,7 +80,6 @@ class GeoparserAnnotator(Geoparser):
                     "created_at": datetime.now().isoformat(),
                     "last_updated": datetime.now().isoformat(),
                     "gazetteer": selected_gazetteer,
-                    "spacy_model": selected_spacy_model,
                     "documents": [],
                 }
 
@@ -100,6 +99,7 @@ class GeoparserAnnotator(Geoparser):
                     session["documents"].append(
                         {
                             "filename": file.filename,
+                            "spacy_model": selected_spacy_model,
                             "text": text,
                             "toponyms": toponyms,
                         }
@@ -454,6 +454,7 @@ class GeoparserAnnotator(Geoparser):
                 session["documents"].append(
                     {
                         "filename": filename,
+                        "spacy_model": selected_spacy_model,
                         "text": text,
                         "toponyms": toponyms,
                     }
