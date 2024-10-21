@@ -22,16 +22,14 @@ from markupsafe import Markup
 from spacy.util import get_installed_models
 from werkzeug.utils import secure_filename
 
-from geoparser.constants import GAZETTEERS
+from geoparser.constants import DEFAULT_TRANSFORMER_MODEL, GAZETTEERS
 from geoparser.geoparser import Geoparser
 
 
 class GeoparserAnnotator(Geoparser):
-    def __init__(self, *args, **kwargs):
-        # Do not initialize spacy model here
-        super().__init__(
-            transformer_model="dguzh/geo-all-MiniLM-L6-v2", *args, **kwargs
-        )
+    def __init__(self, transformer_model=DEFAULT_TRANSFORMER_MODEL, *args, **kwargs):
+        # Only initialize transformer_model here
+        self.transformer = self.setup_transformer(transformer_model)
         template_dir = os.path.abspath(
             os.path.join(os.path.dirname(__file__), "templates")
         )
@@ -68,7 +66,7 @@ class GeoparserAnnotator(Geoparser):
                 selected_gazetteer = request.form.get("gazetteer")
                 selected_spacy_model = request.form.get("spacy_model")
 
-                # Re-initialize gazetteer and nlp with selected options
+                # Initialize gazetteer and nlp with selected options
                 self.gazetteer = self.setup_gazetteer(selected_gazetteer)
                 self.nlp = self.setup_spacy(selected_spacy_model)
 
