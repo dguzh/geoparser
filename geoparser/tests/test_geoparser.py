@@ -146,12 +146,11 @@ def test_resolve_toponym(
 
 def test_resolve(
     geoparser_real_data: Geoparser,
-    geonames_real_data: GeoNames,
     geodocs: list[GeoDoc],
     radio_andorra_id: int,
 ):
     resolved_docs = geoparser_real_data.resolve(geodocs)
-    roc_meler = geodocs[0].toponyms[0]
+    roc_meler = resolved_docs[0].toponyms[0]
     # roc meler will be matched
     assert roc_meler._.loc_id == radio_andorra_id
     assert type(roc_meler._.loc_score) is float
