@@ -29,9 +29,10 @@ from geoparser.geoparser import Geoparser
 class GeoparserAnnotator(Geoparser):
     def __init__(self, *args, **kwargs):
         # Do not initialize spacy model here
-        super().__init__(
-            transformer_model="dguzh/geo-all-MiniLM-L6-v2", *args, **kwargs
-        )
+        self.gazetteer = None
+        self.nlp = None
+        self.transformer = None
+
         template_dir = os.path.abspath(
             os.path.join(os.path.dirname(__file__), "templates")
         )
