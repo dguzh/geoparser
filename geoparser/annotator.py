@@ -143,6 +143,9 @@ class GeoparserAnnotator(Geoparser):
                     self.current_session_id = selected_session_id
                     self.sessions[selected_session_id] = session
 
+                    # Re-initialize gazetteer
+                    self.gazetteer = self.setup_gazetteer(session["gazetteer"])
+
                     # Redirect to annotate page
                     return redirect(
                         url_for("annotate", session_id=selected_session_id, doc_index=0)
@@ -169,6 +172,9 @@ class GeoparserAnnotator(Geoparser):
                         # Update current session
                         self.current_session_id = session_id
                         self.sessions[session_id] = session_data
+
+                        # Re-initialize gazetteer
+                        self.gazetteer = self.setup_gazetteer(session["gazetteer"])
 
                         # Redirect to annotate page
                         return redirect(
