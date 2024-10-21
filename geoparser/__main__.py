@@ -14,6 +14,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "gazetteer",
         type=str,
+        nargs="+",
         choices=GAZETTEERS.keys(),
         help="specify the gazetteer to set up",
     )
@@ -23,8 +24,9 @@ def parse_args() -> argparse.Namespace:
 
 def main(args: argparse.Namespace):
     if args.mode == MODES["download"]:
-        gazetteer = GAZETTEERS[args.gazetteer]()
-        gazetteer.setup_database()
+        for gazetteer_name in args.gazetteer:
+            gazetteer = GAZETTEERS[gazetteer_name]()
+            gazetteer.setup_database()
 
 
 if __name__ == "__main__":
