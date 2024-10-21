@@ -56,7 +56,7 @@ def test_setup_gazetteer(geoparser: Geoparser, gazetteer: str):
         assert issubclass(type(gazetteer), Gazetteer)
 
 
-@pytest.mark.parametrize("spacy_model", ["en_core_web_sm", "en_core_web_trf"])
+@pytest.mark.parametrize("spacy_model", ["en_core_web_sm", "mk_core_news_sm"])
 def test_setup_spacy(geoparser: Geoparser, spacy_model: str):
     with nullcontext() if spacy_model == "en_core_web_sm" else pytest.raises(OSError):
         nlp = geoparser.setup_spacy(spacy_model)
