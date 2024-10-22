@@ -336,7 +336,9 @@ class GeoparserAnnotator(Geoparser):
                 return jsonify({"error": "Toponym not found"}), 404
 
             # Update the loc_id
-            toponym["loc_id"] = annotation["loc_id"] if annotation["loc_id"] is not None else None
+            toponym["loc_id"] = (
+                annotation["loc_id"] if annotation["loc_id"] is not None else None
+            )
 
             # Update last_updated timestamp
             session["last_updated"] = datetime.now().isoformat()
