@@ -350,7 +350,7 @@ class LocalDBGazetteer(Gazetteer):
     def query_candidates(
         self,
         toponym: str,
-    ) -> list[int]:
+    ) -> list[str]:
 
         location_identifier = self.config.location_identifier
 
@@ -366,7 +366,7 @@ class LocalDBGazetteer(Gazetteer):
                 FROM names_fts
                 WHERE names_fts MATCH ?
             )
-            SELECT {location_identifier}
+            SELECT CAST({location_identifier} AS TEXT)
             FROM RankedMatches
             WHERE RankedMatches.rank = (SELECT MinRank FROM MinRank)
             GROUP BY {location_identifier}
@@ -376,7 +376,7 @@ class LocalDBGazetteer(Gazetteer):
         return [row[0] for row in result]
 
     def query_location_info(
-        self, location_ids: list[int], batch_size: int = 500
+        self, location_ids: list[str], batch_size: int = 500
     ) -> list[dict]:
         location_identifier = self.config.location_identifier
 

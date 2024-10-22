@@ -2,7 +2,7 @@
   location_identifier: geonameid
   location_columns:
   - name: geonameid
-    type: INTEGER
+    type: TEXT
     primary: true
   - name: name
     type: TEXT
@@ -17,15 +17,15 @@
   - name: population
     type: INTEGER
   - name: admin2_geonameid
-    type: INTEGER
+    type: TEXT
   - name: admin2_name
     type: TEXT
   - name: admin1_geonameid
-    type: INTEGER
+    type: TEXT
   - name: admin1_name
     type: TEXT
   - name: country_geonameid
-    type: INTEGER
+    type: TEXT
   - name: country_name
     type: TEXT
   data:
@@ -35,7 +35,7 @@
     - allCountries.txt
     columns:
     - name: geonameid
-      type: INTEGER
+      type: TEXT
       primary: true
     - name: name
       type: TEXT
@@ -90,7 +90,7 @@
     - name: asciiname
       type: TEXT
     - name: geonameid
-      type: INTEGER
+      type: TEXT
   - name: admin2Codes
     url: https://download.geonames.org/export/dump/admin2Codes.txt
     extracted_files:
@@ -104,7 +104,7 @@
     - name: asciiname
       type: TEXT
     - name: geonameid
-      type: INTEGER
+      type: TEXT
   - name: countryInfo
     url: https://download.geonames.org/export/dump/countryInfo.txt
     extracted_files:
@@ -144,7 +144,7 @@
     - name: Languages
       type: TEXT
     - name: geonameid
-      type: INTEGER
+      type: TEXT
     - name: neighbours
       type: TEXT
     - name: EquivalentFipsCode
