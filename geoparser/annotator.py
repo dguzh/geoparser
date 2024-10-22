@@ -322,6 +322,7 @@ class GeoparserAnnotator(Geoparser):
 
             doc = session["documents"][doc_index]
             toponyms = doc["toponyms"]
+            # Find the toponym to update
             toponym = next(
                 (
                     t
@@ -491,6 +492,224 @@ class GeoparserAnnotator(Geoparser):
                 return jsonify(
                     {"status": "error", "message": "Invalid document index."}
                 )
+
+        @self.app.route("/delete_annotation", methods=["POST"])
+        def delete_annotation():
+            data = request.json
+            session_id = data["session_id"]
+            doc_index = data["doc_index"]
+            start = data["start"]
+            end = data["end"]
+
+            session = self.load_session_from_cache(session_id)
+            if not session:
+                return jsonify({"error": "Session not found"}), 404
+
+            doc = session["documents"][doc_index]
+            toponyms = doc["toponyms"]
+            # Find the toponym to delete
+            toponym = next(
+                (t for t in toponyms if t["start"] == start and t["end"] == end),
+                None,
+            )
+            if not toponym:
+                return jsonify({"error": "Toponym not found"}), 404
+
+            # Remove the toponym
+            toponyms.remove(toponym)
+
+            # Update last_updated timestamp
+            session["last_updated"] = datetime.now().isoformat()
+
+            # Save session
+            session_file_path = os.path.join(self.cache_dir, f"{session_id}.json")
+            with open(session_file_path, "w", encoding="utf-8") as f:
+                json.dump(session, f, ensure_ascii=False, indent=4)
+
+            # Recalculate progress for the current document
+            total_toponyms = len(toponyms)
+            annotated_toponyms = sum(1 for t in toponyms if t["loc_id"] != "")
+            progress_percentage = (
+                (annotated_toponyms / total_toponyms) * 100 if total_toponyms > 0 else 0
+            )
+
+            return jsonify(
+                {
+                    "status": "success",
+                    "annotated_toponyms": annotated_toponyms,
+                    "total_toponyms": total_toponyms,
+                    "progress_percentage": progress_percentage,
+                }
+            )
+
+        @self.app.route("/edit_annotation", methods=["POST"])
+        def edit_annotation():
+            data = request.json
+            session_id = data["session_id"]
+            doc_index = data["doc_index"]
+            old_start = data["old_start"]
+            old_end = data["old_end"]
+            new_start = data["new_start"]
+            new_end = data["new_end"]
+            new_text = data["new_text"]
+
+            session = self.load_session_from_cache(session_id)
+            if not session:
+                return jsonify({"error": "Session not found"}), 404
+
+            doc = session["documents"][doc_index]
+            toponyms = doc["toponyms"]
+
+            # Find the toponym to edit
+            toponym = next(
+                (
+                    t
+                    for t in toponyms
+                    if t["start"] == old_start and t["end"] == old_end
+                ),
+                None,
+            )
+            if not toponym:
+                return jsonify({"error": "Toponym not found"}), 404
+
+            # Update the toponym
+            toponym["start"] = new_start
+            toponym["end"] = new_end
+            toponym["text"] = new_text
+            # Reset loc_id since the text has changed
+            toponym["loc_id"] = ""
+
+            # Update last_updated timestamp
+            session["last_updated"] = datetime.now().isoformat()
+
+            # Save session
+            session_file_path = os.path.join(self.cache_dir, f"{session_id}.json")
+            with open(session_file_path, "w", encoding="utf-8") as f:
+                json.dump(session, f, ensure_ascii=False, indent=4)
+
+            # Recalculate progress for the current document
+            total_toponyms = len(toponyms)
+            annotated_toponyms = sum(1 for t in toponyms if t["loc_id"] != "")
+            progress_percentage = (
+                (annotated_toponyms / total_toponyms) * 100 if total_toponyms > 0 else 0
+            )
+
+            return jsonify(
+                {
+                    "status": "success",
+                    "annotated_toponyms": annotated_toponyms,
+                    "total_toponyms": total_toponyms,
+                    "progress_percentage": progress_percentage,
+                }
+            )
+
+        @self.app.route("/create_annotation", methods=["POST"])
+        def create_annotation():
+            data = request.json
+            session_id = data["session_id"]
+            doc_index = data["doc_index"]
+            start = data["start"]
+            end = data["end"]
+            text = data["text"]
+
+            session = self.load_session_from_cache(session_id)
+            if not session:
+                return jsonify({"error": "Session not found"}), 404
+
+            doc = session["documents"][doc_index]
+            toponyms = doc["toponyms"]
+
+            # Check if there is already an annotation at this position
+            existing_toponym = next(
+                (t for t in toponyms if t["start"] == start and t["end"] == end),
+                None,
+            )
+            if existing_toponym:
+                return jsonify({"error": "Toponym already exists"}), 400
+
+            # Add new toponym
+            toponym = {
+                "text": text,
+                "start": start,
+                "end": end,
+                "loc_id": "",  # Empty loc_id
+            }
+            toponyms.append(toponym)
+
+            # Sort toponyms by start position
+            toponyms.sort(key=lambda x: x["start"])
+
+            # Update last_updated timestamp
+            session["last_updated"] = datetime.now().isoformat()
+
+            # Save session
+            session_file_path = os.path.join(self.cache_dir, f"{session_id}.json")
+            with open(session_file_path, "w", encoding="utf-8") as f:
+                json.dump(session, f, ensure_ascii=False, indent=4)
+
+            # Recalculate progress for the current document
+            total_toponyms = len(toponyms)
+            annotated_toponyms = sum(1 for t in toponyms if t["loc_id"] != "")
+            progress_percentage = (
+                (annotated_toponyms / total_toponyms) * 100 if total_toponyms > 0 else 0
+            )
+
+            return jsonify(
+                {
+                    "status": "success",
+                    "annotated_toponyms": annotated_toponyms,
+                    "total_toponyms": total_toponyms,
+                    "progress_percentage": progress_percentage,
+                }
+            )
+
+        @self.app.route("/get_document_text", methods=["POST"])
+        def get_document_text():
+            data = request.json
+            session_id = data["session_id"]
+            doc_index = data["doc_index"]
+
+            session = self.load_session_from_cache(session_id)
+            if not session:
+                return jsonify({"status": "error", "error": "Session not found"}), 404
+
+            doc = session["documents"][doc_index]
+
+            # Prepare pre-annotated text
+            pre_annotated_text = self.get_pre_annotated_text(
+                doc["text"], doc["toponyms"]
+            )
+
+            return jsonify(
+                {"status": "success", "pre_annotated_text": pre_annotated_text}
+            )
+
+        @self.app.route("/get_document_progress", methods=["POST"])
+        def get_document_progress():
+            data = request.json
+            session_id = data["session_id"]
+            doc_index = data["doc_index"]
+
+            session = self.load_session_from_cache(session_id)
+            if not session:
+                return jsonify({"status": "error", "error": "Session not found"}), 404
+
+            doc = session["documents"][doc_index]
+            toponyms = doc["toponyms"]
+            total_toponyms = len(toponyms)
+            annotated_toponyms = sum(1 for t in toponyms if t["loc_id"] != "")
+            progress_percentage = (
+                (annotated_toponyms / total_toponyms) * 100 if total_toponyms > 0 else 0
+            )
+
+            return jsonify(
+                {
+                    "status": "success",
+                    "annotated_toponyms": annotated_toponyms,
+                    "total_toponyms": total_toponyms,
+                    "progress_percentage": progress_percentage,
+                }
+            )
 
     def get_cached_sessions(self):
         sessions = []
