@@ -591,8 +591,6 @@ class GeoparserAnnotator(Geoparser):
             toponym["start"] = new_start
             toponym["end"] = new_end
             toponym["text"] = new_text
-            # Reset loc_id since the text has changed
-            toponym["loc_id"] = ""
 
             # Update last_updated timestamp
             session["last_updated"] = datetime.now().isoformat()
