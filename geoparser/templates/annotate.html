@@ -107,6 +107,24 @@
         .drag-handle.right {
             right: -5px;
         }
+        .deselect-btn {
+            cursor: pointer;
+            color: white;  /* White color to match the highlighted background */
+            padding-left: 10px;
+        }
+        .deselect-btn:hover {
+            color: #dc3545;  /* Hover effect to change the icon to red */
+        }
+        .candidate {
+            position: relative;
+            padding-right: 1rem;  /* Add space for the deselect button */
+        }
+        .deselect-btn {
+            position: absolute;
+            right: 1rem;  /* Align the button to the right edge of the candidate */
+            top: 50%;      /* Vertically center the button */
+            transform: translateY(-50%);
+        }
     </style>
 </head>
 <body>
@@ -127,7 +145,7 @@
     <div class="row">
         <!-- Left Sidebar (Documents) -->
         <div class="col-md-2 bg-light border-end" id="sidebar">
-            <div class="d-flex align-items-center mt-3 mb-2" style="padding-right: 1rem">
+            <div class="d-flex align-items-center mt-3 mb-2" style="padding-right: 2rem">
                 <h2 class="flex-grow-1 mb-0">Documents</h2>
                 <!-- Add Document Button -->
                 <button type="button" class="btn btn-primary btn-sm" id="add-document-btn" title="Add Document">
@@ -769,7 +787,25 @@
                 var noneOption = document.createElement('div');
                 noneOption.classList.add('candidate', 'p-2', 'border', 'mb-2');
                 noneOption.textContent = 'None';
-                noneOption.dataset.locId = null;
+                noneOption.dataset.locId = 'null'; // Use string 'null' for dataset
+
+                // If 'None' is selected, highlight it and add a deselect button
+                if (existing_loc_id === null) {
+                    noneOption.classList.add('bg-primary', 'text-white');
+
+                    // Add deselect button (aligned to the right)
+                    var deselectBtn = document.createElement('span');
+                    deselectBtn.classList.add('deselect-btn', 'ms-2');
+                    deselectBtn.innerHTML = '<i class="bi bi-x-circle-fill"></i>';
+                    deselectBtn.addEventListener('click', function(event) {
+                        event.stopPropagation(); // Prevent triggering the candidate click
+                        deselectCandidate(); // Deselect the 'None' option
+                    });
+
+                    noneOption.appendChild(deselectBtn);
+                    noneOption.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+
                 noneOption.addEventListener('click', function() {
                     modal.hide();
                     saveAnnotation(null);
@@ -780,13 +816,26 @@
                 candidates.forEach(function(candidate) {
                     var candidateDiv = document.createElement('div');
                     candidateDiv.classList.add('candidate', 'p-2', 'border', 'mb-2');
-                    candidateDiv.innerHTML = '<strong>' + candidate.description + '</strong>';
+                    candidateDiv.innerHTML = candidate.description;
                     candidateDiv.dataset.locId = candidate.loc_id;
                     candidateDiv.dataset.attributes = JSON.stringify(candidate.attributes);
 
                     // Highlight if this candidate is the existing selection
-                    if (existing_loc_id && candidate.loc_id == existing_loc_id) {
+                    if (existing_loc_id !== null && candidate.loc_id == existing_loc_id) {
                         candidateDiv.classList.add('bg-primary', 'text-white');
+
+                        // Add deselect button (icon)
+                        var deselectBtn = document.createElement('span');
+                        deselectBtn.classList.add('deselect-btn', 'ms-2'); // Add margin for spacing
+                        deselectBtn.innerHTML = '<i class="bi bi-x-circle-fill"></i>'; // Bootstrap X icon
+
+                        // Add click event to the deselect button
+                        deselectBtn.addEventListener('click', function(event) {
+                            event.stopPropagation(); // Prevent triggering the candidate click
+                            deselectCandidate();
+                        });
+
+                        candidateDiv.appendChild(deselectBtn);
                     }
 
                     candidateDiv.addEventListener('click', function() {
@@ -795,6 +844,37 @@
                     });
                     modalCandidateList.appendChild(candidateDiv);
                 });
+
+                function deselectCandidate() {
+                    fetch('{{ url_for("save_annotation") }}', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            'session_id': sessionId,
+                            'doc_index': docIndex,
+                            'annotation': {
+                                'toponym': currentToponym.text,
+                                'start': currentToponym.start,
+                                'end': currentToponym.end,
+                                'loc_id': ''  // Reset loc_id to empty string
+                            }
+                        })
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.status === 'success') {
+                            // Refresh candidate list by calling get_candidates again
+                            fetchCandidates(currentToponym.text);
+                            // Update progress bar and re-render document text
+                            updateProgressBar();
+                            reloadDocumentText();
+                        } else {
+                            alert('Failed to deselect candidate: ' + data.error);
+                        }
+                    });
+                }
 
                 // Function to apply filters
                 function applyFilters() {
