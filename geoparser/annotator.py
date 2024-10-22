@@ -290,13 +290,17 @@ class GeoparserAnnotator(Geoparser):
             existing_loc_id = toponym.get("loc_id", "")
 
             if existing_loc_id:
-                existing_location = self.gazetteer.query_location_info([existing_loc_id])[0]
-                existing_description = self.gazetteer.get_location_description(existing_location)
+                existing_location = self.gazetteer.query_location_info(
+                    [existing_loc_id]
+                )[0]
+                existing_description = self.gazetteer.get_location_description(
+                    existing_location
+                )
                 existing_annotation = {
-                        "loc_id": existing_loc_id,
-                        "description": existing_description,
-                        "attributes": existing_location,
-                    }
+                    "loc_id": existing_loc_id,
+                    "description": existing_description,
+                    "attributes": existing_location,
+                }
 
                 if existing_loc_id in candidates:
                     candidate_descriptions.remove(existing_annotation)
