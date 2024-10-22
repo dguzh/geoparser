@@ -53,6 +53,9 @@
             padding: 1rem;
             margin: 0;
         }
+        #document-list {
+            visibility: hidden;
+        }
         #document-text {
             white-space: pre-wrap;
         }
@@ -276,6 +279,33 @@
         var originalStart = 0;
         var originalEnd = 0;
         var currentToponymElement = null;
+
+        var documentList = document.getElementById('document-list');
+        
+        // Function to restore scroll position
+        function restoreScrollPosition() {
+            var savedScrollPos = sessionStorage.getItem('scrollPos');
+            if (savedScrollPos !== null) {
+                documentList.scrollTop = parseInt(savedScrollPos, 10);
+            }
+            // After restoring the scroll position, make the panel visible
+            documentList.style.visibility = 'visible';
+        }
+
+        // Hide the panel until the scroll is restored
+        documentList.style.visibility = 'hidden';
+
+        // Restore the scroll position when the page loads
+        restoreScrollPosition();
+
+        // Event delegation to save scroll position when a document link is clicked
+        documentList.addEventListener('click', function(event) {
+            var link = event.target.closest('a');
+            if (link) {
+                var scrollPos = documentList.scrollTop;
+                sessionStorage.setItem('scrollPos', scrollPos);
+            }
+        });
 
         // Event delegation for clicks and context menu in the document text
         documentText.addEventListener('click', function(event) {
