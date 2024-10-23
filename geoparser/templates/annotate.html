@@ -361,21 +361,25 @@
                 var selectedText = selection.toString().trim();
                 if (selectedText.length > 0) {
                     var range = selection.getRangeAt(0);
-                    var startContainer = range.startContainer;
-                    var endContainer = range.endContainer;
+                    var originalText = range.toString();
 
-                    if (documentText.contains(startContainer) && documentText.contains(endContainer)) {
-                        var startOffset = getCharOffset(range.startContainer, range.startOffset);
-                        var endOffset = getCharOffset(range.endContainer, range.endOffset);
+                    // Trim the selected text to remove leading and trailing whitespaces
+                    var trimmedText = originalText.trim();
 
-                        selectedToponym = {
-                            start: startOffset,
-                            end: endOffset,
-                            text: selectedText
-                        };
+                    // Calculate the difference caused by trimming leading and trailing whitespaces
+                    var leadingWhitespaceLength = originalText.length - originalText.trimStart().length;
+                    var trailingWhitespaceLength = originalText.length - originalText.trimEnd().length;
 
-                        showContextMenu(event.pageX, event.pageY, false);
-                    }
+                    var startOffset = getCharOffset(range.startContainer, range.startOffset) + leadingWhitespaceLength;
+                    var endOffset = getCharOffset(range.endContainer, range.endOffset) - (originalText.length - trimmedText.length - leadingWhitespaceLength);
+
+                    selectedToponym = {
+                        start: startOffset,
+                        end: endOffset,
+                        text: trimmedText  // Now use the trimmed text for the annotation
+                    };
+
+                    showContextMenu(event.pageX, event.pageY, false);
                 }
             }
         });
