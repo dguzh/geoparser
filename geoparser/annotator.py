@@ -1,5 +1,6 @@
 import json
 import os
+import tempfile
 import threading
 import uuid
 import webbrowser
@@ -390,21 +391,26 @@ class GeoparserAnnotator(Geoparser):
             # Prepare annotations file for download
             annotations_data = session
 
-            # Save to a temporary file
-            temp_file_path = os.path.join(self.cache_dir, f"{session_id}_download.json")
-            with open(temp_file_path, "w", encoding="utf-8") as f:
-                json.dump(annotations_data, f, ensure_ascii=False, indent=4)
+            # Create a temporary file
+            with tempfile.NamedTemporaryFile(
+                delete=False, suffix=".json", mode="w+", encoding="utf-8"
+            ) as temp_file:
+                temp_file_name = temp_file.name  # Store the file name to use it later
+                json.dump(annotations_data, temp_file, ensure_ascii=False, indent=4)
 
+            # Ensure the file is deleted after some delay
             @after_this_request
             def remove_file(response):
-                try:
-                    os.remove(temp_file_path)
-                except Exception as error:
-                    print("Error removing or closing downloaded file handle", error)
+                def delayed_delete(file_path):
+                    os.remove(file_path)
+
+                # Delay the deletion to ensure the file is no longer in use
+                threading.Timer(1, delayed_delete, args=[temp_file_name]).start()
                 return response
 
+            # Send the file to the client
             return send_file(
-                temp_file_path,
+                temp_file_name,
                 as_attachment=True,
                 download_name=f"annotations_{session_id}.json",
             )
