@@ -93,13 +93,13 @@ def test_geospan_location(first_geodoc: GeoDoc):
     geospan = first_geodoc.toponyms[0]
     location = geospan.location
     expected = {
-        "geonameid": 3039328,
+        "geonameid": "3039328",
         "name": "Radio Andorra",
         "admin2_geonameid": None,
         "admin2_name": None,
-        "admin1_geonameid": 3040684,
+        "admin1_geonameid": "3040684",
         "admin1_name": "Encamp",
-        "country_geonameid": 3041565,
+        "country_geonameid": "3041565",
         "country_name": "Andorra",
         "feature_type": "radio station",
         "latitude": 42.5282,
@@ -122,7 +122,7 @@ def test_geospan_candidates(first_geodoc: GeoDoc):
     candidates = geospan.candidates
     assert type(candidates) is list
     for elem in candidates:
-        assert type(elem) is int
+        assert type(elem) is str
 
 
 @pytest.mark.parametrize(
