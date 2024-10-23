@@ -317,13 +317,10 @@
         // Restore the scroll position when the page loads
         restoreScrollPosition();
 
-        // Event delegation to save scroll position when a document link is clicked
-        documentList.addEventListener('click', function(event) {
-            var link = event.target.closest('a');
-            if (link) {
-                var scrollPos = documentList.scrollTop;
-                sessionStorage.setItem('scrollPos', scrollPos);
-            }
+        // Save the scroll position whenever the user scrolls the Documents panel
+        documentList.addEventListener('scroll', function() {
+            var scrollPos = documentList.scrollTop;
+            sessionStorage.setItem('scrollPos', scrollPos);
         });
 
         // Event delegation for clicks and context menu in the document text
