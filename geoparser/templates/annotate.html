@@ -806,6 +806,7 @@
                         event.stopPropagation(); // Prevent triggering the candidate click
                         deselectCandidate(); // Deselect the 'None' option
                         modal.hide();
+                        modalCandidateList.scrollTop = 0;
                     });
 
                     noneOption.appendChild(deselectBtn);
@@ -814,6 +815,7 @@
 
                 noneOption.addEventListener('click', function() {
                     modal.hide();
+                    modalCandidateList.scrollTop = 0;
                     saveAnnotation(null);
                 });
                 modalCandidateList.appendChild(noneOption);
@@ -840,6 +842,7 @@
                             event.stopPropagation(); // Prevent triggering the candidate click
                             deselectCandidate();
                             modal.hide();
+                            modalCandidateList.scrollTop = 0;
                         });
 
                         candidateDiv.appendChild(deselectBtn);
@@ -847,6 +850,7 @@
 
                     candidateDiv.addEventListener('click', function() {
                         modal.hide();
+                        modalCandidateList.scrollTop = 0;
                         saveAnnotation(candidateDiv.dataset.locId);
                     });
                     modalCandidateList.appendChild(candidateDiv);
