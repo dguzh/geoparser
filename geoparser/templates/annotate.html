@@ -132,10 +132,11 @@
 <!-- Navbar -->
 <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
     <div class="container-fluid">
-        <a class="navbar-brand" href="{{ url_for('index') }}">Geoparser Annotator</a>
+        <a class="navbar-brand" title="Home" href="{{ url_for('index') }}">Geoparser Annotator</a>
         <div class="ms-auto">
-            <a href="{{ url_for('download_annotations', session_id=session_id) }}" class="btn btn-outline-light me-2">Download</a>
-            <button type="button" class="btn btn-outline-light" id="clear-annotations-button">Clear</button>
+            <a href="{{ url_for('download_annotations', session_id=session_id) }}" class="btn btn-outline-light me-2" title="Session Download">
+                <i class="bi bi-download"></i>
+            </a>
         </div>
     </div>
 </nav>
@@ -800,6 +801,7 @@
                     deselectBtn.addEventListener('click', function(event) {
                         event.stopPropagation(); // Prevent triggering the candidate click
                         deselectCandidate(); // Deselect the 'None' option
+                        modal.hide();
                     });
 
                     noneOption.appendChild(deselectBtn);
@@ -833,6 +835,7 @@
                         deselectBtn.addEventListener('click', function(event) {
                             event.stopPropagation(); // Prevent triggering the candidate click
                             deselectCandidate();
+                            modal.hide();
                         });
 
                         candidateDiv.appendChild(deselectBtn);
@@ -956,25 +959,6 @@
             // Show the modal
             modal.show();
         }
-
-        // Clear Annotations Confirmation Script
-        document.getElementById('clear-annotations-button').addEventListener('click', function() {
-            if (confirm('Are you sure you want to clear the annotations for all the documents in this session? This action cannot be undone.')) {
-                fetch('{{ url_for("clear_annotations", session_id=session_id) }}', { method: 'POST' })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.status === 'success') {
-                        // Reset the annotations on the page
-                        reloadDocumentText();
-
-                        // Update progress bar
-                        updateProgressBar();
-                    } else {
-                        alert('Failed to clear annotations.');
-                    }
-                });
-            }
-        });
 
         // Add Document Button
         var addDocumentBtn = document.getElementById('add-document-btn');

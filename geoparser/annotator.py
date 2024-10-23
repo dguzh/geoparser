@@ -427,24 +427,6 @@ class GeoparserAnnotator(Geoparser):
             else:
                 return jsonify({"status": "error", "message": "Session not found."})
 
-        @self.app.route("/clear_annotations/<session_id>", methods=["POST"])
-        def clear_annotations(session_id):
-            session = self.load_session_from_cache(session_id)
-            if not session:
-                return jsonify({"status": "error", "message": "Session not found."})
-
-            # Issue 6 Fix: Clear annotations by setting loc_id to empty string
-            for doc in session["documents"]:
-                for toponym in doc["toponyms"]:
-                    toponym["loc_id"] = ""
-
-            # Save updated session
-            session_file_path = os.path.join(self.cache_dir, f"{session_id}.json")
-            with open(session_file_path, "w", encoding="utf-8") as f:
-                json.dump(session, f, ensure_ascii=False, indent=4)
-
-            return jsonify({"status": "success"})
-
         @self.app.route("/add_documents", methods=["POST"])
         def add_documents():
             session_id = request.form.get("session_id")
