@@ -51,7 +51,7 @@ class GeoparserAnnotator(Geoparser):
             webbrowser.open_new("http://127.0.0.1:5000/")
 
         threading.Timer(1.0, open_browser).start()
-        self.app.run(debug=debug, use_reloader=False)
+        self.app.run(host="0.0.0.0", port=5000, debug=debug, use_reloader=False)
 
     def setup_routes(self):
         @self.app.route("/")
