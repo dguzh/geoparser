@@ -14,8 +14,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "gazetteer",
         type=str,
-        choices=GAZETTEERS.keys(),
-        nargs="?",
+        nargs="*",
+        choices=list(GAZETTEERS.keys()) + [[]],
         help="Specify the gazetteer to set up (required for 'download' mode)",
     )
     args = parser.parse_args()
@@ -27,8 +27,9 @@ def main(args: argparse.Namespace):
         if not args.gazetteer:
             print("Error: 'gazetteer' argument is required for 'download' mode.")
             exit(1)
-        gazetteer = GAZETTEERS[args.gazetteer]()
-        gazetteer.setup_database()
+        for gazetteer_name in args.gazetteer:
+            gazetteer = GAZETTEERS[gazetteer_name]()
+            gazetteer.setup_database()
     elif args.mode == MODES["annotator"]:
         from geoparser.annotator import GeoparserAnnotator
 
