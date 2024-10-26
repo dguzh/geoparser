@@ -1,5 +1,9 @@
 - name: test-full
   location_identifier: testid
+  location_coordinates:
+    x_column: longitude
+    y_column: latitude
+    crs: EPSG:4326
   location_columns:
   - name: testid
     type: TEXT
@@ -34,6 +38,10 @@
       separator: ","
 - name: test-minimal
   location_identifier: testid
+  location_coordinates:
+    x_column: longitude
+    y_column: latitude
+    crs: EPSG:4326
   location_columns:
   - name: testid
     type: TEXT
