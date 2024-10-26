@@ -1,5 +1,9 @@
 - name: geonames
   location_identifier: geonameid
+  location_coordinates:
+    x_column: longitude
+    y_column: latitude
+    crs: EPSG:4326
   location_columns:
   - name: geonameid
     type: TEXT
@@ -164,6 +168,10 @@
       type: TEXT
 - name: swissnames3d
   location_identifier: UUID
+  location_coordinates:
+    x_column: E
+    y_column: N
+    crs: EPSG:2056
   location_columns:
   - name: UUID
     type: TEXT

@@ -20,6 +20,7 @@ from flask import (
     url_for,
 )
 from markupsafe import Markup
+from pyproj import Transformer
 from spacy.util import get_installed_models
 from werkzeug.utils import secure_filename
 
@@ -46,12 +47,12 @@ class GeoparserAnnotator(Geoparser):
         os.makedirs(self.cache_dir, exist_ok=True)  # Ensure the directory exists
         self.setup_routes()
 
-    def run(self, debug=False):
+    def run(self, debug=False, use_reloader=False):
         def open_browser():
             webbrowser.open_new("http://127.0.0.1:5000/")
 
         threading.Timer(1.0, open_browser).start()
-        self.app.run(host="0.0.0.0", port=5000, debug=debug, use_reloader=False)
+        self.app.run(host="0.0.0.0", port=5000, debug=debug, use_reloader=use_reloader)
 
     def setup_routes(self):
         @self.app.route("/")
@@ -257,6 +258,21 @@ class GeoparserAnnotator(Geoparser):
             toponym_text = data["text"]
             query_text = data.get("query_text", "").strip()
 
+            # Get coordinate columns and CRS from gazetteer config
+            coord_config = self.gazetteer.config.location_coordinates
+            x_col = coord_config.x_column
+            y_col = coord_config.y_column
+            crs = coord_config.crs
+
+            # Prepare coordinate transformer if needed
+            if crs != "EPSG:4326":
+                # Define transformer to WGS84
+                coord_transformer = Transformer.from_crs(
+                    crs, "EPSG:4326", always_xy=True
+                )
+            else:
+                coord_transformer = None
+
             session = self.load_session_from_cache(session_id)
             if not session:
                 return jsonify({"error": "Session not found"}), 404
@@ -280,11 +296,33 @@ class GeoparserAnnotator(Geoparser):
             candidate_descriptions = []
             for location in candidate_locations:
                 description = self.gazetteer.get_location_description(location)
+
+                # Get coordinates
+                x = location.get(x_col)
+                y = location.get(y_col)
+
+                if x is not None and y is not None:
+                    try:
+                        x = float(x)
+                        y = float(y)
+                        if coord_transformer:
+                            lon, lat = coord_transformer.transform(x, y)
+                        else:
+                            lon, lat = x, y
+                    except ValueError:
+                        lat = None
+                        lon = None
+                else:
+                    lat = None
+                    lon = None
+
                 candidate_descriptions.append(
                     {
                         "loc_id": location[self.gazetteer.config.location_identifier],
                         "description": description,
                         "attributes": location,  # Include all attributes for filtering
+                        "latitude": lat,
+                        "longitude": lon,
                     }
                 )
 
@@ -297,10 +335,32 @@ class GeoparserAnnotator(Geoparser):
                 existing_description = self.gazetteer.get_location_description(
                     existing_location
                 )
+
+                # Get coordinates
+                x = existing_location.get(x_col)
+                y = existing_location.get(y_col)
+
+                if x is not None and y is not None:
+                    try:
+                        x = float(x)
+                        y = float(y)
+                        if coord_transformer:
+                            lon, lat = coord_transformer.transform(x, y)
+                        else:
+                            lon, lat = x, y
+                    except ValueError:
+                        lat = None
+                        lon = None
+                else:
+                    lat = None
+                    lon = None
+
                 existing_annotation = {
                     "loc_id": existing_loc_id,
                     "description": existing_description,
                     "attributes": existing_location,
+                    "latitude": lat,
+                    "longitude": lon,
                 }
 
                 if existing_loc_id in candidates:

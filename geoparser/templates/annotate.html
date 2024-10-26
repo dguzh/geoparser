@@ -7,6 +7,8 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
     <!-- Bootstrap Icons CSS -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
+    <!-- For Candidate Mapping -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
     <!-- Custom CSS -->
     <style>
         /* Toponym styles */
@@ -125,6 +127,32 @@
             top: 50%;      /* Vertically center the button */
             transform: translateY(-50%);
         }
+        #modal-map {
+            display: none;
+        }
+        .modal-header {
+            align-items: center;
+        }
+        /* Style for None Option */
+        #none-option {
+            cursor: pointer;
+        }
+        #none-option:hover {
+            background-color: #f0f0f0;
+        }
+        #none-option.active {
+            background-color: #0d6efd;
+            color: white;
+        }
+        .btn-group .btn.active {
+            background-color: #0d6efd;
+            color: white;
+            border-color: #0d6efd;
+        }
+        .btn-group .btn {
+            background-color: #f8f9fa;
+            color: #212529;
+        }
     </style>
 </head>
 <body>
@@ -230,37 +258,56 @@
 <div class="modal fade" id="annotationModal" tabindex="-1" aria-labelledby="annotationModalLabel" aria-hidden="true">
   <div class="modal-dialog modal-lg">
     <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title">{{ toponym_text }}</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-      </div>
+        <!-- Modal Header -->
+        <div class="modal-header d-flex align-items-center">
+            <h3 class="modal-title mb-0 me-auto">{{ toponym_text }}</h3>
+            <div class="mx-auto">
+                <div class="btn-group" role="group" aria-label="View Toggle">
+                    <button type="button" class="btn btn-outline-secondary" id="list-view-btn">List</button>
+                    <button type="button" class="btn btn-outline-secondary" id="map-view-btn">Map</button>
+                </div>
+            </div>
+            <button type="button" class="btn-close ms-auto" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+      <!-- Modal Body -->
       <div class="modal-body">
         <!-- Query Text Input -->
         <div class="mb-3">
-            <label for="query-text-input" class="form-label">Search Candidates for:</label>
-            <div class="input-group">
-                <input type="text" id="query-text-input" class="form-control">
-                <button id="search-button" class="btn btn-primary">Search</button>
-            </div>
+          <label for="query-text-input" class="form-label">Search Candidates for:</label>
+          <div class="input-group">
+            <input type="text" id="query-text-input" class="form-control">
+            <button id="search-button" class="btn btn-primary">Search</button>
+          </div>
         </div>
         <div class="row">
-            <!-- Filter Panel -->
-            <div class="col-md-4">
-                <div id="modal-filter-panel" class="form-control">
-                    <!-- Filters will be populated here -->
-                </div>
+          <!-- Filter Panel -->
+          <div class="col-md-4">
+            <div id="modal-filter-panel" class="form-control">
+              <!-- Filters will be populated here -->
+            </div>
+          </div>
+          <!-- Candidate List / Map -->
+          <div class="col-md-8">
+            <!-- None Option -->
+            <div id="none-option-container">
+              <div id="none-option" class="candidate p-2 border mb-2">
+                None
+              </div>
             </div>
             <!-- Candidate List -->
-            <div class="col-md-8">
-                <div id="modal-candidate-list" style="max-height: 60vh; overflow-y: auto;">
-                    <!-- Candidates will be populated here -->
-                </div>
+            <div id="modal-candidate-list" style="height: 60vh; overflow-y: auto;">
+              <!-- Candidates will be populated here -->
             </div>
+            <!-- Map -->
+            <div id="modal-map" style="height: 60vh; display: none;">
+              <!-- Map will be displayed here -->
+            </div>
+          </div>
         </div>
       </div>
-    </div>
-  </div>
-</div>
+    </div> <!-- Close modal-content -->
+  </div> <!-- Close modal-dialog -->
+</div> <!-- Close modal -->
 
 <!-- Context Menu -->
 <div id="context-menu">
@@ -274,8 +321,24 @@
 <!-- Bootstrap JS and Dependencies -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
+<!-- Leaflet JS -->
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+
 <!-- Custom JavaScript -->
 <script>
+    // Variables to hold map and markers
+    var map = null;
+    var markersGroup = null;
+
+    // Event handler function references
+    var toggleView = null;
+    var searchButtonListener = null;
+    var queryTextInputListener = null;
+
+    // Variables for event handler elements
+    var searchButton = null;
+    var queryTextInput = null;
+
     document.addEventListener('DOMContentLoaded', function() {
         // Variables for the current document
         var docIndex = {{ doc_index }};
@@ -635,34 +698,6 @@
             });
         }
 
-        // Function to render the document text based on current annotations
-        function renderDocumentText() {
-            // Since we have the original text and annotations, we can re-render the text
-            fetch('{{ url_for("get_document_text") }}', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    'session_id': sessionId,
-                    'doc_index': docIndex
-                })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.status === 'success') {
-                    documentText.innerHTML = data.pre_annotated_text;
-
-                    // Update totalTextLength
-                    totalTextLength = documentText.textContent.length;
-
-                    // Since we're using event delegation, no need to re-attach event listeners
-                } else {
-                    alert('Failed to render document text: ' + data.error);
-                }
-            });
-        }
-
         // Function to update progress bar
         function updateProgressBar() {
             // Fetch updated progress from the server
@@ -688,12 +723,18 @@
 
         // Show Annotation Modal function
         function showAnnotationModal(currentToponym) {
-            var modal = new bootstrap.Modal(document.getElementById('annotationModal'));
+            var modalElement = document.getElementById('annotationModal');
+            var modal = new bootstrap.Modal(modalElement);
             var modalCandidateList = document.getElementById('modal-candidate-list');
             var modalFilterPanel = document.getElementById('modal-filter-panel');
-            var queryTextInput = document.getElementById('query-text-input');
+            var modalTitle = modalElement.querySelector('.modal-title');
+            var noneOptionDiv = document.getElementById('none-option');
+
+            // Get the elements for toggle buttons, searchButton, queryTextInput
+            var listViewBtn = document.getElementById('list-view-btn');
+            var mapViewBtn = document.getElementById('map-view-btn');
             var searchButton = document.getElementById('search-button');
-            var modalTitle = document.querySelector('#annotationModal .modal-title');
+            var queryTextInput = document.getElementById('query-text-input');
 
             // Set the modal title to the toponym text
             modalTitle.textContent = currentToponym.text;
@@ -701,13 +742,179 @@
             // Set the query text input to the toponym text
             queryTextInput.value = currentToponym.text;
 
+            // Variables for map view
+            var mapView = true; // Map view is default
+            var currentFilters = {};
+            var filterInputs = {};
+            var allCandidates = [];
+            var existing_loc_id = null;
+            var lastQueryText = queryTextInput.value.trim();
+
+            var map = null;
+            var markersGroup = null;
+            var allMarkers = [];
+
+            // Remove previous event listeners if they exist
+            listViewBtn.replaceWith(listViewBtn.cloneNode(true));
+            mapViewBtn.replaceWith(mapViewBtn.cloneNode(true));
+            searchButton.replaceWith(searchButton.cloneNode(true));
+            queryTextInput.replaceWith(queryTextInput.cloneNode(true));
+            noneOptionDiv.replaceWith(noneOptionDiv.cloneNode(true));
+
+            // Reassign elements after cloning
+            listViewBtn = document.getElementById('list-view-btn');
+            mapViewBtn = document.getElementById('map-view-btn');
+            searchButton = document.getElementById('search-button');
+            queryTextInput = document.getElementById('query-text-input');
+            noneOptionDiv = document.getElementById('none-option');
+
+            // Function to switch views
+            function switchToListView() {
+                mapView = false;
+                listViewBtn.classList.add('active');
+                mapViewBtn.classList.remove('active');
+                modalMap.style.display = 'none';
+                modalCandidateList.style.display = 'block';
+                fetchCandidates(queryTextInput.value.trim());
+            }
+
+            function switchToMapView() {
+                mapView = true;
+                mapViewBtn.classList.add('active');
+                listViewBtn.classList.remove('active');
+                modalCandidateList.style.display = 'none';
+                modalMap.style.display = 'block';
+                if (!map) {
+                    initializeMap();
+                }
+                fetchCandidates(queryTextInput.value.trim());
+            }
+
+            // Function to handle search button click
+            function searchButtonClickHandler() {
+                fetchCandidates(queryTextInput.value.trim());
+            }
+
+            // Function to handle Enter key in query text input
+            function queryTextInputKeydownHandler(event) {
+                if (event.key === 'Enter') {
+                    event.preventDefault();
+                    fetchCandidates(queryTextInput.value.trim());
+                }
+            }
+
+            // Add event listeners
+            listViewBtn.addEventListener('click', switchToListView);
+            mapViewBtn.addEventListener('click', switchToMapView);
+            searchButton.addEventListener('click', searchButtonClickHandler);
+            queryTextInput.addEventListener('keydown', queryTextInputKeydownHandler);
+
+            // Set initial active state
+            if (mapView) {
+                mapViewBtn.classList.add('active');
+                listViewBtn.classList.remove('active');
+            } else {
+                listViewBtn.classList.add('active');
+                mapViewBtn.classList.remove('active');
+            }
+
+            // Add event listener to the 'None' option
+            noneOptionDiv.addEventListener('click', function() {
+                modal.hide();
+                saveAnnotation(null);
+            });
+
+            // Function to update the 'None' option appearance
+            function updateNoneOption() {
+                // Clear any existing content in the 'None' option
+                noneOptionDiv.innerHTML = 'None';
+
+                if (existing_loc_id === null) {
+                    noneOptionDiv.classList.add('active', 'bg-primary', 'text-white');
+
+                    // Add deselect button (icon)
+                    var deselectBtn = document.createElement('span');
+                    deselectBtn.classList.add('deselect-btn', 'ms-2');
+                    deselectBtn.innerHTML = '<i class="bi bi-x-circle-fill"></i>';
+
+                    // Add click event to the deselect button
+                    deselectBtn.addEventListener('click', function(event) {
+                        event.stopPropagation();
+                        deselectCandidate();
+                        modal.hide();
+                    });
+
+                    noneOptionDiv.appendChild(deselectBtn);
+                } else {
+                    noneOptionDiv.classList.remove('active', 'bg-primary', 'text-white');
+                }
+            }
+
+            // Initialize map if in map view
+            var modalMap = document.getElementById('modal-map');
+            if (mapView) {
+                modalCandidateList.style.display = 'none';
+                modalMap.style.display = 'block';
+                if (!map) {
+                    initializeMap();
+                }
+            } else {
+                modalMap.style.display = 'none';
+                modalCandidateList.style.display = 'block';
+            }
+
+            // Show the modal
+            modal.show();
+
+            // Ensure map resizes properly when modal is shown
+            modalElement.addEventListener('shown.bs.modal', function () {
+                if (mapView && map) {
+                    map.invalidateSize();
+                    adjustMapView();
+                }
+            }, { once: true });
+
+            // Clean up when modal is hidden
+            modalElement.addEventListener('hidden.bs.modal', function () {
+                // Reset filters
+                currentFilters = {};
+                filterInputs = {};
+
+                // Clean up the map if it exists
+                if (map) {
+                    map.remove();
+                    map = null;
+                    markersGroup = null;
+                    allMarkers = [];
+                }
+            }, { once: true });
+
+            // Fetch initial candidates
+            fetchCandidates(queryTextInput.value.trim());
+
+            function initializeMap() {
+                if (!map) {
+                    map = L.map('modal-map').setView([0, 0], 2);
+                    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+                        attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
+                        maxZoom: 20
+                    }).addTo(map);
+                    markersGroup = L.featureGroup().addTo(map); // Use L.featureGroup
+                }
+            }
+
             // Function to fetch candidates based on query text
             function fetchCandidates(queryText) {
+
+                // Reset filters only if the query text has changed
+                if (lastQueryText !== queryText) {
+                    currentFilters = {}; // Reset filters
+                    lastQueryText = queryText; // Store the last query text
+                }
+                
                 fetch('{{ url_for("get_candidates") }}', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         'session_id': sessionId,
                         'doc_index': docIndex,
@@ -720,32 +927,20 @@
                 .then(response => response.json())
                 .then(data => {
                     populateCandidates(data.candidates, data.filter_attributes, data.existing_loc_id);
+                    existing_loc_id = data.existing_loc_id;
+                    updateNoneOption();
                 });
             }
 
             // Function to populate candidates and filters
-            function populateCandidates(candidates, filterAttributes, existing_loc_id) {
-                var currentFilters = {};
-                var filterInputs = {};
+            function populateCandidates(candidates, filterAttributes, existing_loc_id_param) {
+                // Store candidates and existing_loc_id
+                allCandidates = candidates;
+                existing_loc_id = existing_loc_id_param;
 
                 // Clear previous content
-                modalCandidateList.innerHTML = '';
                 modalFilterPanel.innerHTML = '';
-
-                // Prepare unique values for each filter attribute
-                var attributeValues = {};
-                filterAttributes.forEach(function(attribute) {
-                    attributeValues[attribute] = new Set();
-                });
-
-                candidates.forEach(function(candidate) {
-                    var attributes = candidate.attributes;
-                    filterAttributes.forEach(function(attribute) {
-                        if (attributes[attribute]) {
-                            attributeValues[attribute].add(attributes[attribute]);
-                        }
-                    });
-                });
+                filterInputs = {}; // Reset filter inputs
 
                 // Create drop-down filters
                 filterAttributes.forEach(function(attribute) {
@@ -763,176 +958,243 @@
                     emptyOption.textContent = 'All';
                     select.appendChild(emptyOption);
 
+                    // Collect attribute values
+                    var attributeValues = new Set();
+                    allCandidates.forEach(function(candidate) {
+                        var attributes = candidate.attributes;
+                        if (attributes[attribute]) {
+                            attributeValues.add(attributes[attribute]);
+                        }
+                    });
+
                     // Add options from attributeValues
-                    Array.from(attributeValues[attribute]).sort().forEach(function(value) {
+                    Array.from(attributeValues).sort().forEach(function(value) {
                         var option = document.createElement('option');
                         option.value = value;
                         option.textContent = value;
                         select.appendChild(option);
                     });
 
+                    // Set the select value to the current filter value if any
+                    if (currentFilters[attribute]) {
+                        select.value = currentFilters[attribute];
+                    }
+
                     modalFilterPanel.appendChild(label);
                     modalFilterPanel.appendChild(select);
                     filterInputs[attribute] = select;
                 });
 
-                // Add event listeners to filter inputs
+                // Event listeners for filter inputs
                 Object.keys(filterInputs).forEach(function(attribute) {
                     filterInputs[attribute].addEventListener('change', function() {
-                        var selectedValue = filterInputs[attribute].value.toLowerCase();
+                        var selectedValue = filterInputs[attribute].value;
                         currentFilters[attribute] = selectedValue;
                         applyFilters();
+                        if (mapView) {
+                            adjustMapView(); // Adjust map view if in map view
+                        }
                     });
                 });
 
-                // Add 'None of the above' option
-                var noneOption = document.createElement('div');
-                noneOption.classList.add('candidate', 'p-2', 'border', 'mb-2');
-                noneOption.textContent = 'None';
-                noneOption.dataset.locId = 'null'; // Use string 'null' for dataset
+                // Apply filters and render candidates
+                applyFilters();
 
-                // If 'None' is selected, highlight it and add a deselect button
-                if (existing_loc_id === null) {
-                    noneOption.classList.add('bg-primary', 'text-white');
-
-                    // Add deselect button (aligned to the right)
-                    var deselectBtn = document.createElement('span');
-                    deselectBtn.classList.add('deselect-btn', 'ms-2');
-                    deselectBtn.innerHTML = '<i class="bi bi-x-circle-fill"></i>';
-                    deselectBtn.addEventListener('click', function(event) {
-                        event.stopPropagation(); // Prevent triggering the candidate click
-                        deselectCandidate(); // Deselect the 'None' option
-                        modal.hide();
-                        modalCandidateList.scrollTop = 0;
-                    });
-
-                    noneOption.appendChild(deselectBtn);
-                    noneOption.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                if (mapView) {
+                    adjustMapView(); // Adjust map view after initial rendering
                 }
+            }
 
-                noneOption.addEventListener('click', function() {
-                    modal.hide();
-                    modalCandidateList.scrollTop = 0;
-                    saveAnnotation(null);
-                });
-                modalCandidateList.appendChild(noneOption);
+            function applyFilters() {
+                if (mapView) {
+                    // Map View
+                    if (markersGroup) {
+                        markersGroup.clearLayers();
+                    }
+                    allMarkers = []; // Clear previous markers
 
-                // Append candidateDivs to candidateContainer
-                candidates.forEach(function(candidate) {
-                    var candidateDiv = document.createElement('div');
-                    candidateDiv.classList.add('candidate', 'p-2', 'border', 'mb-2');
-                    candidateDiv.innerHTML = candidate.description;
-                    candidateDiv.dataset.locId = candidate.loc_id;
-                    candidateDiv.dataset.attributes = JSON.stringify(candidate.attributes);
+                    var selectedMarker = null; // To hold the selected marker
 
-                    // Highlight if this candidate is the existing selection
-                    if (existing_loc_id !== null && candidate.loc_id == existing_loc_id) {
-                        candidateDiv.classList.add('bg-primary', 'text-white');
+                    allCandidates.forEach(function(candidate) {
+                        var lat = candidate.latitude;
+                        var lon = candidate.longitude;
+                        if (lat !== null && lon !== null) {
+                            var markerOptions = {
+                                radius: 8,
+                                fillColor: '#ffc107', // (yellow)
+                                color: '#000',
+                                weight: 1,
+                                opacity: 1,
+                                fillOpacity: 0.8
+                            };
 
-                        // Add deselect button (icon)
-                        var deselectBtn = document.createElement('span');
-                        deselectBtn.classList.add('deselect-btn', 'ms-2'); // Add margin for spacing
-                        deselectBtn.innerHTML = '<i class="bi bi-x-circle-fill"></i>'; // Bootstrap X icon
+                            var loc_id = candidate.loc_id;
 
-                        // Add click event to the deselect button
-                        deselectBtn.addEventListener('click', function(event) {
-                            event.stopPropagation(); // Prevent triggering the candidate click
-                            deselectCandidate();
-                            modal.hide();
-                            modalCandidateList.scrollTop = 0;
-                        });
+                            // Determine if this is the existing (selected) location
+                            var isSelected = (existing_loc_id !== null && existing_loc_id !== '') && loc_id == existing_loc_id;
 
-                        candidateDiv.appendChild(deselectBtn);
+                            if (isSelected) {
+                                markerOptions.fillColor = '#0d6efd'; // (blue)
+                            }
+
+                            var marker = L.circleMarker([lat, lon], markerOptions);
+
+                            // Store candidate attributes for filtering
+                            marker.candidateAttributes = candidate.attributes;
+                            marker.candidateAttributes.loc_id = loc_id;
+
+                            // Apply filters to marker
+                            var showMarker = true;
+                            Object.keys(currentFilters).forEach(function(attribute) {
+                                var filterValue = currentFilters[attribute];
+                                var attributeValue = marker.candidateAttributes[attribute] ? marker.candidateAttributes[attribute].toString() : '';
+                                if (filterValue && attributeValue !== filterValue) {
+                                    showMarker = false;
+                                }
+                            });
+
+                            if (showMarker) {
+                                // Bind popup with candidate description
+                                marker.bindPopup(candidate.description);
+
+                                // Add hover event to show popup
+                                marker.on('mouseover', function(e) {
+                                    this.openPopup();
+                                });
+                                marker.on('mouseout', function(e) {
+                                    this.closePopup();
+                                });
+
+                                // Add click event to select candidate
+                                marker.on('click', function() {
+                                    modal.hide();
+                                    saveAnnotation(loc_id);
+                                });
+
+                                if (isSelected) {
+                                    selectedMarker = marker; // Store the selected marker
+                                } else {
+                                    markersGroup.addLayer(marker); // Add non-selected markers to the group
+                                }
+
+                                allMarkers.push(marker);
+                            }
+                        }
+                    });
+
+                    // After adding all other markers, add the selected marker last
+                    if (selectedMarker) {
+                        markersGroup.addLayer(selectedMarker);
+                        selectedMarker.bringToFront(); // Ensure it's on top
                     }
 
-                    candidateDiv.addEventListener('click', function() {
-                        modal.hide();
-                        modalCandidateList.scrollTop = 0;
-                        saveAnnotation(candidateDiv.dataset.locId);
-                    });
-                    modalCandidateList.appendChild(candidateDiv);
-                });
+                } else {
+                    // List View
+                    // Clear candidate list
+                    modalCandidateList.innerHTML = '';
 
-                function deselectCandidate() {
-                    fetch('{{ url_for("save_annotation") }}', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({
-                            'session_id': sessionId,
-                            'doc_index': docIndex,
-                            'annotation': {
-                                'toponym': currentToponym.text,
-                                'start': currentToponym.start,
-                                'end': currentToponym.end,
-                                'loc_id': ''  // Reset loc_id to empty string
-                            }
-                        })
-                    })
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.status === 'success') {
-                            // Refresh candidate list by calling get_candidates again
-                            fetchCandidates(currentToponym.text);
-                            // Update progress bar and re-render document text
-                            updateProgressBar();
-                            reloadDocumentText();
-                        } else {
-                            alert('Failed to deselect candidate: ' + data.error);
-                        }
-                    });
-                }
-
-                // Function to apply filters
-                function applyFilters() {
-                    var candidatesDivs = modalCandidateList.querySelectorAll('.candidate');
-                    candidatesDivs.forEach(function(candidateDiv) {
-                        if (!candidateDiv.dataset.attributes) {
-                            candidateDiv.style.display = 'block';
-                            return;
-                        }
-                        var attributes = JSON.parse(candidateDiv.dataset.attributes);
+                    // Apply filters and display candidates
+                    allCandidates.forEach(function(candidate) {
+                        var attributes = candidate.attributes;
                         var showCandidate = true;
                         Object.keys(currentFilters).forEach(function(attribute) {
                             var filterValue = currentFilters[attribute];
-                            var attributeValue = attributes[attribute] ? attributes[attribute].toString().toLowerCase() : '';
+                            var attributeValue = attributes[attribute] ? attributes[attribute].toString() : '';
                             if (filterValue && attributeValue !== filterValue) {
                                 showCandidate = false;
                             }
                         });
-                        candidateDiv.style.display = showCandidate ? 'block' : 'none';
+                        if (showCandidate) {
+                            var candidateDiv = document.createElement('div');
+                            candidateDiv.classList.add('candidate', 'p-2', 'border', 'mb-2');
+                            candidateDiv.innerHTML = candidate.description;
+                            candidateDiv.dataset.locId = candidate.loc_id;
+                            candidateDiv.dataset.attributes = JSON.stringify(candidate.attributes);
+
+                            // Highlight if this candidate is the existing selection
+                            if (existing_loc_id !== null && candidate.loc_id == existing_loc_id) {
+                                candidateDiv.classList.add('bg-primary', 'text-white');
+
+                                // Add deselect button (icon)
+                                var deselectBtn = document.createElement('span');
+                                deselectBtn.classList.add('deselect-btn', 'ms-2');
+                                deselectBtn.innerHTML = '<i class="bi bi-x-circle-fill"></i>';
+
+                                // Add click event to the deselect button
+                                deselectBtn.addEventListener('click', function(event) {
+                                    event.stopPropagation();
+                                    deselectCandidate();
+                                    modal.hide();
+                                    modalCandidateList.scrollTop = 0;
+                                });
+
+                                candidateDiv.appendChild(deselectBtn);
+                            }
+
+                            candidateDiv.addEventListener('click', function() {
+                                modal.hide();
+                                modalCandidateList.scrollTop = 0;
+                                saveAnnotation(candidateDiv.dataset.locId);
+                            });
+                            modalCandidateList.appendChild(candidateDiv);
+                        }
                     });
                 }
             }
 
-            // Remove existing event listeners from the search button
-            searchButton.removeEventListener('click', searchButton._listener);
-
-            // Define a new search listener function
-            searchButton._listener = function() {
-                var queryText = queryTextInput.value.trim();
-                fetchCandidates(queryText);
-            };
-
-            // Add the new event listener to the search button
-            searchButton.addEventListener('click', searchButton._listener);
-
-            // Add 'Enter' key support for the query text input
-            queryTextInput.removeEventListener('keydown', queryTextInput._listener);
-            queryTextInput._listener = function(event) {
-                if (event.key === 'Enter') {
-                    event.preventDefault();
-                    searchButton.click();
-                }
-            };
-            queryTextInput.addEventListener('keydown', queryTextInput._listener);
-
-            // Fetch initial candidates using the toponym text
-            fetchCandidates(queryTextInput.value);
+            function adjustMapView() {
+                map.whenReady(function() {
+                    if (markersGroup && markersGroup.getLayers().length > 0) {
+                        var bounds = markersGroup.getBounds();
+                        if (bounds.isValid()) {
+                            if (markersGroup.getLayers().length === 1) {
+                                // Only one marker, set view to marker position with a default zoom level
+                                var latLng = bounds.getCenter();
+                                map.setView(latLng, 10); // Adjust zoom level as needed
+                            } else {
+                                map.fitBounds(bounds, { padding: [50, 50] });
+                            }
+                        } else {
+                            map.setView([0, 0], 2);
+                        }
+                    } else {
+                        map.setView([0, 0], 2);
+                    }
+                });
+            }
 
             // Function to save the annotation
             function saveAnnotation(loc_id) {
+                fetch('{{ url_for("save_annotation") }}', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        'session_id': sessionId,
+                        'doc_index': docIndex,
+                        'annotation': {
+                            'toponym': currentToponym.text,
+                            'start': currentToponym.start,
+                            'end': currentToponym.end,
+                            'loc_id': loc_id // Can be null or empty string
+                        }
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        // Update progress bar
+                        updateProgressBar();
+
+                        // Re-render the document text
+                        reloadDocumentText();
+                    } else {
+                        alert('Failed to save annotation: ' + data.error);
+                    }
+                });
+            }
+
+            // Function to deselect the annotation (reset to unprocessed state)
+            function deselectCandidate() {
                 fetch('{{ url_for("save_annotation") }}', {
                     method: 'POST',
                     headers: {
@@ -945,24 +1207,23 @@
                             'toponym': currentToponym.text,
                             'start': currentToponym.start,
                             'end': currentToponym.end,
-                            'loc_id': loc_id
+                            'loc_id': ''  // Reset loc_id to empty string to mark as unprocessed
                         }
                     })
                 })
                 .then(response => response.json())
                 .then(data => {
                     if (data.status === 'success') {
-                        // Update progress bar
+                        // Refresh candidates by calling fetchCandidates again
+                        fetchCandidates(currentToponym.text);
+                        // Update progress bar and re-render document text
                         updateProgressBar();
-
-                        // Re-render the document text
                         reloadDocumentText();
+                    } else {
+                        alert('Failed to deselect candidate: ' + data.error);
                     }
                 });
             }
-
-            // Show the modal
-            modal.show();
         }
 
         // Add Document Button
@@ -1028,3 +1289,5 @@
         });
     });
 </script>
+</body>
+</html>
