@@ -14,7 +14,7 @@ def locations(geonames_real_data, radio_andorra_id) -> Locations:
 
 def test_locations_repr(locations: Locations):
     assert (
-        locations.__repr__() == "[{'geonameid': 3039328, "
+        locations.__repr__() == "[{'geonameid': '3039328', "
         "'name': 'Radio Andorra', "
         "'feature_type': 'radio station', "
         "'latitude': 42.5282, "
@@ -23,9 +23,9 @@ def test_locations_repr(locations: Locations):
         "'population': 0, "
         "'admin2_geonameid': None, "
         "'admin2_name': None, "
-        "'admin1_geonameid': 3040684, "
+        "'admin1_geonameid': '3040684', "
         "'admin1_name': 'Encamp', "
-        "'country_geonameid': 3041565, "
+        "'country_geonameid': '3041565', "
         "'country_name': 'Andorra'}]"
     )
 

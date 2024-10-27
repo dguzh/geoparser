@@ -14,8 +14,8 @@ from geoparser.trainer import GeoparserTrainer
 
 
 @pytest.fixture(scope="session")
-def radio_andorra_id() -> int:
-    return 3039328
+def radio_andorra_id() -> str:
+    return "3039328"
 
 
 @pytest.fixture(scope="session")

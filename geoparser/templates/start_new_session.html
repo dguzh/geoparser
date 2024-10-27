@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Start New Session</title>
+    <!-- Bootstrap CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+</head>
+<body>
+
+<!-- Navbar -->
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+    <div class="container-fluid">
+      <a class="navbar-brand" href="{{ url_for('index') }}">Geoparser Annotator</a>
+    </div>
+</nav>
+
+<!-- Main content -->
+<div class="container mt-5">
+    <h1 class="mb-4">Start New Session</h1>
+    <hr class="my-4">
+    <form id="start-session-form" action="{{ url_for('start_new_session') }}" method="post" enctype="multipart/form-data">
+        <!-- Document Upload -->
+        <div class="mb-3">
+            <label for="files" class="form-label">Select Documents:</label>
+            <input type="file" class="form-control" name="files[]" multiple required>
+        </div>
+
+        <!-- Gazetteer Selection -->
+        <div class="mb-3">
+            <label for="gazetteer" class="form-label">Select Gazetteer:</label>
+            <select class="form-select" id="gazetteer" name="gazetteer">
+                {% for key in gazetteers.keys() %}
+                    <option value="{{ key }}">{{ key }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <!-- SpaCy Model Selection -->
+        <div class="mb-4">
+            <label for="spacy_model" class="form-label">Select SpaCy Model:</label>
+            <select class="form-select" id="spacy_model" name="spacy_model">
+                {% for model in spacy_models %}
+                    <option value="{{ model }}">{{ model }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <!-- Action Button -->
+        <div class="mb-4">
+            <button type="submit" class="btn btn-primary">Start Session</button>
+        </div>
+    </form>
+</div>
+
+<!-- Bootstrap JS -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+<script>
+    sessionStorage.clear();
+</script>
+
+</body>
+</html>

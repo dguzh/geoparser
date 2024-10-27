@@ -12,38 +12,38 @@ from geoparser.trainer import GeoparserTrainer
 
 
 @pytest.fixture(scope="session")
-def corpus_good_annotations() -> list[tuple[str, list[tuple[str, int, int, int]]]]:
+def corpus_good_annotations() -> list[tuple[str, list[tuple[str, int, int, str]]]]:
     corpus = [
         (
             "Roc Meler is mentioned on Radio Andorra.",
-            [("Radio Andorra", 26, 39, 3039328), ("Roc Meler", 0, 9, 2994701)],
+            [("Radio Andorra", 26, 39, "3039328"), ("Roc Meler", 0, 9, "2994701")],
         ),
         (
             "Typhoon hit Taiwan today #prayfortaiwan",
-            [("taiwan", 33, 39, 3039328), ("Taiwan", 12, 18, 3039328)],
+            [("taiwan", 33, 39, "3039328"), ("Taiwan", 12, 18, "3039328")],
         ),
         (  # includes an annotation that is not a toponym
             "Some End of Sentence|New York!!!",
-            [("New York", 21, 29, 3039328), ("Some", 0, 4, 3039328)],
+            [("New York", 21, 29, "3039328"), ("Some", 0, 4, "3039328")],
         ),
     ]
     return corpus
 
 
 @pytest.fixture(scope="session")
-def corpus_bad_annotations() -> list[tuple[str, list[tuple[str, int, int, int]]]]:
+def corpus_bad_annotations() -> list[tuple[str, list[tuple[str, int, int, str]]]]:
     corpus = [
         (
             "Roc Meler is mentioned on Radio Andorra.",
-            [("Radio Andorra", 23, 39, 3039328), ("Roc Meler", 0, 7, 2994701)],
+            [("Radio Andorra", 23, 39, "3039328"), ("Roc Meler", 0, 7, "2994701")],
         ),
         (
             "Typhoon hit Taiwan today #prayfortaiwan",
-            [("taiwan", 33, 40, 3039328), ("Taiwan", 11, 18, 3039328)],
+            [("taiwan", 33, 40, "3039328"), ("Taiwan", 11, 18, "3039328")],
         ),
         (  # includes an annotation that is not a toponym
             "Some End of Sentence|New York!!!",
-            [("New York", 0, 30, 3039328), ("Some", 0, 3, 3039328)],
+            [("New York", 0, 30, "3039328"), ("Some", 0, 3, "3039328")],
         ),
     ]
     return corpus
@@ -52,7 +52,7 @@ def corpus_bad_annotations() -> list[tuple[str, list[tuple[str, int, int, int]]]
 @pytest.fixture(scope="session")
 def geodocs_corpus(
     trainer_real_data: GeoparserTrainer,
-    corpus_good_annotations: list[tuple[str, list[tuple[str, int, int, int]]]],
+    corpus_good_annotations: list[tuple[str, list[tuple[str, int, int, str]]]],
 ) -> list[GeoDoc]:
     return [trainer_real_data.nlp(seg[0]) for seg in corpus_good_annotations]
 
@@ -68,7 +68,7 @@ def train_corpus(trainer_real_data: GeoparserTrainer) -> list[GeoDoc]:
     corpus = [
         (
             "Ordino is a town in the mountains.",
-            [("Ordino", 0, 6, 3039678)],
+            [("Ordino", 0, 6, "3039678")],
         ),
     ]
     return trainer_real_data.annotate(corpus, include_unmatched=True)
@@ -76,8 +76,8 @@ def train_corpus(trainer_real_data: GeoparserTrainer) -> list[GeoDoc]:
 
 def test_find_toponym(
     trainer_real_data: GeoparserTrainer,
-    corpus_good_annotations: list[tuple[str, list[tuple[str, int, int, int]]]],
-    corpus_bad_annotations: list[tuple[str, list[tuple[str, int, int, int]]]],
+    corpus_good_annotations: list[tuple[str, list[tuple[str, int, int, str]]]],
+    corpus_bad_annotations: list[tuple[str, list[tuple[str, int, int, str]]]],
     geodocs_corpus: list[GeoDoc],
 ):
     for i, (good_segment, bad_segment) in enumerate(
@@ -96,7 +96,7 @@ def test_find_toponym(
 
 def test_retokenize_toponym(
     trainer_real_data: GeoparserTrainer,
-    corpus_good_annotations: list[tuple[str, list[tuple[str, int, int, int]]]],
+    corpus_good_annotations: list[tuple[str, list[tuple[str, int, int, str]]]],
     geodocs_corpus: list[GeoDoc],
 ):
     for segment, doc in zip(corpus_good_annotations, geodocs_corpus):
@@ -138,7 +138,7 @@ def test_retokenize_toponym(
 @pytest.mark.parametrize("include_unmatched", [True, False])
 def test_annotate(
     trainer_real_data: GeoparserTrainer,
-    corpus_good_annotations: list[tuple[str, list[tuple[str, int, int, int]]]],
+    corpus_good_annotations: list[tuple[str, list[tuple[str, int, int, str]]]],
     include_unmatched: bool,
 ):
     annotated_corpus = trainer_real_data.annotate(
@@ -177,13 +177,13 @@ def test_auc(
 @pytest.mark.parametrize(
     "predicted_id1,gold_id1,predicted_id2,gold_id2,expected",
     [
-        (1, None, 1, None, None),  # all gold_id being None raises ZeroDivisionError
-        (1, 2, 1, 2, None),  # invalid gold_id has the same effect
+        ("1", None, "1", None, None),  # all gold_id being None raises ZeroDivisionError
+        ("1", "2", "1", "2", None),  # invalid gold_id has the same effect
         (  # predicted_id is None
             None,
-            1,
+            "1",
             None,
-            1,
+            "1",
             {
                 "Accuracy": 0.0,
                 "Accuracy@161km": 0.0,
@@ -192,10 +192,10 @@ def test_auc(
             },
         ),
         (  # perfect prediction
-            1,
-            1,
-            1,
-            1,
+            "1",
+            "1",
+            "1",
+            "1",
             {
                 "Accuracy": 1.0,
                 "Accuracy@161km": 1.0,
@@ -204,10 +204,10 @@ def test_auc(
             },
         ),
         (  # not perfect, but both in Andorra
-            3039328,
-            2994701,
-            2994701,
-            3039328,
+            "3039328",
+            "2994701",
+            "2994701",
+            "3039328",
             {
                 "Accuracy": 0.0,
                 "Accuracy@161km": 1.0,
@@ -220,10 +220,10 @@ def test_auc(
 def test_evaluate(
     trainer_real_data: GeoparserTrainer,
     eval_doc: list[GeoDoc],
-    predicted_id1: int,
-    gold_id1: int,
-    predicted_id2: int,
-    gold_id2: int,
+    predicted_id1: str,
+    gold_id1: str,
+    predicted_id2: str,
+    gold_id2: str,
     expected: t.Optional[dict[str, float]],
 ):
     eval_doc.toponyms[0]._.loc_id, eval_doc.toponyms[0]._.gold_loc_id = (
@@ -237,7 +237,9 @@ def test_evaluate(
     with (
         pytest.raises(ZeroDivisionError)
         if (gold_id1 is None and gold_id2 is None)
-        or 2 == gold_id1 == gold_id2  # 2 is used as an invalid id not in the gazetteer
+        or "2"
+        == gold_id1
+        == gold_id2  # 2 is used as an invalid id not in the gazetteer
         else nullcontext()
     ):
         result = trainer_real_data.evaluate([eval_doc])

@@ -6,6 +6,7 @@ import sqlite3
 import typing as t
 import zipfile
 from abc import ABC, abstractmethod
+from threading import local
 
 import pandas as pd
 import requests
@@ -35,7 +36,7 @@ class LocalDBGazetteer(Gazetteer):
         self.data_dir = os.path.join(user_data_dir("geoparser", ""), gazetteer_name)
         self.db_path = os.path.join(self.data_dir, gazetteer_name + ".db")
         self.config = get_gazetteer_configs()[gazetteer_name]
-        self.conn = None
+        self._local = local()
 
     def connect(func):
         def call(self, *args, **kwargs):
@@ -62,16 +63,19 @@ class LocalDBGazetteer(Gazetteer):
         return call
 
     def _initiate_connection(self):
-        self.conn = sqlite3.connect(self.db_path)
+        if not hasattr(self._local, "conn") or self._local.conn is None:
+            self._local.conn = sqlite3.connect(self.db_path)
 
     def _close_connection(self):
-        self.conn.close()
+        if hasattr(self._local, "conn"):
+            self._local.conn.close()
+            self._local.conn = None
 
     def _commit(self):
-        self.conn.commit()
+        self._local.conn.commit()
 
     def _get_cursor(self) -> sqlite3.Cursor:
-        return self.conn.cursor()
+        return self._local.conn.cursor()
 
     @close
     @connect
@@ -201,7 +205,7 @@ class LocalDBGazetteer(Gazetteer):
             desc=f"Loading {table_name}",
             total=n_chunks,
         ):
-            chunk.to_sql(table_name, self.conn, if_exists="append", index=False)
+            chunk.to_sql(table_name, self._local.conn, if_exists="append", index=False)
 
     @close
     @commit
@@ -234,12 +238,12 @@ class LocalDBGazetteer(Gazetteer):
 
                 query = f'SELECT {", ".join(columns_to_select)} FROM {dataset.name}'
 
-                cursor = self.conn.cursor()
+                cursor = self._local.conn.cursor()
                 cursor.execute(f"SELECT COUNT(*) FROM {dataset.name}")
                 total_rows = cursor.fetchone()[0]
                 total_chunks = math.ceil(total_rows / chunksize)
 
-                chunks = pd.read_sql_query(query, self.conn, chunksize=chunksize)
+                chunks = pd.read_sql_query(query, self._local.conn, chunksize=chunksize)
 
                 for chunk in tqdm(
                     chunks,
@@ -291,7 +295,7 @@ class LocalDBGazetteer(Gazetteer):
 
                         names_df.to_sql(
                             "names",
-                            self.conn,
+                            self._local.conn,
                             if_exists="append",
                             index=False,
                             method="multi",
@@ -346,7 +350,7 @@ class LocalDBGazetteer(Gazetteer):
     def query_candidates(
         self,
         toponym: str,
-    ) -> list[int]:
+    ) -> list[str]:
 
         location_identifier = self.config.location_identifier
 
@@ -362,7 +366,7 @@ class LocalDBGazetteer(Gazetteer):
                 FROM names_fts
                 WHERE names_fts MATCH ?
             )
-            SELECT {location_identifier}
+            SELECT CAST({location_identifier} AS TEXT)
             FROM RankedMatches
             WHERE RankedMatches.rank = (SELECT MinRank FROM MinRank)
             GROUP BY {location_identifier}
@@ -372,7 +376,7 @@ class LocalDBGazetteer(Gazetteer):
         return [row[0] for row in result]
 
     def query_location_info(
-        self, location_ids: list[int], batch_size: int = 500
+        self, location_ids: list[str], batch_size: int = 500
     ) -> list[dict]:
         location_identifier = self.config.location_identifier
 

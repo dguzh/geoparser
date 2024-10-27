@@ -2,7 +2,7 @@
   location_identifier: testid
   location_columns:
   - name: testid
-    type: INTEGER
+    type: TEXT
     primary: true
   - name: testname
     type: TEXT
@@ -13,7 +13,7 @@
     - data1.txt
     columns:
     - name: testid
-      type: INTEGER
+      type: TEXT
       primary: true
     - name: testname
       type: TEXT
@@ -36,7 +36,7 @@
   location_identifier: testid
   location_columns:
   - name: testid
-    type: INTEGER
+    type: TEXT
     primary: true
   data:
   - name: data1
@@ -45,5 +45,5 @@
     - data1.txt
     columns:
     - name: testid
-      type: INTEGER
+      type: TEXT
       primary: true

@@ -21,7 +21,7 @@ def test_get_gazetteer_configs_valid(monkeypatch):
             name="test-full",
             location_identifier="testid",
             location_columns=[
-                Column(name="testid", type="INTEGER", primary=True),
+                Column(name="testid", type="TEXT", primary=True),
                 Column(name="testname", type="TEXT"),
             ],
             data=[
@@ -30,7 +30,7 @@ def test_get_gazetteer_configs_valid(monkeypatch):
                     url="https://data1.org/path/to/data1.zip",
                     extracted_files=["data1.txt"],
                     columns=[
-                        Column(name="testid", type="INTEGER", primary=True),
+                        Column(name="testid", type="TEXT", primary=True),
                         Column(name="testname", type="TEXT"),
                     ],
                     skiprows=50,
@@ -53,13 +53,13 @@ def test_get_gazetteer_configs_valid(monkeypatch):
         "test-minimal": GazetteerConfig(
             name="test-minimal",
             location_identifier="testid",
-            location_columns=[Column(name="testid", type="INTEGER", primary=True)],
+            location_columns=[Column(name="testid", type="TEXT", primary=True)],
             data=[
                 GazetteerData(
                     name="data1",
                     url="https://data1.org/path/to/data1.zip",
                     extracted_files=["data1.txt"],
-                    columns=[Column(name="testid", type="INTEGER", primary=True)],
+                    columns=[Column(name="testid", type="TEXT", primary=True)],
                 ),
             ],
         ),

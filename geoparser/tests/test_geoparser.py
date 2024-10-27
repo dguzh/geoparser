@@ -23,7 +23,7 @@ def test_init_geoparser_gazetteers(gazetteer: str):
         )
 
 
-@pytest.mark.parametrize("spacy_model", ["en_core_web_sm", "en_core_web_trf"])
+@pytest.mark.parametrize("spacy_model", ["en_core_web_sm", "mk_core_news_sm"])
 def test_init_geoparser_spacy_model(spacy_model: str):
     # raises error if spacy model has not been installed yet
     with nullcontext() if spacy_model == "en_core_web_sm" else pytest.raises(OSError):
@@ -56,7 +56,7 @@ def test_setup_gazetteer(geoparser: Geoparser, gazetteer: str):
         assert issubclass(type(gazetteer), Gazetteer)
 
 
-@pytest.mark.parametrize("spacy_model", ["en_core_web_sm", "en_core_web_trf"])
+@pytest.mark.parametrize("spacy_model", ["en_core_web_sm", "mk_core_news_sm"])
 def test_setup_spacy(geoparser: Geoparser, spacy_model: str):
     with nullcontext() if spacy_model == "en_core_web_sm" else pytest.raises(OSError):
         nlp = geoparser.setup_spacy(spacy_model)
@@ -100,23 +100,23 @@ def test_recognize(geoparser_real_data: Geoparser, texts):
 def test_get_candidate_ids(
     geoparser_real_data: Geoparser,
     geodocs: list[GeoDoc],
-    radio_andorra_id: int,
+    radio_andorra_id: str,
 ):
     candidate_ids = geoparser_real_data.get_candidate_ids(geodocs)
     assert type(candidate_ids) is list
     for elem in candidate_ids:
-        assert type(elem) is int
+        assert type(elem) is str
     assert candidate_ids == [radio_andorra_id]
 
 
 def test_get_candidate_embeddings_lookup(
-    geoparser_real_data: Geoparser, radio_andorra_id: int
+    geoparser_real_data: Geoparser, radio_andorra_id: str
 ):
     candidate_ids = [radio_andorra_id]
     lookup = geoparser_real_data.get_candidate_embeddings_lookup(candidate_ids)
     assert type(lookup) is dict
     for key, value in lookup.items():
-        assert type(key) is int
+        assert type(key) is str
         assert key == radio_andorra_id
         assert type(value) is torch.Tensor
 

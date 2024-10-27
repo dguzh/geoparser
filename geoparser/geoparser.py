@@ -5,7 +5,7 @@ import torch
 from sentence_transformers import SentenceTransformer, util
 from tqdm.auto import tqdm
 
-from geoparser.constants import GAZETTEERS
+from geoparser.constants import DEFAULT_TRANSFORMER_MODEL, GAZETTEERS
 from geoparser.gazetteer import Gazetteer
 from geoparser.geodoc import GeoDoc
 
@@ -17,7 +17,7 @@ class Geoparser:
     def __init__(
         self,
         spacy_model: str = "en_core_web_trf",
-        transformer_model: str = "dguzh/geo-all-distilroberta-v1",
+        transformer_model: str = DEFAULT_TRANSFORMER_MODEL,
         gazetteer: str = "geonames",
     ):
         self.gazetteer = self.setup_gazetteer(gazetteer)
