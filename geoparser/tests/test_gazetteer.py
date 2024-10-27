@@ -254,6 +254,31 @@ def test_drop_redundant_tables(geonames_patched: GeoNames):
     assert all([table not in tables_after for table in redundant_tables])
 
 
+def test_query_candidates(geonames_real_data: GeoNames, radio_andorra_id: int):
+    toponym = "Andorra"
+    assert geonames_real_data.query_candidates(toponym) == [radio_andorra_id]
+
+
+def test_query_location_info(geonames_real_data: GeoNames, radio_andorra_id: int):
+    print(geonames_real_data.query_location_info([radio_andorra_id]))
+    expected_info = {
+        "geonameid": 3039328,
+        "name": "Radio Andorra",
+        "feature_type": "radio station",
+        "latitude": 42.5282,
+        "longitude": 1.57089,
+        "elevation": None,
+        "population": 0,
+        "admin2_geonameid": None,
+        "admin2_name": None,
+        "admin1_geonameid": 3040684,
+        "admin1_name": "Encamp",
+        "country_geonameid": 3041565,
+        "country_name": "Andorra",
+    }
+    assert geonames_real_data.query_location_info([radio_andorra_id]) == [expected_info]
+
+
 def test_initiate_connection(localdb_gazetteer: LocalDBGazetteer):
     localdb_gazetteer._initiate_connection()
     assert type(localdb_gazetteer.conn) == sqlite3.Connection
