@@ -6,6 +6,7 @@ from geoparser.config.models import (
     Column,
     GazetteerConfig,
     GazetteerData,
+    LocationCoordinates,
     ToponymColumn,
 )
 from geoparser.tests.utils import get_static_test_file
@@ -20,6 +21,9 @@ def test_get_gazetteer_configs_valid(monkeypatch):
         "test-full": GazetteerConfig(
             name="test-full",
             location_identifier="testid",
+            location_coordinates=LocationCoordinates(
+                x_column="longitude", y_column="latitude", crs="EPSG:4326"
+            ),
             location_columns=[
                 Column(name="testid", type="TEXT", primary=True),
                 Column(name="testname", type="TEXT"),
@@ -53,6 +57,9 @@ def test_get_gazetteer_configs_valid(monkeypatch):
         "test-minimal": GazetteerConfig(
             name="test-minimal",
             location_identifier="testid",
+            location_coordinates=LocationCoordinates(
+                x_column="longitude", y_column="latitude", crs="EPSG:4326"
+            ),
             location_columns=[Column(name="testid", type="TEXT", primary=True)],
             data=[
                 GazetteerData(
