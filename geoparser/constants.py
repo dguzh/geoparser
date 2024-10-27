@@ -11,7 +11,7 @@ class GAZETTEERS_CHOICES(str, Enum):
 
 DEFAULT_TRANSFORMER_MODEL = "dguzh/geo-all-distilroberta-v1"
 GAZETTEERS = {
-    GAZETTEERS_CHOICES.geonames: GeoNames,
-    GAZETTEERS_CHOICES.swissnames3d: SwissNames3D,
+    GAZETTEERS_CHOICES.geonames.value: GeoNames,
+    GAZETTEERS_CHOICES.swissnames3d.value: SwissNames3D,
 }
 MAX_ERROR = 20039  # half Earth's circumference in km
