@@ -2,7 +2,7 @@ import pandas as pd
 import pytest
 
 from geoparser.swissnames3d import SwissNames3D
-from geoparser.tests.utils import get_static_test_file
+from geoparser.tests.utils import execute_query, get_static_test_file
 
 
 @pytest.fixture(scope="session")
@@ -174,12 +174,10 @@ def test_populate_locations_table(swissnames3d_patched: SwissNames3D):
     swissnames3d_patched.create_locations_table()
     # actual test: populate locations table
     query = "SELECT * FROM locations"
-    swissnames3d_patched._initiate_connection()
-    cursor = swissnames3d_patched._get_cursor()
-    rows = cursor.execute(query).fetchall()
+    rows = execute_query(swissnames3d_patched, query)
     assert not rows
     swissnames3d_patched.populate_locations_table()
-    rows = cursor.execute(query).fetchall()
+    rows = execute_query(swissnames3d_patched, query)
     # test data has 7946 rows
     assert len(rows) == 7946
     actual_first_row = rows[0]

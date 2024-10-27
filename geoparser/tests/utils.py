@@ -1,6 +1,19 @@
 import typing as t
 from pathlib import Path
 
+from geoparser.gazetteer import LocalDBGazetteer
+
+
+def execute_query(gazetteer: t.Type[LocalDBGazetteer], query: str) -> list:
+    """
+    helper function for executing a query for a Gazetteer instance
+    with a fresh connection.
+    """
+    gazetteer._initiate_connection()
+    cursor = gazetteer._get_cursor()
+    rows = cursor.execute(query).fetchall()
+    return rows
+
 
 def make_concrete(abstract_class):
     class concreteClass(abstract_class):

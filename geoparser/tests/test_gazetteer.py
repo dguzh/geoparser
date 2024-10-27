@@ -3,7 +3,6 @@ import tempfile
 import typing as t
 from pathlib import Path
 
-import pandas as pd
 import py
 import pytest
 from requests_mock.mocker import Mocker
@@ -11,7 +10,7 @@ from requests_mock.mocker import Mocker
 from geoparser.config.models import Column, GazetteerData
 from geoparser.gazetteer import LocalDBGazetteer
 from geoparser.geonames import GeoNames
-from geoparser.tests.utils import get_static_test_file, make_concrete
+from geoparser.tests.utils import execute_query, get_static_test_file, make_concrete
 
 
 def check_table_creation(
@@ -26,14 +25,12 @@ def check_table_creation(
     """
     # 1. table does not exist before creation
     tables_query = "SELECT name FROM sqlite_master"
-    gazetteer._initiate_connection()
-    cursor = gazetteer._get_cursor()
-    tables_before = cursor.execute(tables_query).fetchall()
+    tables_before = execute_query(gazetteer, tables_query)
     assert tables_before == [] or table_name not in tables_before[0]
     # 2. create table with specified method
     getattr(gazetteer, method)(*args, **kwargs)
     # 3. table exists after creation
-    tables_after = cursor.execute(tables_query).fetchall()
+    tables_after = execute_query(gazetteer, tables_query)
     assert len(tables_after) > len(tables_before) and table_name in tables_after[0]
 
 
@@ -55,14 +52,12 @@ def check_table_population(
     """
     # 1. table is empty before populating it
     rows_query = f"SELECT * FROM {table_name}"
-    gazetteer._initiate_connection()
-    cursor = gazetteer._get_cursor()
-    rows_before = cursor.execute(rows_query).fetchall()
+    rows_before = execute_query(gazetteer, rows_query)
     assert rows_before == []
     # 2. populating the table with specified method
     getattr(gazetteer, method)(*args, **kwargs)
     # 3. table contains a specific first row
-    rows_after = cursor.execute(rows_query).fetchall()
+    rows_after = execute_query(gazetteer, rows_query)
     assert len(rows_after) > 0
     assert rows_after[0] == expected_first_row
 
@@ -152,7 +147,7 @@ def test_populate_data_table(geonames_patched: GeoNames):
     geonames_patched.create_data_table(table_data)
     # actual test: table is empty at first, then contains a specific row
     expected_first_row = (
-        2994701,
+        "2994701",
         "Roc Meler",
         "Roc Meler",
         "Roc Mele,Roc Meler,Roc Mélé",
@@ -217,13 +212,11 @@ def test_populate_names_fts_table(geonames_patched: GeoNames):
     geonames_patched.create_names_fts_table()
     # 1. table has some rows before populating it further
     rows_query = f"SELECT * FROM names_fts"
-    geonames_patched._initiate_connection()
-    cursor = geonames_patched._get_cursor()
-    rows_before = cursor.execute(rows_query).fetchall()
+    rows_before = execute_query(geonames_patched, rows_query)
     # 2. populating the table with specified method
     geonames_patched.populate_names_fts_table()
     # 3. there are no changes to table rows
-    rows_after = cursor.execute(rows_query).fetchall()
+    rows_after = execute_query(geonames_patched, rows_query)
     assert rows_before == rows_after
 
 
@@ -250,7 +243,7 @@ def test_drop_redundant_tables(geonames_patched: GeoNames):
     # 2. removing redundant tables
     geonames_patched.drop_redundant_tables()
     # all redundant tables have been dropped
-    tables_after = cursor.execute(tables_query).fetchall()[0]
+    tables_after = execute_query(geonames_patched, tables_query)
     assert all([table not in tables_after for table in redundant_tables])
 
 

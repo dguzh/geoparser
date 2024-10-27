@@ -2,7 +2,7 @@ import pandas as pd
 import pytest
 
 from geoparser.geonames import GeoNames
-from geoparser.tests.utils import get_static_test_file
+from geoparser.tests.utils import execute_query, get_static_test_file
 
 
 @pytest.fixture(scope="session")
@@ -150,17 +150,15 @@ def test_populate_locations_table(geonames_patched: GeoNames):
     geonames.create_locations_table()
     # actual test: populate locations table
     query = "SELECT * FROM locations"
-    geonames._initiate_connection()
-    cursor = geonames._get_cursor()
-    rows = cursor.execute(query).fetchall()
+    rows = execute_query(geonames, query)
     assert not rows
     geonames.populate_locations_table()
-    rows = cursor.execute(query).fetchall()
+    rows = execute_query(geonames, query)
     # test data has 1000 rows
     assert len(rows) == 1000
     actual_first_row = rows[0]
     expected_first_row = (
-        2994701,
+        "2994701",
         "Roc Meler",
         "peak",
         42.58765,
@@ -169,9 +167,9 @@ def test_populate_locations_table(geonames_patched: GeoNames):
         0,
         None,
         None,
-        3041203,
+        "3041203",
         "Canillo",
-        3041565,
+        "3041565",
         "Andorra",
     )
     assert actual_first_row == expected_first_row
