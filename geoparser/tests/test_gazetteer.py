@@ -262,7 +262,7 @@ def test_query_candidates(geonames_real_data: GeoNames, radio_andorra_id: int):
 def test_query_location_info(geonames_real_data: GeoNames, radio_andorra_id: int):
     print(geonames_real_data.query_location_info([radio_andorra_id]))
     expected_info = {
-        "geonameid": 3039328,
+        "geonameid": "3039328",
         "name": "Radio Andorra",
         "feature_type": "radio station",
         "latitude": 42.5282,
@@ -271,9 +271,9 @@ def test_query_location_info(geonames_real_data: GeoNames, radio_andorra_id: int
         "population": 0,
         "admin2_geonameid": None,
         "admin2_name": None,
-        "admin1_geonameid": 3040684,
+        "admin1_geonameid": "3040684",
         "admin1_name": "Encamp",
-        "country_geonameid": 3041565,
+        "country_geonameid": "3041565",
         "country_name": "Andorra",
     }
     assert geonames_real_data.query_location_info([radio_andorra_id]) == [expected_info]
