@@ -1,5 +1,4 @@
-from geoparser.geonames import GeoNames
-from geoparser.swissnames3d import SwissNames3D
+from geoparser.gazetteers import GeoNames, SwissNames3D
 
 DEFAULT_TRANSFORMER_MODEL = "dguzh/geo-all-distilroberta-v1"
 
