@@ -6,7 +6,7 @@ from sentence_transformers import SentenceTransformer, util
 from tqdm.auto import tqdm
 
 from geoparser.constants import DEFAULT_TRANSFORMER_MODEL, GAZETTEERS
-from geoparser.gazetteer import Gazetteer
+from geoparser.gazetteers.gazetteer import Gazetteer
 from geoparser.geodoc import GeoDoc
 
 # Suppress token length warnings from transformers

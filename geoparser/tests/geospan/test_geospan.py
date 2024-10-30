@@ -168,7 +168,7 @@ def test_geospan_context(
     geodoc_long_context: GeoDoc, token_limit: int, expected: str, monkeypatch
 ):
     monkeypatch.setattr(
-        "geoparser.geoparser.SentenceTransformer.get_max_seq_length",
+        "geoparser.geoparser.geoparser.SentenceTransformer.get_max_seq_length",
         lambda _: token_limit,
     )
     geospan = geodoc_long_context.toponyms[0]

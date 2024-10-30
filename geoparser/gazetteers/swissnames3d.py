@@ -5,7 +5,7 @@ import typing as t
 import geopandas as gpd
 import pandas as pd
 
-from geoparser.gazetteer import LocalDBGazetteer
+from geoparser.gazetteers.gazetteer import LocalDBGazetteer
 
 
 class SwissNames3D(LocalDBGazetteer):

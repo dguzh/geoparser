@@ -1,7 +1,7 @@
 import pandas as pd
 import pytest
 
-from geoparser.geonames import GeoNames
+from geoparser.gazetteers import GeoNames
 from geoparser.tests.utils import execute_query, get_static_test_file
 
 

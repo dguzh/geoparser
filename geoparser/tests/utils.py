@@ -1,7 +1,7 @@
 import typing as t
 from pathlib import Path
 
-from geoparser.gazetteer import LocalDBGazetteer
+from geoparser.gazetteers.gazetteer import LocalDBGazetteer
 
 
 def execute_query(gazetteer: t.Type[LocalDBGazetteer], query: str) -> list:

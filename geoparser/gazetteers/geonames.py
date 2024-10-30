@@ -4,7 +4,7 @@ import typing as t
 
 import pandas as pd
 
-from geoparser.gazetteer import LocalDBGazetteer
+from geoparser.gazetteers.gazetteer import LocalDBGazetteer
 
 
 class GeoNames(LocalDBGazetteer):

@@ -2,7 +2,8 @@ import typing as t
 
 import pytest
 
-from geoparser.geodoc import GeoDoc, Locations
+from geoparser.geodoc import GeoDoc
+from geoparser.geodoc.geodoc import Locations
 from geoparser.geospan import GeoSpan
 
 

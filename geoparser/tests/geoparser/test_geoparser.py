@@ -6,9 +6,9 @@ import torch
 from sentence_transformers import SentenceTransformer
 
 from geoparser import constants as C
-from geoparser.gazetteer import Gazetteer
+from geoparser.gazetteers import GeoNames
+from geoparser.gazetteers.gazetteer import Gazetteer
 from geoparser.geodoc import GeoDoc
-from geoparser.geonames import GeoNames
 from geoparser.geoparser import Geoparser
 
 

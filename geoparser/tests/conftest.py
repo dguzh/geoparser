@@ -5,10 +5,9 @@ import pandas as pd
 import py
 import pytest
 
+from geoparser.gazetteers import GeoNames, SwissNames3D
 from geoparser.geodoc import GeoDoc
-from geoparser.geonames import GeoNames
 from geoparser.geoparser import Geoparser
-from geoparser.swissnames3d import SwissNames3D
 from geoparser.tests.utils import get_static_test_file
 from geoparser.trainer import GeoparserTrainer
 
