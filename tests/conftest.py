@@ -8,8 +8,8 @@ import pytest
 from geoparser.gazetteers import GeoNames, SwissNames3D
 from geoparser.geodoc import GeoDoc
 from geoparser.geoparser import Geoparser
-from geoparser.tests.utils import get_static_test_file
 from geoparser.trainer import GeoparserTrainer
+from tests.utils import get_static_test_file
 
 
 @pytest.fixture(scope="session")

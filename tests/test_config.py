@@ -9,7 +9,7 @@ from geoparser.config.models import (
     LocationCoordinates,
     ToponymColumn,
 )
-from geoparser.tests.utils import get_static_test_file
+from tests.utils import get_static_test_file
 
 
 def test_get_gazetteer_configs_valid(monkeypatch):

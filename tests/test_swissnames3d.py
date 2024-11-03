@@ -2,7 +2,7 @@ import pandas as pd
 import pytest
 
 from geoparser.gazetteers import SwissNames3D
-from geoparser.tests.utils import execute_query, get_static_test_file
+from tests.utils import execute_query, get_static_test_file
 
 
 @pytest.fixture(scope="session")

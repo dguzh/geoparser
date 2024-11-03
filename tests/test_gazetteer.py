@@ -10,7 +10,7 @@ from requests_mock.mocker import Mocker
 from geoparser.config.models import Column, GazetteerData
 from geoparser.gazetteers import GeoNames
 from geoparser.gazetteers.gazetteer import LocalDBGazetteer
-from geoparser.tests.utils import execute_query, get_static_test_file, make_concrete
+from tests.utils import execute_query, get_static_test_file, make_concrete
 
 
 def check_table_creation(
