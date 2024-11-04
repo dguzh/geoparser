@@ -878,6 +878,8 @@
             var currentFilters = {};
             var filterInputs = {};
             var allCandidates = [];
+            var filteredCandidates = [];
+            var globalFilterAttributes = [];
             var existing_loc_id = null;
             var lastQueryText = queryTextInput.value.trim();
             var updatingFilters = false;
@@ -1068,72 +1070,99 @@
                 allCandidates = candidates;
                 existing_loc_id = existing_loc_id_param;
 
-                // Clear previous content
+                // Initialize filteredCandidates
+                filteredCandidates = allCandidates.slice(); // Make a copy
+
+                // Store filterAttributes globally so buildFilters can access it
+                globalFilterAttributes = filterAttributes;
+
+                // Build filters
+                buildFilters();
+
+                // Apply filters and render candidates
+                applyFilters();
+            }
+
+            function buildFilters() {
                 modalFilterPanel.innerHTML = '';
                 filterInputs = {}; // Reset filter inputs
 
-                // Create drop-down filters
-                filterAttributes.forEach(function(attribute) {
+                // Create filters
+                globalFilterAttributes.forEach(function(attribute) {
                     var label = document.createElement('label');
                     label.textContent = 'Filter by ' + attribute;
                     label.classList.add('form-label');
 
-                    var select = document.createElement('select');
-                    select.dataset.attribute = attribute;
-                    select.classList.add('form-select', 'mb-3');
-
-                    // Add an empty option
-                    var emptyOption = document.createElement('option');
-                    emptyOption.value = '';
-                    emptyOption.textContent = 'All';
-                    select.appendChild(emptyOption);
-
-                    // Collect attribute values
+                    // Collect attribute values from the filteredCandidates
                     var attributeValues = new Set();
-                    allCandidates.forEach(function(candidate) {
+                    filteredCandidates.forEach(function(candidate) {
                         var attributes = candidate.attributes;
                         if (attributes[attribute]) {
                             attributeValues.add(attributes[attribute]);
                         }
                     });
 
-                    // Add options from attributeValues
-                    Array.from(attributeValues).sort().forEach(function(value) {
-                        var option = document.createElement('option');
-                        option.value = value;
-                        option.textContent = value;
-                        select.appendChild(option);
-                    });
-
-                    // Set the select value to the current filter value if any
                     if (currentFilters[attribute]) {
-                        select.value = currentFilters[attribute];
+                        // Filter has a selected value
+                        var filterDiv = document.createElement('div');
+                        filterDiv.classList.add('input-group', 'mb-3');
+
+                        var input = document.createElement('input');
+                        input.type = 'text';
+                        input.value = currentFilters[attribute];
+                        input.classList.add('form-control');
+                        input.readOnly = true;
+
+                        var button = document.createElement('button');
+                        button.classList.add('btn', 'btn-outline-secondary');
+                        button.type = 'button';
+                        button.innerHTML = '<i class="bi bi-x-circle-fill"></i>';
+
+                        button.addEventListener('click', function() {
+                            currentFilters[attribute] = '';
+                            applyFilters();
+                        });
+
+                        filterDiv.appendChild(input);
+                        filterDiv.appendChild(button);
+
+                        modalFilterPanel.appendChild(label);
+                        modalFilterPanel.appendChild(filterDiv);
+                    } else {
+                        // No filter selected, show select element
+                        var select = document.createElement('select');
+                        select.dataset.attribute = attribute;
+                        select.classList.add('form-select', 'mb-3');
+
+                        // Add an empty option
+                        var emptyOption = document.createElement('option');
+                        emptyOption.value = '';
+                        emptyOption.textContent = 'All';
+                        select.appendChild(emptyOption);
+
+                        // Add options from attributeValues
+                        Array.from(attributeValues).sort().forEach(function(value) {
+                            var option = document.createElement('option');
+                            option.value = value;
+                            option.textContent = value;
+                            select.appendChild(option);
+                        });
+
+                        // Set the select value to the current filter value if any
+                        select.value = '';
+
+                        modalFilterPanel.appendChild(label);
+                        modalFilterPanel.appendChild(select);
+                        filterInputs[attribute] = select;
+
+                        // Event listener for the select
+                        select.addEventListener('change', function() {
+                            var selectedValue = select.value;
+                            currentFilters[attribute] = selectedValue;
+                            applyFilters();
+                        });
                     }
-
-                    modalFilterPanel.appendChild(label);
-                    modalFilterPanel.appendChild(select);
-                    filterInputs[attribute] = select;
                 });
-
-                // Event listeners for filter inputs
-                Object.keys(filterInputs).forEach(function(attribute) {
-                    filterInputs[attribute].addEventListener('change', function() {
-                        if (updatingFilters) return; // Prevent recursion
-                        var selectedValue = filterInputs[attribute].value;
-                        currentFilters[attribute] = selectedValue;
-                        applyFilters();
-                        if (mapView) {
-                            adjustMapView(); // Adjust map view if in map view
-                        }
-                    });
-                });
-
-                // Apply filters and render candidates
-                applyFilters();
-
-                if (mapView) {
-                    adjustMapView(); // Adjust map view after initial rendering
-                }
             }
 
             function applyFilters() {
@@ -1141,7 +1170,7 @@
                 updatingFilters = true;
 
                 // Filter the candidates
-                var filteredCandidates = [];
+                filteredCandidates = [];
                 allCandidates.forEach(function(candidate) {
                     var attributes = candidate.attributes;
                     var showCandidate = true;
@@ -1157,49 +1186,8 @@
                     }
                 });
 
-                // Update the filter options based on the filtered candidates
-                Object.keys(filterInputs).forEach(function(attribute) {
-                    // Collect attribute values from the filteredCandidates
-                    var attributeValues = new Set();
-                    filteredCandidates.forEach(function(candidate) {
-                        var attributes = candidate.attributes;
-                        if (attributes[attribute]) {
-                            attributeValues.add(attributes[attribute]);
-                        }
-                    });
-
-                    // Update the options of the select element for this attribute
-                    var select = filterInputs[attribute];
-
-                    // Store current selected value
-                    var selectedValue = select.value;
-
-                    // Clear existing options
-                    select.innerHTML = '';
-
-                    // Add an empty option
-                    var emptyOption = document.createElement('option');
-                    emptyOption.value = '';
-                    emptyOption.textContent = 'All';
-                    select.appendChild(emptyOption);
-
-                    // Add options from attributeValues
-                    Array.from(attributeValues).sort().forEach(function(value) {
-                        var option = document.createElement('option');
-                        option.value = value;
-                        option.textContent = value;
-                        select.appendChild(option);
-                    });
-
-                    // Restore the selected value if it's still available
-                    if (selectedValue && attributeValues.has(selectedValue)) {
-                        select.value = selectedValue;
-                    } else {
-                        // If not, reset to 'All' and update currentFilters
-                        select.value = '';
-                        currentFilters[attribute] = '';
-                    }
-                });
+                // Build filters based on filteredCandidates
+                buildFilters();
 
                 // Reset the flag
                 updatingFilters = false;
