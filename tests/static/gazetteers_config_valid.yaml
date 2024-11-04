@@ -1,0 +1,57 @@
+- name: test-full
+  location_identifier: testid
+  location_coordinates:
+    x_column: longitude
+    y_column: latitude
+    crs: EPSG:4326
+  location_columns:
+  - name: testid
+    type: TEXT
+    primary: true
+  - name: testname
+    type: TEXT
+  data:
+  - name: data1
+    url: https://data1.org/path/to/data1.zip
+    extracted_files:
+    - data1.txt
+    columns:
+    - name: testid
+      type: TEXT
+      primary: true
+    - name: testname
+      type: TEXT
+    skiprows: 50
+  - name: data2
+    url: https://data2.org/path/to/data2.zip
+    extracted_files:
+    - data2.txt
+    columns:
+    - name: testcode
+      type: TEXT
+      primary: true
+    - name: testname
+      type: TEXT
+    toponym_columns:
+    - name: testminimal
+    - name: testseparator
+      separator: ","
+- name: test-minimal
+  location_identifier: testid
+  location_coordinates:
+    x_column: longitude
+    y_column: latitude
+    crs: EPSG:4326
+  location_columns:
+  - name: testid
+    type: TEXT
+    primary: true
+  data:
+  - name: data1
+    url: https://data1.org/path/to/data1.zip
+    extracted_files:
+    - data1.txt
+    columns:
+    - name: testid
+      type: TEXT
+      primary: true
