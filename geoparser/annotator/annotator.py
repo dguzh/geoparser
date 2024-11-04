@@ -82,6 +82,10 @@ class GeoparserAnnotator(Geoparser):
                     "created_at": datetime.now().isoformat(),
                     "last_updated": datetime.now().isoformat(),
                     "gazetteer": selected_gazetteer,
+                    "settings": {
+                        "one_sense_per_discourse": False,
+                        "auto_close_annotation_modal": False,
+                    },
                     "documents": [],
                 }
 
@@ -417,6 +421,21 @@ class GeoparserAnnotator(Geoparser):
             toponym["loc_id"] = (
                 annotation["loc_id"] if annotation["loc_id"] is not None else None
             )
+
+            # Get the "one_sense_per_discourse" setting
+            one_sense_per_discourse = session.get("settings", {}).get(
+                "one_sense_per_discourse", False
+            )
+
+            if one_sense_per_discourse and toponym["loc_id"]:
+                # Apply the same loc_id to other unannotated toponyms with the same text
+                for other_toponym in toponyms:
+                    if (
+                        other_toponym["text"] == toponym["text"]
+                        and other_toponym["loc_id"] == ""
+                        and other_toponym is not toponym
+                    ):
+                        other_toponym["loc_id"] = toponym["loc_id"]
 
             # Update last_updated timestamp
             session["last_updated"] = datetime.now().isoformat()
@@ -775,6 +794,45 @@ class GeoparserAnnotator(Geoparser):
                     "progress_percentage": progress_percentage,
                 }
             )
+
+        @self.app.route("/get_session_settings", methods=["POST"])
+        def get_session_settings():
+            data = request.json
+            session_id = data["session_id"]
+
+            session = self.load_session_from_cache(session_id)
+            if not session:
+                return jsonify({"status": "error", "error": "Session not found"}), 404
+
+            settings = session.get(
+                "settings",
+                {
+                    "one_sense_per_discourse": False,
+                    "placeholder_option": False,
+                },
+            )
+
+            return jsonify({"status": "success", "settings": settings})
+
+        @self.app.route("/update_settings", methods=["POST"])
+        def update_settings():
+            data = request.json
+            session_id = data["session_id"]
+            settings = data["settings"]
+
+            session = self.load_session_from_cache(session_id)
+            if not session:
+                return jsonify({"error": "Session not found"}), 404
+
+            # Update settings
+            session["settings"] = settings
+
+            # Save session
+            session_file_path = os.path.join(self.cache_dir, f"{session_id}.json")
+            with open(session_file_path, "w", encoding="utf-8") as f:
+                json.dump(session, f, ensure_ascii=False, indent=4)
+
+            return jsonify({"status": "success"})
 
     def get_cached_sessions(self):
         sessions = []

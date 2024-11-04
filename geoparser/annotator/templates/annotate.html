@@ -165,6 +165,9 @@
             <a href="{{ url_for('download_annotations', session_id=session_id) }}" class="btn btn-outline-light me-2" title="Session Download">
                 <i class="bi bi-download"></i>
             </a>
+            <button class="btn btn-outline-light me-2" id="settings-btn" title="Settings">
+                <i class="bi bi-gear"></i>
+            </button>
         </div>
     </div>
 </nav>
@@ -309,6 +312,50 @@
   </div> <!-- Close modal-dialog -->
 </div> <!-- Close modal -->
 
+<!-- Settings Modal -->
+<div class="modal fade" id="settingsModal" tabindex="-1" aria-labelledby="settingsModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form id="settings-form">
+        <div class="modal-header">
+          <h5 class="modal-title">Settings</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <!-- One Sense Per Discourse Option -->
+          <div class="form-check form-switch mb-3">
+            <input class="form-check-input" type="checkbox" id="one-sense-per-discourse">
+            <label class="form-check-label" for="one-sense-per-discourse">
+              One Sense Per Discourse
+            </label>
+            <div>
+              <small class="form-text text-muted">
+                Automatically assign the same location to all unannotated toponyms with the same name in a document.
+              </small>
+            </div>
+          </div>
+          <!-- Auto-Close Annotation Modal Option -->
+          <div class="form-check form-switch mb-3">
+            <input class="form-check-input" type="checkbox" id="auto-close-annotation-modal">
+            <label class="form-check-label" for="auto-close-annotation-modal">
+              Auto-Close Annotation Window
+            </label>
+            <div>
+              <small class="form-text text-muted">
+                Automatically close the annotation window after selecting a location.
+              </small>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="submit" class="btn btn-primary">Save Settings</button>
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
 <!-- Context Menu -->
 <div id="context-menu">
     <ul>
@@ -363,6 +410,90 @@
         var currentToponymElement = null;
 
         var documentList = document.getElementById('document-list');
+        
+        var sessionSettings = {};
+
+        // Settings Button
+        var settingsBtn = document.getElementById('settings-btn');
+        var settingsModalElement = document.getElementById('settingsModal');
+        var settingsModal = new bootstrap.Modal(settingsModalElement);
+        var settingsForm = document.getElementById('settings-form');
+        var oneSensePerDiscourseCheckbox = document.getElementById('one-sense-per-discourse');
+        var autoCloseAnnotationModalCheckbox = document.getElementById('auto-close-annotation-modal');
+
+        // Fetch session settings
+        fetch('{{ url_for("get_session_settings") }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                'session_id': sessionId
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                sessionSettings = data.settings;
+            } else {
+                alert('Failed to load settings.');
+            }
+        });
+
+        settingsBtn.addEventListener('click', function() {
+            // Load current settings from the server
+            fetch('{{ url_for("get_session_settings") }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    'session_id': sessionId
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    oneSensePerDiscourseCheckbox.checked = data.settings.one_sense_per_discourse;
+                    autoCloseAnnotationModalCheckbox.checked = data.settings.auto_close_annotation_modal;
+                    settingsModal.show();
+                } else {
+                    alert('Failed to load settings.');
+                }
+            });
+        });
+
+        settingsForm.addEventListener('submit', function(event) {
+            event.preventDefault();
+            var oneSensePerDiscourse = oneSensePerDiscourseCheckbox.checked;
+            var autoCloseAnnotationModal = autoCloseAnnotationModalCheckbox.checked;
+
+            var settingsData = {
+                'one_sense_per_discourse': oneSensePerDiscourse,
+                'auto_close_annotation_modal': autoCloseAnnotationModal
+            };
+
+            fetch('{{ url_for("update_settings") }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    'session_id': sessionId,
+                    'settings': settingsData
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    // Update sessionSettings variable
+                    sessionSettings = settingsData;
+                    settingsModal.hide();
+                } else {
+                    alert('Failed to save settings.');
+                }
+            });
+        });
         
         // Function to restore scroll position
         function restoreScrollPosition() {
@@ -820,14 +951,13 @@
 
             // Add event listener to the 'None' option
             noneOptionDiv.addEventListener('click', function() {
-                modal.hide();
                 saveAnnotation(null);
             });
 
             // Function to update the 'None' option appearance
             function updateNoneOption() {
                 // Clear any existing content in the 'None' option
-                noneOptionDiv.innerHTML = 'None';
+                noneOptionDiv.innerHTML = 'No suitable location';
 
                 if (existing_loc_id === null) {
                     noneOptionDiv.classList.add('active', 'bg-primary', 'text-white');
@@ -841,7 +971,6 @@
                     deselectBtn.addEventListener('click', function(event) {
                         event.stopPropagation();
                         deselectCandidate();
-                        modal.hide();
                     });
 
                     noneOptionDiv.appendChild(deselectBtn);
@@ -1067,7 +1196,6 @@
 
                                 // Add click event to select candidate
                                 marker.on('click', function() {
-                                    modal.hide();
                                     saveAnnotation(loc_id);
                                 });
 
@@ -1124,7 +1252,6 @@
                                 deselectBtn.addEventListener('click', function(event) {
                                     event.stopPropagation();
                                     deselectCandidate();
-                                    modal.hide();
                                     modalCandidateList.scrollTop = 0;
                                 });
 
@@ -1132,7 +1259,6 @@
                             }
 
                             candidateDiv.addEventListener('click', function() {
-                                modal.hide();
                                 modalCandidateList.scrollTop = 0;
                                 saveAnnotation(candidateDiv.dataset.locId);
                             });
@@ -1187,6 +1313,14 @@
 
                         // Re-render the document text
                         reloadDocumentText();
+
+                        // Close the modal based on setting
+                        if (sessionSettings.auto_close_annotation_modal) {
+                            modal.hide();
+                        } else {
+                            // Since the modal is not closing, update the candidate list
+                            fetchCandidates(queryTextInput.value.trim());
+                        }
                     } else {
                         alert('Failed to save annotation: ' + data.error);
                     }
@@ -1214,11 +1348,17 @@
                 .then(response => response.json())
                 .then(data => {
                     if (data.status === 'success') {
-                        // Refresh candidates by calling fetchCandidates again
-                        fetchCandidates(currentToponym.text);
                         // Update progress bar and re-render document text
                         updateProgressBar();
                         reloadDocumentText();
+
+                        // Close the modal based on setting
+                        if (sessionSettings.auto_close_annotation_modal) {
+                            modal.hide();
+                        } else {
+                            // Since the modal is not closing, update the candidate list
+                            fetchCandidates(queryTextInput.value.trim());
+                        }
                     } else {
                         alert('Failed to deselect candidate: ' + data.error);
                     }
