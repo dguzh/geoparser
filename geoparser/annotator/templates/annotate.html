@@ -880,6 +880,7 @@
             var allCandidates = [];
             var existing_loc_id = null;
             var lastQueryText = queryTextInput.value.trim();
+            var updatingFilters = false;
 
             var map = null;
             var markersGroup = null;
@@ -1117,6 +1118,7 @@
                 // Event listeners for filter inputs
                 Object.keys(filterInputs).forEach(function(attribute) {
                     filterInputs[attribute].addEventListener('change', function() {
+                        if (updatingFilters) return; // Prevent recursion
                         var selectedValue = filterInputs[attribute].value;
                         currentFilters[attribute] = selectedValue;
                         applyFilters();
@@ -1135,8 +1137,76 @@
             }
 
             function applyFilters() {
+                // Set flag to prevent recursive calls
+                updatingFilters = true;
+
+                // Filter the candidates
+                var filteredCandidates = [];
+                allCandidates.forEach(function(candidate) {
+                    var attributes = candidate.attributes;
+                    var showCandidate = true;
+                    Object.keys(currentFilters).forEach(function(attribute) {
+                        var filterValue = currentFilters[attribute];
+                        var attributeValue = attributes[attribute] ? attributes[attribute].toString() : '';
+                        if (filterValue && attributeValue !== filterValue) {
+                            showCandidate = false;
+                        }
+                    });
+                    if (showCandidate) {
+                        filteredCandidates.push(candidate);
+                    }
+                });
+
+                // Update the filter options based on the filtered candidates
+                Object.keys(filterInputs).forEach(function(attribute) {
+                    // Collect attribute values from the filteredCandidates
+                    var attributeValues = new Set();
+                    filteredCandidates.forEach(function(candidate) {
+                        var attributes = candidate.attributes;
+                        if (attributes[attribute]) {
+                            attributeValues.add(attributes[attribute]);
+                        }
+                    });
+
+                    // Update the options of the select element for this attribute
+                    var select = filterInputs[attribute];
+
+                    // Store current selected value
+                    var selectedValue = select.value;
+
+                    // Clear existing options
+                    select.innerHTML = '';
+
+                    // Add an empty option
+                    var emptyOption = document.createElement('option');
+                    emptyOption.value = '';
+                    emptyOption.textContent = 'All';
+                    select.appendChild(emptyOption);
+
+                    // Add options from attributeValues
+                    Array.from(attributeValues).sort().forEach(function(value) {
+                        var option = document.createElement('option');
+                        option.value = value;
+                        option.textContent = value;
+                        select.appendChild(option);
+                    });
+
+                    // Restore the selected value if it's still available
+                    if (selectedValue && attributeValues.has(selectedValue)) {
+                        select.value = selectedValue;
+                    } else {
+                        // If not, reset to 'All' and update currentFilters
+                        select.value = '';
+                        currentFilters[attribute] = '';
+                    }
+                });
+
+                // Reset the flag
+                updatingFilters = false;
+
+                // Now, display the filtered candidates
                 if (mapView) {
-                    // Map View
+                    // Map View: update markers based on filteredCandidates
                     if (markersGroup) {
                         markersGroup.clearLayers();
                     }
@@ -1144,7 +1214,7 @@
 
                     var selectedMarker = null; // To hold the selected marker
 
-                    allCandidates.forEach(function(candidate) {
+                    filteredCandidates.forEach(function(candidate) {
                         var lat = candidate.latitude;
                         var lon = candidate.longitude;
                         if (lat !== null && lon !== null) {
@@ -1168,45 +1238,29 @@
 
                             var marker = L.circleMarker([lat, lon], markerOptions);
 
-                            // Store candidate attributes for filtering
-                            marker.candidateAttributes = candidate.attributes;
-                            marker.candidateAttributes.loc_id = loc_id;
+                            // Bind popup with candidate description
+                            marker.bindPopup(candidate.description);
 
-                            // Apply filters to marker
-                            var showMarker = true;
-                            Object.keys(currentFilters).forEach(function(attribute) {
-                                var filterValue = currentFilters[attribute];
-                                var attributeValue = marker.candidateAttributes[attribute] ? marker.candidateAttributes[attribute].toString() : '';
-                                if (filterValue && attributeValue !== filterValue) {
-                                    showMarker = false;
-                                }
+                            // Add hover event to show popup
+                            marker.on('mouseover', function(e) {
+                                this.openPopup();
+                            });
+                            marker.on('mouseout', function(e) {
+                                this.closePopup();
                             });
 
-                            if (showMarker) {
-                                // Bind popup with candidate description
-                                marker.bindPopup(candidate.description);
+                            // Add click event to select candidate
+                            marker.on('click', function() {
+                                saveAnnotation(loc_id);
+                            });
 
-                                // Add hover event to show popup
-                                marker.on('mouseover', function(e) {
-                                    this.openPopup();
-                                });
-                                marker.on('mouseout', function(e) {
-                                    this.closePopup();
-                                });
-
-                                // Add click event to select candidate
-                                marker.on('click', function() {
-                                    saveAnnotation(loc_id);
-                                });
-
-                                if (isSelected) {
-                                    selectedMarker = marker; // Store the selected marker
-                                } else {
-                                    markersGroup.addLayer(marker); // Add non-selected markers to the group
-                                }
-
-                                allMarkers.push(marker);
+                            if (isSelected) {
+                                selectedMarker = marker; // Store the selected marker
+                            } else {
+                                markersGroup.addLayer(marker); // Add non-selected markers to the group
                             }
+
+                            allMarkers.push(marker);
                         }
                     });
 
@@ -1216,54 +1270,44 @@
                         selectedMarker.bringToFront(); // Ensure it's on top
                     }
 
+                    // Adjust map view
+                    adjustMapView();
+
                 } else {
-                    // List View
-                    // Clear candidate list
+                    // List View: update the candidate list based on filteredCandidates
                     modalCandidateList.innerHTML = '';
 
-                    // Apply filters and display candidates
-                    allCandidates.forEach(function(candidate) {
-                        var attributes = candidate.attributes;
-                        var showCandidate = true;
-                        Object.keys(currentFilters).forEach(function(attribute) {
-                            var filterValue = currentFilters[attribute];
-                            var attributeValue = attributes[attribute] ? attributes[attribute].toString() : '';
-                            if (filterValue && attributeValue !== filterValue) {
-                                showCandidate = false;
-                            }
-                        });
-                        if (showCandidate) {
-                            var candidateDiv = document.createElement('div');
-                            candidateDiv.classList.add('candidate', 'p-2', 'border', 'mb-2');
-                            candidateDiv.innerHTML = candidate.description;
-                            candidateDiv.dataset.locId = candidate.loc_id;
-                            candidateDiv.dataset.attributes = JSON.stringify(candidate.attributes);
+                    filteredCandidates.forEach(function(candidate) {
+                        var candidateDiv = document.createElement('div');
+                        candidateDiv.classList.add('candidate', 'p-2', 'border', 'mb-2');
+                        candidateDiv.innerHTML = candidate.description;
+                        candidateDiv.dataset.locId = candidate.loc_id;
+                        candidateDiv.dataset.attributes = JSON.stringify(candidate.attributes);
 
-                            // Highlight if this candidate is the existing selection
-                            if (existing_loc_id !== null && candidate.loc_id == existing_loc_id) {
-                                candidateDiv.classList.add('bg-primary', 'text-white');
+                        // Highlight if this candidate is the existing selection
+                        if (existing_loc_id !== null && candidate.loc_id == existing_loc_id) {
+                            candidateDiv.classList.add('bg-primary', 'text-white');
 
-                                // Add deselect button (icon)
-                                var deselectBtn = document.createElement('span');
-                                deselectBtn.classList.add('deselect-btn', 'ms-2');
-                                deselectBtn.innerHTML = '<i class="bi bi-x-circle-fill"></i>';
+                            // Add deselect button (icon)
+                            var deselectBtn = document.createElement('span');
+                            deselectBtn.classList.add('deselect-btn', 'ms-2');
+                            deselectBtn.innerHTML = '<i class="bi bi-x-circle-fill"></i>';
 
-                                // Add click event to the deselect button
-                                deselectBtn.addEventListener('click', function(event) {
-                                    event.stopPropagation();
-                                    deselectCandidate();
-                                    modalCandidateList.scrollTop = 0;
-                                });
-
-                                candidateDiv.appendChild(deselectBtn);
-                            }
-
-                            candidateDiv.addEventListener('click', function() {
+                            // Add click event to the deselect button
+                            deselectBtn.addEventListener('click', function(event) {
+                                event.stopPropagation();
+                                deselectCandidate();
                                 modalCandidateList.scrollTop = 0;
-                                saveAnnotation(candidateDiv.dataset.locId);
                             });
-                            modalCandidateList.appendChild(candidateDiv);
+
+                            candidateDiv.appendChild(deselectBtn);
                         }
+
+                        candidateDiv.addEventListener('click', function() {
+                            modalCandidateList.scrollTop = 0;
+                            saveAnnotation(candidateDiv.dataset.locId);
+                        });
+                        modalCandidateList.appendChild(candidateDiv);
                     });
                 }
             }
