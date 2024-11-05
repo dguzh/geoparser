@@ -1249,9 +1249,14 @@
                                 this.closePopup();
                             });
 
-                            // Add click event to select candidate
-                            marker.on('click', function() {
-                                saveAnnotation(loc_id);
+                            // Attach a click event, handling both selection and deselection
+                            marker.on('click', function(e) {
+                                L.DomEvent.stopPropagation(e); // Prevent map zoom on click
+                                if (isSelected) {
+                                    deselectCandidate();
+                                } else {
+                                    saveAnnotation(loc_id);
+                                }
                             });
 
                             if (isSelected) {
