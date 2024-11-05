@@ -355,24 +355,37 @@ class LocalDBGazetteer(Gazetteer):
         location_identifier = self.config.location_identifier
 
         toponym = re.sub(r"\"", "", toponym).strip()
-        toponym = " ".join([f'"{word}"' for word in toponym.split()])
+        tokenized_toponym = " ".join([f'"{word}"' for word in toponym.split()])
 
         query = f"""
-            WITH MinRank AS (
-                SELECT MIN(rank) AS MinRank FROM names_fts WHERE names_fts MATCH ?
-            ),
-            RankedMatches AS (
-                SELECT {location_identifier}, bm25(names_fts) as rank
+            WITH RankedMatches AS (
+                SELECT {location_identifier}, name, bm25(names_fts) as rank
                 FROM names_fts
                 WHERE names_fts MATCH ?
+            ),
+            MinRanks AS (
+                SELECT rank
+                FROM RankedMatches
+                GROUP BY rank
+                ORDER BY rank ASC
+                LIMIT ?
             )
-            SELECT CAST({location_identifier} AS TEXT)
+            SELECT CAST({location_identifier} AS TEXT), name, rank
             FROM RankedMatches
-            WHERE RankedMatches.rank = (SELECT MinRank FROM MinRank)
+            WHERE RankedMatches.rank IN (SELECT rank FROM MinRanks)
             GROUP BY {location_identifier}
         """
 
-        result = self.execute_query(query, (toponym, toponym))
+        result = self.execute_query(query, (tokenized_toponym, 1))
+
+        # Provisional fix for the issue where names like "Cuba Cuba" were preferred over "Cuba" when querying "Cuba"
+        names = [row[1].lower() for row in result]
+        double_toponym_a = " ".join((toponym, toponym)).lower()
+        double_toponym_b = "-".join((toponym, toponym)).lower()
+        if double_toponym_a in names or double_toponym_b in names:
+            extended_result = self.execute_query(query, (tokenized_toponym, 2))
+            result = [x for x in extended_result if x not in result]
+
         return [row[0] for row in result]
 
     def query_location_info(
