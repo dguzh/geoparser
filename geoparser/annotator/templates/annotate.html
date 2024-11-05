@@ -866,6 +866,7 @@
             var mapViewBtn = document.getElementById('map-view-btn');
             var searchButton = document.getElementById('search-button');
             var queryTextInput = document.getElementById('query-text-input');
+            var existingCandidateData = null;
 
             // Set the modal title to the toponym text
             modalTitle.textContent = currentToponym.text;
@@ -1058,6 +1059,7 @@
                 })
                 .then(response => response.json())
                 .then(data => {
+                    existingCandidateData = data.existing_candidate;
                     populateCandidates(data.candidates, data.filter_attributes, data.existing_loc_id);
                     existing_loc_id = data.existing_loc_id;
                     updateNoneOption();
@@ -1265,6 +1267,8 @@
                     // List View: update the candidate list based on filteredCandidates
                     modalCandidateList.innerHTML = '';
 
+                    var selectedCandidateDiv = null; // Variable to store the selected candidateDiv
+
                     filteredCandidates.forEach(function(candidate) {
                         var candidateDiv = document.createElement('div');
                         candidateDiv.classList.add('candidate', 'p-2', 'border', 'mb-2');
@@ -1285,18 +1289,59 @@
                             deselectBtn.addEventListener('click', function(event) {
                                 event.stopPropagation();
                                 deselectCandidate();
-                                modalCandidateList.scrollTop = 0;
                             });
 
                             candidateDiv.appendChild(deselectBtn);
+
+                            selectedCandidateDiv = candidateDiv;
                         }
 
                         candidateDiv.addEventListener('click', function() {
-                            modalCandidateList.scrollTop = 0;
                             saveAnnotation(candidateDiv.dataset.locId);
                         });
                         modalCandidateList.appendChild(candidateDiv);
                     });
+
+                    // Check if existing_loc_id is not null and selectedCandidateDiv is null
+                    if (existing_loc_id !== null && selectedCandidateDiv === null) {
+                        if (existingCandidateData) {
+                            var existingCandidate = existingCandidateData;
+
+                            var candidateDiv = document.createElement('div');
+                            candidateDiv.classList.add('candidate', 'p-2', 'border', 'mb-2');
+                            candidateDiv.innerHTML = existingCandidate.description;
+                            candidateDiv.dataset.locId = existingCandidate.loc_id;
+                            candidateDiv.dataset.attributes = JSON.stringify(existingCandidate.attributes);
+
+                            candidateDiv.classList.add('bg-primary', 'text-white');
+
+                            // Add deselect button (icon)
+                            var deselectBtn = document.createElement('span');
+                            deselectBtn.classList.add('deselect-btn', 'ms-2');
+                            deselectBtn.innerHTML = '<i class="bi bi-x-circle-fill"></i>';
+
+                            // Add click event to the deselect button
+                            deselectBtn.addEventListener('click', function(event) {
+                                event.stopPropagation();
+                                deselectCandidate();
+                            });
+
+                            candidateDiv.appendChild(deselectBtn);
+
+                            // Store the selected candidateDiv
+                            selectedCandidateDiv = candidateDiv;
+
+                            // Append to modalCandidateList
+                            modalCandidateList.appendChild(candidateDiv);
+                        } else {
+                            console.error('Existing candidate data not available');
+                        }
+                    }
+
+                    // Scroll to the selectedCandidateDiv if it exists
+                    if (selectedCandidateDiv) {
+                        selectedCandidateDiv.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }
                 }
             }
 

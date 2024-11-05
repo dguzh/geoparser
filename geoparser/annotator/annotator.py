@@ -332,7 +332,11 @@ class GeoparserAnnotator(Geoparser):
 
             existing_loc_id = toponym.get("loc_id", "")
 
-            if existing_loc_id:
+            append_existing_candidate = (
+                existing_loc_id and not existing_loc_id in candidates
+            )
+
+            if append_existing_candidate:
                 existing_location = self.gazetteer.query_location_info(
                     [existing_loc_id]
                 )[0]
@@ -367,9 +371,7 @@ class GeoparserAnnotator(Geoparser):
                     "longitude": lon,
                 }
 
-                if existing_loc_id in candidates:
-                    candidate_descriptions.remove(existing_annotation)
-                candidate_descriptions.insert(0, existing_annotation)
+                candidate_descriptions.append(existing_annotation)
 
             # Get filter attributes from gazetteer configuration
             location_identifier = self.gazetteer.config.location_identifier
@@ -388,6 +390,9 @@ class GeoparserAnnotator(Geoparser):
                     "candidates": candidate_descriptions,
                     "filter_attributes": filter_attributes,
                     "existing_loc_id": existing_loc_id,
+                    "existing_candidate": (
+                        existing_annotation if append_existing_candidate else None
+                    ),
                 }
             )
 
