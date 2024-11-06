@@ -1,0 +1,2 @@
+- name: test-invalid
+  location_identifier: 12

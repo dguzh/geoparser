@@ -15,6 +15,12 @@ class ToponymColumn(BaseModel):
     geoqualifier_pattern: t.Optional[str] = None
 
 
+class LocationCoordinates(BaseModel):
+    x_column: str
+    y_column: str
+    crs: str
+
+
 class GazetteerData(BaseModel):
     name: str
     url: str
@@ -27,5 +33,6 @@ class GazetteerData(BaseModel):
 class GazetteerConfig(BaseModel):
     name: str
     location_identifier: str
+    location_coordinates: LocationCoordinates
     location_columns: list[Column]
     data: list[GazetteerData]

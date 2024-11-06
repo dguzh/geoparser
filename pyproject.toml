@@ -20,6 +20,8 @@ haversine = "^2.8.1"
 accelerate = "0.34.2"
 pydantic = "^2.7.4"
 geopandas = "^1.0.1"
+flask = "^3.0.3"
+typer = "^0.12.5"
 
 
 [tool.poetry.group.dev.dependencies]
