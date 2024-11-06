@@ -33,5 +33,16 @@ requests-mock = "^1.12.1"
 en-core-web-sm = {url = "https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.7.1/en_core_web_sm-3.7.1.tar.gz"}
 pytest-cov = "^6.0.0"
 
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
 [tool.isort]
 profile = "black"
+
+[tool.pytest.ini_options]
+addopts = "--cov=geoparser --cov-report html"
+
+[tool.coverage.run]
+omit = ["tests/*"]
+relative_files = true
