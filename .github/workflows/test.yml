@@ -33,9 +33,9 @@ jobs:
       - name: Install project dependencies
         run: poetry install
       - name: Run pytest
-        run: poetry run pytest -v --cov=sinaasappel
+        run: poetry run pytest -v --cov=geoparser
       - run: pip install coverage[toml]
-      - run: coverage html --show-contexts --title "sinaasappel coverage for ${{ github.sha }}"
+      - run: coverage html --show-contexts --title "geoparser coverage for ${{ github.sha }}"
       - name: Coverage comment
         id: coverage_comment
         uses: py-cov-action/python-coverage-comment-action@v3
