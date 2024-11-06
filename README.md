@@ -1,5 +1,23 @@
 # Geoparser
 
+<p align="center">
+<a href="https://github.com/dguzh/geoparser/actions?query=event%3Apush+branch%3Amain+workflow%3ACI" target="_blank">
+    <img src="https://img.shields.io/github/actions/workflow/status/dguzh/geoparser/ci.yml?branch=main&logo=github&label=CI" alt="CI status">
+</a>
+<a href="https://github.com/dguzh/geoparser/actions/workflows/test.yml?query=branch%3Amain+" target="_blank">
+    <img src="https://img.shields.io/github/actions/workflow/status/dguzh/geoparser/test.yml?branch=main&logo=github&label=Tests" alt="Tests">
+</a>
+<a href="https://coverage-badge.samuelcolvin.workers.dev/redirect/dguzh/geoparser" target="_blank">
+    <img src="https://coverage-badge.samuelcolvin.workers.dev/dguzh/geoparser.svg" alt="Coverage">
+</a>
+<a href="https://pypi.org/project/geoparser" target="_blank">
+    <img src="https://img.shields.io/pypi/v/geoparser?&label=pypi%20package" alt="Package version">
+</a>
+<a href="https://pypi.org/project/geoparser" target="_blank">
+    <img src="https://img.shields.io/pypi/pyversions/geoparser" alt="Supported Python versions">
+</a>
+</p>
+
 Geoparser is a Python library for geoparsing unstructured texts. It employs spaCy for toponym recognition and fine-tuned SentenceTransformer models for toponym resolution.
 
 ## Installation
