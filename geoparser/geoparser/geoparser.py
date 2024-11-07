@@ -84,17 +84,17 @@ class Geoparser:
         return docs
 
     def resolve(self, docs: list[GeoDoc], batch_size: int = 8) -> list[GeoDoc]:
-        if candidate_ids := self.get_candidate_ids(docs):
-            candidate_embeddings_lookup = self.get_candidate_embeddings_lookup(
+        if candidate_ids := self._get_candidate_ids(docs):
+            candidate_embeddings_lookup = self._get_candidate_embeddings_lookup(
                 candidate_ids, batch_size
             )
-            toponym_embeddings = self.get_toponym_embeddings(docs, batch_size)
+            toponym_embeddings = self._get_toponym_embeddings(docs, batch_size)
 
             toponym_index = 0
             for doc in docs:
                 for toponym in doc.toponyms:
                     if toponym.candidates:
-                        toponym._.loc_id, toponym._.loc_score = self.resolve_toponym(
+                        toponym._.loc_id, toponym._.loc_score = self._resolve_toponym(
                             candidate_embeddings_lookup,
                             toponym.candidates,
                             toponym_embeddings,
@@ -103,14 +103,14 @@ class Geoparser:
                     toponym_index += 1
         return docs
 
-    def get_candidate_ids(self, docs: list[GeoDoc]) -> list[int]:
+    def _get_candidate_ids(self, docs: list[GeoDoc]) -> list[int]:
         candidate_ids = set()
         for doc in docs:
             for toponym in doc.toponyms:
                 candidate_ids.update(toponym.candidates)
         return list(candidate_ids)
 
-    def get_candidate_embeddings_lookup(
+    def _get_candidate_embeddings_lookup(
         self, candidate_ids: list[int], batch_size: int = 8
     ) -> dict[str, torch.Tensor]:
         candidate_descriptions = [
@@ -125,7 +125,7 @@ class Geoparser:
         )
         return dict(zip(candidate_ids, candidate_embeddings))
 
-    def get_toponym_embeddings(
+    def _get_toponym_embeddings(
         self, docs: list[GeoDoc], batch_size: int = 8
     ) -> torch.Tensor:
         toponym_contexts = [
@@ -139,7 +139,7 @@ class Geoparser:
         )
         return toponym_embeddings
 
-    def resolve_toponym(
+    def _resolve_toponym(
         self,
         candidate_embeddings_lookup: dict[str, torch.Tensor],
         candidate_ids: list[int],

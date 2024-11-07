@@ -102,7 +102,7 @@ def test_get_candidate_ids(
     geodocs: list[GeoDoc],
     radio_andorra_id: str,
 ):
-    candidate_ids = geoparser_real_data.get_candidate_ids(geodocs)
+    candidate_ids = geoparser_real_data._get_candidate_ids(geodocs)
     assert type(candidate_ids) is list
     for elem in candidate_ids:
         assert type(elem) is str
@@ -113,7 +113,7 @@ def test_get_candidate_embeddings_lookup(
     geoparser_real_data: Geoparser, radio_andorra_id: str
 ):
     candidate_ids = [radio_andorra_id]
-    lookup = geoparser_real_data.get_candidate_embeddings_lookup(candidate_ids)
+    lookup = geoparser_real_data._get_candidate_embeddings_lookup(candidate_ids)
     assert type(lookup) is dict
     for key, value in lookup.items():
         assert type(key) is str
@@ -122,7 +122,7 @@ def test_get_candidate_embeddings_lookup(
 
 
 def test_get_toponym_embeddings(geoparser_real_data: Geoparser, geodocs: list[GeoDoc]):
-    toponym_embeddings = geoparser_real_data.get_toponym_embeddings(geodocs)
+    toponym_embeddings = geoparser_real_data._get_toponym_embeddings(geodocs)
     assert type(toponym_embeddings) is torch.Tensor
 
 
@@ -133,10 +133,10 @@ def test_resolve_toponym(
     radio_andorra_id: int,
 ):
     geoparser_real_data.gazetteer = geonames_real_data
-    candidate_ids = geoparser_real_data.get_candidate_ids(geodocs)
-    lookup = geoparser_real_data.get_candidate_embeddings_lookup(candidate_ids)
-    toponym_embeddings = geoparser_real_data.get_toponym_embeddings(geodocs)
-    predicted_id, score = geoparser_real_data.resolve_toponym(
+    candidate_ids = geoparser_real_data._get_candidate_ids(geodocs)
+    lookup = geoparser_real_data._get_candidate_embeddings_lookup(candidate_ids)
+    toponym_embeddings = geoparser_real_data._get_toponym_embeddings(geodocs)
+    predicted_id, score = geoparser_real_data._resolve_toponym(
         lookup, candidate_ids, toponym_embeddings, 0
     )
     # roc meler will be matched
