@@ -20,13 +20,13 @@ from geoparser.config.models import GazetteerData
 class Gazetteer(ABC):
 
     @abstractmethod
-    def create_location_description(self, location: dict[str, str]) -> str:
+    def _create_location_description(self, location: dict[str, str]) -> str:
         pass
 
     def get_location_description(
         self, location: dict[str, t.Union[int, str, float]]
     ) -> str:
-        return self.create_location_description(location)
+        return self._create_location_description(location)
 
 
 class LocalDBGazetteer(Gazetteer):
@@ -92,19 +92,19 @@ class LocalDBGazetteer(Gazetteer):
         os.makedirs(self.data_dir, exist_ok=True)
 
         for dataset in self.config.data:
-            self.download_file(dataset)
-            self.load_data(dataset)
+            self._download_file(dataset)
+            self._load_data(dataset)
 
-        self.create_names_table()
-        self.populate_names_table()
+        self._create_names_table()
+        self._populate_names_table()
 
-        self.create_names_fts_table()
-        self.populate_names_fts_table()
+        self._create_names_fts_table()
+        self._populate_names_fts_table()
 
-        self.create_locations_table()
-        self.populate_locations_table()
+        self._create_locations_table()
+        self._populate_locations_table()
 
-        self.drop_redundant_tables()
+        self._drop_redundant_tables()
 
         self.clean_dir(keep_db=True)
 
@@ -129,14 +129,14 @@ class LocalDBGazetteer(Gazetteer):
     @close
     @commit
     @connect
-    def drop_redundant_tables(self):
+    def _drop_redundant_tables(self):
         cursor = self._get_cursor()
         tables_to_drop = [dataset.name for dataset in self.config.data]
         for table in tables_to_drop:
             cursor.execute(f"DROP TABLE IF EXISTS {table};")
         cursor.execute("VACUUM;")
 
-    def download_file(self, dataset: GazetteerData):
+    def _download_file(self, dataset: GazetteerData):
         url = dataset.url
         filename = url.split("/")[-1]
         file_path = os.path.join(self.data_dir, filename)
@@ -154,19 +154,19 @@ class LocalDBGazetteer(Gazetteer):
                     size = f.write(chunk)
                     bar.update(size)
         if file_path.endswith(".zip"):
-            self.extract_zip(file_path, dataset.extracted_files)
+            self._extract_zip(file_path, dataset.extracted_files)
 
-    def extract_zip(self, file_path: str, extracted_files: t.List[str]):
+    def _extract_zip(self, file_path: str, extracted_files: t.List[str]):
         with zipfile.ZipFile(file_path, "r") as zip_ref:
             for file_name in extracted_files:
                 zip_ref.extract(file_name, self.data_dir)
 
-    def load_data(self, dataset: GazetteerData):
-        self.create_data_table(dataset)
-        self.populate_data_table(dataset)
+    def _load_data(self, dataset: GazetteerData):
+        self._create_data_table(dataset)
+        self._populate_data_table(dataset)
 
     @abstractmethod
-    def read_file(
+    def _read_file(
         self,
         file_path: str,
         columns: list[str] = None,
@@ -178,7 +178,7 @@ class LocalDBGazetteer(Gazetteer):
     @close
     @commit
     @connect
-    def create_data_table(self, dataset: GazetteerData):
+    def _create_data_table(self, dataset: GazetteerData):
         cursor = self._get_cursor()
         columns = ", ".join(
             [
@@ -191,14 +191,14 @@ class LocalDBGazetteer(Gazetteer):
     @close
     @commit
     @connect
-    def populate_data_table(self, dataset: GazetteerData):
+    def _populate_data_table(self, dataset: GazetteerData):
         file_path = os.path.join(self.data_dir, dataset.extracted_files[0])
         table_name = dataset.name
         columns = [col.name for col in dataset.columns]
         skiprows = dataset.skiprows
         chunksize = 100000
 
-        chunks, n_chunks = self.read_file(file_path, columns, skiprows, chunksize)
+        chunks, n_chunks = self._read_file(file_path, columns, skiprows, chunksize)
 
         for chunk in tqdm(
             chunks,
@@ -210,7 +210,7 @@ class LocalDBGazetteer(Gazetteer):
     @close
     @commit
     @connect
-    def create_names_table(self):
+    def _create_names_table(self):
         cursor = self._get_cursor()
         cursor.execute(
             f"""
@@ -225,7 +225,7 @@ class LocalDBGazetteer(Gazetteer):
     @close
     @commit
     @connect
-    def populate_names_table(self, chunksize: int = 100000):
+    def _populate_names_table(self, chunksize: int = 100000):
         for dataset in self.config.data:
             if dataset.toponym_columns:
 
@@ -305,7 +305,7 @@ class LocalDBGazetteer(Gazetteer):
     @close
     @commit
     @connect
-    def create_names_fts_table(self):
+    def _create_names_fts_table(self):
         cursor = self._get_cursor()
         cursor.execute(
             f"""
@@ -322,7 +322,7 @@ class LocalDBGazetteer(Gazetteer):
     @close
     @commit
     @connect
-    def populate_names_fts_table(self):
+    def _populate_names_fts_table(self):
         cursor = self._get_cursor()
         cursor.execute(
             f"""
@@ -334,7 +334,7 @@ class LocalDBGazetteer(Gazetteer):
     @close
     @commit
     @connect
-    def create_locations_table(self):
+    def _create_locations_table(self):
         columns = self.config.location_columns
         cursor = self._get_cursor()
         columns_def = ", ".join(
@@ -344,7 +344,7 @@ class LocalDBGazetteer(Gazetteer):
         cursor.execute(f"CREATE TABLE IF NOT EXISTS locations ({columns_def})")
 
     @abstractmethod
-    def populate_locations_table(self):
+    def _populate_locations_table(self):
         pass
 
     def query_candidates(

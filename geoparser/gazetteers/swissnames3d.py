@@ -12,7 +12,7 @@ class SwissNames3D(LocalDBGazetteer):
     def __init__(self):
         super().__init__("swissnames3d")
 
-    def create_location_description(self, location: dict[str, str]) -> str:
+    def _create_location_description(self, location: dict[str, str]) -> str:
         name = location.get("NAME") or ""
         objektart = f' ({location["OBJEKTART"]})' if location.get("OBJEKTART") else ""
 
@@ -75,7 +75,7 @@ class SwissNames3D(LocalDBGazetteer):
 
         return f"{name}{objektart}{in_text}{gemeinde}{bezirk}{kanton}".strip(" ,")
 
-    def read_file(
+    def _read_file(
         self,
         file_path: str,
         columns: list[str] = None,
@@ -93,7 +93,7 @@ class SwissNames3D(LocalDBGazetteer):
     @LocalDBGazetteer.close
     @LocalDBGazetteer.commit
     @LocalDBGazetteer.connect
-    def populate_locations_table(self):
+    def _populate_locations_table(self):
         data_frames = []
 
         for dataset in self.config.data:

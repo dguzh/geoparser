@@ -11,7 +11,7 @@ class GeoNames(LocalDBGazetteer):
     def __init__(self):
         super().__init__("geonames")
 
-    def create_location_description(self, location: dict[str, str]) -> str:
+    def _create_location_description(self, location: dict[str, str]) -> str:
         name = location["name"] or ""
         feature = f' ({location["feature_type"]})' if location["feature_type"] else ""
 
@@ -74,7 +74,7 @@ class GeoNames(LocalDBGazetteer):
 
         return f"{name}{feature}{in_text}{admin2}{admin1}{country}".strip(" ,")
 
-    def read_file(
+    def _read_file(
         self,
         file_path: str,
         columns: list[str] = None,
@@ -102,7 +102,7 @@ class GeoNames(LocalDBGazetteer):
     @LocalDBGazetteer.close
     @LocalDBGazetteer.commit
     @LocalDBGazetteer.connect
-    def populate_locations_table(self):
+    def _populate_locations_table(self):
         cursor = self._get_cursor()
 
         insert_query = """
