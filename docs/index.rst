@@ -1,7 +1,8 @@
 Geoparser Documentation
 =======================
 
-Lorem ipsum dolor sit amet, consectetur adipiscing elit. Maecenas eget turpis quis eros consequat dignissim nec sed erat. Vestibulum eget hendrerit lectus. Phasellus tempor vulputate porttitor. Vivamus consequat lacinia laoreet. Fusce dictum orci quis tincidunt imperdiet. Sed non orci lobortis, lacinia libero a, gravida risus. Etiam tempus porta mollis. Donec luctus ullamcorper interdum.
+.. note::
+   This is the documentation for an upcoming version of Geoparser, which will be released in November this year. It is still a work in progress, so features as well as documentation are subject to change until release. For a documentation of the currently pip installable version of Geoparser please refer to the `Geoparser PyPi page <https://pypi.org/project/geoparser/>`_.
 
 .. toctree::
    :maxdepth: 1
