@@ -9,10 +9,26 @@ from geoparser.gazetteers.gazetteer import LocalDBGazetteer
 
 
 class SwissNames3D(LocalDBGazetteer):
+    """Gazetteer implementation for SwissNames3D data."""
+
     def __init__(self):
+        """
+        Initialize the SwissNames3D gazetteer.
+
+        Inherits from LocalDBGazetteer and sets the gazetteer name to 'swissnames3d'.
+        """
         super().__init__("swissnames3d")
 
     def _create_location_description(self, location: dict[str, str]) -> str:
+        """
+        Create a textual description for a location using SwissNames3D data.
+
+        Args:
+            location (dict[str, str]): Dictionary containing location attributes.
+
+        Returns:
+            str: Textual description of the location.
+        """
         name = location.get("NAME") or ""
         objektart = f' ({location["OBJEKTART"]})' if location.get("OBJEKTART") else ""
 
@@ -82,7 +98,18 @@ class SwissNames3D(LocalDBGazetteer):
         skiprows: t.Union[int, list[int], t.Callable] = None,
         chunksize: int = 100000,
     ) -> t.Tuple[t.Iterator[pd.DataFrame], int]:
+        """
+        Read a SwissNames3D data file and yield data in chunks.
 
+        Args:
+            file_path (str): Path to the data file.
+            columns (list[str], optional): List of column names.
+            skiprows (int, list[int], Callable, optional): Rows to skip.
+            chunksize (int, optional): Number of rows per chunk.
+
+        Returns:
+            Tuple[Iterator[pd.DataFrame], int]: Iterator over DataFrame chunks and total number of chunks.
+        """
         gdf = gpd.read_file(file_path)
         df = pd.DataFrame(gdf)
         df = df[columns]
@@ -94,6 +121,11 @@ class SwissNames3D(LocalDBGazetteer):
     @LocalDBGazetteer.commit
     @LocalDBGazetteer.connect
     def _populate_locations_table(self):
+        """
+        Populate the 'locations' table with data from SwissNames3D datasets.
+
+        Processes geographical data and inserts it into the 'locations' table.
+        """
         data_frames = []
 
         for dataset in self.config.data:
