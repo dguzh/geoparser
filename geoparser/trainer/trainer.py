@@ -19,7 +19,7 @@ class GeoparserTrainer(Geoparser):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-    def find_toponym(
+    def _find_toponym(
         self, toponym: str, doc: GeoDoc, start_char: int, end_char: int
     ) -> tuple[int, int]:
         matches = [
@@ -42,7 +42,7 @@ class GeoparserTrainer(Geoparser):
 
         return best_match_chars
 
-    def retokenize_toponym(self, doc: GeoDoc, start_char: int, end_char: int):
+    def _retokenize_toponym(self, doc: GeoDoc, start_char: int, end_char: int):
         with doc.retokenize() as retokenizer:
 
             expanded_span = doc.char_span(start_char, end_char, alignment_mode="expand")
@@ -87,7 +87,7 @@ class GeoparserTrainer(Geoparser):
 
                 if toponym != text[start_char:end_char]:
 
-                    start_char, end_char = self.find_toponym(
+                    start_char, end_char = self._find_toponym(
                         toponym, doc, start_char, end_char
                     )
 
@@ -95,7 +95,7 @@ class GeoparserTrainer(Geoparser):
 
                 if not span and toponym in doc.text:
 
-                    self.retokenize_toponym(doc, start_char, end_char)
+                    self._retokenize_toponym(doc, start_char, end_char)
 
                     span = doc.char_span(start_char, end_char)
 
@@ -124,7 +124,7 @@ class GeoparserTrainer(Geoparser):
 
         return docs
 
-    def calculate_auc(self, distances: list[float]):
+    def _calculate_auc(self, distances: list[float]):
         adjusted_distances = (
             np.array(distances) + 1
         )  # Avoid zero distance for log scale
@@ -178,7 +178,7 @@ class GeoparserTrainer(Geoparser):
         mean_error_distance = np.mean(distances)
 
         # Calculate AUC
-        auc = self.calculate_auc(distances)
+        auc = self._calculate_auc(distances)
 
         return {
             "Accuracy": accuracy,
@@ -187,7 +187,7 @@ class GeoparserTrainer(Geoparser):
             "AreaUnderTheCurve": auc,
         }
 
-    def prepare_training_data(self, docs: list[GeoDoc]) -> Dataset:
+    def _prepare_training_data(self, docs: list[GeoDoc]) -> Dataset:
         toponym_texts = []
         candidate_texts = []
         labels = []
@@ -230,7 +230,7 @@ class GeoparserTrainer(Geoparser):
         epochs: int = 1,
         batch_size: int = 8,
     ):
-        train_dataset = self.prepare_training_data(train_docs)
+        train_dataset = self._prepare_training_data(train_docs)
 
         train_loss = losses.ContrastiveLoss(self.transformer)
 

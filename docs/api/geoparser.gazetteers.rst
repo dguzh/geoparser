@@ -5,7 +5,7 @@ gazetteers
    :members:
    :undoc-members:
    :show-inheritance:
-   :exclude-members: connect, commit, close
+   :exclude-members: connect, commit, close, execute_query
 
 .. automodule:: geoparser.gazetteers.geonames
    :members:

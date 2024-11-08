@@ -89,7 +89,7 @@ def test_find_toponym(
             good_start, good_end = good_annot[1], good_annot[2]
             bad_start, bad_end = bad_annot[1], bad_annot[2]
             toponym = good_annot[0]
-            assert trainer_real_data.find_toponym(
+            assert trainer_real_data._find_toponym(
                 toponym, geodocs_corpus[i], bad_start, bad_end
             ) == (good_start, good_end)
 
@@ -118,7 +118,7 @@ def test_retokenize_toponym(
                     toponym in [token.text for token in doc]
                     for toponym in annotated_toponym.split()
                 )
-            trainer_real_data.retokenize_toponym(doc, *annotated_span)
+            trainer_real_data._retokenize_toponym(doc, *annotated_span)
             len_after = len(doc)
             tokens_after = [token.text for token in doc]
             span = doc.char_span(*annotated_span)
@@ -169,7 +169,7 @@ def test_annotate(
 def test_auc(
     trainer_real_data: GeoparserTrainer, distances: list[float], expected: float
 ):
-    assert trainer_real_data.calculate_auc(distances) == pytest.approx(
+    assert trainer_real_data._calculate_auc(distances) == pytest.approx(
         expected, rel=1e-5
     )
 
@@ -250,7 +250,7 @@ def test_evaluate(
 def test_prepare_training_data(
     trainer_real_data: GeoparserTrainer, train_corpus: list[GeoDoc]
 ):
-    prepared = trainer_real_data.prepare_training_data(train_corpus)
+    prepared = trainer_real_data._prepare_training_data(train_corpus)
     assert type(prepared) is Dataset
     assert (
         len(prepared["toponym_texts"])
