@@ -16,12 +16,33 @@ GeoSpan.set_extension("gold_loc_id", default=None)
 
 
 class GeoparserTrainer(Geoparser):
+    """Class for training the Geoparser's toponym disambiguation model."""
+
     def __init__(self, *args, **kwargs):
+        """
+        Initialize the GeoparserTrainer with inherited Geoparser parameters.
+
+        Args:
+            *args: Variable length argument list.
+            **kwargs: Arbitrary keyword arguments.
+        """
         super().__init__(*args, **kwargs)
 
     def _find_toponym(
         self, toponym: str, doc: GeoDoc, start_char: int, end_char: int
     ) -> tuple[int, int]:
+        """
+        Adjust character indices for imprecise toponym annotations.
+
+        Args:
+            toponym (str): The toponym text to find.
+            doc (GeoDoc): The document to search within.
+            start_char (int): The starting character index.
+            end_char (int): The ending character index.
+
+        Returns:
+            tuple[int, int]: A tuple containing the best match start and end character indices.
+        """
         matches = [
             (m.start(), m.end())
             for m in re.finditer(re.escape(toponym), doc.text, flags=re.IGNORECASE)
@@ -43,6 +64,14 @@ class GeoparserTrainer(Geoparser):
         return best_match_chars
 
     def _retokenize_toponym(self, doc: GeoDoc, start_char: int, end_char: int):
+        """
+        Retokenize the document to ensure the toponym span aligns with spaCy tokens.
+
+        Args:
+            doc (GeoDoc): The document containing the toponym.
+            start_char (int): The starting character index of the toponym.
+            end_char (int): The ending character index of the toponym.
+        """
         with doc.retokenize() as retokenizer:
 
             expanded_span = doc.char_span(start_char, end_char, alignment_mode="expand")
@@ -73,6 +102,16 @@ class GeoparserTrainer(Geoparser):
         corpus: list[tuple[str, list[tuple[str, int, int, int]]]],
         include_unmatched: bool = False,
     ) -> list[GeoDoc]:
+        """
+        Load annotations with toponym spans and gold location IDs.
+
+        Args:
+            corpus (list[tuple[str, list[tuple[str, int, int, int]]]]): A list of tuples containing text and annotations.
+            include_unmatched (bool, optional): Whether to include spaCy-unmatched annotations. Defaults to False.
+
+        Returns:
+            list[GeoDoc]: A list of annotated GeoDoc objects.
+        """
         docs = []
 
         for text, annotations in tqdm(corpus):
@@ -125,6 +164,15 @@ class GeoparserTrainer(Geoparser):
         return docs
 
     def _calculate_auc(self, distances: list[float]):
+        """
+        Calculate the Area Under the Curve (AUC) for error distances.
+
+        Args:
+            distances (list[float]): List of error distances between predicted and gold locations.
+
+        Returns:
+            float: The calculated AUC value.
+        """
         adjusted_distances = (
             np.array(distances) + 1
         )  # Avoid zero distance for log scale
@@ -135,6 +183,15 @@ class GeoparserTrainer(Geoparser):
         return auc
 
     def evaluate(self, eval_docs: list[GeoDoc]) -> dict[str, float]:
+        """
+        Evaluate the model on a list of annotated documents.
+
+        Args:
+            eval_docs (list[GeoDoc]): List of annotated GeoDoc objects for evaluation.
+
+        Returns:
+            dict[str, float]: A dictionary containing evaluation metrics.
+        """
         distances = []
 
         matches = 0
@@ -188,6 +245,15 @@ class GeoparserTrainer(Geoparser):
         }
 
     def _prepare_training_data(self, docs: list[GeoDoc]) -> Dataset:
+        """
+        Prepare the training data from annotated documents.
+
+        Args:
+            docs (list[GeoDoc]): List of annotated GeoDoc objects for training.
+
+        Returns:
+            Dataset: A HuggingFace Dataset containing training examples.
+        """
         toponym_texts = []
         candidate_texts = []
         labels = []
@@ -230,6 +296,15 @@ class GeoparserTrainer(Geoparser):
         epochs: int = 1,
         batch_size: int = 8,
     ):
+        """
+        Train the toponym disambiguation model using the prepared training data.
+
+        Args:
+            train_docs (list[GeoDoc]): List of annotated GeoDoc objects for training.
+            output_path (str): Directory path to save the trained model.
+            epochs (int, optional): Number of training epochs. Defaults to 1.
+            batch_size (int, optional): Training batch size. Defaults to 8.
+        """
         train_dataset = self._prepare_training_data(train_docs)
 
         train_loss = losses.ContrastiveLoss(self.transformer)
