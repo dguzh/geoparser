@@ -39,11 +39,11 @@ def corpus_bad_annotations() -> list[tuple[str, list[tuple[str, int, int, str]]]
         ),
         (
             "Typhoon hit Taiwan today #prayfortaiwan",
-            [("taiwan", 33, 40, "3039328"), ("Taiwan", 11, 18, "3039328")],
+            [("taiwan", 31, 45, "3039328"), ("Taiwan", 11, 18, "3039328")],
         ),
         (  # includes an annotation that is not a toponym
             "Some End of Sentence|New York!!!",
-            [("New York", 0, 30, "3039328"), ("Some", 0, 3, "3039328")],
+            [("New York", 10, 30, "3039328"), ("Some", 1, 3, "3039328")],
         ),
     ]
     return corpus
@@ -139,28 +139,32 @@ def test_retokenize_toponym(
 def test_annotate(
     trainer_real_data: GeoparserTrainer,
     corpus_good_annotations: list[tuple[str, list[tuple[str, int, int, str]]]],
+    corpus_bad_annotations: list[tuple[str, list[tuple[str, int, int, str]]]],
     include_unmatched: bool,
 ):
-    annotated_corpus = trainer_real_data.annotate(
-        corpus_good_annotations, include_unmatched=include_unmatched
-    )
-    assert type(annotated_corpus) is list
-    for doc, raw_doc in zip(annotated_corpus, corpus_good_annotations):
-        assert type(doc) is GeoDoc
-        # entities are sorted by occurrence in text
-        assert list(doc.ents) == sorted(doc.ents, key=lambda x: x.start)
-        # include all annotations if include_unmatched
-        if include_unmatched:
-            ents_str = {ent.text for ent in doc.ents}
-            for annotation in raw_doc[1]:
-                annotation_str = annotation[0]
-                assert annotation_str in ents_str
-            # retokenization example
-            if (taiwan := "taiwan") in raw_doc[0]:
-                assert taiwan in ents_str
-        # check annotation boundaries
-        for doc_ent, raw_ent in zip(doc.ents, sorted(raw_doc[1], key=lambda x: x[1])):
-            assert doc[doc_ent.start : doc_ent.end].text == raw_ent[0]
+    for corpus in [corpus_good_annotations, corpus_bad_annotations]:
+        annotated_corpus = trainer_real_data.annotate(
+            corpus, include_unmatched=include_unmatched
+        )
+        assert type(annotated_corpus) is list
+        for doc, raw_doc in zip(annotated_corpus, corpus):
+            assert type(doc) is GeoDoc
+            # entities are sorted by occurrence in text
+            assert list(doc.ents) == sorted(doc.ents, key=lambda x: x.start)
+            # include all annotations if include_unmatched
+            if include_unmatched:
+                ents_str = {ent.text for ent in doc.ents}
+                for annotation in raw_doc[1]:
+                    annotation_str = annotation[0]
+                    assert annotation_str in ents_str
+                # retokenization example
+                if (taiwan := "taiwan") in raw_doc[0]:
+                    assert taiwan in ents_str
+            # check annotation boundaries
+            for doc_ent, raw_ent in zip(
+                doc.ents, sorted(raw_doc[1], key=lambda x: x[1])
+            ):
+                assert doc[doc_ent.start : doc_ent.end].text == raw_ent[0]
 
 
 @pytest.mark.parametrize(
