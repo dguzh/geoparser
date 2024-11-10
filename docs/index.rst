@@ -25,7 +25,7 @@ How It Works
 
 2. **Candidate Generation**: For each toponym, the gazetteer database is queried to generate lists of potential candidate locations. This is done using a token-based greedy matching strategy designed to achieve high recall while keeping candidate lists concise.
 
-3. **Textual Representation**: The context surrounding each toponym is extracted and, if necessary, truncated to meet model input length requirements. Candidate locations are also transformed into texts by constructing descriptive sentences using attributes sourced from the gazetteer.
+3. **Textual Representation**: Toponyms are represented using their surrounding context, which is extracted and truncated to meet model input length requirements. Candidate locations are also transformed into text by constructing descriptive sentences using attributes sourced from the gazetteer.
 
 4. **Embedding Generation**: A fine-tuned `SentenceTransformer <https://www.sbert.net/>`_ model is used to encode the textual representations of both toponyms and candidates into embeddings that map them into a shared vector space.
 
