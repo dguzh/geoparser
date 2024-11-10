@@ -1,3 +1,5 @@
+.. _usage:
+
 Usage
 =====
 
@@ -91,8 +93,8 @@ Example Output:
    Latitude: 47.36667
    Longitude: 8.55
 
-Training a Custom Model
------------------------
+Training a Custom Model [WIP]
+-----------------------------
 
 If you need to fine-tune the model for specific domains or languages, you can use the `GeoparserTrainer` module.
 

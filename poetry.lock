@@ -4558,6 +4558,26 @@ sphinxcontrib-jquery = ">=4,<5"
 dev = ["bump2version", "transifex-client", "twine", "wheel"]
 
 [[package]]
+name = "sphinx-tabs"
+version = "3.4.7"
+description = "Tabbed views for Sphinx"
+optional = false
+python-versions = ">=3.7"
+files = [
+    {file = "sphinx-tabs-3.4.7.tar.gz", hash = "sha256:991ad4a424ff54119799ba1491701aa8130dd43509474aef45a81c42d889784d"},
+    {file = "sphinx_tabs-3.4.7-py3-none-any.whl", hash = "sha256:c12d7a36fd413b369e9e9967a0a4015781b71a9c393575419834f19204bd1915"},
+]
+
+[package.dependencies]
+docutils = "*"
+pygments = "*"
+sphinx = ">=1.8"
+
+[package.extras]
+code-style = ["pre-commit (==2.13.0)"]
+testing = ["bs4", "coverage", "pygments", "pytest (>=7.1,<8)", "pytest-cov", "pytest-regressions", "rinohtype"]
+
+[[package]]
 name = "sphinxcontrib-applehelp"
 version = "2.0.0"
 description = "sphinxcontrib-applehelp is a Sphinx extension which outputs Apple help books"
@@ -5711,4 +5731,4 @@ multidict = ">=4.0"
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.10"
-content-hash = "0592765f449dd4b02edf23840ac30a1c02e5a0392160ad7bec322984d34b5c46"
+content-hash = "10b7e4af67853bccb53308193d9fe0707eaa4cc39629093233c51c1dfb993627"
