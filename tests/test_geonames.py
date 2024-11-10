@@ -1,3 +1,5 @@
+import math
+
 import pandas as pd
 import pytest
 
@@ -127,15 +129,17 @@ def test_create_location_description_divisions(
     assert actual == expected
 
 
-def test_read_file(geonames_patched: GeoNames, test_chunk_tsv: pd.DataFrame):
+@pytest.mark.parametrize("chunksize", [1, 2, 3, 10000])
+def test_read_file(
+    geonames_patched: GeoNames, test_chunk_tsv: pd.DataFrame, chunksize: int
+):
     test_chunk_tsv["col1"] = test_chunk_tsv["col1"].astype(str)
     file_content, n_chunks = geonames_patched.read_file(
-        get_static_test_file("test.tsv"),
-        ["col1", "col2"],
+        get_static_test_file("test.tsv"), ["col1", "col2"], chunksize=chunksize
     )
     file_content = list(file_content)
-    assert len(file_content) == n_chunks
-    assert file_content[0].equals(test_chunk_tsv)
+    assert len(file_content) == n_chunks == math.ceil(len(test_chunk_tsv) / chunksize)
+    assert pd.concat(file_content).equals(test_chunk_tsv)
 
 
 def test_populate_locations_table(geonames_patched: GeoNames):
