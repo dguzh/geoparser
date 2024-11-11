@@ -219,9 +219,25 @@ To train a custom geoparser model, you need to prepare a dataset formatted as a 
 
 ```python
 train_corpus = [
-    ("Zurich is a city in Switzerland.", [("Zurich", 0, 6, "2657896"), ("Switzerland", 20, 31, "2658434")]),
-    ("Geneva is known for international diplomacy.", [("Geneva", 0, 6, "2660646")]),
-    ("Munich hosts the annual Oktoberfest.", [("Munich", 0, 6, "2867714")])
+    {
+        "text": "Zurich is a city in Switzerland.",
+        "toponyms": [
+            {"text": "Zurich", "start": 0, "end": 6, "loc_id": "2657896"},
+            {"text": "Switzerland", "start": 20, "end": 31, "loc_id": "2658434"}
+        ]
+    },
+    {
+        "text": "Geneva is known for international diplomacy.",
+        "toponyms": [
+            {"text": "Geneva", "start": 0, "end": 6, "loc_id": "2660646"}
+        ]
+    },
+    {
+        "text": "Munich hosts the annual Oktoberfest.",
+        "toponyms": [
+            {"text": "Munich", "start": 0, "end": 6, "loc_id": "2867714"}
+        ]
+    }
 ]
 ```
 
