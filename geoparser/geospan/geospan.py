@@ -2,8 +2,18 @@ from spacy.tokens import Span
 
 
 class GeoSpan(Span):
+    """Custom spaCy Span class extended for geoparsing."""
 
     def __eq__(self, other):
+        """
+        Check equality of GeoSpan with another GeoSpan.
+
+        Args:
+            other (GeoSpan): Another GeoSpan object to compare with.
+
+        Returns:
+            bool: True if both GeoSpans are equal, False otherwise.
+        """
         return (
             self.doc.text == other.doc.text
             and self.start == other.start
@@ -12,18 +22,42 @@ class GeoSpan(Span):
 
     @property
     def location(self) -> dict:
+        """
+        Get the location information associated with this toponym.
+
+        Returns:
+            dict: Dictionary containing location information.
+        """
         return self.doc.geoparser.gazetteer.query_location_info(self._.loc_id)[0]
 
     @property
     def score(self) -> float:
+        """
+        Get the similarity score for the resolved location.
+
+        Returns:
+            float: Similarity score between toponym and resolved location.
+        """
         return self._.loc_score
 
     @property
-    def candidates(self) -> list[int]:
+    def candidates(self) -> list[str]:
+        """
+        Get the list of candidate location IDs for this toponym.
+
+        Returns:
+            list[str]: List of candidate location IDs.
+        """
         return self.doc.geoparser.gazetteer.query_candidates(self.text)
 
     @property
     def context(self):
+        """
+        Get the contextual Span around the toponym, truncated to model input size.
+
+        Returns:
+            Span: The context Span for the toponym.
+        """
         tokenizer = self.doc.geoparser.transformer.tokenizer
         token_limit = self.doc.geoparser.transformer.get_max_seq_length()
 

@@ -126,7 +126,7 @@ def test_download_file(
     raw_file = dataset.url.split("/")[-1]
     with open(get_static_test_file(raw_file), "rb") as file:
         requests_mock.get(dataset.url, body=file)
-        localdb_gazetteer.download_file(dataset=dataset)
+        localdb_gazetteer._download_file(dataset=dataset)
     dir_content = Path(localdb_gazetteer.db_path).parent.glob("**/*")
     files = [content.name for content in dir_content]
     # a.txt downloaded as is, b.zip has been extracted and is still around
@@ -137,14 +137,14 @@ def test_download_file(
 def test_create_data_table(geonames_patched: GeoNames):
     table_data = geonames_patched.config.data[0]
     check_table_creation(
-        geonames_patched, table_data.name, "create_data_table", table_data
+        geonames_patched, table_data.name, "_create_data_table", table_data
     )
 
 
 def test_populate_data_table(geonames_patched: GeoNames):
     table_data = geonames_patched.config.data[0]
     # setup: create table
-    geonames_patched.create_data_table(table_data)
+    geonames_patched._create_data_table(table_data)
     # actual test: table is empty at first, then contains a specific row
     expected_first_row = (
         "2994701",
@@ -170,21 +170,21 @@ def test_populate_data_table(geonames_patched: GeoNames):
     check_table_population(
         geonames_patched,
         table_data.name,
-        "populate_data_table",
+        "_populate_data_table",
         expected_first_row,
         table_data,
     )
 
 
 def test_create_names_table(geonames_patched: GeoNames):
-    check_table_creation(geonames_patched, "names", "create_names_table")
+    check_table_creation(geonames_patched, "names", "_create_names_table")
 
 
 def test_populate_names_table(geonames_patched: GeoNames):
     # setup: create tables from previous steps
     for dataset in geonames_patched.config.data:
-        geonames_patched.load_data(dataset)
-    geonames_patched.create_names_table()
+        geonames_patched._load_data(dataset)
+    geonames_patched._create_names_table()
     # actual test: table is empty at first, then contains a specific row
     expected_first_row = (
         1,
@@ -194,46 +194,46 @@ def test_populate_names_table(geonames_patched: GeoNames):
     check_table_population(
         geonames_patched,
         "names",
-        "populate_names_table",
+        "_populate_names_table",
         expected_first_row,
     )
 
 
 def test_create_names_fts_table(geonames_patched: GeoNames):
-    check_table_creation(geonames_patched, "names_fts", "create_names_fts_table")
+    check_table_creation(geonames_patched, "names_fts", "_create_names_fts_table")
 
 
 def test_populate_names_fts_table(geonames_patched: GeoNames):
     # setup: create tables from previous steps
     for dataset in geonames_patched.config.data:
-        geonames_patched.load_data(dataset)
-    geonames_patched.create_names_table()
-    geonames_patched.populate_names_table()
-    geonames_patched.create_names_fts_table()
+        geonames_patched._load_data(dataset)
+    geonames_patched._create_names_table()
+    geonames_patched._populate_names_table()
+    geonames_patched._create_names_fts_table()
     # 1. table has some rows before populating it further
     rows_query = f"SELECT * FROM names_fts"
     rows_before = execute_query(geonames_patched, rows_query)
     # 2. populating the table with specified method
-    geonames_patched.populate_names_fts_table()
+    geonames_patched._populate_names_fts_table()
     # 3. there are no changes to table rows
     rows_after = execute_query(geonames_patched, rows_query)
     assert rows_before == rows_after
 
 
 def test_create_locations_table(geonames_patched: GeoNames):
-    check_table_creation(geonames_patched, "locations", "create_locations_table")
+    check_table_creation(geonames_patched, "locations", "_create_locations_table")
 
 
 def test_drop_redundant_tables(geonames_patched: GeoNames):
     # setup: create tables from previous steps
     for dataset in geonames_patched.config.data:
-        geonames_patched.load_data(dataset)
-    geonames_patched.create_names_table()
-    geonames_patched.populate_names_table()
-    geonames_patched.create_names_fts_table()
-    geonames_patched.populate_names_fts_table()
-    geonames_patched.create_locations_table()
-    geonames_patched.populate_locations_table()
+        geonames_patched._load_data(dataset)
+    geonames_patched._create_names_table()
+    geonames_patched._populate_names_table()
+    geonames_patched._create_names_fts_table()
+    geonames_patched._populate_names_fts_table()
+    geonames_patched._create_locations_table()
+    geonames_patched._populate_locations_table()
     # 1. all data tables are redundant
     redundant_tables = [dataset.name for dataset in geonames_patched.config.data]
     tables_query = "SELECT name FROM sqlite_master"
@@ -241,7 +241,7 @@ def test_drop_redundant_tables(geonames_patched: GeoNames):
     cursor = geonames_patched._get_cursor()
     geonames_patched._commit()
     # 2. removing redundant tables
-    geonames_patched.drop_redundant_tables()
+    geonames_patched._drop_redundant_tables()
     # all redundant tables have been dropped
     tables_after = execute_query(geonames_patched, tables_query)
     assert all([table not in tables_after for table in redundant_tables])
