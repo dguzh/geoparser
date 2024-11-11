@@ -160,11 +160,17 @@ class GeoparserTrainer(Geoparser):
             processed_annotations = []
 
             for toponym in sorted(annotations, key=lambda x: x["start"]):
-                start_char, end_char, loc_id = toponym["start"], toponym["end"], toponym["loc_id"]
+                start_char, end_char, loc_id = (
+                    toponym["start"],
+                    toponym["end"],
+                    toponym["loc_id"],
+                )
                 toponym_text = toponym["text"].strip()
 
                 if toponym_text != text[start_char:end_char]:
-                    start_char, end_char = self._find_toponym(toponym_text, doc, start_char, end_char)
+                    start_char, end_char = self._find_toponym(
+                        toponym_text, doc, start_char, end_char
+                    )
 
                 span = doc.char_span(start_char, end_char)
 
