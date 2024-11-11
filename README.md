@@ -215,13 +215,36 @@ While it is possible to fine-tune virtually any HuggingFace model that works wit
 
 ### Preparing Your Dataset
 
-To train a custom geoparser model, you need to prepare a dataset formatted as a list of tuples, where each tuple contains a text string and an associated list of annotations. Annotations should be tuples of (toponym string, start character, end character, location id) that mark the toponyms within the text:
+To train a custom geoparser model, you need to prepare a dataset formatted as a list of dictionaries, where each dictionary represents a document. Each document dictionary should contain the following keys:
+
+- `"text"`: A string representing the full text of the document.
+- `"toponyms"`: A list of dictionaries, where each dictionary represents a toponym annotation. Each annotation dictionary should include:
+  - `"text"`: The toponym string as it appears in the text.
+  - `"start"`: The starting character index of the toponym within the text.
+  - `"end"`: The ending character index of the toponym within the text.
+  - `"loc_id"`: The unique identifier for the toponym's location from a gazetteer.
 
 ```python
 train_corpus = [
-    ("Zurich is a city in Switzerland.", [("Zurich", 0, 6, "2657896"), ("Switzerland", 20, 31, "2658434")]),
-    ("Geneva is known for international diplomacy.", [("Geneva", 0, 6, "2660646")]),
-    ("Munich hosts the annual Oktoberfest.", [("Munich", 0, 6, "2867714")])
+    {
+        "text": "Zurich is a city in Switzerland.",
+        "toponyms": [
+            {"text": "Zurich", "start": 0, "end": 6, "loc_id": "2657896"},
+            {"text": "Switzerland", "start": 20, "end": 31, "loc_id": "2658434"}
+        ]
+    },
+    {
+        "text": "Geneva is known for international diplomacy.",
+        "toponyms": [
+            {"text": "Geneva", "start": 0, "end": 6, "loc_id": "2660646"}
+        ]
+    },
+    {
+        "text": "Munich hosts the annual Oktoberfest.",
+        "toponyms": [
+            {"text": "Munich", "start": 0, "end": 6, "loc_id": "2867714"}
+        ]
+    }
 ]
 ```
 
