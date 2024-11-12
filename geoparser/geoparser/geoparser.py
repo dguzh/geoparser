@@ -9,9 +9,6 @@ from geoparser.constants import DEFAULT_TRANSFORMER_MODEL, GAZETTEERS
 from geoparser.gazetteers.gazetteer import Gazetteer
 from geoparser.geodoc import GeoDoc
 
-# Suppress token length warnings from transformers
-logging.getLogger("transformers.tokenization_utils_base").setLevel(logging.ERROR)
-
 
 class Geoparser:
     """Main class for performing geoparsing operations."""

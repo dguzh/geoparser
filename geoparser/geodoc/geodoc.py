@@ -61,7 +61,7 @@ class GeoDoc(Doc):
         super().__init__(*args, **kwargs)
         self.geoparser = geoparser
         self.transformer_token_count = (
-            len(geoparser.transformer.tokenizer.tokenize(self.text))
+            len(geoparser.transformer.tokenizer.tokenize(self.text, verbose=False))
             if geoparser.transformer
             else -1
         )
