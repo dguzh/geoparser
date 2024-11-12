@@ -1,5 +1,3 @@
-import logging
-
 import spacy
 import torch
 from sentence_transformers import SentenceTransformer, util
