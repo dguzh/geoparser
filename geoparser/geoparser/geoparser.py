@@ -1,3 +1,5 @@
+import warnings
+
 import spacy
 import torch
 from sentence_transformers import SentenceTransformer, util
@@ -6,6 +8,14 @@ from tqdm.auto import tqdm
 from geoparser.constants import DEFAULT_TRANSFORMER_MODEL, GAZETTEERS
 from geoparser.gazetteers.gazetteer import Gazetteer
 from geoparser.geodoc import GeoDoc
+
+# Suppress FutureWarning from the thinc.shims.pytorch module until they update their code
+warnings.filterwarnings(
+    "ignore",
+    category=FutureWarning,
+    message="You are using `torch.load` with `weights_only=False`",
+    module="thinc.shims.pytorch",
+)
 
 
 class Geoparser:
