@@ -213,7 +213,7 @@ class GeoparserTrainer(Geoparser):
             np.array(distances) + 1
         )  # Avoid zero distance for log scale
         ln_distances = np.log(adjusted_distances)
-        auc = np.trapz(sorted(ln_distances)) / (
+        auc = np.trapezoid(sorted(ln_distances)) / (
             np.log(MAX_ERROR) * (len(ln_distances) - 1)
         )
         return auc

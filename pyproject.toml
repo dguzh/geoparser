@@ -7,9 +7,9 @@ readme = "README.md"
 
 [tool.poetry.dependencies]
 python = "^3.9"
-numpy = "1.26.4"
+numpy = "^2.0.0"
 pandas = "^2.2.2"
-spacy = "^3.7.5"
+spacy = "^3.8.2"
 sentence-transformers = "^3.3.0"
 tqdm = "^4.66.4"
 torch = "^2.5.1"
@@ -30,7 +30,7 @@ isort = "5.13.2"
 pytest = "^8.2.2"
 jupyter = "^1.0.0"
 requests-mock = "^1.12.1"
-en-core-web-sm = {url = "https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.7.1/en_core_web_sm-3.7.1.tar.gz"}
+en-core-web-sm = {url = "https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0.tar.gz"}
 sphinx = "7.4.7"
 sphinx-rtd-theme = "^3.0.1"
 sphinx-tabs = "^3.4.7"
