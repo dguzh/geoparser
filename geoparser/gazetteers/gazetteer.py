@@ -508,7 +508,8 @@ class LocalDBGazetteer(Gazetteer):
         toponym: str,
     ) -> list[str]:
         """
-        Query the database for candidate location IDs matching the toponym.
+        Query the database for candidate location IDs matching the toponym,
+        adjusting score to prioritize exact-length matches.
 
         Args:
             toponym (str): The toponym to search for.
@@ -518,25 +519,37 @@ class LocalDBGazetteer(Gazetteer):
         """
         location_identifier = self.config.location_identifier
 
-        toponym = re.sub(r"\"", "", toponym).strip()
-        toponym = " ".join([f'"{word}"' for word in toponym.split()])
+        toponym_cleaned = re.sub(r"\"", "", toponym).strip()
+        toponym_tokenized = " ".join([f'"{word}"' for word in toponym_cleaned.split()])
 
+        # The implemented length check approach is not an ideal solution.
+        # A better solution would be to compare query strings with location
+        # names more explicitly while still ignoring diacritics and punctuation.
         query = f"""
-            WITH MinRank AS (
-                SELECT MIN(rank) AS MinRank FROM names_fts WHERE names_fts MATCH ?
-            ),
-            RankedMatches AS (
-                SELECT {location_identifier}, bm25(names_fts) as rank
+            WITH ScoredMatches AS (
+                SELECT {location_identifier}, name, rank AS base_score
                 FROM names_fts
                 WHERE names_fts MATCH ?
+            ),
+            AdjustedScores AS (
+                SELECT {location_identifier}, name,
+                    CASE
+                        WHEN length(REPLACE(REPLACE(REPLACE(REPLACE(trim(name), ' ', ''), '.', ''), ',', ''), '-', '')) =
+                             length(REPLACE(REPLACE(REPLACE(REPLACE(trim(?), ' ', ''), '.', ''), ',', ''), '-', '')) THEN base_score * 2
+                        ELSE base_score
+                    END AS score
+                FROM ScoredMatches
+            ),
+            MinScore AS (
+                SELECT MIN(score) AS MinScore FROM AdjustedScores
             )
-            SELECT CAST({location_identifier} AS TEXT)
-            FROM RankedMatches
-            WHERE RankedMatches.rank = (SELECT MinRank FROM MinRank)
+            SELECT CAST({location_identifier} AS TEXT), score
+            FROM AdjustedScores
+            WHERE score = (SELECT MinScore FROM MinScore)
             GROUP BY {location_identifier}
         """
 
-        result = self.execute_query(query, (toponym, toponym))
+        result = self.execute_query(query, (toponym_tokenized, toponym_cleaned))
         return [row[0] for row in result]
 
     def query_location_info(
