@@ -119,7 +119,7 @@ def test_geospan_score(first_geodoc: GeoDoc):
 
 def test_geospan_candidates(first_geodoc: GeoDoc):
     geospan = first_geodoc.toponyms[0]
-    candidates = geospan.candidates
+    candidates = geospan.get_candidates()
     assert type(candidates) is list
     for elem in candidates:
         assert type(elem) is str
