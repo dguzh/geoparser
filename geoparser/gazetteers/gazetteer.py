@@ -349,12 +349,17 @@ class LocalDBGazetteer(Gazetteer):
         """
         Create the 'names' table in the database.
         """
+        location_identifier_type = [
+            c.type
+            for c in self.config.location_columns
+            if c.name == self.config.location_identifier
+        ][0]
         cursor = self._get_cursor()
         cursor.execute(
             f"""
             CREATE TABLE IF NOT EXISTS names (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                {self.config.location_identifier} INTEGER,
+                {self.config.location_identifier} {location_identifier_type},
                 name TEXT
             )
         """
@@ -543,7 +548,7 @@ class LocalDBGazetteer(Gazetteer):
             MinScore AS (
                 SELECT MIN(score) AS MinScore FROM AdjustedScores
             )
-            SELECT CAST({location_identifier} AS TEXT), score
+            SELECT {location_identifier}, score
             FROM AdjustedScores
             WHERE score = (SELECT MinScore FROM MinScore)
             GROUP BY {location_identifier}

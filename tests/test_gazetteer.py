@@ -188,7 +188,7 @@ def test_populate_names_table(geonames_patched: GeoNames):
     # actual test: table is empty at first, then contains a specific row
     expected_first_row = (
         1,
-        2994701,
+        "2994701",
         "Roc Meler",
     )
     check_table_population(
