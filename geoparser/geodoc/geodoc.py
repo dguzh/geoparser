@@ -4,6 +4,7 @@ from geoparser.geospan import GeoSpan
 
 GeoSpan.set_extension("loc_id", default=None)
 GeoSpan.set_extension("loc_score", default=None)
+GeoSpan.set_extension("candidate_cache", default={})
 
 
 class Locations:

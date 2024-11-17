@@ -303,7 +303,7 @@ class GeoparserTrainer(Geoparser):
 
                 if correct_location:
 
-                    candidate_ids = toponym.candidates
+                    candidate_ids = toponym.get_candidates()
                     candidate_locations = self.gazetteer.query_location_info(
                         candidate_ids
                     )

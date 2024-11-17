@@ -41,16 +41,6 @@ class GeoSpan(Span):
         return self._.loc_score
 
     @property
-    def candidates(self) -> list[str]:
-        """
-        Get the list of candidate location IDs for this toponym.
-
-        Returns:
-            list[str]: List of candidate location IDs.
-        """
-        return self.doc.geoparser.gazetteer.query_candidates(self.text)
-
-    @property
     def context(self):
         """
         Get the contextual Span around the toponym, truncated to model input size.
@@ -103,3 +93,21 @@ class GeoSpan(Span):
         end = context_sentences[-1].end
 
         return Span(self.doc, start, end)
+
+    def get_candidates(self, filter: dict[str, list[str]] = None) -> list[str]:
+        """
+        Get the list of candidate location IDs for this toponym, with optional filtering.
+
+        Args:
+            filter (dict[str, list[str]], optional): Filter to restrict candidate selection.
+
+        Returns:
+            list[str]: List of candidate location IDs.
+        """
+        filter_key = tuple(sorted((k, tuple(v)) for k, v in (filter or {}).items()))
+        if filter_key not in self._.candidate_cache:
+            candidates = self.doc.geoparser.gazetteer.query_candidates(
+                self.text, filter=filter
+            )
+            self._.candidate_cache[filter_key] = candidates
+        return self._.candidate_cache[filter_key]
