@@ -162,12 +162,12 @@ def test_annotate(
     corpus_bad_annotations: list[dict],
     include_unmatched: bool,
 ):
-    annotated_corpus = trainer_real_data.annotate(
-        corpus_good_annotations, include_unmatched=include_unmatched
-    )
-    assert type(annotated_corpus) is list
     for corpus in [corpus_good_annotations, corpus_bad_annotations]:
-        for doc, raw_doc in zip(annotated_corpus, corpus_good_annotations):
+        annotated_corpus = trainer_real_data.annotate(
+            corpus, include_unmatched=include_unmatched
+        )
+        assert type(annotated_corpus) is list
+        for doc, raw_doc in zip(annotated_corpus, corpus):
             assert type(doc) is GeoDoc
             # entities are sorted by occurrence in text
             assert list(doc.ents) == sorted(doc.ents, key=lambda x: x.start)
