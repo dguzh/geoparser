@@ -1,13 +1,15 @@
+#!/bin/bash
+
 # get latest version of pypi and testpypi from pip index
 latest_version_pypi=$(pip index versions geoparser |& grep "geoparser" |& grep -Po "\d+\.\d+\.\d+[^)]*")
 latest_version_testpypi=$(pip index versions geoparser --pre --index-url https://test.pypi.org/simple/ |& grep "geoparser" |& grep -Po "\d+\.\d+\.\d+[^)]*")
 # parse the pyproject.toml file from the command line
-package_version=$(cat pyproject.toml | grep "\[tool.poetry\]" -A 2 | tail -n 1 | grep -Po "\d+\.\d+\.\d+[^\"]*")
+package_version=$(grep "\[tool.poetry\]" -A 2 < "pyproject.toml" | tail -n 1 | grep -Po "\d+\.\d+\.\d+[^\"]*")
 
 version_pattern="\d+\.\d+\.\d+"
-testpypi_version=$(echo $latest_version_testpypi | grep -Po $version_pattern)
-testpypi_suffix=$(echo $latest_version_testpypi | perl -pe "s/$version_pattern//g")
-testpypi_suffix_number=$(echo $testpypi_suffix | grep -Po "\d+$")
+testpypi_version=$(echo "$latest_version_testpypi" | grep -Po "$version_pattern")
+testpypi_suffix=$(echo "$latest_version_testpypi" | perl -pe "s/$version_pattern//g")
+testpypi_suffix_number=$(echo "$testpypi_suffix" | grep -Po "\d+$")
 
 >&2 echo "latest_version_pypi $latest_version_pypi"
 >&2 echo "latest_version_testpypi $latest_version_testpypi"
@@ -17,7 +19,7 @@ testpypi_suffix_number=$(echo $testpypi_suffix | grep -Po "\d+$")
 >&2 echo "package_version $package_version"
 
 # if the pypi version is the same as local, we are building a post-release
-if [[ $latest_version_pypi == $package_version ]]; then
+if [[ "$latest_version_pypi" == "$package_version" ]]; then
     >&2 echo "pypi version same as local, building post-release"
 
     # if the is a post-release for the same version already, we will increment from it
