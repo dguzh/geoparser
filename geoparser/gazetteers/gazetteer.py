@@ -216,7 +216,7 @@ class LocalDBGazetteer(Gazetteer):
                 else:
                     try:
                         os.remove(os.path.join(self.data_dir, file_name))
-                    except IsADirectoryError:
+                    except (IsADirectoryError, PermissionError):
                         shutil.rmtree(os.path.join(self.data_dir, file_name))
 
     @close
