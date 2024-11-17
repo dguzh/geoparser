@@ -68,7 +68,7 @@ def test_chunk_shp() -> pd.DataFrame:
 def test_create_location_description_base(
     swissnames3d_patched: SwissNames3D, location: dict, expected: str
 ):
-    actual = swissnames3d_patched.create_location_description(location)
+    actual = swissnames3d_patched._create_location_description(location)
     assert actual == expected
 
 
@@ -135,7 +135,7 @@ def test_create_location_description_base(
 def test_create_location_description_divisions(
     swissnames3d_patched: SwissNames3D, location: dict, expected: str
 ):
-    actual = swissnames3d_patched.create_location_description(location)
+    actual = swissnames3d_patched._create_location_description(location)
     assert actual == expected
 
 
@@ -154,7 +154,7 @@ def test_read_file(swissnames3d_patched: SwissNames3D, test_chunk_shp: pd.DataFr
         "NAMEN_TYP",
         "NAMENGRUPP",
     ]
-    file_content, n_chunks = swissnames3d_patched.read_file(
+    file_content, n_chunks = swissnames3d_patched._read_file(
         file,
         columns,
     )
@@ -166,17 +166,17 @@ def test_read_file(swissnames3d_patched: SwissNames3D, test_chunk_shp: pd.DataFr
 def test_populate_locations_table(swissnames3d_patched: SwissNames3D):
     # setup: create other tables
     for dataset in swissnames3d_patched.config.data:
-        swissnames3d_patched.load_data(dataset)
-    swissnames3d_patched.create_names_table()
-    swissnames3d_patched.populate_names_table()
-    swissnames3d_patched.create_names_fts_table()
-    swissnames3d_patched.populate_names_fts_table()
-    swissnames3d_patched.create_locations_table()
+        swissnames3d_patched._load_data(dataset)
+    swissnames3d_patched._create_names_table()
+    swissnames3d_patched._populate_names_table()
+    swissnames3d_patched._create_names_fts_table()
+    swissnames3d_patched._populate_names_fts_table()
+    swissnames3d_patched._create_locations_table()
     # actual test: populate locations table
     query = "SELECT * FROM locations"
     rows = execute_query(swissnames3d_patched, query)
     assert not rows
-    swissnames3d_patched.populate_locations_table()
+    swissnames3d_patched._populate_locations_table()
     rows = execute_query(swissnames3d_patched, query)
     # test data has 7946 rows
     assert len(rows) == 7946

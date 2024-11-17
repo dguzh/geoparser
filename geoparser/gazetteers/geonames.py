@@ -8,10 +8,26 @@ from geoparser.gazetteers.gazetteer import LocalDBGazetteer
 
 
 class GeoNames(LocalDBGazetteer):
+    """Gazetteer implementation for GeoNames data."""
+
     def __init__(self):
+        """
+        Initialize the GeoNames gazetteer.
+
+        Inherits from LocalDBGazetteer and sets the gazetteer name to 'geonames'.
+        """
         super().__init__("geonames")
 
-    def create_location_description(self, location: dict[str, str]) -> str:
+    def _create_location_description(self, location: dict[str, str]) -> str:
+        """
+        Create a textual description for a location using GeoNames data.
+
+        Args:
+            location (dict[str, str]): Dictionary containing location attributes.
+
+        Returns:
+            str: Textual description of the location.
+        """
         name = location["name"] or ""
         feature = f' ({location["feature_type"]})' if location["feature_type"] else ""
 
@@ -74,14 +90,25 @@ class GeoNames(LocalDBGazetteer):
 
         return f"{name}{feature}{in_text}{admin2}{admin1}{country}".strip(" ,")
 
-    def read_file(
+    def _read_file(
         self,
         file_path: str,
         columns: list[str] = None,
         skiprows: t.Union[int, list[int], t.Callable] = None,
         chunksize: int = 100000,
     ) -> t.Tuple[t.Iterator[pd.DataFrame], int]:
+        """
+        Read a GeoNames data file and yield data in chunks.
 
+        Args:
+            file_path (str): Path to the data file.
+            columns (list[str], optional): List of column names.
+            skiprows (int, list[int], Callable, optional): Rows to skip.
+            chunksize (int, optional): Number of rows per chunk.
+
+        Returns:
+            Tuple[Iterator[pd.DataFrame], int]: Iterator over DataFrame chunks and total number of chunks.
+        """
         total_lines = sum(1 for _ in open(file_path, "rb"))
         n_chunks = math.ceil(total_lines / chunksize)
 
@@ -100,7 +127,12 @@ class GeoNames(LocalDBGazetteer):
     @LocalDBGazetteer.close
     @LocalDBGazetteer.commit
     @LocalDBGazetteer.connect
-    def populate_locations_table(self):
+    def _populate_locations_table(self):
+        """
+        Populate the 'locations' table with data from GeoNames datasets.
+
+        Executes an SQL query to insert processed data into the 'locations' table.
+        """
         cursor = self._get_cursor()
 
         insert_query = """

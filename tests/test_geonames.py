@@ -58,7 +58,7 @@ def test_chunk_tsv() -> pd.DataFrame:
 def test_create_location_description_base(
     geonames_patched: GeoNames, location: dict, expected: str
 ):
-    actual = geonames_patched.create_location_description(location)
+    actual = geonames_patched._create_location_description(location)
     assert actual == expected
 
 
@@ -125,7 +125,7 @@ def test_create_location_description_base(
 def test_create_location_description_divisions(
     geonames_patched: GeoNames, location: dict, expected: str
 ):
-    actual = geonames_patched.create_location_description(location)
+    actual = geonames_patched._create_location_description(location)
     assert actual == expected
 
 
@@ -134,7 +134,7 @@ def test_read_file(
     geonames_patched: GeoNames, test_chunk_tsv: pd.DataFrame, chunksize: int
 ):
     test_chunk_tsv["col1"] = test_chunk_tsv["col1"].astype(str)
-    file_content, n_chunks = geonames_patched.read_file(
+    file_content, n_chunks = geonames_patched._read_file(
         get_static_test_file("test.tsv"), ["col1", "col2"], chunksize=chunksize
     )
     file_content = list(file_content)
@@ -146,17 +146,17 @@ def test_populate_locations_table(geonames_patched: GeoNames):
     # setup: load data and create tables
     geonames = geonames_patched
     for dataset in geonames.config.data:
-        geonames.load_data(dataset)
-    geonames.create_names_table()
-    geonames.populate_names_table()
-    geonames.create_names_fts_table()
-    geonames.populate_names_fts_table()
-    geonames.create_locations_table()
+        geonames._load_data(dataset)
+    geonames._create_names_table()
+    geonames._populate_names_table()
+    geonames._create_names_fts_table()
+    geonames._populate_names_fts_table()
+    geonames._create_locations_table()
     # actual test: populate locations table
     query = "SELECT * FROM locations"
     rows = execute_query(geonames, query)
     assert not rows
-    geonames.populate_locations_table()
+    geonames._populate_locations_table()
     rows = execute_query(geonames, query)
     # test data has 1000 rows
     assert len(rows) == 1000

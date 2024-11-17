@@ -12,39 +12,57 @@ from geoparser.trainer import GeoparserTrainer
 
 
 @pytest.fixture(scope="session")
-def corpus_good_annotations() -> list[tuple[str, list[tuple[str, int, int, str]]]]:
+def corpus_good_annotations() -> list[dict]:
     corpus = [
-        (
-            "Roc Meler is mentioned on Radio Andorra.",
-            [("Radio Andorra", 26, 39, "3039328"), ("Roc Meler", 0, 9, "2994701")],
-        ),
-        (
-            "Typhoon hit Taiwan today #prayfortaiwan",
-            [("taiwan", 33, 39, "3039328"), ("Taiwan", 12, 18, "3039328")],
-        ),
-        (  # includes an annotation that is not a toponym
-            "Some End of Sentence|New York!!!",
-            [("New York", 21, 29, "3039328"), ("Some", 0, 4, "3039328")],
-        ),
+        {
+            "text": "Roc Meler is mentioned on Radio Andorra.",
+            "toponyms": [
+                {"text": "Radio Andorra", "start": 26, "end": 39, "loc_id": "3039328"},
+                {"text": "Roc Meler", "start": 0, "end": 9, "loc_id": "2994701"},
+            ],
+        },
+        {
+            "text": "Typhoon hit Taiwan today #prayfortaiwan",
+            "toponyms": [
+                {"text": "taiwan", "start": 33, "end": 39, "loc_id": "3039328"},
+                {"text": "Taiwan", "start": 12, "end": 18, "loc_id": "3039328"},
+            ],
+        },
+        {
+            "text": "Some End of Sentence|New York!!!",
+            "toponyms": [  # includes an annotation that is not a toponym
+                {"text": "New York", "start": 21, "end": 29, "loc_id": "3039328"},
+                {"text": "Some", "start": 0, "end": 4, "loc_id": "3039328"},
+            ],
+        },
     ]
     return corpus
 
 
 @pytest.fixture(scope="session")
-def corpus_bad_annotations() -> list[tuple[str, list[tuple[str, int, int, str]]]]:
+def corpus_bad_annotations() -> list[dict]:
     corpus = [
-        (
-            "Roc Meler is mentioned on Radio Andorra.",
-            [("Radio Andorra", 23, 39, "3039328"), ("Roc Meler", 0, 7, "2994701")],
-        ),
-        (
-            "Typhoon hit Taiwan today #prayfortaiwan",
-            [("taiwan", 31, 45, "3039328"), ("Taiwan", 11, 18, "3039328")],
-        ),
-        (  # includes an annotation that is not a toponym
-            "Some End of Sentence|New York!!!",
-            [("New York", 10, 30, "3039328"), ("Some", 1, 3, "3039328")],
-        ),
+        {
+            "text": "Roc Meler is mentioned on Radio Andorra.",
+            "toponyms": [
+                {"text": "Radio Andorra", "start": 23, "end": 39, "loc_id": "3039328"},
+                {"text": "Roc Meler", "start": 0, "end": 7, "loc_id": "2994701"},
+            ],
+        },
+        {
+            "text": "Typhoon hit Taiwan today #prayfortaiwan",
+            "toponyms": [
+                {"text": "taiwan", "start": 31, "end": 45, "loc_id": "3039328"},
+                {"text": "Taiwan", "start": 11, "end": 18, "loc_id": "3039328"},
+            ],
+        },
+        {
+            "text": "Some End of Sentence|New York!!!",
+            "toponyms": [  # includes an annotation that is not a toponym
+                {"text": "New York", "start": 10, "end": 30, "loc_id": "3039328"},
+                {"text": "Some", "start": 1, "end": 3, "loc_id": "3039328"},
+            ],
+        },
     ]
     return corpus
 
@@ -52,9 +70,11 @@ def corpus_bad_annotations() -> list[tuple[str, list[tuple[str, int, int, str]]]
 @pytest.fixture(scope="session")
 def geodocs_corpus(
     trainer_real_data: GeoparserTrainer,
-    corpus_good_annotations: list[tuple[str, list[tuple[str, int, int, str]]]],
+    corpus_good_annotations: list[dict],
 ) -> list[GeoDoc]:
-    return [trainer_real_data.nlp(seg[0]) for seg in corpus_good_annotations]
+    return [
+        trainer_real_data.nlp(document["text"]) for document in corpus_good_annotations
+    ]
 
 
 @pytest.fixture(scope="function")
@@ -66,42 +86,42 @@ def eval_doc(trainer_real_data: GeoparserTrainer) -> list[GeoDoc]:
 @pytest.fixture(scope="session")
 def train_corpus(trainer_real_data: GeoparserTrainer) -> list[GeoDoc]:
     corpus = [
-        (
-            "Ordino is a town in the mountains.",
-            [("Ordino", 0, 6, "3039678")],
-        ),
+        {
+            "text": "Ordino is a town in the mountains.",
+            "toponyms": [{"text": "Ordino", "start": 0, "end": 6, "loc_id": "3039678"}],
+        }
     ]
     return trainer_real_data.annotate(corpus, include_unmatched=True)
 
 
 def test_find_toponym(
     trainer_real_data: GeoparserTrainer,
-    corpus_good_annotations: list[tuple[str, list[tuple[str, int, int, str]]]],
-    corpus_bad_annotations: list[tuple[str, list[tuple[str, int, int, str]]]],
+    corpus_good_annotations: list[dict],
+    corpus_bad_annotations: list[dict],
     geodocs_corpus: list[GeoDoc],
 ):
     for i, (good_segment, bad_segment) in enumerate(
         zip(corpus_good_annotations, corpus_bad_annotations)
     ):
         for good_annot, bad_annot in zip(
-            [annot for annot in good_segment[1]], [annot for annot in bad_segment[1]]
+            good_segment["toponyms"], bad_segment["toponyms"]
         ):
-            good_start, good_end = good_annot[1], good_annot[2]
-            bad_start, bad_end = bad_annot[1], bad_annot[2]
-            toponym = good_annot[0]
-            assert trainer_real_data.find_toponym(
+            good_start, good_end = good_annot["start"], good_annot["end"]
+            bad_start, bad_end = bad_annot["start"], bad_annot["end"]
+            toponym = good_annot["text"]
+            assert trainer_real_data._find_toponym(
                 toponym, geodocs_corpus[i], bad_start, bad_end
             ) == (good_start, good_end)
 
 
 def test_retokenize_toponym(
     trainer_real_data: GeoparserTrainer,
-    corpus_good_annotations: list[tuple[str, list[tuple[str, int, int, str]]]],
+    corpus_good_annotations: list[dict],
     geodocs_corpus: list[GeoDoc],
 ):
     for segment, doc in zip(corpus_good_annotations, geodocs_corpus):
-        for toponym in segment[1]:
-            annotated_span = toponym[1:3]
+        for toponym in segment["toponyms"]:
+            annotated_span = toponym["start"], toponym["end"]
             annotated_toponym = doc.text[slice(*annotated_span)]
             len_before = len(doc)
             tokens_before = [token.text for token in doc]
@@ -115,10 +135,10 @@ def test_retokenize_toponym(
             # is not a token
             else:
                 assert not all(
-                    toponym in [token.text for token in doc]
-                    for toponym in annotated_toponym.split()
+                    t in [token.text for token in doc]
+                    for t in annotated_toponym.split()
                 )
-            trainer_real_data.retokenize_toponym(doc, *annotated_span)
+            trainer_real_data._retokenize_toponym(doc, *annotated_span)
             len_after = len(doc)
             tokens_after = [token.text for token in doc]
             span = doc.char_span(*annotated_span)
@@ -131,40 +151,38 @@ def test_retokenize_toponym(
             # (or parts of it if whitespace-delimited) is a token
             else:
                 assert len_before < len_after
-                for toponym in annotated_toponym.split():
-                    assert toponym in [token.text for token in doc]
+                for t in annotated_toponym.split():
+                    assert t in [token.text for token in doc]
 
 
 @pytest.mark.parametrize("include_unmatched", [True, False])
 def test_annotate(
     trainer_real_data: GeoparserTrainer,
-    corpus_good_annotations: list[tuple[str, list[tuple[str, int, int, str]]]],
-    corpus_bad_annotations: list[tuple[str, list[tuple[str, int, int, str]]]],
+    corpus_good_annotations: list[dict],
+    corpus_bad_annotations: list[dict],
     include_unmatched: bool,
 ):
+    annotated_corpus = trainer_real_data.annotate(
+        corpus_good_annotations, include_unmatched=include_unmatched
+    )
+    assert type(annotated_corpus) is list
     for corpus in [corpus_good_annotations, corpus_bad_annotations]:
-        annotated_corpus = trainer_real_data.annotate(
-            corpus, include_unmatched=include_unmatched
-        )
-        assert type(annotated_corpus) is list
-        for doc, raw_doc in zip(annotated_corpus, corpus):
+        for doc, raw_doc in zip(annotated_corpus, corpus_good_annotations):
             assert type(doc) is GeoDoc
             # entities are sorted by occurrence in text
             assert list(doc.ents) == sorted(doc.ents, key=lambda x: x.start)
             # include all annotations if include_unmatched
             if include_unmatched:
                 ents_str = {ent.text for ent in doc.ents}
-                for annotation in raw_doc[1]:
-                    annotation_str = annotation[0]
+                for annotation in raw_doc["toponyms"]:
+                    annotation_str = annotation["text"]
                     assert annotation_str in ents_str
-                # retokenization example
-                if (taiwan := "taiwan") in raw_doc[0]:
+                if (taiwan := "taiwan") in raw_doc["text"]:
                     assert taiwan in ents_str
-            # check annotation boundaries
             for doc_ent, raw_ent in zip(
-                doc.ents, sorted(raw_doc[1], key=lambda x: x[1])
+                doc.ents, sorted(raw_doc["toponyms"], key=lambda x: x["start"])
             ):
-                assert doc[doc_ent.start : doc_ent.end].text == raw_ent[0]
+                assert doc[doc_ent.start : doc_ent.end].text == raw_ent["text"]
 
 
 @pytest.mark.parametrize(
@@ -173,7 +191,7 @@ def test_annotate(
 def test_auc(
     trainer_real_data: GeoparserTrainer, distances: list[float], expected: float
 ):
-    assert trainer_real_data.calculate_auc(distances) == pytest.approx(
+    assert trainer_real_data._calculate_auc(distances) == pytest.approx(
         expected, rel=1e-5
     )
 
@@ -254,7 +272,7 @@ def test_evaluate(
 def test_prepare_training_data(
     trainer_real_data: GeoparserTrainer, train_corpus: list[GeoDoc]
 ):
-    prepared = trainer_real_data.prepare_training_data(train_corpus)
+    prepared = trainer_real_data._prepare_training_data(train_corpus)
     assert type(prepared) is Dataset
     assert (
         len(prepared["toponym_texts"])
