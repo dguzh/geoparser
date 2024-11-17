@@ -1,8 +1,8 @@
 import sqlite3
 import tempfile
 import typing as t
-from pathlib import Path
 from difflib import get_close_matches
+from pathlib import Path
 
 import py
 import pytest
@@ -303,7 +303,13 @@ def test_get_filter_attributes(geonames_real_data: GeoNames):
     Test that _get_filter_attributes returns the correct list of filterable attributes.
     """
     attributes = geonames_real_data._get_filter_attributes()
-    expected_attributes = ['name', 'feature_type', 'admin2_name', 'admin1_name', 'country_name']
+    expected_attributes = [
+        "name",
+        "feature_type",
+        "admin2_name",
+        "admin1_name",
+        "country_name",
+    ]
 
     assert sorted(attributes) == sorted(expected_attributes)
 
@@ -319,7 +325,9 @@ def test_get_filter_values(geonames_real_data: GeoNames):
         # Fetch expected values directly from the database
         expected_values = [
             row[0]
-            for row in geonames_real_data.execute_query(f"SELECT value FROM {attr}_values")
+            for row in geonames_real_data.execute_query(
+                f"SELECT value FROM {attr}_values"
+            )
         ]
         assert sorted(values) == sorted(expected_values)
 
@@ -329,7 +337,7 @@ def test_validate_filter(geonames_real_data: GeoNames):
     Test that _validate_filter correctly validates filters.
     """
     # Valid filter
-    attributes = ['feature_type', 'admin1_name', 'country_name']
+    attributes = ["feature_type", "admin1_name", "country_name"]
     valid_filter = {}
     for attr in attributes:
         values = geonames_real_data._get_filter_values(attr)
@@ -354,7 +362,7 @@ def test_construct_filter_query(geonames_real_data: GeoNames):
     Test that _construct_filter_query constructs the correct query and parameters.
     """
     # Valid filter
-    attributes = ['feature_type', 'admin1_name', 'country_name']
+    attributes = ["feature_type", "admin1_name", "country_name"]
     valid_filter = {}
     for attr in attributes:
         values = geonames_real_data._get_filter_values(attr)
@@ -409,7 +417,7 @@ def test_filter_cache_mechanism(geonames_real_data: GeoNames):
     Test that the filter caching mechanism works as expected.
     """
     # Valid filter
-    attributes = ['feature_type', 'admin1_name', 'country_name']
+    attributes = ["feature_type", "admin1_name", "country_name"]
     valid_filter = {}
     for attr in attributes:
         values = geonames_real_data._get_filter_values(attr)
@@ -435,7 +443,9 @@ def test_filter_cache_mechanism(geonames_real_data: GeoNames):
         geonames_real_data._construct_filter_query(modified_filter)
 
     # Cache should not contain the modified filter
-    modified_cache_key = tuple(sorted((k, tuple(v)) for k, v in modified_filter.items()))
+    modified_cache_key = tuple(
+        sorted((k, tuple(v)) for k, v in modified_filter.items())
+    )
     assert modified_cache_key not in geonames_real_data._filter_cache
 
 
@@ -450,4 +460,3 @@ def test_validate_filter_suggestions(geonames_real_data: GeoNames):
         geonames_real_data._validate_filter(invalid_filter)
     assert "Invalid filter values for country_name" in str(excinfo.value)
     assert "Did you mean Andorra?" in str(excinfo.value)
-    
