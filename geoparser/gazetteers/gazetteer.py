@@ -398,8 +398,6 @@ class LocalDBGazetteer(Gazetteer):
 
                     for tc in toponym_columns:
                         name = tc.name
-                        if name not in chunk.columns:
-                            continue
 
                         df = chunk[[location_identifier, name]].dropna()
 
