@@ -190,8 +190,9 @@ class LocalDBGazetteer(Gazetteer):
         self._create_locations_table()
         self._populate_locations_table()
 
-        self._create_values_tables()
-        self._populate_values_tables()
+        for attribute in self._get_filter_attributes():
+            self._create_values_table(attribute)
+            self._populate_values_table(attribute)
 
         self._drop_redundant_tables()
 
@@ -516,40 +517,33 @@ class LocalDBGazetteer(Gazetteer):
     @close
     @commit
     @connect
-    def _create_values_tables(self):
+    def _create_values_table(self, attribute: str):
         """
-        Create tables for distinct values of each filterable attribute.
+        Create tables for distinct values of a filterable attribute.
         """
-        filter_attributes = self._get_filter_attributes()
         cursor = self._get_cursor()
-
-        for attr in filter_attributes:
-            cursor.execute(f"DROP TABLE IF EXISTS {attr}_values")
-            cursor.execute(
-                f"""
-                CREATE TABLE {attr}_values (
-                    value TEXT PRIMARY KEY
-                )
-            """
+        cursor.execute(
+            f"""
+            CREATE TABLE IF NOT EXISTS {attribute}_values (
+                value TEXT PRIMARY KEY
             )
+        """
+        )
 
     @close
     @commit
     @connect
-    def _populate_values_tables(self):
+    def _populate_values_table(self, attribute: str):
         """
-        Populate tables with distinct values for each filterable attribute.
+        Populate tables with distinct values for a filterable attribute.
         """
-        filter_attributes = self._get_filter_attributes()
         cursor = self._get_cursor()
-
-        for attr in filter_attributes:
-            cursor.execute(
-                f"""
-                INSERT INTO {attr}_values (value)
-                SELECT DISTINCT {attr} FROM locations WHERE {attr} IS NOT NULL
-            """
-            )
+        cursor.execute(
+            f"""
+            INSERT INTO {attribute}_values (value)
+            SELECT DISTINCT {attribute} FROM locations WHERE {attribute} IS NOT NULL
+        """
+        )
 
     def _validate_filter(self, filter: dict[str, list[str]]):
         """
