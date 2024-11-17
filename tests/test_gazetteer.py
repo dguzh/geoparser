@@ -238,7 +238,6 @@ def test_drop_redundant_tables(geonames_patched: GeoNames):
     redundant_tables = [dataset.name for dataset in geonames_patched.config.data]
     tables_query = "SELECT name FROM sqlite_master"
     geonames_patched._initiate_connection()
-    cursor = geonames_patched._get_cursor()
     geonames_patched._commit()
     # 2. removing redundant tables
     geonames_patched._drop_redundant_tables()
