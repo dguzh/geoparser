@@ -9,6 +9,7 @@ from datasets import Dataset
 from geoparser import constants as C
 from geoparser.geodoc import GeoDoc
 from geoparser.trainer import GeoparserTrainer
+from tests.utils import get_static_test_file
 
 
 @pytest.fixture(scope="session")
@@ -155,8 +156,27 @@ def test_retokenize_toponym(
                     assert t in [token.text for token in doc]
 
 
+def test_load_json_file(trainer_real_data: GeoparserTrainer):
+    annotations_file = get_static_test_file("annotations.json")
+    corpus = trainer_real_data._load_json_file(annotations_file)
+    assert type(corpus) is list
+    for entry in corpus:
+        assert type(entry) is dict
+    # file has just one document
+    assert len(corpus) == 1
+    document = corpus[0]
+    assert (
+        document["text"]
+        == "In Lebanon, two Beirut neighbourhoods woke up this morning to warnings on social media from the Israeli military to evacuate, signalling the resumption of air strikes on the capital for a second day.\nOn Saturday, 12 struck the southern suburbs, and more than 70 strikes hit targets across the rest of Lebanon killing at least thirty people, according to the health ministry there.\nThe Israeli air force says it destroyed weapons storage facilities and missile launching pits in these raids.\nHowever, the many thousands of such raids over the past four weeks have still not ended Hezbollah’s capacity to fire rockets and send drones over the border.\nAround 200 projectiles have been recorded by the Israeli authorities coming from Lebanon over the past 24 hours. Hezbollah has warned that its war with Israel is now entering what it calls a new phase. \n"
+    )
+    for toponym in document["toponyms"]:
+        for key in ["text", "start", "end", "loc_id"]:
+            assert key in toponym.keys()
+            assert toponym[key] is not None
+
+
 @pytest.mark.parametrize("include_unmatched", [True, False])
-def test_annotate(
+def test_annotate_corpus(
     trainer_real_data: GeoparserTrainer,
     corpus_good_annotations: list[dict],
     corpus_bad_annotations: list[dict],
@@ -183,6 +203,16 @@ def test_annotate(
                 doc.ents, sorted(raw_doc["toponyms"], key=lambda x: x["start"])
             ):
                 assert doc[doc_ent.start : doc_ent.end].text == raw_ent["text"]
+
+
+def test_annotate_file(trainer_real_data: GeoparserTrainer):
+    annotations_file = get_static_test_file("annotations.json")
+    annotated_corpus = trainer_real_data.annotate(annotations_file)
+    # we are only checking for return types here because logic is
+    # covered by previous test
+    assert type(annotated_corpus) is list
+    for doc in annotated_corpus:
+        assert type(doc) is GeoDoc
 
 
 @pytest.mark.parametrize(
