@@ -54,6 +54,9 @@ def geonames_real_data() -> GeoNames:
     gazetteer._populate_names_fts_table()
     gazetteer._create_locations_table()
     gazetteer._populate_locations_table()
+    for attribute in gazetteer._get_filter_attributes():
+        gazetteer._create_values_table(attribute)
+        gazetteer._populate_values_table(attribute)
     gazetteer._drop_redundant_tables()
     return gazetteer
 

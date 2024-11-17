@@ -1,6 +1,7 @@
 import sqlite3
 import tempfile
 import typing as t
+from difflib import get_close_matches
 from pathlib import Path
 
 import py
@@ -188,7 +189,7 @@ def test_populate_names_table(geonames_patched: GeoNames):
     # actual test: table is empty at first, then contains a specific row
     expected_first_row = (
         1,
-        2994701,
+        "2994701",
         "Roc Meler",
     )
     check_table_population(
@@ -295,3 +296,167 @@ def test_execute_query(localdb_gazetteer: LocalDBGazetteer):
     localdb_gazetteer.execute_query(query1)
     tables = [table for table in localdb_gazetteer.execute_query(query2)[0]]
     assert ["asdf"] == tables
+
+
+def test_get_filter_attributes(geonames_real_data: GeoNames):
+    """
+    Test that _get_filter_attributes returns the correct list of filterable attributes.
+    """
+    attributes = geonames_real_data._get_filter_attributes()
+    expected_attributes = [
+        "name",
+        "feature_type",
+        "admin2_name",
+        "admin1_name",
+        "country_name",
+    ]
+
+    assert sorted(attributes) == sorted(expected_attributes)
+
+
+def test_get_filter_values(geonames_real_data: GeoNames):
+    """
+    Test that _get_filter_values returns correct values for an attribute.
+    """
+    attributes = geonames_real_data._get_filter_attributes()
+
+    for attr in attributes:
+        values = geonames_real_data._get_filter_values(attr)
+        # Fetch expected values directly from the database
+        expected_values = [
+            row[0]
+            for row in geonames_real_data.execute_query(
+                f"SELECT value FROM {attr}_values"
+            )
+        ]
+        assert sorted(values) == sorted(expected_values)
+
+
+def test_validate_filter(geonames_real_data: GeoNames):
+    """
+    Test that _validate_filter correctly validates filters.
+    """
+    # Valid filter
+    attributes = ["feature_type", "admin1_name", "country_name"]
+    valid_filter = {}
+    for attr in attributes:
+        values = geonames_real_data._get_filter_values(attr)
+        valid_filter[attr] = [values[0]]  # Use first valid value
+
+    # Should not raise an exception
+    geonames_real_data._validate_filter(valid_filter)
+
+    # Invalid filter key
+    invalid_filter_key = {"invalid_attribute": ["value"]}
+    with pytest.raises(ValueError, match="Invalid filter keys"):
+        geonames_real_data._validate_filter(invalid_filter_key)
+
+    # Invalid filter value
+    invalid_filter_value = {attributes[0]: ["invalid_value"]}
+    with pytest.raises(ValueError, match="Invalid filter values"):
+        geonames_real_data._validate_filter(invalid_filter_value)
+
+
+def test_construct_filter_query(geonames_real_data: GeoNames):
+    """
+    Test that _construct_filter_query constructs the correct query and parameters.
+    """
+    # Valid filter
+    attributes = ["feature_type", "admin1_name", "country_name"]
+    valid_filter = {}
+    for attr in attributes:
+        values = geonames_real_data._get_filter_values(attr)
+        valid_filter[attr] = [values[0]]  # Use first valid value
+
+    # Construct filter query
+    filter_query, params = geonames_real_data._construct_filter_query(valid_filter)
+
+    # Expected query and params
+    expected_query_parts = []
+    expected_params = []
+    for attr, values in valid_filter.items():
+        placeholders = ", ".join(["?"] * len(values))
+        expected_query_parts.append(f"locations.{attr} IN ({placeholders})")
+        expected_params.extend(values)
+    expected_filter_query = " AND ".join(expected_query_parts)
+
+    assert filter_query == expected_filter_query
+    assert params == expected_params
+
+    # Test caching
+    filter_key = tuple(sorted((k, tuple(v)) for k, v in valid_filter.items()))
+    cached_query, cached_params = geonames_real_data._filter_cache[filter_key]
+    assert cached_query == filter_query
+    assert cached_params == params
+
+
+def test_query_candidates_with_filter(geonames_real_data: GeoNames):
+    """
+    Test that query_candidates returns correct candidates when a filter is applied.
+    """
+    toponym = "Andorra"
+    # Without filter
+    candidates_without_filter = geonames_real_data.query_candidates(toponym)
+    assert len(candidates_without_filter) > 0
+
+    # With filter
+    filter = {"country_name": ["Andorra"]}
+    candidates_with_filter = geonames_real_data.query_candidates(toponym, filter=filter)
+    assert len(candidates_with_filter) > 0
+    # Ensure that candidates_with_filter is a subset of candidates_without_filter
+    assert set(candidates_with_filter).issubset(set(candidates_without_filter))
+
+    # Check that all candidates have country_name 'Andorra'
+    locations = geonames_real_data.query_location_info(candidates_with_filter)
+    for location in locations:
+        assert location["country_name"] == "Andorra"
+
+
+def test_filter_cache_mechanism(geonames_real_data: GeoNames):
+    """
+    Test that the filter caching mechanism works as expected.
+    """
+    # Valid filter
+    attributes = ["feature_type", "admin1_name", "country_name"]
+    valid_filter = {}
+    for attr in attributes:
+        values = geonames_real_data._get_filter_values(attr)
+        valid_filter[attr] = [values[0]]  # Use first valid value
+
+    # First call: should construct and cache the filter query
+    filter_query1, params1 = geonames_real_data._construct_filter_query(valid_filter)
+    cache_key = tuple(sorted((k, tuple(v)) for k, v in valid_filter.items()))
+    assert cache_key in geonames_real_data._filter_cache
+
+    # Second call with the same filter: should retrieve from cache
+    filter_query2, params2 = geonames_real_data._construct_filter_query(valid_filter)
+    assert filter_query1 == filter_query2
+    assert params1 == params2
+
+    # Modify filter slightly
+    modified_filter = valid_filter.copy()
+    first_attr = list(modified_filter.keys())[0]
+    modified_filter[first_attr] = [modified_filter[first_attr][0], "NonExistentValue"]
+
+    # Should raise ValueError due to invalid value
+    with pytest.raises(ValueError):
+        geonames_real_data._construct_filter_query(modified_filter)
+
+    # Cache should not contain the modified filter
+    modified_cache_key = tuple(
+        sorted((k, tuple(v)) for k, v in modified_filter.items())
+    )
+    assert modified_cache_key not in geonames_real_data._filter_cache
+
+
+def test_validate_filter_suggestions(geonames_real_data: GeoNames):
+    """
+    Test that _validate_filter provides suggestions for invalid values.
+    """
+    # Invalid filter value with close match
+    invalid_value = "Andora"  # Misspelled 'Andorra'
+    invalid_filter = {"country_name": [invalid_value]}
+    with pytest.raises(ValueError) as excinfo:
+        geonames_real_data._validate_filter(invalid_filter)
+    assert "Invalid filter values for country_name" in str(excinfo.value)
+    assert "Did you mean Andorra?" in str(excinfo.value)

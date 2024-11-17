@@ -107,6 +107,7 @@ class Geoparser:
         self,
         texts: list[str],
         batch_size: int = 8,
+        filter: dict[str, list[str]] = None,
     ) -> list[GeoDoc]:
         """
         Perform full geoparsing (recognition and resolution) on a list of texts.
@@ -114,6 +115,7 @@ class Geoparser:
         Args:
             texts (list[str]): List of input texts to geoparse.
             batch_size (int): Batch size for processing texts.
+            filter (dict[str, list[str]], optional): Filter to restrict candidate selection.
 
         Returns:
             list[GeoDoc]: List of GeoDoc objects containing geoparsed information.
@@ -130,7 +132,7 @@ class Geoparser:
         docs = self.recognize(texts, batch_size=batch_size)
 
         print("Toponym Resolution...")
-        docs = self.resolve(docs, batch_size=batch_size)
+        docs = self.resolve(docs, batch_size=batch_size, filter=filter)
         return docs
 
     def recognize(self, texts: list[str], batch_size: int = 8) -> list[GeoDoc]:
@@ -153,18 +155,24 @@ class Geoparser:
         )
         return docs
 
-    def resolve(self, docs: list[GeoDoc], batch_size: int = 8) -> list[GeoDoc]:
+    def resolve(
+        self,
+        docs: list[GeoDoc],
+        batch_size: int = 8,
+        filter: dict[str, list[str]] = None,
+    ) -> list[GeoDoc]:
         """
         Perform toponym resolution on a list of GeoDocs.
 
         Args:
             docs (list[GeoDoc]): List of GeoDoc objects with recognized toponyms.
             batch_size (int): Batch size for processing.
+            filter (dict[str, list[str]], optional): Filter to restrict candidate selection.
 
         Returns:
             list[GeoDoc]: List of GeoDoc objects with resolved toponyms.
         """
-        if candidate_ids := self._get_candidate_ids(docs):
+        if candidate_ids := self._get_candidate_ids(docs, filter=filter):
             candidate_embeddings_lookup = self._get_candidate_embeddings_lookup(
                 candidate_ids, batch_size
             )
@@ -173,22 +181,26 @@ class Geoparser:
             toponym_index = 0
             for doc in docs:
                 for toponym in doc.toponyms:
-                    if toponym.candidates:
+                    candidates = toponym.get_candidates(filter=filter)
+                    if candidates:
                         toponym._.loc_id, toponym._.loc_score = self._resolve_toponym(
                             candidate_embeddings_lookup,
-                            toponym.candidates,
+                            candidates,
                             toponym_embeddings,
                             toponym_index,
                         )
                     toponym_index += 1
         return docs
 
-    def _get_candidate_ids(self, docs: list[GeoDoc]) -> list[str]:
+    def _get_candidate_ids(
+        self, docs: list[GeoDoc], filter: dict[str, list[str]] = None
+    ) -> list[str]:
         """
         Collect all candidate location IDs from the toponyms in a list of GeoDocs.
 
         Args:
             docs (list[GeoDoc]): List of GeoDoc objects.
+            filter (dict[str, list[str]], optional): Filter to restrict candidate selection.
 
         Returns:
             list[str]: List of unique candidate location IDs.
@@ -196,7 +208,8 @@ class Geoparser:
         candidate_ids = set()
         for doc in docs:
             for toponym in doc.toponyms:
-                candidate_ids.update(toponym.candidates)
+                candidates = toponym.get_candidates(filter=filter)
+                candidate_ids.update(candidates)
         return list(candidate_ids)
 
     def _get_candidate_embeddings_lookup(

@@ -6,6 +6,7 @@ import sqlite3
 import typing as t
 import zipfile
 from abc import ABC, abstractmethod
+from difflib import get_close_matches
 from threading import local
 
 import pandas as pd
@@ -63,6 +64,7 @@ class LocalDBGazetteer(Gazetteer):
         self.db_path = os.path.join(self.data_dir, gazetteer_name + ".db")
         self.config = get_gazetteer_configs()[gazetteer_name]
         self._local = local()
+        self._filter_cache = {}
 
     def connect(func):
         """
@@ -187,6 +189,10 @@ class LocalDBGazetteer(Gazetteer):
 
         self._create_locations_table()
         self._populate_locations_table()
+
+        for attribute in self._get_filter_attributes():
+            self._create_values_table(attribute)
+            self._populate_values_table(attribute)
 
         self._drop_redundant_tables()
 
@@ -349,12 +355,17 @@ class LocalDBGazetteer(Gazetteer):
         """
         Create the 'names' table in the database.
         """
+        location_identifier_type = [
+            c.type
+            for c in self.config.location_columns
+            if c.name == self.config.location_identifier
+        ][0]
         cursor = self._get_cursor()
         cursor.execute(
             f"""
             CREATE TABLE IF NOT EXISTS names (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                {self.config.location_identifier} INTEGER,
+                {self.config.location_identifier} {location_identifier_type},
                 name TEXT
             )
         """
@@ -503,9 +514,143 @@ class LocalDBGazetteer(Gazetteer):
         """
         pass
 
+    @close
+    @commit
+    @connect
+    def _create_values_table(self, attribute: str):
+        """
+        Create tables for distinct values of a filterable attribute.
+        """
+        cursor = self._get_cursor()
+        cursor.execute(
+            f"""
+            CREATE TABLE IF NOT EXISTS {attribute}_values (
+                value TEXT PRIMARY KEY
+            )
+        """
+        )
+
+    @close
+    @commit
+    @connect
+    def _populate_values_table(self, attribute: str):
+        """
+        Populate tables with distinct values for a filterable attribute.
+        """
+        cursor = self._get_cursor()
+        cursor.execute(
+            f"""
+            INSERT INTO {attribute}_values (value)
+            SELECT DISTINCT {attribute} FROM locations WHERE {attribute} IS NOT NULL
+        """
+        )
+
+    def _validate_filter(self, filter: dict[str, list[str]]):
+        """
+        Validate the filter keys and values.
+
+        Args:
+            filter (dict[str, list[str]]): Filter to validate.
+
+        Raises:
+            ValueError: If the filter contains invalid keys or values.
+        """
+        valid_attributes = self._get_filter_attributes()
+        invalid_keys = [k for k in filter.keys() if k not in valid_attributes]
+        if invalid_keys:
+            raise ValueError(
+                f"Invalid filter keys: {', '.join(invalid_keys)}.\n"
+                f"Valid filter keys:\n- " + "\n- ".join(sorted(valid_attributes))
+            )
+
+        for attr, values in filter.items():
+            valid_values = self._get_filter_values(attr)
+            valid_values_lower = {v.lower(): v for v in valid_values}
+
+            invalid_values = [v for v in values if v not in valid_values]
+            if invalid_values:
+                suggestions = {
+                    v: get_close_matches(v.lower(), valid_values_lower.keys(), n=1)
+                    for v in invalid_values
+                }
+                suggestion_text = "\n- ".join(
+                    (
+                        f"{value}: Did you mean {valid_values_lower[matches[0]]}?"
+                        if matches
+                        else f"'{value}': No close matches found."
+                    )
+                    for value, matches in suggestions.items()
+                )
+                raise ValueError(
+                    f"Invalid filter values for {attr}: {', '.join(invalid_values)}.\n"
+                    f"Suggestions:\n- {suggestion_text}"
+                )
+
+    def _get_filter_attributes(self) -> list[str]:
+        """
+        Get the list of valid filter attributes.
+
+        Returns:
+            list[str]: List of valid filter attribute names.
+        """
+        location_identifier = self.config.location_identifier
+        location_columns = self.config.location_columns
+
+        filter_attributes = [
+            col.name
+            for col in location_columns
+            if col.type == "TEXT"
+            and col.name != location_identifier
+            and not col.name.endswith(location_identifier)
+        ]
+        return filter_attributes
+
+    def _get_filter_values(self, attribute: str) -> list[str]:
+        """
+        Get the list of valid values for a filter attribute.
+
+        Args:
+            attribute (str): The attribute name.
+
+        Returns:
+            list[str]: List of valid values.
+        """
+        query = f"SELECT value FROM {attribute}_values"
+        result = self.execute_query(query)
+        return [row[0] for row in result]
+
+    def _construct_filter_query(self, filter: dict[str, list[str]]) -> tuple[str, list]:
+        """
+        Construct additional SQL query text and parameters for filtering.
+
+        Args:
+            filter (dict[str, list[str]]): Filter to apply.
+
+        Returns:
+            tuple[str, list]: Additional SQL query text and parameters.
+        """
+        filter_key = tuple(sorted((k, tuple(v)) for k, v in (filter or {}).items()))
+
+        if filter_key in self._filter_cache:
+            return self._filter_cache[filter_key]
+
+        self._validate_filter(filter)
+
+        query_parts = []
+        params = []
+        for attr, values in filter.items():
+            placeholders = ", ".join(["?"] * len(values))
+            query_parts.append(f"locations.{attr} IN ({placeholders})")
+            params.extend(values)
+        filter_query = " AND ".join(query_parts)
+
+        self._filter_cache[filter_key] = (filter_query, params)
+        return filter_query, params
+
     def query_candidates(
         self,
         toponym: str,
+        filter: dict[str, list[str]] = None,
     ) -> list[str]:
         """
         Query the database for candidate location IDs matching the toponym,
@@ -513,6 +658,7 @@ class LocalDBGazetteer(Gazetteer):
 
         Args:
             toponym (str): The toponym to search for.
+            filter (dict[str, list[str]], optional): Filter to restrict candidate selection.
 
         Returns:
             list[str]: List of candidate location IDs.
@@ -522,9 +668,16 @@ class LocalDBGazetteer(Gazetteer):
         toponym_cleaned = re.sub(r"\"", "", toponym).strip()
         toponym_tokenized = " ".join([f'"{word}"' for word in toponym_cleaned.split()])
 
-        # The implemented length check approach is not an ideal solution.
-        # A better solution would be to compare query strings with location
-        # names more explicitly while still ignoring diacritics and punctuation.
+        params = [toponym_tokenized, toponym_cleaned]
+        filter_join = ""
+        filter_where = ""
+
+        if filter:
+            filter_query, filter_params = self._construct_filter_query(filter)
+            filter_join = f"JOIN locations ON AdjustedScores.{location_identifier} = locations.{location_identifier}"
+            filter_where = f"AND {filter_query}"
+            params.extend(filter_params)
+
         query = f"""
             WITH ScoredMatches AS (
                 SELECT {location_identifier}, name, rank AS base_score
@@ -543,13 +696,15 @@ class LocalDBGazetteer(Gazetteer):
             MinScore AS (
                 SELECT MIN(score) AS MinScore FROM AdjustedScores
             )
-            SELECT CAST({location_identifier} AS TEXT), score
+            SELECT AdjustedScores.{location_identifier}, AdjustedScores.score
             FROM AdjustedScores
-            WHERE score = (SELECT MinScore FROM MinScore)
-            GROUP BY {location_identifier}
+            {filter_join}
+            WHERE AdjustedScores.score = (SELECT MinScore FROM MinScore)
+            {filter_where}
+            GROUP BY AdjustedScores.{location_identifier}
         """
 
-        result = self.execute_query(query, (toponym_tokenized, toponym_cleaned))
+        result = self.execute_query(query, tuple(params))
         return [row[0] for row in result]
 
     def query_location_info(
