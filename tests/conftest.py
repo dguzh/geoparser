@@ -13,6 +13,12 @@ from tests.utils import get_static_test_file
 
 
 @pytest.fixture(scope="session")
+def monkeymodule():
+    with pytest.MonkeyPatch.context() as mp:
+        yield mp
+
+
+@pytest.fixture(scope="session")
 def radio_andorra_id() -> str:
     return "3039328"
 
@@ -39,25 +45,18 @@ def geonames_patched() -> GeoNames:
 
 
 @pytest.fixture(scope="session")
-def geonames_real_data() -> GeoNames:
+def geonames_real_data(monkeymodule) -> GeoNames:
+    # skip download for tests
+    monkeymodule.setattr(GeoNames, "_download_file", lambda *args, **kwargs: None)
+    # do not delete test files
+    monkeymodule.setattr(GeoNames, "clean_dir", lambda *args, **kwargs: None)
     gazetteer = GeoNames()
     tmpdir = py.path.local(tempfile.mkdtemp())
     gazetteer.data_dir = str(
         get_static_test_file(Path("gazetteers") / Path("geonames_1000"))
     )
     gazetteer.db_path = str(tmpdir / Path(gazetteer.db_path).name)
-    for dataset in gazetteer.config.data:
-        gazetteer._load_data(dataset)
-    gazetteer._create_names_table()
-    gazetteer._populate_names_table()
-    gazetteer._create_names_fts_table()
-    gazetteer._populate_names_fts_table()
-    gazetteer._create_locations_table()
-    gazetteer._populate_locations_table()
-    for attribute in gazetteer._get_filter_attributes():
-        gazetteer._create_values_table(attribute)
-        gazetteer._populate_values_table(attribute)
-    gazetteer._drop_redundant_tables()
+    gazetteer.setup_database()
     return gazetteer
 
 

@@ -216,9 +216,7 @@ class LocalDBGazetteer(Gazetteer):
                 else:
                     try:
                         os.remove(os.path.join(self.data_dir, file_name))
-                    except IsADirectoryError:
-                        os.rmdir(os.path.join(self.data_dir, file_name))
-                    except PermissionError:
+                    except (IsADirectoryError, PermissionError):
                         shutil.rmtree(os.path.join(self.data_dir, file_name))
 
     @close
@@ -411,8 +409,6 @@ class LocalDBGazetteer(Gazetteer):
 
                     for tc in toponym_columns:
                         name = tc.name
-                        if name not in chunk.columns:
-                            continue
 
                         df = chunk[[location_identifier, name]].dropna()
 

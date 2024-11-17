@@ -225,6 +225,46 @@ def test_create_locations_table(geonames_patched: GeoNames):
     check_table_creation(geonames_patched, "locations", "_create_locations_table")
 
 
+def test_create_values_table(geonames_patched: GeoNames):
+    attribute = "admin1_name"
+    table_name = f"{attribute}_values"
+    # 1. table does not exist before creation
+    tables_query = "SELECT name FROM sqlite_master"
+    tables_before = execute_query(geonames_patched, tables_query)
+    assert tables_before == [] or table_name not in tables_before[0]
+    # 2. create table with specified method
+    geonames_patched._create_values_table(attribute)
+    # 3. table exists after creation
+    tables_after = execute_query(geonames_patched, tables_query)
+    assert len(tables_after) > len(tables_before) and table_name in tables_after[0]
+
+
+def test_populate_values_table(geonames_patched: GeoNames):
+    attribute = "admin1_name"
+    table_name = f"{attribute}_values"
+    expected_first_row = ("Canillo",)
+    # 1. setup
+    for dataset in geonames_patched.config.data:
+        geonames_patched._load_data(dataset)
+    geonames_patched._create_names_table()
+    geonames_patched._populate_names_table()
+    geonames_patched._create_names_fts_table()
+    geonames_patched._populate_names_fts_table()
+    geonames_patched._create_locations_table()
+    geonames_patched._populate_locations_table()
+    geonames_patched._create_values_table(attribute)
+    # 2. table is empty before populating it
+    rows_query = f"SELECT * FROM {table_name}"
+    rows_before = execute_query(geonames_patched, rows_query)
+    assert rows_before == []
+    # 3. populating the table with specified method
+    geonames_patched._populate_values_table(attribute)
+    # 4. table contains a specific first row
+    rows_after = execute_query(geonames_patched, rows_query)
+    assert len(rows_after) > 0
+    assert rows_after[0] == expected_first_row
+
+
 def test_drop_redundant_tables(geonames_patched: GeoNames):
     # setup: create tables from previous steps
     for dataset in geonames_patched.config.data:
@@ -239,7 +279,6 @@ def test_drop_redundant_tables(geonames_patched: GeoNames):
     redundant_tables = [dataset.name for dataset in geonames_patched.config.data]
     tables_query = "SELECT name FROM sqlite_master"
     geonames_patched._initiate_connection()
-    cursor = geonames_patched._get_cursor()
     geonames_patched._commit()
     # 2. removing redundant tables
     geonames_patched._drop_redundant_tables()

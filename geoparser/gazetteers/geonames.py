@@ -121,8 +121,6 @@ class GeoNames(LocalDBGazetteer):
             dtype=str,
             skiprows=skiprows,
         )
-        if not chunksize:
-            chunks = [chunks]
 
         return (chunk for chunk in chunks), n_chunks
 
