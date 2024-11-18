@@ -4,9 +4,9 @@ on:
   push:
     branches:
       - development
-    # paths:
-    #   - 'pyproject.toml'
-    #   - 'poetry.lock'
+    paths:
+      - 'pyproject.toml'
+      - 'poetry.lock'
 
 permissions:
   contents: write
