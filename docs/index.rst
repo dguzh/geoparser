@@ -41,10 +41,17 @@ Contributing
 
 Geoparser is an open-source project, and contributions are welcome. If you encounter any issues or have suggestions for improvements, please open an issue or submit a pull request on the `GitHub repository <https://github.com/dguzh/geoparser>`_.
 
+Acknowledgments
+---------------
+
+Geoparser originated as part of my Master's thesis and was further developed with support from the `Department of Geography at the University of Zurich <https://www.geo.uzh.ch/>`_. I thank my supervisor, Prof. Dr. Ross Purves, for his insightful feedback, encouragement, and the opportunity to continue this work as part of a research project.
+
 License
 -------
 
-Geoparser is released under the `MIT License <https://opensource.org/licenses/MIT>`_.
+Geoparser is released under the `MIT License <https://github.com/dguzh/geoparser/blob/development/LICENSE>`_.
+
+This project uses several third-party libraries, each with its own license. For a complete list of these licenses, see the `full license details <https://github.com/dguzh/geoparser/blob/development/THIRD_PARTY_LICENSES>`_ in the repository.
 
 
 .. toctree::
