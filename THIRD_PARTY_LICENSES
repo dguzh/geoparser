@@ -1,3 +1,8 @@
+Third-Party Licenses
+
+This file contains license information for third-party dependencies used in this project.
+
+================================================================================
 
 Package: Flask==3.1.0
 License: BSD License
@@ -3687,7 +3692,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ================================================================================
 
 Package: geoparser==0.1.8
-License: UNKNOWN
+License: MIT License
 
 UNKNOWN
 
