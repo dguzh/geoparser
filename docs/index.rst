@@ -44,7 +44,9 @@ Geoparser is an open-source project, and contributions are welcome. If you encou
 License
 -------
 
-Geoparser is released under the `MIT License <https://opensource.org/licenses/MIT>`_.
+Geoparser is released under the `MIT License <https://github.com/dguzh/geoparser/blob/development/LICENSE>`_.
+
+This project uses several third-party libraries, each with its own license. For a complete list of these licenses, see the `full license details <https://github.com/dguzh/geoparser/blob/development/THIRD_PARTY_LICENSES>`_ in the repository.
 
 
 .. toctree::
