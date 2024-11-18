@@ -4,9 +4,9 @@ on:
   push:
     branches:
       - development
-    paths:
-      - 'pyproject.toml'
-      - 'poetry.lock'
+    # paths:
+    #   - 'pyproject.toml'
+    #   - 'poetry.lock'
 
 permissions:
   contents: write
@@ -77,7 +77,14 @@ jobs:
       # Step 9: Generate THIRD_PARTY_LICENSES Using Shell and jq
       - name: Generate THIRD_PARTY_LICENSES
         run: |
-          echo "" > THIRD_PARTY_LICENSES
+          {
+            echo "Third-Party Licenses"
+            echo ""
+            echo "This file contains license information for third-party dependencies used in this project."
+            echo ""
+            echo "================================================================================"
+            echo ""
+          } > THIRD_PARTY_LICENSES
           jq -c '.[]' licenses.json | while read -r pkg; do
             NAME=$(echo "$pkg" | jq -r '.Name')
             VERSION=$(echo "$pkg" | jq -r '.Version')
