@@ -5,7 +5,12 @@ import torch
 from sentence_transformers import SentenceTransformer, util
 from tqdm.auto import tqdm
 
-from geoparser.constants import DEFAULT_TRANSFORMER_MODEL, GAZETTEERS
+from geoparser.constants import (
+    DEFAULT_GAZETTEER,
+    DEFAULT_SPACY_MODEL,
+    DEFAULT_TRANSFORMER_MODEL,
+    GAZETTEERS,
+)
 from geoparser.gazetteers.gazetteer import Gazetteer
 from geoparser.geodoc import GeoDoc
 
@@ -23,9 +28,9 @@ class Geoparser:
 
     def __init__(
         self,
-        spacy_model: str = "en_core_web_trf",
+        spacy_model: str = DEFAULT_SPACY_MODEL,
         transformer_model: str = DEFAULT_TRANSFORMER_MODEL,
-        gazetteer: str = "geonames",
+        gazetteer: str = DEFAULT_GAZETTEER,
     ):
         """
         Initialize the Geoparser with specified spaCy model, transformer model, and gazetteer.
