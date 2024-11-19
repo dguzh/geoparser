@@ -31,7 +31,7 @@ By default, Geoparser uses the following configuration:
        gazetteer="geonames"
    )
 
-These defaults prioritize speed over accuracy and are optimized for English texts. If you require higher accuracy and don't mind increased computational cost, or need to process texts in other languages, you can specify different models as shown in the Advanced Usage section.
+These defaults prioritize speed over accuracy and are optimized for English texts. If you require higher accuracy and don't mind increased computational cost, or need to process texts in other languages, you can specify different models as shown in the `Advanced Usage`_ section.
 
 Performing Geoparsing
 ~~~~~~~~~~~~~~~~~~~~~
@@ -52,7 +52,7 @@ The ``parse`` method accepts a list of strings and returns a list of ``GeoDoc`` 
 Accessing Location Information
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-After parsing, you can access the toponyms identified in each document through ``GeoDoc.toponyms``, which returns a tuple of ``GeoSpan`` objects representing the toponyms in the document. The resolved location of each toponym can be accessed using ``GeoSpan.location``, which returns a dictionary containing various location attributes from the gazetteer. For example, when using the GeoNames gazetteer, a resolved location might look like this:
+After parsing, you can access the toponyms identified in each document through ``GeoDoc.toponyms``, which returns a tuple of ``GeoSpan`` objects representing the toponyms in the document. The resolved location of each toponym can be accessed using ``GeoSpan.location``, which returns a dictionary containing various location attributes sourced from the gazetteer. For example, when using the GeoNames gazetteer, a resolved location might look like this:
 
 .. code-block:: python
 
@@ -144,6 +144,8 @@ If Geoparser was unable to resolve a location, ``toponym.location`` will be ``No
 
 The ``toponym.score`` property provides the similarity score between the toponym's context and the resolved location. Higher scores indicate a higher confidence in the prediction. Depending on your specific requirements, you might use this score to set a threshold for which predictions to consider valid.
 
+.. _Advanced Usage:
+
 Advanced Usage
 --------------
 
@@ -174,7 +176,7 @@ You can specify different transformer models during initialization:
 
    geoparser = Geoparser(transformer_model="dguzh/geo-all-distilroberta-v1")
 
-These models have been trained using English news articles. Therefore, they are most effective when parsing English texts and when used in combination with an English spaCy model. If you wish to parse texts in other languages, these models may not perform well. In such cases, it is recommended that you train your own custom model, as explained in the Training a Custom Model section.
+These models have been trained using English news articles. Therefore, they are most effective when parsing English texts and when used in combination with an English spaCy model. If you wish to parse texts in other languages, these models may not perform well. In such cases, it is recommended that you train your own custom model, as explained in the `Training a Custom Model`_ section.
 
 Using Different Gazetteers
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -195,7 +197,7 @@ It is possible to configure custom gazetteers. This involves writing a configura
 Filtering Candidate Locations
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Filters can be applied to restrict candidate locations during the resolution process. This can be useful when you want to limit geoparsing to specific regions or types of locations.
+Filters can be applied to restrict candidate locations during the resolution process. This can be useful when you want to constrain geoparsing results to specific regions or types of locations.
 
 For example, restrict candidates to locations in Austria, Germany, and Switzerland:
 
@@ -221,6 +223,8 @@ Check if CUDA is available:
    print(torch.cuda.is_available())
 
 If ``True``, Geoparser will automatically utilize the GPU.
+
+.. _Training a Custom Model:
 
 Training a Custom Model
 -----------------------
@@ -271,7 +275,7 @@ Format your training data as a list of dictionaries, each representing a documen
        }
    ]
 
-Alternatively, you can also an Annotator annotation file. These are JSON files that can be created using the Annotator web app, which is part of the Geoparser library. You can launch the Annotator using the following command:
+Alternatively, you can use the Annotator web app to annotate texts and create an annotation file. These are JSON files analogous to the corpus format above. You can launch the Annotator with the following command:
 
 .. code-block:: bash
 
@@ -309,11 +313,11 @@ Convert your training corpus into annotated ``GeoDoc`` objects:
 
    train_docs = trainer.annotate(train_corpus)
 
-If you want to include all annotations regardless of spaCy's recognition:
+Or if you want to load annotations from an Annotator file:
 
 .. code-block:: python
 
-   train_docs = trainer.annotate(train_corpus, include_unmatched=True)
+   train_docs = trainer.annotate("path/to/annotations.json")
 
 Training the Model
 ~~~~~~~~~~~~~~~~~~
@@ -360,7 +364,7 @@ The ``evaluate`` method compares the predicted locations with the annotated ones
 - **Accuracy**: The proportion of toponyms correctly resolved to the exact location entity.
 - **Accuracy@161km**: The proportion of toponyms resolved within 161 km (100 miles) of the correct location .
 - **MeanErrorDistance**: The average distance in kilometers between the predicted and correct locations.
-- **AreaUnderTheCurve**: A metric considering the distribution of error distances.
+- **AreaUnderTheCurve**: A metric considering the distribution of error distances (lower is better).
 
 These metrics provide insights into how well the model is performing and can help you adjust your training process accordingly.
 

@@ -16,7 +16,7 @@ Geoparsing involves two main tasks:
 - **Toponym Recognition**: Identifying place names in text.
 - **Toponym Resolution**: Disambiguating these names to their correct geographical locations.
 
-Geoparser addresses both tasks by combining state-of-the-art natural language processing models and efficient algorithms allowing it to efficiently process large volumes of text with high accuracy.
+Geoparser addresses both tasks by combining state-of-the-art language models and efficient algorithms, enabling it to process large volumes of text with high accuracy and speed.
 
 How It Works
 ------------
@@ -27,7 +27,7 @@ How It Works
 
 3. **Textual Representation**: Toponyms are represented using their surrounding context, which is extracted and truncated to meet model input length requirements. Candidate locations are also transformed into text by constructing descriptive sentences using attributes sourced from the gazetteer.
 
-4. **Embedding Generation**: A fine-tuned `SentenceTransformer <https://www.sbert.net/>`_ model is used to encode the textual representations of both toponyms and candidates into embeddings that map them into a shared vector space.
+4. **Embedding Generation**: A fine-tuned `SentenceTransformer <https://www.sbert.net/>`_ model is used to encode the textual representations of both the toponyms and their corresponding candidates into embeddings, mapping them into a shared vector space.
 
 5. **Similarity Comparison**: Embeddings of toponyms and their corresponding candidates are compared using cosine similarity. The candidates with the highest similarity scores are then selected as the most likely locations referenced by the toponyms.
 
@@ -49,9 +49,7 @@ Geoparser originated as part of my Master's thesis and was further developed wit
 License
 -------
 
-Geoparser is released under the `MIT License <https://github.com/dguzh/geoparser/blob/development/LICENSE>`_.
-
-This project uses several third-party libraries, each with its own license. For a complete list of these licenses, see the `full license details <https://github.com/dguzh/geoparser/blob/development/THIRD_PARTY_LICENSES>`_ in the repository.
+Geoparser is released under the `MIT License <https://github.com/dguzh/geoparser/blob/development/LICENSE>`_. It also uses several third-party libraries, each with its own license. For a complete list of these licenses, see the `full license details <https://github.com/dguzh/geoparser/blob/development/THIRD_PARTY_LICENSES>`_ in the repository.
 
 
 .. toctree::
