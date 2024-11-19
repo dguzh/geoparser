@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import math
 import os
 import re
@@ -22,26 +24,24 @@ class Gazetteer(ABC):
     """Abstract base class for gazetteers."""
 
     @abstractmethod
-    def _create_location_description(self, location: dict[str, str]) -> str:
+    def _create_location_description(self, location: t.Dict[str, t.Any]) -> str:
         """
         Create a textual description for a location.
 
         Args:
-            location (dict[str, str]): Dictionary containing location attributes.
+            location (Dict[str, Any]): Dictionary containing location attributes.
 
         Returns:
             str: Textual description of the location.
         """
         pass
 
-    def get_location_description(
-        self, location: dict[str, t.Union[int, str, float]]
-    ) -> str:
+    def get_location_description(self, location: t.Dict[str, t.Any]) -> str:
         """
         Get the location description by invoking the abstract method.
 
         Args:
-            location (dict[str, Union[int, str, float]]): Dictionary containing location attributes.
+            location (Dict[str, Any]): Dictionary containing location attributes.
 
         Returns:
             str: Textual description of the location.
@@ -66,7 +66,7 @@ class LocalDBGazetteer(Gazetteer):
         self._local = local()
         self._filter_cache = {}
 
-    def connect(func):
+    def connect(func: t.Callable) -> t.Callable:
         """
         Decorator to initiate a database connection before a function call.
 
@@ -84,7 +84,7 @@ class LocalDBGazetteer(Gazetteer):
 
         return call
 
-    def commit(func):
+    def commit(func: t.Callable) -> t.Callable:
         """
         Decorator to commit changes to the database after a function call.
 
@@ -102,7 +102,7 @@ class LocalDBGazetteer(Gazetteer):
 
         return call
 
-    def close(func):
+    def close(func: t.Callable) -> t.Callable:
         """
         Decorator to close the database connection after a function call.
 
@@ -120,14 +120,14 @@ class LocalDBGazetteer(Gazetteer):
 
         return call
 
-    def _initiate_connection(self):
+    def _initiate_connection(self) -> None:
         """
         Initiate a new database connection if one doesn't exist.
         """
         if not hasattr(self._local, "conn") or self._local.conn is None:
             self._local.conn = sqlite3.connect(self.db_path)
 
-    def _close_connection(self):
+    def _close_connection(self) -> None:
         """
         Close the existing database connection.
         """
@@ -135,7 +135,7 @@ class LocalDBGazetteer(Gazetteer):
             self._local.conn.close()
             self._local.conn = None
 
-    def _commit(self):
+    def _commit(self) -> None:
         """
         Commit the current transaction to the database.
         """
@@ -152,22 +152,24 @@ class LocalDBGazetteer(Gazetteer):
 
     @close
     @connect
-    def execute_query(self, query: str, params: tuple[str, ...] = None) -> list:
+    def execute_query(
+        self, query: str, params: t.Optional[tuple] = None
+    ) -> t.List[t.Any]:
         """
         Execute a SQL query and fetch all results.
 
         Args:
             query (str): SQL query to execute.
-            params (tuple[str, ...], optional): Parameters for the SQL query.
+            params (Optional[tuple], optional): Parameters for the SQL query.
 
         Returns:
-            list: List of query results.
+            List[Any]: List of query results.
         """
         cursor = self._get_cursor()
         cursor.execute(query, params or ())
         return cursor.fetchall()
 
-    def setup_database(self):
+    def setup_database(self) -> None:
         """
         Set up the database by downloading and loading data.
         """
@@ -200,7 +202,7 @@ class LocalDBGazetteer(Gazetteer):
 
         print("Database setup complete.")
 
-    def clean_dir(self, keep_db: bool = False):
+    def clean_dir(self, keep_db: bool = False) -> None:
         """
         Clean the data directory by removing unnecessary files.
 
@@ -222,7 +224,7 @@ class LocalDBGazetteer(Gazetteer):
     @close
     @commit
     @connect
-    def _drop_redundant_tables(self):
+    def _drop_redundant_tables(self) -> None:
         """
         Drop redundant tables from the database and perform vacuuming.
         """
@@ -232,7 +234,7 @@ class LocalDBGazetteer(Gazetteer):
             cursor.execute(f"DROP TABLE IF EXISTS {table};")
         cursor.execute("VACUUM;")
 
-    def _download_file(self, dataset: GazetteerData):
+    def _download_file(self, dataset: GazetteerData) -> None:
         """
         Download dataset files if they do not exist locally.
 
@@ -258,7 +260,7 @@ class LocalDBGazetteer(Gazetteer):
         if file_path.endswith(".zip"):
             self._extract_zip(file_path, dataset.extracted_files)
 
-    def _extract_zip(self, file_path: str, extracted_files: t.List[str]):
+    def _extract_zip(self, file_path: str, extracted_files: t.List[str]) -> None:
         """
         Extract specific files from a zip archive.
 
@@ -270,7 +272,7 @@ class LocalDBGazetteer(Gazetteer):
             for file_name in extracted_files:
                 zip_ref.extract(file_name, self.data_dir)
 
-    def _load_data(self, dataset: GazetteerData):
+    def _load_data(self, dataset: GazetteerData) -> None:
         """
         Load data from the dataset into the database.
 
@@ -284,8 +286,8 @@ class LocalDBGazetteer(Gazetteer):
     def _read_file(
         self,
         file_path: str,
-        columns: list[str] = None,
-        skiprows: t.Union[int, list[int], t.Callable] = None,
+        columns: t.List[str] = None,
+        skiprows: t.Union[int, t.List[int], t.Callable] = None,
         chunksize: int = 100000,
     ) -> t.Iterator[pd.DataFrame]:
         """
@@ -293,8 +295,8 @@ class LocalDBGazetteer(Gazetteer):
 
         Args:
             file_path (str): Path to the file.
-            columns (list[str], optional): List of columns to read.
-            skiprows (int, list[int], Callable, optional): Rows to skip.
+            columns (List[str], optional): List of columns to read.
+            skiprows (Union[int, List[int], Callable], optional): Rows to skip.
             chunksize (int, optional): Number of rows per chunk.
 
         Yields:
@@ -305,7 +307,7 @@ class LocalDBGazetteer(Gazetteer):
     @close
     @commit
     @connect
-    def _create_data_table(self, dataset: GazetteerData):
+    def _create_data_table(self, dataset: GazetteerData) -> None:
         """
         Create a data table in the database for the dataset.
 
@@ -324,7 +326,7 @@ class LocalDBGazetteer(Gazetteer):
     @close
     @commit
     @connect
-    def _populate_data_table(self, dataset: GazetteerData):
+    def _populate_data_table(self, dataset: GazetteerData) -> None:
         """
         Populate the data table with dataset content.
 
@@ -349,7 +351,7 @@ class LocalDBGazetteer(Gazetteer):
     @close
     @commit
     @connect
-    def _create_names_table(self):
+    def _create_names_table(self) -> None:
         """
         Create the 'names' table in the database.
         """
@@ -372,7 +374,7 @@ class LocalDBGazetteer(Gazetteer):
     @close
     @commit
     @connect
-    def _populate_names_table(self, chunksize: int = 100000):
+    def _populate_names_table(self, chunksize: int = 100000) -> None:
         """
         Populate the 'names' table with location names.
 
@@ -456,7 +458,7 @@ class LocalDBGazetteer(Gazetteer):
     @close
     @commit
     @connect
-    def _create_names_fts_table(self):
+    def _create_names_fts_table(self) -> None:
         """
         Create the full-text search virtual table 'names_fts'.
         """
@@ -476,7 +478,7 @@ class LocalDBGazetteer(Gazetteer):
     @close
     @commit
     @connect
-    def _populate_names_fts_table(self):
+    def _populate_names_fts_table(self) -> None:
         """
         Populate the 'names_fts' full-text search table.
         """
@@ -491,7 +493,7 @@ class LocalDBGazetteer(Gazetteer):
     @close
     @commit
     @connect
-    def _create_locations_table(self):
+    def _create_locations_table(self) -> None:
         """
         Create the 'locations' table in the database.
         """
@@ -504,7 +506,7 @@ class LocalDBGazetteer(Gazetteer):
         cursor.execute(f"CREATE TABLE IF NOT EXISTS locations ({columns_def})")
 
     @abstractmethod
-    def _populate_locations_table(self):
+    def _populate_locations_table(self) -> None:
         """
         Populate the 'locations' table with location data.
         """
@@ -513,9 +515,12 @@ class LocalDBGazetteer(Gazetteer):
     @close
     @commit
     @connect
-    def _create_values_table(self, attribute: str):
+    def _create_values_table(self, attribute: str) -> None:
         """
         Create tables for distinct values of a filterable attribute.
+
+        Args:
+            attribute (str): The attribute name.
         """
         cursor = self._get_cursor()
         cursor.execute(
@@ -529,9 +534,12 @@ class LocalDBGazetteer(Gazetteer):
     @close
     @commit
     @connect
-    def _populate_values_table(self, attribute: str):
+    def _populate_values_table(self, attribute: str) -> None:
         """
         Populate tables with distinct values for a filterable attribute.
+
+        Args:
+            attribute (str): The attribute name.
         """
         cursor = self._get_cursor()
         cursor.execute(
@@ -541,12 +549,12 @@ class LocalDBGazetteer(Gazetteer):
         """
         )
 
-    def _validate_filter(self, filter: dict[str, list[str]]):
+    def _validate_filter(self, filter: t.Dict[str, t.List[str]]) -> None:
         """
         Validate the filter keys and values.
 
         Args:
-            filter (dict[str, list[str]]): Filter to validate.
+            filter (Dict[str, List[str]]): Filter to validate.
 
         Raises:
             ValueError: If the filter contains invalid keys or values.
@@ -582,12 +590,12 @@ class LocalDBGazetteer(Gazetteer):
                     f"Suggestions:\n- {suggestion_text}"
                 )
 
-    def _get_filter_attributes(self) -> list[str]:
+    def _get_filter_attributes(self) -> t.List[str]:
         """
         Get the list of valid filter attributes.
 
         Returns:
-            list[str]: List of valid filter attribute names.
+            List[str]: List of valid filter attribute names.
         """
         location_identifier = self.config.location_identifier
         location_columns = self.config.location_columns
@@ -601,7 +609,7 @@ class LocalDBGazetteer(Gazetteer):
         ]
         return filter_attributes
 
-    def _get_filter_values(self, attribute: str) -> list[str]:
+    def _get_filter_values(self, attribute: str) -> t.List[str]:
         """
         Get the list of valid values for a filter attribute.
 
@@ -609,21 +617,23 @@ class LocalDBGazetteer(Gazetteer):
             attribute (str): The attribute name.
 
         Returns:
-            list[str]: List of valid values.
+            List[str]: List of valid values.
         """
         query = f"SELECT value FROM {attribute}_values"
         result = self.execute_query(query)
         return [row[0] for row in result]
 
-    def _construct_filter_query(self, filter: dict[str, list[str]]) -> tuple[str, list]:
+    def _construct_filter_query(
+        self, filter: t.Dict[str, t.List[str]]
+    ) -> t.Tuple[str, t.List[str]]:
         """
         Construct additional SQL query text and parameters for filtering.
 
         Args:
-            filter (dict[str, list[str]]): Filter to apply.
+            filter (Dict[str, List[str]]): Filter to apply.
 
         Returns:
-            tuple[str, list]: Additional SQL query text and parameters.
+            Tuple[str, List[str]]: Additional SQL query text and parameters.
         """
         filter_key = tuple(sorted((k, tuple(v)) for k, v in (filter or {}).items()))
 
@@ -646,18 +656,17 @@ class LocalDBGazetteer(Gazetteer):
     def query_candidates(
         self,
         toponym: str,
-        filter: dict[str, list[str]] = None,
-    ) -> list[str]:
+        filter: t.Optional[t.Dict[str, t.List[str]]] = None,
+    ) -> t.List[str]:
         """
-        Query the database for candidate location IDs matching the toponym,
-        adjusting score to prioritize exact-length matches.
+        Query the database for candidate location IDs matching the toponym.
 
         Args:
             toponym (str): The toponym to search for.
-            filter (dict[str, list[str]], optional): Filter to restrict candidate selection.
+            filter (Optional[Dict[str, List[str]]], optional): Filter to restrict candidate selection.
 
         Returns:
-            list[str]: List of candidate location IDs.
+            List[str]: List of candidate location IDs.
         """
         location_identifier = self.config.location_identifier
 
@@ -704,17 +713,17 @@ class LocalDBGazetteer(Gazetteer):
         return [row[0] for row in result]
 
     def query_location_info(
-        self, location_ids: list[str], batch_size: int = 500
-    ) -> list[dict]:
+        self, location_ids: t.Union[str, t.List[str]], batch_size: int = 500
+    ) -> t.List[t.Optional[t.Dict[str, t.Any]]]:
         """
         Retrieve location information for a list of location IDs.
 
         Args:
-            location_ids (list[str]): List of location IDs.
+            location_ids (Union[str, List[str]]): List of location IDs.
             batch_size (int, optional): Number of IDs per query batch. Defaults to 500.
 
         Returns:
-            list[dict]: List of dictionaries containing location information.
+            List[Optional[Dict[str, Any]]]: List of dictionaries containing location information.
         """
         location_identifier = self.config.location_identifier
 

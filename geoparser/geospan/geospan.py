@@ -1,10 +1,14 @@
+from __future__ import annotations
+
+import typing as t
+
 from spacy.tokens import Span
 
 
 class GeoSpan(Span):
     """Custom spaCy Span class extended for geoparsing."""
 
-    def __eq__(self, other):
+    def __eq__(self, other: GeoSpan) -> bool:
         """
         Check equality of GeoSpan with another GeoSpan.
 
@@ -21,12 +25,12 @@ class GeoSpan(Span):
         )
 
     @property
-    def location(self) -> dict:
+    def location(self) -> t.Dict[str, t.Any]:
         """
         Get the location information associated with this toponym.
 
         Returns:
-            dict: Dictionary containing location information.
+            Dict[str, Any]: Dictionary containing location information.
         """
         return self.doc.geoparser.gazetteer.query_location_info(self._.loc_id)[0]
 
@@ -41,7 +45,7 @@ class GeoSpan(Span):
         return self._.loc_score
 
     @property
-    def context(self):
+    def context(self) -> Span:
         """
         Get the contextual Span around the toponym, truncated to model input size.
 
@@ -94,15 +98,17 @@ class GeoSpan(Span):
 
         return Span(self.doc, start, end)
 
-    def get_candidates(self, filter: dict[str, list[str]] = None) -> list[str]:
+    def get_candidates(
+        self, filter: t.Optional[t.Dict[str, t.List[str]]] = None
+    ) -> t.List[str]:
         """
         Get the list of candidate location IDs for this toponym, with optional filtering.
 
         Args:
-            filter (dict[str, list[str]], optional): Filter to restrict candidate selection.
+            filter (Optional[Dict[str, List[str]]], optional): Filter to restrict candidate selection.
 
         Returns:
-            list[str]: List of candidate location IDs.
+            List[str]: List of candidate location IDs.
         """
         filter_key = tuple(sorted((k, tuple(v)) for k, v in (filter or {}).items()))
         if filter_key not in self._.candidate_cache:

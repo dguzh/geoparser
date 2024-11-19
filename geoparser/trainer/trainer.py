@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import json
 import re
 import typing as t
@@ -33,7 +35,7 @@ class GeoparserTrainer(Geoparser):
 
     def _find_toponym(
         self, toponym: str, doc: GeoDoc, start_char: int, end_char: int
-    ) -> tuple[int, int]:
+    ) -> t.Tuple[int, int]:
         """
         Adjust character indices for imprecise toponym annotations.
 
@@ -44,7 +46,7 @@ class GeoparserTrainer(Geoparser):
             end_char (int): The ending character index.
 
         Returns:
-            tuple[int, int]: A tuple containing the best match start and end character indices.
+            Tuple[int, int]: A tuple containing the best match start and end character indices.
         """
         matches = [
             (m.start(), m.end())
@@ -66,7 +68,7 @@ class GeoparserTrainer(Geoparser):
 
         return best_match_chars
 
-    def _retokenize_toponym(self, doc: GeoDoc, start_char: int, end_char: int):
+    def _retokenize_toponym(self, doc: GeoDoc, start_char: int, end_char: int) -> None:
         """
         Retokenize the document to ensure the toponym span aligns with spaCy tokens.
 
@@ -101,7 +103,9 @@ class GeoparserTrainer(Geoparser):
                     retokenizer.split(token, sub_tokens, heads=heads)
 
     @staticmethod
-    def _load_json_file(json_file_path: t.Union[str, Path]) -> list[dict]:
+    def _load_json_file(
+        json_file_path: t.Union[str, Path]
+    ) -> t.List[t.Dict[str, t.Any]]:
         """
         Load a JSON annotation file and transform it into a list of dictionaries.
 
@@ -109,7 +113,7 @@ class GeoparserTrainer(Geoparser):
             json_file_path (Union[str, Path]): Path to the JSON annotation file.
 
         Returns:
-            list[dict]: A list of dictionaries, where each dictionary represents a document with toponym annotations.
+            List[Dict[str, Any]]: A list of dictionaries, where each dictionary represents a document with toponym annotations.
         """
         with open(json_file_path, "r", encoding="utf-8") as file:
             data = json.load(file)
@@ -134,18 +138,18 @@ class GeoparserTrainer(Geoparser):
 
     def annotate(
         self,
-        corpus: t.Union[list[dict], str, Path],
+        corpus: t.Union[t.List[t.Dict[str, t.Any]], str, Path],
         include_unmatched: bool = False,
-    ) -> list[GeoDoc]:
+    ) -> t.List[GeoDoc]:
         """
         Load annotations with toponym spans and gold location IDs.
 
         Args:
-            corpus (Union[list[dict], str, Path]): Either a list of dictionaries containing text and toponym annotations or a path to a JSON annotation file.
+            corpus (Union[List[Dict[str, Any]], str, Path]): Either a list of dictionaries containing text and toponym annotations or a path to a JSON annotation file.
             include_unmatched (bool, optional): Whether to include spaCy-unmatched annotations. Defaults to False.
 
         Returns:
-            list[GeoDoc]: A list of annotated GeoDoc objects.
+            List[GeoDoc]: A list of annotated GeoDoc objects.
         """
         if isinstance(corpus, (str, Path)) and Path(corpus).suffix == ".json":
             corpus = self._load_json_file(corpus)
@@ -199,12 +203,12 @@ class GeoparserTrainer(Geoparser):
 
         return docs
 
-    def _calculate_auc(self, distances: list[float]):
+    def _calculate_auc(self, distances: t.List[float]) -> float:
         """
         Calculate the Area Under the Curve (AUC) for error distances.
 
         Args:
-            distances (list[float]): List of error distances between predicted and gold locations.
+            distances (List[float]): List of error distances between predicted and gold locations.
 
         Returns:
             float: The calculated AUC value.
@@ -218,15 +222,15 @@ class GeoparserTrainer(Geoparser):
         )
         return auc
 
-    def evaluate(self, eval_docs: list[GeoDoc]) -> dict[str, float]:
+    def evaluate(self, eval_docs: t.List[GeoDoc]) -> t.Dict[str, float]:
         """
         Evaluate the model on a list of annotated documents.
 
         Args:
-            eval_docs (list[GeoDoc]): List of annotated GeoDoc objects for evaluation.
+            eval_docs (List[GeoDoc]): List of annotated GeoDoc objects for evaluation.
 
         Returns:
-            dict[str, float]: A dictionary containing evaluation metrics.
+            Dict[str, float]: A dictionary containing evaluation metrics.
         """
         distances = []
 
@@ -280,12 +284,12 @@ class GeoparserTrainer(Geoparser):
             "AreaUnderTheCurve": auc,
         }
 
-    def _prepare_training_data(self, docs: list[GeoDoc]) -> Dataset:
+    def _prepare_training_data(self, docs: t.List[GeoDoc]) -> Dataset:
         """
         Prepare the training data from annotated documents.
 
         Args:
-            docs (list[GeoDoc]): List of annotated GeoDoc objects for training.
+            docs (List[GeoDoc]): List of annotated GeoDoc objects for training.
 
         Returns:
             Dataset: A HuggingFace Dataset containing training examples.
@@ -327,16 +331,16 @@ class GeoparserTrainer(Geoparser):
 
     def train(
         self,
-        train_docs: list[GeoDoc],
+        train_docs: t.List[GeoDoc],
         output_path: str,
         epochs: int = 1,
         batch_size: int = 8,
-    ):
+    ) -> None:
         """
         Train the toponym disambiguation model using the prepared training data.
 
         Args:
-            train_docs (list[GeoDoc]): List of annotated GeoDoc objects for training.
+            train_docs (List[GeoDoc]): List of annotated GeoDoc objects for training.
             output_path (str): Directory path to save the trained model.
             epochs (int, optional): Number of training epochs. Defaults to 1.
             batch_size (int, optional): Training batch size. Defaults to 8.
