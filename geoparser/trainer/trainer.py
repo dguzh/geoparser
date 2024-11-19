@@ -253,9 +253,9 @@ class GeoparserTrainer(Geoparser):
 
                 else:
                     gold_location = self.gazetteer.query_locations([gold_id])[0]
-                    predicted_location = self.gazetteer.query_locations(
-                        [predicted_id]
-                    )[0]
+                    predicted_location = self.gazetteer.query_locations([predicted_id])[
+                        0
+                    ]
 
                     if gold_location is None:
                         continue
@@ -308,9 +308,7 @@ class GeoparserTrainer(Geoparser):
                 if correct_location:
 
                     candidate_ids = toponym.get_candidates()
-                    candidate_locations = self.gazetteer.query_locations(
-                        candidate_ids
-                    )
+                    candidate_locations = self.gazetteer.query_locations(candidate_ids)
 
                     for candidate_location in candidate_locations:
                         description = self.gazetteer.get_location_description(
