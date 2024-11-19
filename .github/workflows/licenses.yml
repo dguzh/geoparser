@@ -35,7 +35,7 @@ jobs:
         id: dependencies_changed
         run: |
           git fetch origin
-          if git diff --quiet origin/main HEAD -- pyproject.toml poetry.lock; then
+          if git diff --quiet origin/main HEAD -- poetry.lock; then
             echo "Dependencies have not changed."
             echo "changed=false" >> $GITHUB_OUTPUT
           else
