@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import os
 import re
 import typing as t
@@ -19,12 +21,12 @@ class SwissNames3D(LocalDBGazetteer):
         """
         super().__init__("swissnames3d")
 
-    def _create_location_description(self, location: dict[str, str]) -> str:
+    def _create_location_description(self, location: t.Dict[str, t.Any]) -> str:
         """
         Create a textual description for a location using SwissNames3D data.
 
         Args:
-            location (dict[str, str]): Dictionary containing location attributes.
+            location (Dict[str, Any]): Dictionary containing location attributes.
 
         Returns:
             str: Textual description of the location.
@@ -94,8 +96,8 @@ class SwissNames3D(LocalDBGazetteer):
     def _read_file(
         self,
         file_path: str,
-        columns: list[str] = None,
-        skiprows: t.Union[int, list[int], t.Callable] = None,
+        columns: t.Optional[t.List[str]] = None,
+        skiprows: t.Optional[t.Union[int, t.List[int], t.Callable]] = None,
         chunksize: int = 100000,
     ) -> t.Tuple[t.Iterator[pd.DataFrame], int]:
         """
@@ -103,8 +105,8 @@ class SwissNames3D(LocalDBGazetteer):
 
         Args:
             file_path (str): Path to the data file.
-            columns (list[str], optional): List of column names.
-            skiprows (int, list[int], Callable, optional): Rows to skip.
+            columns (Optional[List[str]], optional): List of column names.
+            skiprows (Optional[Union[int, List[int], Callable]], optional): Rows to skip.
             chunksize (int, optional): Number of rows per chunk.
 
         Returns:
@@ -120,7 +122,7 @@ class SwissNames3D(LocalDBGazetteer):
     @LocalDBGazetteer.close
     @LocalDBGazetteer.commit
     @LocalDBGazetteer.connect
-    def _populate_locations_table(self):
+    def _populate_locations_table(self) -> None:
         """
         Populate the 'locations' table with data from SwissNames3D datasets.
 
