@@ -39,7 +39,7 @@ class GeoDoc(Doc):
         Returns:
             List[Dict[str, Any]]: A list of dictionaries containing location data for toponyms.
         """
-        return self.geoparser.gazetteer.query_location_info(
+        return self.geoparser.gazetteer.query_locations(
             [toponym._.loc_id for toponym in self.toponyms]
         )
 

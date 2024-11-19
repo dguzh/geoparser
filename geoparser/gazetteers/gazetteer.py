@@ -712,7 +712,7 @@ class LocalDBGazetteer(Gazetteer):
         result = self.execute_query(query, tuple(params))
         return [row[0] for row in result]
 
-    def query_location_info(
+    def query_locations(
         self, location_ids: t.Union[str, t.List[str]], batch_size: int = 500
     ) -> t.List[t.Optional[t.Dict[str, t.Any]]]:
         """

@@ -235,7 +235,7 @@ class Geoparser:
         """
         candidate_descriptions = [
             self.gazetteer.get_location_description(location)
-            for location in self.gazetteer.query_location_info(candidate_ids)
+            for location in self.gazetteer.query_locations(candidate_ids)
         ]
         candidate_embeddings = self.transformer.encode(
             candidate_descriptions,

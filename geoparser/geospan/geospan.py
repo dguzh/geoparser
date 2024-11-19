@@ -32,7 +32,7 @@ class GeoSpan(Span):
         Returns:
             Dict[str, Any]: Dictionary containing location information.
         """
-        return self.doc.geoparser.gazetteer.query_location_info(self._.loc_id)[0]
+        return self.doc.geoparser.gazetteer.query_locations(self._.loc_id)[0]
 
     @property
     def score(self) -> float:

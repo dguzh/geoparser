@@ -252,8 +252,8 @@ class GeoparserTrainer(Geoparser):
                     matches += 1
 
                 else:
-                    gold_location = self.gazetteer.query_location_info([gold_id])[0]
-                    predicted_location = self.gazetteer.query_location_info(
+                    gold_location = self.gazetteer.query_locations([gold_id])[0]
+                    predicted_location = self.gazetteer.query_locations(
                         [predicted_id]
                     )[0]
 
@@ -303,12 +303,12 @@ class GeoparserTrainer(Geoparser):
                 context = toponym.context.text
 
                 correct_id = toponym._.gold_loc_id
-                correct_location = self.gazetteer.query_location_info(correct_id)[0]
+                correct_location = self.gazetteer.query_locations(correct_id)[0]
 
                 if correct_location:
 
                     candidate_ids = toponym.get_candidates()
-                    candidate_locations = self.gazetteer.query_location_info(
+                    candidate_locations = self.gazetteer.query_locations(
                         candidate_ids
                     )
 
