@@ -1,3 +1,7 @@
+from __future__ import annotations
+
+import typing as t
+
 from spacy.tokens import Doc
 
 from geoparser.geospan import GeoSpan
@@ -7,50 +11,10 @@ GeoSpan.set_extension("loc_score", default=None)
 GeoSpan.set_extension("candidate_cache", default={})
 
 
-class Locations:
-    """Class representing a collection of location data with convenient access methods."""
-
-    def __init__(self, data: list[dict]):
-        """
-        Initialize Locations with a list of location data dictionaries.
-
-        Args:
-            data (list[dict]): List of dictionaries containing location information.
-        """
-        self.data = data
-
-    def __getitem__(self, key):
-        """
-        Get item(s) from location data based on key(s).
-
-        Args:
-            key (str or tuple): The key or tuple of keys to retrieve from each location dict.
-
-        Returns:
-            list: List of values or tuples of values corresponding to the key(s).
-        """
-        if isinstance(key, tuple):
-            return [
-                (tuple(item.get(k, None) for k in key) if item else (None,) * len(key))
-                for item in self.data
-            ]
-        else:
-            return [item.get(key, None) if item else None for item in self.data]
-
-    def __repr__(self):
-        """
-        Return the string representation of the location data.
-
-        Returns:
-            str: String representation of the location data.
-        """
-        return repr(self.data)
-
-
 class GeoDoc(Doc):
     """Custom spaCy Doc class extended for geoparsing."""
 
-    def __init__(self, geoparser, *args, **kwargs):
+    def __init__(self, geoparser: Geoparser, *args, **kwargs):
         """
         Initialize GeoDoc with geoparser and standard Doc arguments.
 
@@ -68,26 +32,24 @@ class GeoDoc(Doc):
         )
 
     @property
-    def locations(self):
+    def locations(self) -> t.List[t.Dict[str, t.Any]]:
         """
         Get location information for all toponyms in the document.
 
         Returns:
-            Locations: A Locations object containing location data for toponyms.
+            List[Dict[str, Any]]: A list of dictionaries containing location data for toponyms.
         """
-        return Locations(
-            self.geoparser.gazetteer.query_location_info(
-                [toponym._.loc_id for toponym in self.toponyms]
-            )
+        return self.geoparser.gazetteer.query_locations(
+            [toponym._.loc_id for toponym in self.toponyms]
         )
 
     @property
-    def toponyms(self):
+    def toponyms(self) -> t.Tuple[GeoSpan, ...]:
         """
         Retrieve the toponyms identified in the document.
 
         Returns:
-            tuple[GeoSpan]: Tuple of GeoSpan objects representing toponyms.
+            Tuple[GeoSpan, ...]: Tuple of GeoSpan objects representing toponyms.
         """
         return tuple(
             GeoSpan(self, ent.start, ent.end, label=ent.label_)

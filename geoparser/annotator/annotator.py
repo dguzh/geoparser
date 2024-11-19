@@ -294,7 +294,7 @@ class GeoparserAnnotator(Geoparser):
 
             # Get candidate IDs and locations based on the search_text
             candidates = self.gazetteer.query_candidates(search_text)
-            candidate_locations = self.gazetteer.query_location_info(candidates)
+            candidate_locations = self.gazetteer.query_locations(candidates)
 
             # Prepare candidate descriptions and attributes
             candidate_descriptions = []
@@ -337,9 +337,7 @@ class GeoparserAnnotator(Geoparser):
             )
 
             if append_existing_candidate:
-                existing_location = self.gazetteer.query_location_info(
-                    [existing_loc_id]
-                )[0]
+                existing_location = self.gazetteer.query_locations([existing_loc_id])[0]
                 existing_description = self.gazetteer.get_location_description(
                     existing_location
                 )

@@ -3,7 +3,7 @@
 Installation
 ============
 
-This guide provides step-by-step instructions to install and set up Geoparser on your system.
+This section provides step-by-step instructions to install and set up Geoparser on your system.
 
 Installing Geoparser
 --------------------
@@ -31,7 +31,7 @@ To install a spaCy model (e.g., ``en_core_web_trf``), run:
 Installing Gazetteers
 ---------------------
 
-Geoparser requires gazetteer data to query locations and retrieve related information. Gazetteers are set up in a SQLite database on your system. You can automatically download and set up the required data using dedicated commands.
+Geoparser requires gazetteer data to query locations and retrieve related information. Gazetteers are set up in a SQLite database on your system. You can automatically download the necessary data and set up the database with a single command, as shown below.
 
 Currently, Geoparser supports the following gazetteers:
 

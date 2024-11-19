@@ -1,3 +1,6 @@
+from __future__ import annotations
+
+import typing as t
 import warnings
 
 import spacy
@@ -5,7 +8,12 @@ import torch
 from sentence_transformers import SentenceTransformer, util
 from tqdm.auto import tqdm
 
-from geoparser.constants import DEFAULT_TRANSFORMER_MODEL, GAZETTEERS
+from geoparser.constants import (
+    DEFAULT_GAZETTEER,
+    DEFAULT_SPACY_MODEL,
+    DEFAULT_TRANSFORMER_MODEL,
+    GAZETTEERS,
+)
 from geoparser.gazetteers.gazetteer import Gazetteer
 from geoparser.geodoc import GeoDoc
 
@@ -23,9 +31,9 @@ class Geoparser:
 
     def __init__(
         self,
-        spacy_model: str = "en_core_web_trf",
+        spacy_model: str = DEFAULT_SPACY_MODEL,
         transformer_model: str = DEFAULT_TRANSFORMER_MODEL,
-        gazetteer: str = "geonames",
+        gazetteer: str = DEFAULT_GAZETTEER,
     ):
         """
         Initialize the Geoparser with specified spaCy model, transformer model, and gazetteer.
@@ -39,7 +47,7 @@ class Geoparser:
         self.nlp = self.setup_spacy(spacy_model)
         self.transformer = self.setup_transformer(transformer_model)
 
-    def setup_gazetteer(self, gazetteer: str) -> type[Gazetteer]:
+    def setup_gazetteer(self, gazetteer: str) -> Gazetteer:
         """
         Set up the gazetteer.
 
@@ -62,7 +70,7 @@ class Geoparser:
                 f"Invalid gazetteer name. Available gazetteers: {available}"
             )
 
-    def setup_spacy(self, spacy_model: str) -> type[spacy.language.Language]:
+    def setup_spacy(self, spacy_model: str) -> spacy.language.Language:
         """
         Set up the spaCy NLP pipeline.
 
@@ -105,20 +113,20 @@ class Geoparser:
 
     def parse(
         self,
-        texts: list[str],
+        texts: t.List[str],
         batch_size: int = 8,
-        filter: dict[str, list[str]] = None,
-    ) -> list[GeoDoc]:
+        filter: t.Optional[t.Dict[str, t.List[str]]] = None,
+    ) -> t.List[GeoDoc]:
         """
         Perform full geoparsing (recognition and resolution) on a list of texts.
 
         Args:
-            texts (list[str]): List of input texts to geoparse.
+            texts (List[str]): List of input texts to geoparse.
             batch_size (int): Batch size for processing texts.
-            filter (dict[str, list[str]], optional): Filter to restrict candidate selection.
+            filter (Optional[Dict[str, List[str]]], optional): Filter to restrict candidate selection.
 
         Returns:
-            list[GeoDoc]: List of GeoDoc objects containing geoparsed information.
+            List[GeoDoc]: List of GeoDoc objects containing geoparsed information.
 
         Raises:
             TypeError: If input is not a list of strings.
@@ -135,16 +143,16 @@ class Geoparser:
         docs = self.resolve(docs, batch_size=batch_size, filter=filter)
         return docs
 
-    def recognize(self, texts: list[str], batch_size: int = 8) -> list[GeoDoc]:
+    def recognize(self, texts: t.List[str], batch_size: int = 8) -> t.List[GeoDoc]:
         """
         Perform toponym recognition on a list of texts.
 
         Args:
-            texts (list[str]): List of input texts.
+            texts (List[str]): List of input texts.
             batch_size (int): Batch size for processing texts.
 
         Returns:
-            list[GeoDoc]: List of GeoDoc objects with recognized toponyms.
+            List[GeoDoc]: List of GeoDoc objects with recognized toponyms.
         """
         docs = list(
             tqdm(
@@ -157,20 +165,20 @@ class Geoparser:
 
     def resolve(
         self,
-        docs: list[GeoDoc],
+        docs: t.List[GeoDoc],
         batch_size: int = 8,
-        filter: dict[str, list[str]] = None,
-    ) -> list[GeoDoc]:
+        filter: t.Optional[t.Dict[str, t.List[str]]] = None,
+    ) -> t.List[GeoDoc]:
         """
         Perform toponym resolution on a list of GeoDocs.
 
         Args:
-            docs (list[GeoDoc]): List of GeoDoc objects with recognized toponyms.
+            docs (List[GeoDoc]): List of GeoDoc objects with recognized toponyms.
             batch_size (int): Batch size for processing.
-            filter (dict[str, list[str]], optional): Filter to restrict candidate selection.
+            filter (Optional[Dict[str, List[str]]], optional): Filter to restrict candidate selection.
 
         Returns:
-            list[GeoDoc]: List of GeoDoc objects with resolved toponyms.
+            List[GeoDoc]: List of GeoDoc objects with resolved toponyms.
         """
         if candidate_ids := self._get_candidate_ids(docs, filter=filter):
             candidate_embeddings_lookup = self._get_candidate_embeddings_lookup(
@@ -193,17 +201,17 @@ class Geoparser:
         return docs
 
     def _get_candidate_ids(
-        self, docs: list[GeoDoc], filter: dict[str, list[str]] = None
-    ) -> list[str]:
+        self, docs: t.List[GeoDoc], filter: t.Optional[t.Dict[str, t.List[str]]] = None
+    ) -> t.List[str]:
         """
         Collect all candidate location IDs from the toponyms in a list of GeoDocs.
 
         Args:
-            docs (list[GeoDoc]): List of GeoDoc objects.
-            filter (dict[str, list[str]], optional): Filter to restrict candidate selection.
+            docs (List[GeoDoc]): List of GeoDoc objects.
+            filter (Optional[Dict[str, List[str]]], optional): Filter to restrict candidate selection.
 
         Returns:
-            list[str]: List of unique candidate location IDs.
+            List[str]: List of unique candidate location IDs.
         """
         candidate_ids = set()
         for doc in docs:
@@ -213,21 +221,21 @@ class Geoparser:
         return list(candidate_ids)
 
     def _get_candidate_embeddings_lookup(
-        self, candidate_ids: list[str], batch_size: int = 8
-    ) -> dict[str, torch.Tensor]:
+        self, candidate_ids: t.List[str], batch_size: int = 8
+    ) -> t.Dict[str, torch.Tensor]:
         """
         Generate embeddings for candidate locations.
 
         Args:
-            candidate_ids (list[str]): List of candidate location IDs.
+            candidate_ids (List[str]): List of candidate location IDs.
             batch_size (int): Batch size for encoding.
 
         Returns:
-            dict[str, torch.Tensor]: Dictionary mapping candidate IDs to embeddings.
+            Dict[str, torch.Tensor]: Dictionary mapping candidate IDs to embeddings.
         """
         candidate_descriptions = [
             self.gazetteer.get_location_description(location)
-            for location in self.gazetteer.query_location_info(candidate_ids)
+            for location in self.gazetteer.query_locations(candidate_ids)
         ]
         candidate_embeddings = self.transformer.encode(
             candidate_descriptions,
@@ -238,13 +246,13 @@ class Geoparser:
         return dict(zip(candidate_ids, candidate_embeddings))
 
     def _get_toponym_embeddings(
-        self, docs: list[GeoDoc], batch_size: int = 8
+        self, docs: t.List[GeoDoc], batch_size: int = 8
     ) -> torch.Tensor:
         """
         Generate embeddings for all toponyms in a list of GeoDocs.
 
         Args:
-            docs (list[GeoDoc]): List of GeoDoc objects.
+            docs (List[GeoDoc]): List of GeoDoc objects.
             batch_size (int): Batch size for encoding.
 
         Returns:
@@ -263,22 +271,22 @@ class Geoparser:
 
     def _resolve_toponym(
         self,
-        candidate_embeddings_lookup: dict[str, torch.Tensor],
-        candidate_ids: list[str],
+        candidate_embeddings_lookup: t.Dict[str, torch.Tensor],
+        candidate_ids: t.List[str],
         toponym_embeddings: torch.Tensor,
         toponym_index: int,
-    ) -> tuple[str, float]:
+    ) -> t.Tuple[str, float]:
         """
         Resolve a single toponym by comparing embeddings.
 
         Args:
-            candidate_embeddings_lookup (dict[str, torch.Tensor]): Lookup of candidate embeddings.
-            candidate_ids (list[str]): List of candidate IDs for the toponym.
+            candidate_embeddings_lookup (Dict[str, torch.Tensor]): Lookup of candidate embeddings.
+            candidate_ids (List[str]): List of candidate IDs for the toponym.
             toponym_embeddings (torch.Tensor): Embeddings of toponym contexts.
             toponym_index (int): Index of the current toponym in embeddings.
 
         Returns:
-            tuple[str, float]: The predicted candidate ID and its similarity score.
+            Tuple[str, float]: The predicted candidate ID and its similarity score.
         """
         candidate_embeddings = torch.stack(
             [

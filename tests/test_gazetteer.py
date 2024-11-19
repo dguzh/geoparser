@@ -292,8 +292,8 @@ def test_query_candidates(geonames_real_data: GeoNames, radio_andorra_id: int):
     assert geonames_real_data.query_candidates(toponym) == [radio_andorra_id]
 
 
-def test_query_location_info(geonames_real_data: GeoNames, radio_andorra_id: int):
-    print(geonames_real_data.query_location_info([radio_andorra_id]))
+def test_query_locations(geonames_real_data: GeoNames, radio_andorra_id: int):
+    print(geonames_real_data.query_locations([radio_andorra_id]))
     expected_info = {
         "geonameid": "3039328",
         "name": "Radio Andorra",
@@ -309,7 +309,7 @@ def test_query_location_info(geonames_real_data: GeoNames, radio_andorra_id: int
         "country_geonameid": "3041565",
         "country_name": "Andorra",
     }
-    assert geonames_real_data.query_location_info([radio_andorra_id]) == [expected_info]
+    assert geonames_real_data.query_locations([radio_andorra_id]) == [expected_info]
 
 
 def test_initiate_connection(localdb_gazetteer: LocalDBGazetteer):
@@ -446,7 +446,7 @@ def test_query_candidates_with_filter(geonames_real_data: GeoNames):
     assert set(candidates_with_filter).issubset(set(candidates_without_filter))
 
     # Check that all candidates have country_name 'Andorra'
-    locations = geonames_real_data.query_location_info(candidates_with_filter)
+    locations = geonames_real_data.query_locations(candidates_with_filter)
     for location in locations:
         assert location["country_name"] == "Andorra"
 
