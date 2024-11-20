@@ -3,9 +3,6 @@
 Geoparser
 =========
 
-.. note::
-   This is the documentation for an upcoming version of Geoparser, which will be released in November this year. It is still a work in progress, so features as well as documentation are subject to change until release. For a documentation of the currently pip installable version of Geoparser please refer to the `Geoparser PyPi page <https://pypi.org/project/geoparser/>`_.
-
 Geoparser is a Python library designed as a complete end-to-end geoparsing pipeline. It integrates advanced natural language processing techniques to recognize and resolve place names (toponyms) in unstructured text, linking them to their corresponding geographical locations.
 
 Overview
