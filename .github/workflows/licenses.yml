@@ -1,0 +1,122 @@
+name: licenses
+
+on:
+  push:
+    branches:
+      - development
+    paths:
+      - 'pyproject.toml'
+      - 'poetry.lock'
+
+permissions:
+  contents: write
+
+jobs:
+  generate-licenses:
+    name: licenses
+    runs-on: ubuntu-latest
+
+    steps:
+      # Step 1: Check out the repository
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: development
+
+      # Step 2: Set up Python
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      # Step 3: Check if dependencies have changed
+      - name: Check if dependencies have changed
+        id: dependencies_changed
+        run: |
+          git fetch origin
+          if git diff --quiet origin/main HEAD -- poetry.lock; then
+            echo "Dependencies have not changed."
+            echo "changed=false" >> $GITHUB_OUTPUT
+          else
+            echo "Dependencies have changed."
+            echo "changed=true" >> $GITHUB_OUTPUT
+          fi
+
+      # Step 4: Stop job if dependencies have not changed
+      - name: Skip Job if No Dependency Changes
+        if: steps.dependencies_changed.outputs.changed == 'false'
+        run: |
+          echo "No changes in dependencies. Exiting job."
+          exit 0
+
+      # Step 5: Install Poetry
+      - name: Install Poetry
+        uses: abatilo/actions-poetry@v3
+
+      # Step 6: Install Dependencies
+      - name: Install Dependencies
+        run: poetry install
+
+      # Step 7: Install pip-licenses and jq
+      - name: Install Additional Tools
+        run: |
+          poetry run pip install pip-licenses
+          sudo apt-get update
+          sudo apt-get install -y jq
+
+      # Step 8: Generate Licenses JSON
+      - name: Generate Licenses JSON
+        run: |
+          poetry run pip-licenses \
+            --format=json \
+            --with-license-file \
+            --with-notice-file \
+            --no-license-path > licenses.json
+
+      # Step 9: Generate THIRD_PARTY_LICENSES Using Shell and jq
+      - name: Generate THIRD_PARTY_LICENSES
+        run: |
+          {
+            echo "Third-Party Licenses"
+            echo ""
+            echo "This file contains license information for third-party dependencies used in this project."
+            echo ""
+            echo "================================================================================"
+            echo ""
+          } > THIRD_PARTY_LICENSES
+          jq -c '.[]' licenses.json | while read -r pkg; do
+            NAME=$(echo "$pkg" | jq -r '.Name')
+            VERSION=$(echo "$pkg" | jq -r '.Version')
+            LICENSE=$(echo "$pkg" | jq -r '.License')
+            LICENSE_TEXT=$(echo "$pkg" | jq -r '.LicenseText')
+            NOTICE_TEXT=$(echo "$pkg" | jq -r '.NoticeText')
+
+            echo "Package: $NAME==$VERSION" >> THIRD_PARTY_LICENSES
+            echo "License: $LICENSE" >> THIRD_PARTY_LICENSES
+            echo "" >> THIRD_PARTY_LICENSES
+            echo "$LICENSE_TEXT" >> THIRD_PARTY_LICENSES
+            echo "" >> THIRD_PARTY_LICENSES
+            if [ "$NOTICE_TEXT" != "UNKNOWN" ] && [ -n "$NOTICE_TEXT" ]; then
+              echo "NOTICE:" >> THIRD_PARTY_LICENSES
+              echo "$NOTICE_TEXT" >> THIRD_PARTY_LICENSES
+              echo "" >> THIRD_PARTY_LICENSES
+            fi
+            echo "================================================================================" >> THIRD_PARTY_LICENSES
+            echo "" >> THIRD_PARTY_LICENSES
+          done
+
+      # Step 10: Cleanup Licenses JSON
+      - name: Cleanup Temporary Files
+        run: rm -f licenses.json
+
+      # Step 11: Commit and Push THIRD_PARTY_LICENSES
+      - name: Commit and Push THIRD_PARTY_LICENSES
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git config user.name "${{ github.actor }}"
+          git config user.email "${{ github.actor }}@users.noreply.github.com"
+          git add THIRD_PARTY_LICENSES
+          git commit -m "Update THIRD_PARTY_LICENSES file [skip ci]" || echo "No changes to commit"
+          git push origin HEAD:development

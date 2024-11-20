@@ -1,0 +1,49 @@
+{
+    "session_id": "a9c6fc34bc854763819b57eb8a8ca67e",
+    "created_at": "2024-11-17T10:17:46.571885",
+    "last_updated": "2024-11-17T10:18:16.366180",
+    "gazetteer": "geonames",
+    "settings": {
+        "one_sense_per_discourse": false,
+        "auto_close_annotation_modal": false
+    },
+    "documents": [
+        {
+            "filename": "text.txt",
+            "spacy_model": "en_core_web_sm",
+            "text": "In Lebanon, two Beirut neighbourhoods woke up this morning to warnings on social media from the Israeli military to evacuate, signalling the resumption of air strikes on the capital for a second day.\nOn Saturday, 12 struck the southern suburbs, and more than 70 strikes hit targets across the rest of Lebanon killing at least thirty people, according to the health ministry there.\nThe Israeli air force says it destroyed weapons storage facilities and missile launching pits in these raids.\nHowever, the many thousands of such raids over the past four weeks have still not ended Hezbollah’s capacity to fire rockets and send drones over the border.\nAround 200 projectiles have been recorded by the Israeli authorities coming from Lebanon over the past 24 hours. Hezbollah has warned that its war with Israel is now entering what it calls a new phase. \n",
+            "toponyms": [
+                {
+                    "text": "Lebanon",
+                    "start": 3,
+                    "end": 10,
+                    "loc_id": "272103"
+                },
+                {
+                    "text": "Beirut",
+                    "start": 16,
+                    "end": 22,
+                    "loc_id": "276781"
+                },
+                {
+                    "text": "Lebanon",
+                    "start": 301,
+                    "end": 308,
+                    "loc_id": ""
+                },
+                {
+                    "text": "Lebanon",
+                    "start": 730,
+                    "end": 737,
+                    "loc_id": ""
+                },
+                {
+                    "text": "Israel",
+                    "start": 801,
+                    "end": 807,
+                    "loc_id": ""
+                }
+            ]
+        }
+    ]
+}
