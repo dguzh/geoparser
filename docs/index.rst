@@ -1,9 +1,9 @@
 .. _index:
 
-Geoparser
-=========
+Irchel Geoparser
+================
 
-Geoparser is a Python library designed as a complete end-to-end geoparsing pipeline. It integrates advanced natural language processing techniques to recognize and resolve place names (toponyms) in unstructured text, linking them to their corresponding geographical locations.
+The **Irchel Geoparser** (hereafter referred to simply as **Geoparser**) is a Python library designed as a complete end-to-end geoparsing pipeline. It integrates advanced natural language processing techniques to recognize and resolve place names (toponyms) in unstructured text, linking them to their corresponding geographical locations.
 
 Overview
 --------
@@ -41,7 +41,7 @@ Geoparser is an open-source project, and contributions are welcome. If you encou
 Acknowledgments
 ---------------
 
-Geoparser originated as part of my Master's thesis and was further developed with support from the `Department of Geography at the University of Zurich <https://www.geo.uzh.ch/>`_. I thank my supervisor, Prof. Dr. Ross Purves, for his insightful feedback, encouragement, and the opportunity to continue this work as part of a research project.
+Geoparser originated as part of my Master's thesis and was further developed with support from the `Department of Geography <https://www.geo.uzh.ch/>`_ at the University of Zurich. I thank my supervisor, Prof. Dr. Ross Purves, for his insightful feedback, encouragement, and the opportunity to continue this work as part of a research project.
 
 License
 -------

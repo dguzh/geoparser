@@ -1,4 +1,4 @@
-# Geoparser
+# Irchel Geoparser
 
 <p align="center">
 <a href="https://github.com/dguzh/geoparser/actions?query=event%3Apush+branch%3Amain+workflow%3ACI" target="_blank">
@@ -18,7 +18,7 @@
 </a>
 </p>
 
-Geoparser is a Python library designed as a complete end-to-end geoparsing pipeline. It integrates advanced natural language processing techniques to recognize and resolve place names (toponyms) in unstructured text, linking them to their corresponding geographical locations.
+The **Irchel Geoparser** (hereafter referred to simply as **Geoparser**) is a Python library designed as a complete end-to-end geoparsing pipeline. It integrates advanced natural language processing techniques to recognize and resolve place names (toponyms) in unstructured text, linking them to their corresponding geographical locations.
 
 ## Overview
 

@@ -5,6 +5,8 @@ description = "A customizable geoparsing library for unstructured text"
 authors = ["Diego Gomes <diego.gomes@uzh.ch>"]
 readme = "README.md"
 license = "MIT"
+homepage = "https://geoparser.app"
+repository = "https://github.com/dguzh/geoparser"
 include = [
     "LICENSE",
     "THIRD_PARTY_LICENSES",
