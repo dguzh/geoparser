@@ -1,4 +1,4 @@
-# Geoparser
+# Irchel Geoparser
 
 <p align="center">
 <a href="https://github.com/dguzh/geoparser/actions?query=event%3Apush+branch%3Amain+workflow%3ACI" target="_blank">
@@ -18,9 +18,7 @@
 </a>
 </p>
 
-> **Note**: This is the documentation for an upcoming version of Geoparser, which will be released in November this year. It is still a work in progress, so features as well as documentation are subject to change until release. For documentation of the currently pip installable version of Geoparser, please refer to the [Geoparser PyPi page](https://pypi.org/project/geoparser/).
-
-Geoparser is a Python library designed as a complete end-to-end geoparsing pipeline. It integrates advanced natural language processing techniques to recognize and resolve place names (toponyms) in unstructured text, linking them to their corresponding geographical locations.
+The **Irchel Geoparser** (hereafter referred to simply as **Geoparser**) is a Python library designed as a complete end-to-end geoparsing pipeline. It integrates advanced natural language processing techniques to recognize and resolve place names (toponyms) in unstructured text, linking them to their corresponding geographical locations.
 
 ## Overview
 
@@ -57,4 +55,4 @@ Geoparser originated as part of my Master's thesis and was further developed wit
 
 ## License
 
-Geoparser is released under the [MIT License](https://github.com/dguzh/geoparser/blob/development/LICENSE). It also uses several third-party libraries, each with its own license. For a complete list of these licenses, see the [full license details](https://github.com/dguzh/geoparser/blob/development/THIRD_PARTY_LICENSES) in the repository.
+Geoparser is released under the [MIT License](https://github.com/dguzh/geoparser/blob/main/LICENSE). It also uses several third-party libraries, each with its own license. For a complete list of these licenses, see the [full license details](https://github.com/dguzh/geoparser/blob/main/THIRD_PARTY_LICENSES) in the repository.

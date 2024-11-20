@@ -22,11 +22,11 @@ Installing spaCy Models
 
 Geoparser uses spaCy's named entity recognition (NER) functionality for toponym recognition. You will need to download a spaCy model that includes a NER component. spaCy offers models supporting various languages and sizes, optimized for efficiency or accuracy. Visit the `spaCy Models <https://spacy.io/models>`_ page for an overview.
 
-To install a spaCy model (e.g., ``en_core_web_trf``), run:
+To install a spaCy model (e.g., ``en_core_web_sm``), run:
 
 .. code-block:: bash
 
-   python -m spacy download en_core_web_trf
+   python -m spacy download en_core_web_sm
 
 Installing Gazetteers
 ---------------------

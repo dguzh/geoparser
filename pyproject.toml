@@ -1,10 +1,12 @@
 [tool.poetry]
 name = "geoparser"
 version = "0.1.8"
-description = "A geoparsing library for English texts"
+description = "A customizable geoparsing library for unstructured text"
 authors = ["Diego Gomes <diego.gomes@uzh.ch>"]
 readme = "README.md"
 license = "MIT"
+homepage = "https://geoparser.app"
+repository = "https://github.com/dguzh/geoparser"
 include = [
     "LICENSE",
     "THIRD_PARTY_LICENSES",
@@ -12,7 +14,7 @@ include = [
 ]
 
 [tool.poetry.dependencies]
-python = "^3.9"
+python = ">=3.9,<3.13"
 numpy = "^2.0.0"
 pandas = "^2.2.3"
 spacy = "^3.8.2"
