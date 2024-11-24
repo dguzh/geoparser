@@ -7,7 +7,7 @@ on:
 
 
 jobs:
-  test:
+  integration-tests:
     strategy:
       matrix:
         gazetteer: [geonames, swissnames3d]
@@ -32,4 +32,4 @@ jobs:
       - name: Download gazetteer
         run: poetry run python -m geoparser download ${{ matrix.gazetteer }}
       - name: Run E2E-script
-        run: poetry run python ./tests/integration/e2e.py
+        run: poetry run python ./tests/integration/e2e.py ${{ matrix.gazetteer }}
