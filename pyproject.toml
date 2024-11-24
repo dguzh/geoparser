@@ -62,5 +62,13 @@ exclude_also = [
     ]
 
 [tool.coverage.run]
+source = ["geoparser"]
 omit = ["tests/*"]
 relative_files = true
+
+[tool.coverage.paths]
+source = [
+    'pydantic/',
+    '/Users/runner/work/dguzh/geoparser/geoparser/',
+    'D:\a\dguzh\geoparser\geoparser',
+]
