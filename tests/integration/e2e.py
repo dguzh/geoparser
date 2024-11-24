@@ -1,7 +1,6 @@
-from geoparser import Geoparser
-from geoparser import GeoparserTrainer
-
 import typer
+
+from geoparser import Geoparser, GeoparserTrainer
 
 
 def run_gazetteer(gazetteer: str):
