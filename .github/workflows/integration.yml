@@ -3,7 +3,9 @@ name: integration-tests
 on:
   push:
     branches:
-      - '**'
+      - development
+      - staging
+      - main
 
 
 jobs:
