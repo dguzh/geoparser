@@ -25,7 +25,7 @@ def run_gazetteer(gazetteer: str):
 
 
 def run_trainer(gazetteer: str):
-    print("----------\run_trainer\n----------")
+    print("----------\nrun_trainer\n----------")
     train_corpus = [
         {
             "text": "Zurich is a city in Switzerland.",
@@ -58,7 +58,7 @@ def run_trainer(gazetteer: str):
 
 
 def use_model(gazetteer: str):
-    print("----------\use_model\n----------")
+    print("----------\nuse_model\n----------")
     geo = Geoparser(
         spacy_model="en_core_web_sm", transformer_model="path_to_custom_model"
     )
