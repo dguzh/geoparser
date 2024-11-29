@@ -68,7 +68,6 @@ relative_files = true
 
 [tool.coverage.paths]
 source = [
-    'pydantic/',
-    '/Users/runner/work/dguzh/geoparser/geoparser/',
-    'D:\a\dguzh\geoparser\geoparser',
+    '*/geoparser/geoparser',
+    '*\geoparser\geoparser',
 ]
