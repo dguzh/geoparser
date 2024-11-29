@@ -49,7 +49,7 @@ jobs:
 
   coverage-combine:
     needs: [test]
-    runs-on: windows-latest
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - name: Install Python
@@ -65,13 +65,13 @@ jobs:
       - run: coverage report
       - run: coverage html --show-contexts --title "geoparser coverage for ${{ github.sha }}"
       - name: Coverage comment
+        if: github.event_name == 'pull_request'
         id: coverage_comment
         uses: py-cov-action/python-coverage-comment-action@v3
-        if: github.event_name == 'pull_request'
         with:
           GITHUB_TOKEN: ${{ github.token }}
           MINIMUM_GREEN: 100
-          MINIMUM_ORANGE: 90
+          MINIMUM_ORANGE: 95
       - name: Store Pull Request comment to be posted
         uses: actions/upload-artifact@v4
         if: steps.coverage_comment.outputs.COMMENT_FILE_WRITTEN == 'true'
