@@ -65,9 +65,9 @@ jobs:
       - run: coverage report
       - run: coverage html --show-contexts --title "geoparser coverage for ${{ github.sha }}"
       - name: Coverage comment
-        if: github.event_name == 'pull_request'
         id: coverage_comment
         uses: py-cov-action/python-coverage-comment-action@v3
+        if: github.event_name == 'pull_request'
         with:
           GITHUB_TOKEN: ${{ github.token }}
           MINIMUM_GREEN: 100
