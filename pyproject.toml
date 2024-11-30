@@ -68,6 +68,6 @@ relative_files = true
 
 [tool.coverage.paths]
 source = [
-    '*/geoparser/geoparser',
-    '*\geoparser\geoparser',
+    'geoparser/',
+    'geoparser\',
 ]
