@@ -14,9 +14,6 @@ class GeoparserAnnotator(Geoparser):
         self.nlp = None
         self.transformer = None
 
-        self.sessions = {}  # Store sessions with their IDs
-        self.current_session_id = None
-
     def get_toponym(self, toponyms: dict, start: int, end: int) -> t.Optional[dict]:
         return next(
             (t for t in toponyms if t["start"] == start and t["end"] == end),
