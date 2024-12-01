@@ -1,5 +1,5 @@
-import datetime
 import uuid
+from datetime import datetime
 
 
 def get_session(gazetteer: str):

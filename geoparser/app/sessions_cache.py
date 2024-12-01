@@ -1,6 +1,6 @@
-import datetime
 import json
 import os
+from datetime import datetime
 
 from appdirs import user_data_dir
 
@@ -23,7 +23,6 @@ class SessionsCache:
             try:
                 with open(session_file_path, "r", encoding="utf-8") as f:
                     session_data = json.load(f)
-                    self.sessions[session_id] = session_data
                     return session_data
             except Exception as e:
                 print(f"Failed to load session {session_id}: {e}")

@@ -66,7 +66,7 @@ def start_new_session_post():
         session["documents"].append(document)
 
     # Save session to cache
-    sessions_cache.save(session, session["session_id"])
+    sessions_cache.save(session["session_id"], session)
 
     return redirect(url_for("annotate", session_id=session["session_id"], doc_index=0))
 
