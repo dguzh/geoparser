@@ -1,6 +1,5 @@
-from geoparser.annotator import GeoparserAnnotator
+from geoparser.app import run
 
 
 def annotator_cli():
-    annotator = GeoparserAnnotator()
-    annotator.run()
+    run()
