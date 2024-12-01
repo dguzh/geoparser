@@ -17,11 +17,10 @@ from flask import (
     url_for,
 )
 from spacy.util import get_installed_models
-from werkzeug.utils import secure_filename
 
-from geoparser.annotator import GeoparserAnnotator
-from geoparser.app.sessions_cache import SessionsCache
-from geoparser.app.util import get_session
+from geoparser.annotator.annotator import GeoparserAnnotator
+from geoparser.annotator.sessions_cache import SessionsCache
+from geoparser.annotator.util import get_session
 from geoparser.constants import GAZETTEERS
 
 app = Flask(

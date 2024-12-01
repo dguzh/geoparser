@@ -1,1 +1,1 @@
-from .annotator import GeoparserAnnotator
+from .app import run
