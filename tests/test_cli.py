@@ -2,7 +2,6 @@ import pytest
 from typer.testing import CliRunner
 
 from geoparser.__main__ import app
-from geoparser.annotator import GeoparserAnnotator
 from geoparser.constants import GAZETTEERS_CHOICES
 from geoparser.gazetteers.gazetteer import LocalDBGazetteer
 
