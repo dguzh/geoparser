@@ -1,6 +1,5 @@
-import uuid
 import datetime
-from markupsafe import Markup
+import uuid
 
 
 def get_session(gazetteer: str):

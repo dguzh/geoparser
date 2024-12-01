@@ -1,32 +1,10 @@
-import json
-import os
-import tempfile
-import threading
-import uuid
-import webbrowser
-from datetime import datetime
-from pathlib import Path
+import typing as t
 
-import spacy
-from appdirs import user_data_dir
-from flask import (
-    Flask,
-    after_this_request,
-    jsonify,
-    redirect,
-    render_template,
-    request,
-    send_file,
-    url_for,
-)
 from markupsafe import Markup
 from pyproj import Transformer
-from spacy.util import get_installed_models
 from werkzeug.utils import secure_filename
 
-from geoparser.constants import GAZETTEERS
 from geoparser.geoparser import Geoparser
-import typing as t
 
 
 class GeoparserAnnotator(Geoparser):

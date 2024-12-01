@@ -1,7 +1,8 @@
-import os
-from appdirs import user_data_dir
-import json
 import datetime
+import json
+import os
+
+from appdirs import user_data_dir
 
 
 class SessionsCache:

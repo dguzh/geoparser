@@ -5,10 +5,7 @@ import threading
 import uuid
 import webbrowser
 from datetime import datetime
-from pathlib import Path
 
-import spacy
-from appdirs import user_data_dir
 from flask import (
     Flask,
     after_this_request,
@@ -19,17 +16,13 @@ from flask import (
     send_file,
     url_for,
 )
-from markupsafe import Markup
-from pyproj import Transformer
 from spacy.util import get_installed_models
 from werkzeug.utils import secure_filename
 
-from geoparser.constants import GAZETTEERS
-from geoparser.geoparser import Geoparser
-from flask import Flask
 from geoparser.annotator import GeoparserAnnotator
 from geoparser.app.sessions_cache import SessionsCache
 from geoparser.app.util import get_session
+from geoparser.constants import GAZETTEERS
 
 app = Flask(
     __name__, template_folder=os.path.join(os.path.dirname(__file__), "templates")
