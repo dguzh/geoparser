@@ -32,7 +32,7 @@
 
     <!-- Option to upload session file -->
     <h3>Load Session from File</h3>
-    <form action="{{ url_for('continue_session') }}" method="post" enctype="multipart/form-data">
+    <form action="{{ url_for('continue_session_post') }}" method="post" enctype="multipart/form-data">
         <div class="mb-3">
             <label for="session_file" class="form-label">Select Session File:</label>
             <input type="file" class="form-control" id="session_file" name="session_file" accept=".json">
@@ -56,7 +56,7 @@
                         <strong>Gazetteer:</strong> {{ session.gazetteer }}
                     </p>
                     <button class="btn btn-danger delete-session-btn" data-session-id="{{ session.session_id }}" onclick="deleteSession('{{ session.session_id }}')">Delete</button>
-                    <form action="{{ url_for('continue_session') }}" method="post">
+                    <form action="{{ url_for('continue_session_post') }}" method="post">
                         <input type="hidden" name="cached_session" value="{{ session.session_id }}">
                         <button type="submit" name="action" value="load_cached" class="btn btn-primary">Load Session</button>
                     </form>
