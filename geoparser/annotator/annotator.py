@@ -208,18 +208,14 @@ class GeoparserAnnotator(Geoparser):
         candidate_descriptions, existing_candidate_is_appended = (
             self.get_candidate_descriptions(toponym, toponym_text, query_text)
         )
-        return jsonify(
-            {
-                "candidates": candidate_descriptions,
-                "filter_attributes": self.get_filter_attributes(),
-                "existing_loc_id": self.get_existing_loc_id(toponym),
-                "existing_candidate": (
-                    candidate_descriptions[-1]
-                    if existing_candidate_is_appended
-                    else None
-                ),
-            }
-        )
+        return {
+            "candidates": candidate_descriptions,
+            "filter_attributes": self.get_filter_attributes(),
+            "existing_loc_id": self.get_existing_loc_id(toponym),
+            "existing_candidate": (
+                candidate_descriptions[-1] if existing_candidate_is_appended else None
+            ),
+        }
 
     def annotate_toponyms(
         self,
