@@ -1,13 +1,7 @@
 name: integration-tests
 
 on:
-  workflow_run:
-    workflows: test
-    branches:
-      - development
-      - staging
-      - main
-    types: completed
+  push:
 
 
 jobs:
