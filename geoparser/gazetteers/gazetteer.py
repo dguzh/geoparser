@@ -182,6 +182,7 @@ class LocalDBGazetteer(Gazetteer):
         for dataset in self.config.data:
             self._download_file(dataset)
             self._load_data(dataset)
+            self._delete_file(dataset)
 
         self._create_names_table()
         self._populate_names_table()
@@ -281,6 +282,22 @@ class LocalDBGazetteer(Gazetteer):
         """
         self._create_data_table(dataset)
         self._populate_data_table(dataset)
+
+    def _delete_file(self, dataset: GazetteerData) -> None:
+        """
+        Delete a previously downloaded file for a dataset.
+
+        Args:
+            dataset (GazetteerData): Dataset configuration object.
+        """
+        url = dataset.url
+        filename = url.split("/")[-1]
+        file_path = os.path.join(self.data_dir, filename)
+        if not os.path.exists(file_path):
+            try:
+                os.remove(file_path)
+            except (IsADirectoryError, PermissionError):
+                shutil.rmtree(file_path)
 
     @abstractmethod
     def _read_file(
