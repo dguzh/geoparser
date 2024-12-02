@@ -1,7 +1,6 @@
 import sqlite3
 import tempfile
 import typing as t
-from difflib import get_close_matches
 from pathlib import Path
 
 import py
@@ -133,6 +132,25 @@ def test_download_file(
     # a.txt downloaded as is, b.zip has been extracted and is still around
     zipfile = [raw_file] if raw_file.endswith(".zip") else []
     assert sorted(files) == sorted(dataset.extracted_files + zipfile)
+
+
+def test_delete_file(localdb_gazetteer: LocalDBGazetteer):
+    dataset = GazetteerData(
+        name="a",
+        url="https://my.url.org/path/to/a.txt",
+        extracted_files=["a.txt"],
+        columns=[Column(name="", type="")],
+    )
+    raw_file = Path(localdb_gazetteer.data_dir) / dataset.url.split("/")[-1]
+    # create file to delete
+    with open(get_static_test_file(raw_file), "w") as _:
+        pass
+    # file exists before deletion
+    assert raw_file.is_file()
+    # delete file
+    localdb_gazetteer._delete_file(dataset)
+    # file has been deleted
+    assert not raw_file.is_file()
 
 
 def test_create_data_table(geonames_patched: GeoNames):

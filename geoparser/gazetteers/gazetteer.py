@@ -293,7 +293,7 @@ class LocalDBGazetteer(Gazetteer):
         url = dataset.url
         filename = url.split("/")[-1]
         file_path = os.path.join(self.data_dir, filename)
-        if not os.path.exists(file_path):
+        if os.path.exists(file_path):
             try:
                 os.remove(file_path)
             except (IsADirectoryError, PermissionError):
