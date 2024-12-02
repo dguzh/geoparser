@@ -1,11 +1,13 @@
 name: integration-tests
 
 on:
-  push:
+  workflow_run:
+    workflows: test
     branches:
       - development
       - staging
       - main
+    types: completed
 
 
 jobs:
@@ -28,7 +30,7 @@ jobs:
         name: Define cache for the virtual environment based on poetry.lock file
         with:
           path: ./.venv
-          key: venv-${{ hashFiles('poetry.lock') }}
+          key: venv-ubuntu-latest-3.10-${{ hashFiles('poetry.lock') }}
       - name: Install project dependencies
         run: poetry install
       - name: Download gazetteer
