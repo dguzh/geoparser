@@ -296,7 +296,7 @@ class LocalDBGazetteer(Gazetteer):
         if os.path.exists(file_path):
             try:
                 os.remove(file_path)
-            except PermissionError:
+            except (IsADirectoryError, PermissionError):
                 shutil.rmtree(file_path)
 
     @abstractmethod
