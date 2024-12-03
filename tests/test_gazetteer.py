@@ -133,6 +133,7 @@ def test_download_file(
     zipfile = [raw_file] if raw_file.endswith(".zip") else []
     assert sorted(files) == sorted(dataset.extracted_files + zipfile)
 
+
 @pytest.mark.parametrize("is_directory", [True, False])
 def test_delete_file(localdb_gazetteer: LocalDBGazetteer, is_directory: bool):
     dataset = GazetteerData(
