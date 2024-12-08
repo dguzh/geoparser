@@ -1,6 +1,6 @@
 import json
 import tempfile
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 
 import py
@@ -87,7 +87,7 @@ def test_get_cached_sessions(sessions_cache: SessionsCache):
     invalid_create = {
         "session_id": "invalid_create",
         "created_at": "0000000 today at 11 am",
-        "last_updated": datetime.now().isoformat(),
+        "last_updated": (datetime.now() + timedelta(seconds=5)).isoformat(),
         "gazetteer": "geonames",
         "num_documents": 1,
     }
