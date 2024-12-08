@@ -94,12 +94,12 @@ def continue_session_post():
     if action == "load_cached":
         selected_session_id = request.form.get("cached_session")
         if not selected_session_id:
-            return redirect(url_for("continue_session"))
+            return redirect(url_for("continue_session_get"))
 
         # Load selected session directly without creating a new session
         session = sessions_cache.load(selected_session_id)
         if not session:
-            return redirect(url_for("continue_session"))
+            return redirect(url_for("continue_session_get"))
 
         # Re-initialize gazetteer
         annotator.gazetteer = annotator.setup_gazetteer(session["gazetteer"])
@@ -129,9 +129,9 @@ def continue_session_post():
             # Redirect to annotate page
             return redirect(url_for("annotate", session_id=session_id, doc_index=0))
         else:
-            return redirect(url_for("continue_session"))
+            return redirect(url_for("continue_session_get"))
     else:
-        return redirect(url_for("continue_session"))
+        return redirect(url_for("continue_session_get"))
 
 
 @app.get("/annotate/<session_id>")
