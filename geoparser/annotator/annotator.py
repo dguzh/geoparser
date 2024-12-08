@@ -129,7 +129,7 @@ class GeoparserAnnotator(Geoparser):
                         lon, lat = coord_transformer.transform(x, y)
                     else:
                         lon, lat = x, y
-                except ValueError:
+                except (ValueError, TypeError):
                     lat = None
                     lon = None
             else:
@@ -149,7 +149,7 @@ class GeoparserAnnotator(Geoparser):
         existing_loc_id = self.get_existing_loc_id(toponym)
 
         append_existing_candidate = (
-            existing_loc_id and not existing_loc_id in candidates
+            bool(existing_loc_id) and not existing_loc_id in candidates
         )
 
         if append_existing_candidate:
@@ -170,7 +170,7 @@ class GeoparserAnnotator(Geoparser):
                         lon, lat = coord_transformer.transform(x, y)
                     else:
                         lon, lat = x, y
-                except ValueError:
+                except (ValueError, TypeError):
                     lat = None
                     lon = None
             else:
