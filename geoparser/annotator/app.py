@@ -20,7 +20,7 @@ from spacy.util import get_installed_models
 
 from geoparser.annotator.annotator import GeoparserAnnotator
 from geoparser.annotator.sessions_cache import SessionsCache
-from geoparser.constants import GAZETTEERS
+from geoparser.constants import DEFAULT_SESSION_SETTINGS, GAZETTEERS
 
 app = Flask(
     __name__, template_folder=os.path.join(os.path.dirname(__file__), "templates")
@@ -39,10 +39,7 @@ def get_session(gazetteer: str):
         "created_at": datetime.now().isoformat(),
         "last_updated": datetime.now().isoformat(),
         "gazetteer": gazetteer,
-        "settings": {
-            "one_sense_per_discourse": False,
-            "auto_close_annotation_modal": False,
-        },
+        "settings": DEFAULT_SESSION_SETTINGS,
         "documents": [],
     }
     return session
