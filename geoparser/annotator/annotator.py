@@ -237,7 +237,7 @@ class GeoparserAnnotator(Geoparser):
                     other_toponym["loc_id"] = toponym["loc_id"]
         return toponyms
 
-    def remove_toponym(doc: dict, toponym: dict) -> dict:
+    def remove_toponym(self, doc: dict, toponym: dict) -> dict:
         toponyms = doc["toponyms"]
         toponyms.remove(toponym)
         return doc
