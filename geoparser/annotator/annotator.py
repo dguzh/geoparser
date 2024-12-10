@@ -217,7 +217,7 @@ class GeoparserAnnotator(Geoparser):
     def annotate_toponyms(
         self,
         toponyms: list[dict],
-        annotation: str,
+        annotation: dict,
         one_sense_per_discourse: bool = False,
     ) -> list[dict]:
         toponym = self.get_toponym(toponyms, annotation["start"], annotation["end"])
