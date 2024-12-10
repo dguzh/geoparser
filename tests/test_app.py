@@ -72,6 +72,7 @@ def test_index(client: FlaskClient):
     with captured_templates(app) as templates:
         response = client.get("/")
         template = get_first_template(templates)
+    assert response.status_code == 200
     # index.html has been used
     assert len(templates) == 1
     assert template.name == "index.html"
@@ -83,6 +84,7 @@ def test_start_new_session_get(client: FlaskClient):
     with captured_templates(app) as templates:
         response = client.get("/start_new_session")
         template = get_first_template(templates)
+    assert response.status_code == 200
     # start_new_session.html has been used
     assert len(templates) == 1
     assert template.name == "start_new_session.html"
@@ -101,6 +103,7 @@ def test_start_new_session_post(client: FlaskClient):
         },
         content_type="multipart/form-data",
     )
+    assert response.status_code == 302
     # redirected to annotate page for first document
     assert b"/annotate/" in response.data
     assert b"?doc_index=0" in response.data
@@ -110,6 +113,7 @@ def test_continue_session_get(client: FlaskClient):
     with captured_templates(app) as templates:
         response = client.get("/continue_session")
         template = get_first_template(templates)
+    assert response.status_code == 200
     # index.html has been used
     assert len(templates) == 1
     assert template.name == "continue_session.html"
@@ -136,12 +140,14 @@ def test_continue_session_post_load_cached(
 
     # redirect to annotate page if cached session has been found
     if cached_session and file_exists:
+        assert response.status_code == 302
         assert (
             b'<a href="/annotate/test_load_cached?doc_index=0">/annotate/test_load_cached?doc_index=0</a>'
             in response.data
         )
     # otherwise, always redirect to continue_session
     else:
+        assert response.status_code == 302
         assert b'<a href="/continue_session">/continue_session</a>' in response.data
 
 
@@ -188,10 +194,12 @@ def test_continue_session_post_load_file(
     )
     # redirect to annotate page if file can be read
     if file:
+        assert response.status_code == 302
         assert b"/annotate/" in response.data
         assert b"?doc_index=0" in response.data
     # otherwise, always redirect to continue_session
     else:
+        assert response.status_code == 302
         assert b'<a href="/continue_session">/continue_session</a>' in response.data
 
 
@@ -203,6 +211,7 @@ def test_continue_session_post_bad_action(client: FlaskClient):
         data=data,
         content_type="multipart/form-data",
     )
+    assert response.status_code == 302
     assert b'<a href="/continue_session">/continue_session</a>' in response.data
 
 
@@ -235,13 +244,341 @@ def test_annotate(client: FlaskClient, valid_session: bool, doc_index: int):
         template = get_first_template(templates)
     # redirect to index if session is invalid
     if not valid_session:
+        assert response.status_code == 302
         assert b'<a href="/">/</a>' in response.data
     # invalid doc_index always redirects to 0
     elif valid_session and doc_index == 1:
+        assert response.status_code == 302
         assert (
             b' <a href="/annotate/annotate?doc_index=0">/annotate/annotate?doc_index=0</a>'
             in response.data
         )
     # vaild doc_index returns the annotate page
     elif valid_session and doc_index == 0:
+        assert response.status_code == 200
         assert template.name == "annotate.html"
+
+
+@pytest.mark.parametrize("valid_session", [True, False])
+@pytest.mark.parametrize("valid_toponym", [True, False])
+def test_get_candidates(client: FlaskClient, valid_session: bool, valid_toponym: bool):
+    session_id = "get_candidates"
+    toponyms = [{"text": "Andorra", "start": 0, "end": 7, "loc_id": ""}]
+    if valid_session:
+        session = {
+            **get_session("geonames"),
+            **{
+                "session_id": session_id,
+                "documents": [
+                    {
+                        "filename": "test.txt",
+                        "spacy_model": "en_core_web_sm",
+                        "text": "Andorra is nice.",
+                        "toponyms": toponyms,
+                    }
+                ],
+            },
+        }
+        sessions_cache.save(session["session_id"], session)
+    data = {
+        "session_id": session_id,
+        "doc_index": 0,
+        "query_text": toponyms[0]["text"],
+        "text": toponyms[0]["text"],
+        "start": toponyms[0]["start"] if valid_toponym else 99,
+        "end": toponyms[0]["end"] if valid_toponym else 100,
+    }
+    response = client.post(
+        "/get_candidates",
+        json=data,
+        content_type="application/json",
+    )
+    if not valid_session:
+        assert response.status_code == 404
+        assert (
+            bytes(
+                json.dumps({"error": "Session not found"}, separators=(",", ":")),
+                encoding="utf8",
+            )
+            in response.data
+        )
+    elif not valid_toponym:
+        assert response.status_code == 404
+        assert (
+            bytes(
+                json.dumps({"error": "Toponym not found"}, separators=(",", ":")),
+                encoding="utf8",
+            )
+            in response.data
+        )
+    else:
+        assert response.status_code == 200
+        result = json.loads(response.data)
+        assert "candidates" in result.keys()
+        assert type(result["candidates"]) is list
+        for element in result["candidates"]:
+            assert type(element) is dict
+
+
+@pytest.mark.parametrize("valid_session", [True, False])
+@pytest.mark.parametrize("valid_toponym", [True, False])
+@pytest.mark.parametrize("one_sense_per_discourse", [True, False])
+def test_save_annotation(
+    client: FlaskClient,
+    valid_session: bool,
+    valid_toponym: bool,
+    one_sense_per_discourse: bool,
+    radio_andorra_id: int,
+):
+    session_id = "save_annotation"
+    toponyms = [
+        {
+            "text": "Andorra",
+            "start": 0,
+            "end": 7,
+            "loc_id": "",
+        },
+        {
+            "text": "Andorra",
+            "start": 22,
+            "end": 29,
+            "loc_id": "",
+        },
+    ]
+    if valid_session:
+        session = {
+            **get_session("geonames"),
+            **{
+                "session_id": f"{session_id}-{one_sense_per_discourse}",
+                "documents": [
+                    {
+                        "filename": "test.txt",
+                        "spacy_model": "en_core_web_sm",
+                        "text": "Andorra is as nice as Andorra.",
+                        "toponyms": toponyms,
+                    }
+                ],
+                "settings": {"one_sense_per_discourse": one_sense_per_discourse},
+            },
+        }
+        sessions_cache.save(session["session_id"], session)
+    data = {
+        "session_id": f"{session_id}-{one_sense_per_discourse}",
+        "doc_index": 0,
+        "annotation": {
+            "start": toponyms[0]["start"] if valid_toponym else 99,
+            "end": toponyms[0]["end"] if valid_toponym else 99,
+            "loc_id": radio_andorra_id,
+        },
+    }
+    response = client.post(
+        "/save_annotation",
+        json=data,
+        content_type="application/json",
+    )
+    if not valid_session:
+        assert response.status_code == 404
+        assert (
+            bytes(
+                json.dumps({"error": "Session not found"}, separators=(",", ":")),
+                encoding="utf8",
+            )
+            in response.data
+        )
+    elif not valid_toponym:
+        assert response.status_code == 404
+        assert (
+            bytes(
+                json.dumps({"error": "Toponym not found"}, separators=(",", ":")),
+                encoding="utf8",
+            )
+            in response.data
+        )
+    else:
+        assert response.status_code == 200
+        result = json.loads(response.data)
+        assert result["status"] == "success"
+        assert result["total_toponyms"] == 2
+        assert result["annotated_toponyms"] == 1 if not one_sense_per_discourse else 2
+        assert (
+            result["progress_percentage"] == 50 if not one_sense_per_discourse else 100
+        )
+
+
+@pytest.mark.parametrize("valid_session", [True, False])
+def test_download_annotations(client: FlaskClient, valid_session: bool):
+    session_id = "download_annotations"
+    if valid_session:
+        session = {
+            **get_session("geonames"),
+            **{
+                "session_id": f"{session_id}",
+                "documents": [
+                    {
+                        "filename": "test.txt",
+                        "spacy_model": "en_core_web_sm",
+                        "text": "Andorra is as nice as Andorra.",
+                        "toponyms": [
+                            {
+                                "text": "Andorra",
+                                "start": 0,
+                                "end": 7,
+                                "loc_id": "",
+                            }
+                        ],
+                    }
+                ],
+            },
+        }
+        sessions_cache.save(session["session_id"], session)
+    response = client.get(f"/download_annotations/{session_id}")
+    if not valid_session:
+        assert response.status_code == 404
+        assert b"Session not found" in response.data
+    else:
+        # exact same session is downloaded again
+        assert response.status_code == 200
+        assert json.loads(response.data.decode("utf8")) == session
+
+
+@pytest.mark.parametrize("valid_session", [True, False])
+def test_delete_session(client: FlaskClient, valid_session: bool):
+    session_id = "delete_session"
+    if valid_session:
+        session = {
+            **get_session("geonames"),
+            **{
+                "session_id": f"{session_id}",
+                "documents": [
+                    {
+                        "filename": "test.txt",
+                        "spacy_model": "en_core_web_sm",
+                        "text": "Andorra is as nice as Andorra.",
+                        "toponyms": [
+                            {
+                                "text": "Andorra",
+                                "start": 0,
+                                "end": 7,
+                                "loc_id": "",
+                            }
+                        ],
+                    }
+                ],
+            },
+        }
+        sessions_cache.save(session["session_id"], session)
+    # call endpoint for first time
+    response = client.post(f"/delete_session/{session_id}")
+    if not valid_session:
+        # delete fails if there is no session in the first place
+        assert response.status_code == 200
+        assert (
+            bytes(
+                json.dumps(
+                    {"message": "Session not found.", "status": "error"},
+                    separators=(",", ":"),
+                ),
+                encoding="utf8",
+            )
+            in response.data
+        )
+    else:
+        # first delete is successful
+        assert response.status_code == 200
+        assert (
+            bytes(
+                json.dumps({"status": "success"}, separators=(",", ":")),
+                encoding="utf8",
+            )
+            in response.data
+        )
+        # second delete fails
+        second_response = client.post(f"/delete_session/{session_id}")
+        assert response.status_code == 200
+        assert (
+            bytes(
+                json.dumps(
+                    {"message": "Session not found.", "status": "error"},
+                    separators=(",", ":"),
+                ),
+                encoding="utf8",
+            )
+            in second_response.data
+        )
+
+
+@pytest.mark.parametrize("valid_session", [True, False])
+@pytest.mark.parametrize("uploaded_files", [True, False])
+@pytest.mark.parametrize("spacy_model", [True, False])
+def test_add_documents(
+    client: FlaskClient, valid_session: bool, uploaded_files: bool, spacy_model: bool
+):
+    session_id = "add_documents"
+    if valid_session:
+        session = {
+            **get_session("geonames"),
+            **{
+                "session_id": f"{session_id}",
+                "documents": [
+                    {
+                        "filename": "test.txt",
+                        "spacy_model": "en_core_web_sm",
+                        "text": "Andorra is as nice as Andorra.",
+                        "toponyms": [
+                            {
+                                "text": "Andorra",
+                                "start": 0,
+                                "end": 7,
+                                "loc_id": "",
+                            }
+                        ],
+                    }
+                ],
+            },
+        }
+        sessions_cache.save(session["session_id"], session)
+    filename = "annotator_doc0.txt"
+    files = (
+        {"files[]": [(open(get_static_test_file(filename), "rb"), filename)]}
+        if uploaded_files
+        else {}
+    )
+    model = {"spacy_model": "en_core_web_sm"} if spacy_model else {}
+    response = client.post(
+        "/add_documents",
+        data={"gazetteer": "geonames", "session_id": session_id, **files, **model},
+        content_type="multipart/form-data",
+    )
+    if not valid_session:
+        assert response.status_code == 200
+        assert (
+            bytes(
+                json.dumps(
+                    {"message": "Session not found.", "status": "error"},
+                    separators=(",", ":"),
+                ),
+                encoding="utf8",
+            )
+            in response.data
+        )
+    elif not uploaded_files or not spacy_model:
+        assert response.status_code == 200
+        assert (
+            bytes(
+                json.dumps(
+                    {"message": "No files or SpaCy model selected.", "status": "error"},
+                    separators=(",", ":"),
+                ),
+                encoding="utf8",
+            )
+            in response.data
+        )
+    else:
+        assert response.status_code == 200
+        assert (
+            bytes(
+                json.dumps({"status": "success"}, separators=(",", ":")),
+                encoding="utf8",
+            )
+            in response.data
+        )
