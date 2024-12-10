@@ -1,22 +1,10 @@
 # Irchel Geoparser
+[![CI](https://img.shields.io/github/actions/workflow/status/dguzh/geoparser/ci.yml?branch=main&logo=github&label=CI)](https://github.com/dguzh/geoparser/actions?query=event%3Apush+branch%3Amain+workflow%3ACI)
+[![Tests](https://img.shields.io/github/actions/workflow/status/dguzh/geoparser/test.yml?branch=main&logo=github&label=tests)](https://github.com/dguzh/geoparser/actions/workflows/test.yml?query=branch%3Amain+)
+[![Coverage](https://coverage-badge.samuelcolvin.workers.dev/dguzh/geoparser.svg)](https://coverage-badge.samuelcolvin.workers.dev/redirect/dguzh/geoparser)
+[![PypiPackage](https://img.shields.io/pypi/v/geoparser?&label=pypi%20package)](https://pypi.org/project/geoparser)
+[![PythonVersions](https://img.shields.io/pypi/pyversions/geoparser)](https://pypi.org/project/geoparser)
 
-<p align="center">
-<a href="https://github.com/dguzh/geoparser/actions?query=event%3Apush+branch%3Amain+workflow%3ACI" target="_blank">
-    <img src="https://img.shields.io/github/actions/workflow/status/dguzh/geoparser/ci.yml?branch=main&logo=github&label=CI" alt="CI status">
-</a>
-<a href="https://github.com/dguzh/geoparser/actions/workflows/test.yml?query=branch%3Amain+" target="_blank">
-    <img src="https://img.shields.io/github/actions/workflow/status/dguzh/geoparser/test.yml?branch=main&logo=github&label=Tests" alt="Tests">
-</a>
-<a href="https://coverage-badge.samuelcolvin.workers.dev/redirect/dguzh/geoparser" target="_blank">
-    <img src="https://coverage-badge.samuelcolvin.workers.dev/dguzh/geoparser.svg" alt="Coverage">
-</a>
-<a href="https://pypi.org/project/geoparser" target="_blank">
-    <img src="https://img.shields.io/pypi/v/geoparser?&label=pypi%20package" alt="Package version">
-</a>
-<a href="https://pypi.org/project/geoparser" target="_blank">
-    <img src="https://img.shields.io/pypi/pyversions/geoparser" alt="Supported Python versions">
-</a>
-</p>
 
 The **Irchel Geoparser** (hereafter referred to simply as **Geoparser**) is a Python library designed as a complete end-to-end geoparsing pipeline. It integrates advanced natural language processing techniques to recognize and resolve place names (toponyms) in unstructured text, linking them to their corresponding geographical locations.
 
@@ -51,7 +39,7 @@ Geoparser is an open-source project, and contributions are welcome. If you encou
 
 ## Acknowledgments
 
-Geoparser originated as part of my Master's thesis and was further developed with support from the [Department of Geography at the University of Zurich](https://www.geo.uzh.ch/). I thank my supervisor, Prof. Dr. Ross Purves, for his insightful feedback, encouragement, and the opportunity to continue this work as part of a research project.
+Geoparser originated as part of my Master's thesis and was further developed with support from the [Department of Geography](https://www.geo.uzh.ch/) at the University of Zurich. I thank my supervisor, Prof. Dr. Ross Purves, for his insightful feedback, encouragement, and the opportunity to continue this work as part of a research project.
 
 ## License
 
