@@ -282,7 +282,7 @@ def delete_session(session_id):
     if success:
         return jsonify({"status": "success"})
     else:
-        return jsonify({"status": "error", "message": "Session not found."})
+        return jsonify({"message": "Session not found.", "status": "error"})
 
 
 @app.post("/add_documents")
@@ -290,14 +290,14 @@ def add_documents():
     session_id = request.form.get("session_id")
     session = sessions_cache.load(session_id)
     if not session:
-        return jsonify({"status": "error", "message": "Session not found."})
+        return jsonify({"message": "Session not found.", "status": "error"})
 
     uploaded_files = request.files.getlist("files[]")
     selected_spacy_model = request.form.get("spacy_model")
 
     if not uploaded_files or not selected_spacy_model:
         return jsonify(
-            {"status": "error", "message": "No files or SpaCy model selected."}
+            {"message": "No files or SpaCy model selected.", "status": "error"}
         )
 
     # Process uploaded files
