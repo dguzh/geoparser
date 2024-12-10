@@ -12,7 +12,7 @@ from flask import template_rendered
 from flask.testing import FlaskClient
 from jinja2.environment import Template
 
-from geoparser.annotator.app import app, get_session, sessions_cache
+from geoparser.annotator.app import annotator, app, get_session, sessions_cache
 from geoparser.constants import DEFAULT_SESSION_SETTINGS
 from tests.utils import get_static_test_file
 
@@ -261,7 +261,20 @@ def test_annotate(client: FlaskClient, valid_session: bool, doc_index: int):
 
 @pytest.mark.parametrize("valid_session", [True, False])
 @pytest.mark.parametrize("valid_toponym", [True, False])
-def test_get_candidates(client: FlaskClient, valid_session: bool, valid_toponym: bool):
+def test_get_candidates(
+    client: FlaskClient, valid_session: bool, valid_toponym: bool, monkeypatch
+):
+    monkeypatched_return = {
+        "candidates": [{}],
+        "filter_attributes": [],
+        "existing_loc_id": "123",
+        "existing_candidate": None,
+    }
+    monkeypatch.setattr(
+        annotator,
+        "get_candidates",
+        lambda *args, **kwargs: monkeypatched_return,
+    )
     session_id = "get_candidates"
     toponyms = [{"text": "Andorra", "start": 0, "end": 7, "loc_id": ""}]
     if valid_session:
@@ -314,10 +327,7 @@ def test_get_candidates(client: FlaskClient, valid_session: bool, valid_toponym:
     else:
         assert response.status_code == 200
         result = json.loads(response.data)
-        assert "candidates" in result.keys()
-        assert type(result["candidates"]) is list
-        for element in result["candidates"]:
-            assert type(element) is dict
+        result == monkeypatched_return
 
 
 @pytest.mark.parametrize("valid_session", [True, False])
