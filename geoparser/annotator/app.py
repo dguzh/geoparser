@@ -568,7 +568,7 @@ def update_settings():
     return jsonify({"status": "success"})
 
 
-def run(debug=False, use_reloader=False):
+def run(debug=False, use_reloader=False):  # pragma: no cover
     def open_browser():
         webbrowser.open_new("http://127.0.0.1:5000/")
 
