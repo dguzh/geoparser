@@ -318,7 +318,7 @@ def remove_document():
 
     session = sessions_cache.load(session_id)
     if not session:
-        return jsonify({"status": "error", "message": "Session not found."})
+        return jsonify({"message": "Session not found.", "status": "error"})
 
     if 0 <= doc_index < len(session["documents"]):
         # Remove the document
@@ -329,7 +329,7 @@ def remove_document():
 
         return jsonify({"status": "success"})
     else:
-        return jsonify({"status": "error", "message": "Invalid document index."})
+        return jsonify({"message": "Invalid document index.", "status": "error"})
 
 
 @app.post("/delete_annotation")
@@ -436,7 +436,7 @@ def create_annotation():
     end = data["end"]
     text = data["text"]
 
-    session = sessions_cache(session_id)
+    session = sessions_cache.load(session_id)
     if not session:
         return jsonify({"error": "Session not found"}), 404
 
@@ -491,7 +491,7 @@ def get_document_text():
 
     session = sessions_cache.load(session_id)
     if not session:
-        return jsonify({"status": "error", "error": "Session not found"}), 404
+        return jsonify({"error": "Session not found", "status": "error"}), 404
 
     doc = session["documents"][doc_index]
 
@@ -509,7 +509,7 @@ def get_document_progress():
 
     session = sessions_cache.load(session_id)
     if not session:
-        return jsonify({"status": "error", "error": "Session not found"}), 404
+        return jsonify({"error": "Session not found", "status": "error"}), 404
 
     doc = session["documents"][doc_index]
     toponyms = doc["toponyms"]
