@@ -1,5 +1,6 @@
 import json
 import os
+import typing as t
 from datetime import datetime
 
 from appdirs import user_data_dir
@@ -17,7 +18,7 @@ class SessionsCache:
         with open(self.file_path(session_id), "w", encoding="utf-8") as f:
             json.dump(to_json, f, ensure_ascii=False, indent=4)
 
-    def load(self, session_id: str):
+    def load(self, session_id: str) -> t.Optional[dict]:
         session_file_path = self.file_path(session_id)
         if os.path.exists(session_file_path):
             try:
@@ -38,7 +39,7 @@ class SessionsCache:
         else:
             return False
 
-    def get_cached_sessions(self):
+    def get_cached_sessions(self) -> list[dict]:
         sessions = []
         for filename in os.listdir(self.cache_dir):
             if filename.endswith(".json") and not filename.endswith("_download.json"):

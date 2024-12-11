@@ -42,7 +42,7 @@ class GeoparserAnnotator(Geoparser):
                 "toponyms": toponyms,
             }
 
-    def get_pre_annotated_text(self, text, toponyms):
+    def get_pre_annotated_text(self, text: str, toponyms: dict[str, str]) -> str:
         html_parts = []
         last_idx = 0
         for toponym in sorted(toponyms, key=lambda x: x["start"]):
