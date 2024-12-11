@@ -71,7 +71,7 @@ jobs:
         with:
           GITHUB_TOKEN: ${{ github.token }}
           MINIMUM_GREEN: 100
-          MINIMUM_ORANGE: 95
+          MINIMUM_ORANGE: 98
       - name: Store Pull Request comment to be posted
         uses: actions/upload-artifact@v4
         if: steps.coverage_comment.outputs.COMMENT_FILE_WRITTEN == 'true'
