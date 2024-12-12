@@ -1153,7 +1153,7 @@ Flask = "*"
 
 [package.source]
 type = "git"
-url = "git@github.com:Centers-Health/Flask-JSGlue.git"
+url = "https://github.com/Centers-Health/Flask-JSGlue.git"
 reference = "HEAD"
 resolved_reference = "b467d942947548b1076337fd11f17723bf8059ea"
 
@@ -5998,4 +5998,4 @@ type = ["pytest-mypy"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.9,<3.13"
-content-hash = "0e924829e3a004822cda1ed4dc024693f765322697860522ddbcab1080eeadf9"
+content-hash = "0de6c5954052ae0c3acda3bad7c8d6e6ea45b9e4cffd6aa4a5d85cf0cedb2020"
