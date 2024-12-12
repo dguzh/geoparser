@@ -14,8 +14,10 @@ var queryTextInput = null;
 
 document.addEventListener('DOMContentLoaded', function() {
     // Variables for the current document
-    var docIndex = '{{ doc_index }}';
-    var sessionId = '{{ session_id }}';
+    var path = window.location.href.split('?')[0];
+    var sessionId = path.split('/').pop();
+    var params = new URLSearchParams(window.location.search)
+    var docIndex = Number(params.get("doc_index"));
     var progressBar = document.getElementById('progress-bar-' + docIndex);
 
     // Get the document text container
