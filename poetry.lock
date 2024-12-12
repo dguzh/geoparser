@@ -1140,6 +1140,24 @@ async = ["asgiref (>=3.2)"]
 dotenv = ["python-dotenv"]
 
 [[package]]
+name = "Flask-JSGlue"
+version = "0.3.1"
+description = "Flask-JSGlue helps hook up your Flask application nicely with the front end."
+optional = false
+python-versions = "*"
+files = []
+develop = false
+
+[package.dependencies]
+Flask = "*"
+
+[package.source]
+type = "git"
+url = "git@github.com:Centers-Health/Flask-JSGlue.git"
+reference = "HEAD"
+resolved_reference = "b467d942947548b1076337fd11f17723bf8059ea"
+
+[[package]]
 name = "fqdn"
 version = "1.5.1"
 description = "Validates fully-qualified domain names against RFC 1123, so that they are acceptable to modern bowsers"
@@ -5980,4 +5998,4 @@ type = ["pytest-mypy"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.9,<3.13"
-content-hash = "33e31b7a80fdbc1bc659defcbe7b93e3cb71d9665c9981842ecf031b93edadd3"
+content-hash = "0e924829e3a004822cda1ed4dc024693f765322697860522ddbcab1080eeadf9"
