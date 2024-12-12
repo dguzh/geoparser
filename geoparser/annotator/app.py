@@ -16,6 +16,7 @@ from flask import (
     send_file,
     url_for,
 )
+from flask_jsglue import JSGlue
 from spacy.util import get_installed_models
 
 from geoparser.annotator.annotator import GeoparserAnnotator
@@ -26,6 +27,7 @@ app = Flask(
     __name__, template_folder=os.path.join(os.path.dirname(__file__), "templates")
 )
 app.config["SECRET_KEY"] = "dev"
+jsglue = JSGlue(app)
 
 annotator = GeoparserAnnotator()
 sessions_cache = SessionsCache()
