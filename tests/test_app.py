@@ -13,7 +13,7 @@ from flask import template_rendered
 from flask.testing import FlaskClient
 from jinja2.environment import Template
 
-from geoparser.annotator.app import annotator, app, get_session, run, sessions_cache
+from geoparser.annotator.app import annotator, app, get_session, sessions_cache
 from geoparser.constants import DEFAULT_SESSION_SETTINGS
 from tests.utils import get_static_test_file
 
