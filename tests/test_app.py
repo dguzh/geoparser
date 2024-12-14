@@ -12,6 +12,7 @@ import pytest
 from flask import template_rendered
 from flask.testing import FlaskClient
 from jinja2.environment import Template
+from werkzeug.wrappers import Response
 
 from geoparser.annotator.app import annotator, app, get_session, sessions_cache
 from geoparser.constants import DEFAULT_SESSION_SETTINGS
@@ -49,6 +50,21 @@ def get_first_template(
     if len(templates) >= 1:
         template, _ = templates[0]
         return template
+
+
+def validate_json_response(
+    response: Response, expected_status_code: int, expected_json: dict
+):
+    if expected_status_code:
+        assert response.status_code == expected_status_code
+    if expected_json:
+        assert (
+            bytes(
+                json.dumps(expected_json, separators=(",", ":")),
+                encoding="utf8",
+            )
+            in response.data
+        )
 
 
 def test_get_session():
@@ -267,9 +283,9 @@ def test_get_candidates(
 ):
     monkeypatched_return = {
         "candidates": [{}],
-        "filter_attributes": [],
-        "existing_loc_id": "123",
         "existing_candidate": None,
+        "existing_loc_id": "123",
+        "filter_attributes": [],
     }
     monkeypatch.setattr(
         annotator,
@@ -308,27 +324,11 @@ def test_get_candidates(
         content_type="application/json",
     )
     if not valid_session:
-        assert response.status_code == 404
-        assert (
-            bytes(
-                json.dumps({"error": "Session not found"}, separators=(",", ":")),
-                encoding="utf8",
-            )
-            in response.data
-        )
+        validate_json_response(response, 404, {"error": "Session not found"})
     elif not valid_toponym:
-        assert response.status_code == 404
-        assert (
-            bytes(
-                json.dumps({"error": "Toponym not found"}, separators=(",", ":")),
-                encoding="utf8",
-            )
-            in response.data
-        )
+        validate_json_response(response, 404, {"error": "Toponym not found"})
     else:
-        assert response.status_code == 200
-        result = json.loads(response.data)
-        result == monkeypatched_return
+        validate_json_response(response, 200, monkeypatched_return)
 
 
 @pytest.mark.parametrize("valid_session", [True, False])
@@ -388,32 +388,17 @@ def test_save_annotation(
         content_type="application/json",
     )
     if not valid_session:
-        assert response.status_code == 404
-        assert (
-            bytes(
-                json.dumps({"error": "Session not found"}, separators=(",", ":")),
-                encoding="utf8",
-            )
-            in response.data
-        )
+        validate_json_response(response, 404, {"error": "Session not found"})
     elif not valid_toponym:
-        assert response.status_code == 404
-        assert (
-            bytes(
-                json.dumps({"error": "Toponym not found"}, separators=(",", ":")),
-                encoding="utf8",
-            )
-            in response.data
-        )
+        validate_json_response(response, 404, {"error": "Toponym not found"})
     else:
-        assert response.status_code == 200
-        result = json.loads(response.data)
-        assert result["status"] == "success"
-        assert result["total_toponyms"] == 2
-        assert result["annotated_toponyms"] == 1 if not one_sense_per_discourse else 2
-        assert (
-            result["progress_percentage"] == 50 if not one_sense_per_discourse else 100
-        )
+        expected = {
+            "annotated_toponyms": 1 if not one_sense_per_discourse else 2,
+            "progress_percentage": 50.0 if not one_sense_per_discourse else 100.0,
+            "status": "success",
+            "total_toponyms": 2,
+        }
+        validate_json_response(response, 200, expected)
 
 
 @pytest.mark.parametrize("valid_session", [True, False])
@@ -484,39 +469,16 @@ def test_delete_session(client: FlaskClient, valid_session: bool):
     response = client.post(f"/delete_session/{session_id}")
     if not valid_session:
         # delete fails if there is no session in the first place
-        assert response.status_code == 200
-        assert (
-            bytes(
-                json.dumps(
-                    {"message": "Session not found.", "status": "error"},
-                    separators=(",", ":"),
-                ),
-                encoding="utf8",
-            )
-            in response.data
+        validate_json_response(
+            response, 200, {"message": "Session not found.", "status": "error"}
         )
     else:
         # first delete is successful
-        assert response.status_code == 200
-        assert (
-            bytes(
-                json.dumps({"status": "success"}, separators=(",", ":")),
-                encoding="utf8",
-            )
-            in response.data
-        )
+        validate_json_response(response, 200, {"status": "success"})
         # second delete fails
         second_response = client.post(f"/delete_session/{session_id}")
-        assert response.status_code == 200
-        assert (
-            bytes(
-                json.dumps(
-                    {"message": "Session not found.", "status": "error"},
-                    separators=(",", ":"),
-                ),
-                encoding="utf8",
-            )
-            in second_response.data
+        validate_json_response(
+            second_response, 200, {"message": "Session not found.", "status": "error"}
         )
 
 
@@ -563,38 +525,17 @@ def test_add_documents(
         content_type="multipart/form-data",
     )
     if not valid_session:
-        assert response.status_code == 200
-        assert (
-            bytes(
-                json.dumps(
-                    {"message": "Session not found.", "status": "error"},
-                    separators=(",", ":"),
-                ),
-                encoding="utf8",
-            )
-            in response.data
+        validate_json_response(
+            response, 200, {"message": "Session not found.", "status": "error"}
         )
     elif not uploaded_files or not spacy_model:
-        assert response.status_code == 200
-        assert (
-            bytes(
-                json.dumps(
-                    {"message": "No files or SpaCy model selected.", "status": "error"},
-                    separators=(",", ":"),
-                ),
-                encoding="utf8",
-            )
-            in response.data
+        validate_json_response(
+            response,
+            200,
+            {"message": "No files or SpaCy model selected.", "status": "error"},
         )
     else:
-        assert response.status_code == 200
-        assert (
-            bytes(
-                json.dumps({"status": "success"}, separators=(",", ":")),
-                encoding="utf8",
-            )
-            in response.data
-        )
+        validate_json_response(response, 200, {"status": "success"})
 
 
 @pytest.mark.parametrize("valid_session", [True, False])
@@ -630,38 +571,15 @@ def test_remove_document(client: FlaskClient, valid_session: bool, doc_index: in
         content_type="application/json",
     )
     if not valid_session:
-        assert response.status_code == 200
-        assert (
-            bytes(
-                json.dumps(
-                    {"message": "Session not found.", "status": "error"},
-                    separators=(",", ":"),
-                ),
-                encoding="utf8",
-            )
-            in response.data
+        validate_json_response(
+            response, 200, {"message": "Session not found.", "status": "error"}
         )
     elif doc_index == 1:
-        assert response.status_code == 200
-        assert (
-            bytes(
-                json.dumps(
-                    {"message": "Invalid document index.", "status": "error"},
-                    separators=(",", ":"),
-                ),
-                encoding="utf8",
-            )
-            in response.data
+        validate_json_response(
+            response, 200, {"message": "Invalid document index.", "status": "error"}
         )
     else:
-        assert response.status_code == 200
-        assert (
-            bytes(
-                json.dumps({"status": "success"}, separators=(",", ":")),
-                encoding="utf8",
-            )
-            in response.data
-        )
+        validate_json_response(response, 200, {"status": "success"})
 
 
 @pytest.mark.parametrize("valid_session", [True, False])
@@ -701,30 +619,17 @@ def test_delete_annotation(
         content_type="application/json",
     )
     if not valid_session:
-        assert response.status_code == 404
-        assert (
-            bytes(
-                json.dumps({"error": "Session not found"}, separators=(",", ":")),
-                encoding="utf8",
-            )
-            in response.data
-        )
+        validate_json_response(response, 404, {"error": "Session not found"})
     elif not valid_toponym:
-        assert response.status_code == 404
-        assert (
-            bytes(
-                json.dumps({"error": "Toponym not found"}, separators=(",", ":")),
-                encoding="utf8",
-            )
-            in response.data
-        )
+        validate_json_response(response, 404, {"error": "Toponym not found"})
     else:
-        assert response.status_code == 200
-        result = json.loads(response.data)
-        assert result["status"] == "success"
-        assert result["annotated_toponyms"] == 0
-        assert result["total_toponyms"] == 0
-        assert result["progress_percentage"] == 0.0
+        expected = {
+            "annotated_toponyms": 0,
+            "progress_percentage": 0.0,
+            "status": "success",
+            "total_toponyms": 0,
+        }
+        validate_json_response(response, 200, expected)
 
 
 @pytest.mark.parametrize("valid_session", [True, False])
@@ -763,30 +668,17 @@ def test_edit_annotation(client: FlaskClient, valid_session: bool, valid_toponym
         content_type="application/json",
     )
     if not valid_session:
-        assert response.status_code == 404
-        assert (
-            bytes(
-                json.dumps({"error": "Session not found"}, separators=(",", ":")),
-                encoding="utf8",
-            )
-            in response.data
-        )
+        validate_json_response(response, 404, {"error": "Session not found"})
     elif not valid_toponym:
-        assert response.status_code == 404
-        assert (
-            bytes(
-                json.dumps({"error": "Toponym not found"}, separators=(",", ":")),
-                encoding="utf8",
-            )
-            in response.data
-        )
+        validate_json_response(response, 404, {"error": "Toponym not found"})
     else:
-        assert response.status_code == 200
-        result = json.loads(response.data)
-        assert result["status"] == "success"
-        assert result["annotated_toponyms"] == 1
-        assert result["total_toponyms"] == 1
-        assert result["progress_percentage"] == 100.0
+        expected = {
+            "annotated_toponyms": 1,
+            "progress_percentage": 100.0,
+            "status": "success",
+            "total_toponyms": 1,
+        }
+        validate_json_response(response, 200, expected)
 
 
 @pytest.mark.parametrize("valid_session", [True, False])
@@ -826,30 +718,17 @@ def test_create_annotation(
         content_type="application/json",
     )
     if not valid_session:
-        assert response.status_code == 404
-        assert (
-            bytes(
-                json.dumps({"error": "Session not found"}, separators=(",", ":")),
-                encoding="utf8",
-            )
-            in response.data
-        )
+        validate_json_response(response, 404, {"error": "Session not found"})
     elif existing_toponym:
-        assert response.status_code == 400
-        assert (
-            bytes(
-                json.dumps({"error": "Toponym already exists"}, separators=(",", ":")),
-                encoding="utf8",
-            )
-            in response.data
-        )
+        validate_json_response(response, 400, {"error": "Toponym already exists"})
     else:
-        assert response.status_code == 200
-        result = json.loads(response.data)
-        assert result["status"] == "success"
-        assert result["annotated_toponyms"] == 0
-        assert result["total_toponyms"] == 2
-        assert result["progress_percentage"] == 0.0
+        expected = {
+            "annotated_toponyms": 0,
+            "progress_percentage": 0.0,
+            "status": "success",
+            "total_toponyms": 2,
+        }
+        validate_json_response(response, 200, expected)
 
 
 @pytest.mark.parametrize("valid_session", [True, False])
@@ -882,25 +761,15 @@ def test_get_document_text(client: FlaskClient, valid_session: bool):
         content_type="application/json",
     )
     if not valid_session:
-        assert response.status_code == 404
-        assert (
-            bytes(
-                json.dumps(
-                    {"error": "Session not found", "status": "error"},
-                    separators=(",", ":"),
-                ),
-                encoding="utf8",
-            )
-            in response.data
+        validate_json_response(
+            response, 404, {"error": "Session not found", "status": "error"}
         )
     else:
-        assert response.status_code == 200
-        result = json.loads(response.data)
-        assert result["status"] == "success"
-        assert (
-            result["pre_annotated_text"]
-            == '<span class="toponym " data-start="0" data-end="7">Andorra</span> is as nice as Andorra.'
-        )
+        expected = {
+            "pre_annotated_text": '<span class="toponym " data-start="0" data-end="7">Andorra</span> is as nice as Andorra.',
+            "status": "success",
+        }
+        validate_json_response(response, 200, expected)
 
 
 @pytest.mark.parametrize("valid_session", [True, False])
@@ -934,24 +803,17 @@ def test_get_document_progress(client: FlaskClient, valid_session: bool, loc_id:
         content_type="application/json",
     )
     if not valid_session:
-        assert response.status_code == 404
-        assert (
-            bytes(
-                json.dumps(
-                    {"error": "Session not found", "status": "error"},
-                    separators=(",", ":"),
-                ),
-                encoding="utf8",
-            )
-            in response.data
+        validate_json_response(
+            response, 404, {"error": "Session not found", "status": "error"}
         )
     else:
-        assert response.status_code == 200
-        result = json.loads(response.data)
-        assert result["status"] == "success"
-        assert result["annotated_toponyms"] == 0 if not valid_session else 1
-        assert result["total_toponyms"] == 1
-        assert result["progress_percentage"] == 0.0 if not valid_session else 100.0
+        expected = {
+            "annotated_toponyms": 0 if not loc_id else 1,
+            "progress_percentage": 0.0 if not loc_id else 100.0,
+            "status": "success",
+            "total_toponyms": 1,
+        }
+        validate_json_response(response, 200, expected)
 
 
 @pytest.mark.parametrize("valid_session", [True, False])
@@ -983,23 +845,11 @@ def test_get_session_settings(client: FlaskClient, valid_session: bool):
         content_type="application/json",
     )
     if not valid_session:
-        assert response.status_code == 404
-        assert (
-            bytes(
-                json.dumps(
-                    {"error": "Session not found", "status": "error"},
-                    separators=(",", ":"),
-                ),
-                encoding="utf8",
-            )
-            in response.data
+        validate_json_response(
+            response, 404, {"error": "Session not found", "status": "error"}
         )
     else:
-        assert response.status_code == 200
-        result = json.loads(response.data)
-        # returns default settings
-        assert result["status"] == "success"
-        assert result["settings"] == get_session("geonames")["settings"]
+        validate_json_response(response, 200, get_session("geonames")["settings"])
 
 
 @pytest.mark.parametrize("valid_session", [True, False])
@@ -1030,8 +880,8 @@ def test_update_settings(client: FlaskClient, valid_session: bool):
         # check if old settings are in place
         assert sessions_cache.load(session_id)["settings"] == old_settings
     new_settings = {
-        "one_sense_per_discourse": True,
         "auto_close_annotation_modal": True,
+        "one_sense_per_discourse": True,
     }
     data = {"session_id": session_id, "settings": new_settings}
     response = client.post(
@@ -1040,21 +890,8 @@ def test_update_settings(client: FlaskClient, valid_session: bool):
         content_type="application/json",
     )
     if not valid_session:
-        assert response.status_code == 404
-        assert (
-            bytes(
-                json.dumps(
-                    {"error": "Session not found"},
-                    separators=(",", ":"),
-                ),
-                encoding="utf8",
-            )
-            in response.data
-        )
+        validate_json_response(response, 404, {"error": "Session not found"})
     else:
-        assert response.status_code == 200
-        result = json.loads(response.data)
-        # returns default settings
-        assert result["status"] == "success"
+        validate_json_response(response, 200, {"status": "success"})
         # check if new settings are in place
         assert sessions_cache.load(session_id)["settings"] == new_settings
