@@ -1126,7 +1126,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (data.status === 'success') {
                         // Reload the page to reflect document removal
                         if (parseInt(docIndexToRemove) === docIndex) {
-                            window.location.href = Flask.url_for("remove_document", {"session_id": sessionId, "doc_index": 0});
+                            window.location.href = Flask.url_for("annotate", {"session_id": sessionId, "doc_index": 0});
                         } else {
                             window.location.reload();
                         }
