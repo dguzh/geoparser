@@ -24,11 +24,6 @@ jobs:
         run: |
           poetry config virtualenvs.create true --local
           poetry config virtualenvs.in-project true --local
-      - uses: actions/cache@v4
-        name: Define cache for the virtual environment based on poetry.lock file
-        with:
-          path: ./.venv
-          key: venv-${{ hashFiles('poetry.lock') }}
       - name: Install project dependencies
         run: poetry install
       - name: Download gazetteer
