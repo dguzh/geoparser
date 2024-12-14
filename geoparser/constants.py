@@ -18,6 +18,6 @@ GAZETTEERS = {
 MAX_ERROR = 20039  # half Earth's circumference in km
 
 DEFAULT_SESSION_SETTINGS = {
-    "one_sense_per_discourse": False,
     "auto_close_annotation_modal": False,
+    "one_sense_per_discourse": False,
 }
