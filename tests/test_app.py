@@ -67,6 +67,31 @@ def validate_json_response(
         )
 
 
+def set_session(session_id: str, *, settings=None, **document_kwargs) -> dict:
+    session = {
+        **get_session("geonames"),
+        **{
+            "session_id": session_id,
+            "documents": [
+                {
+                    "filename": "test.txt",
+                    "spacy_model": "en_core_web_sm",
+                    "text": "Andorra is nice.",
+                    "toponyms": [
+                        {"text": "Andorra", "start": 0, "end": 7, "loc_id": ""},
+                    ],
+                }
+            ],
+        },
+    }
+    if settings:
+        session["settings"] = settings
+    for key, value in document_kwargs.items():
+        session["documents"][0][key] = value
+    sessions_cache.save(session["session_id"], session)
+    return session
+
+
 def test_get_session():
     gazetteer = "geonames"
     session = get_session(gazetteer)
@@ -237,23 +262,7 @@ def test_continue_session_post_bad_action(client: FlaskClient):
 def test_annotate(client: FlaskClient, valid_session: bool, doc_index: int):
     session_id = "annotate"
     if valid_session:
-        session = {
-            **get_session("geonames"),
-            **{
-                "session_id": session_id,
-                "documents": [
-                    {
-                        "filename": "test.txt",
-                        "spacy_model": "en_core_web_sm",
-                        "text": "Andorra is nice.",
-                        "toponyms": [
-                            {"text": "Andorra", "start": 0, "end": 7, "loc_id": ""},
-                        ],
-                    }
-                ],
-            },
-        }
-        sessions_cache.save(session["session_id"], session)
+        set_session(session_id)
     with captured_templates(app) as templates:
         response = client.get(
             f"/annotate/{session_id}", query_string={"doc_index": doc_index}
@@ -295,21 +304,7 @@ def test_get_candidates(
     session_id = "get_candidates"
     toponyms = [{"text": "Andorra", "start": 0, "end": 7, "loc_id": ""}]
     if valid_session:
-        session = {
-            **get_session("geonames"),
-            **{
-                "session_id": session_id,
-                "documents": [
-                    {
-                        "filename": "test.txt",
-                        "spacy_model": "en_core_web_sm",
-                        "text": "Andorra is nice.",
-                        "toponyms": toponyms,
-                    }
-                ],
-            },
-        }
-        sessions_cache.save(session["session_id"], session)
+        set_session(session_id, toponyms=toponyms)
     data = {
         "session_id": session_id,
         "doc_index": 0,
@@ -357,22 +352,12 @@ def test_save_annotation(
         },
     ]
     if valid_session:
-        session = {
-            **get_session("geonames"),
-            **{
-                "session_id": f"{session_id}-{one_sense_per_discourse}",
-                "documents": [
-                    {
-                        "filename": "test.txt",
-                        "spacy_model": "en_core_web_sm",
-                        "text": "Andorra is as nice as Andorra.",
-                        "toponyms": toponyms,
-                    }
-                ],
-                "settings": {"one_sense_per_discourse": one_sense_per_discourse},
-            },
-        }
-        sessions_cache.save(session["session_id"], session)
+        set_session(
+            f"{session_id}-{one_sense_per_discourse}",
+            settings={"one_sense_per_discourse": one_sense_per_discourse},
+            toponyms=toponyms,
+            text="Andorra is as nice as Andorra.",
+        )
     data = {
         "session_id": f"{session_id}-{one_sense_per_discourse}",
         "doc_index": 0,
@@ -405,28 +390,7 @@ def test_save_annotation(
 def test_download_annotations(client: FlaskClient, valid_session: bool):
     session_id = "download_annotations"
     if valid_session:
-        session = {
-            **get_session("geonames"),
-            **{
-                "session_id": f"{session_id}",
-                "documents": [
-                    {
-                        "filename": "test.txt",
-                        "spacy_model": "en_core_web_sm",
-                        "text": "Andorra is as nice as Andorra.",
-                        "toponyms": [
-                            {
-                                "text": "Andorra",
-                                "start": 0,
-                                "end": 7,
-                                "loc_id": "",
-                            }
-                        ],
-                    }
-                ],
-            },
-        }
-        sessions_cache.save(session["session_id"], session)
+        session = set_session(session_id)
     response = client.get(f"/download_annotations/{session_id}")
     if not valid_session:
         assert response.status_code == 404
@@ -443,28 +407,7 @@ def test_download_annotations(client: FlaskClient, valid_session: bool):
 def test_delete_session(client: FlaskClient, valid_session: bool):
     session_id = "delete_session"
     if valid_session:
-        session = {
-            **get_session("geonames"),
-            **{
-                "session_id": f"{session_id}",
-                "documents": [
-                    {
-                        "filename": "test.txt",
-                        "spacy_model": "en_core_web_sm",
-                        "text": "Andorra is as nice as Andorra.",
-                        "toponyms": [
-                            {
-                                "text": "Andorra",
-                                "start": 0,
-                                "end": 7,
-                                "loc_id": "",
-                            }
-                        ],
-                    }
-                ],
-            },
-        }
-        sessions_cache.save(session["session_id"], session)
+        set_session(session_id)
     # call endpoint for first time
     response = client.post(f"/delete_session/{session_id}")
     if not valid_session:
@@ -490,28 +433,7 @@ def test_add_documents(
 ):
     session_id = "add_documents"
     if valid_session:
-        session = {
-            **get_session("geonames"),
-            **{
-                "session_id": f"{session_id}",
-                "documents": [
-                    {
-                        "filename": "test.txt",
-                        "spacy_model": "en_core_web_sm",
-                        "text": "Andorra is as nice as Andorra.",
-                        "toponyms": [
-                            {
-                                "text": "Andorra",
-                                "start": 0,
-                                "end": 7,
-                                "loc_id": "",
-                            }
-                        ],
-                    }
-                ],
-            },
-        }
-        sessions_cache.save(session["session_id"], session)
+        set_session(session_id)
     filename = "annotator_doc0.txt"
     files = (
         {"files[]": [(open(get_static_test_file(filename), "rb"), filename)]}
@@ -543,28 +465,7 @@ def test_add_documents(
 def test_remove_document(client: FlaskClient, valid_session: bool, doc_index: int):
     session_id = "remove_document"
     if valid_session:
-        session = {
-            **get_session("geonames"),
-            **{
-                "session_id": f"{session_id}",
-                "documents": [
-                    {
-                        "filename": "test.txt",
-                        "spacy_model": "en_core_web_sm",
-                        "text": "Andorra is as nice as Andorra.",
-                        "toponyms": [
-                            {
-                                "text": "Andorra",
-                                "start": 0,
-                                "end": 7,
-                                "loc_id": "",
-                            }
-                        ],
-                    }
-                ],
-            },
-        }
-        sessions_cache.save(session["session_id"], session)
+        set_session(session_id)
     response = client.post(
         "/remove_document",
         json={"session_id": session_id, "doc_index": doc_index},
@@ -590,21 +491,7 @@ def test_delete_annotation(
     session_id = "delete_annotation"
     toponyms = [{"text": "Andorra", "start": 0, "end": 7, "loc_id": ""}]
     if valid_session:
-        session = {
-            **get_session("geonames"),
-            **{
-                "session_id": session_id,
-                "documents": [
-                    {
-                        "filename": "test.txt",
-                        "spacy_model": "en_core_web_sm",
-                        "text": "Andorra is nice.",
-                        "toponyms": toponyms,
-                    }
-                ],
-            },
-        }
-        sessions_cache.save(session["session_id"], session)
+        set_session(session_id)
     data = {
         "session_id": session_id,
         "doc_index": 0,
@@ -638,21 +525,7 @@ def test_edit_annotation(client: FlaskClient, valid_session: bool, valid_toponym
     session_id = "delete_annotation"
     toponyms = [{"text": "Andorra", "start": 0, "end": 7, "loc_id": "123"}]
     if valid_session:
-        session = {
-            **get_session("geonames"),
-            **{
-                "session_id": session_id,
-                "documents": [
-                    {
-                        "filename": "test.txt",
-                        "spacy_model": "en_core_web_sm",
-                        "text": "Andorra la Vella is nice.",
-                        "toponyms": toponyms,
-                    }
-                ],
-            },
-        }
-        sessions_cache.save(session["session_id"], session)
+        set_session(session_id, toponyms=toponyms)
     data = {
         "session_id": session_id,
         "doc_index": 0,
@@ -689,21 +562,7 @@ def test_create_annotation(
     session_id = "create_annotation"
     toponyms = [{"text": "Andorra", "start": 0, "end": 7, "loc_id": ""}]
     if valid_session:
-        session = {
-            **get_session("geonames"),
-            **{
-                "session_id": session_id,
-                "documents": [
-                    {
-                        "filename": "test.txt",
-                        "spacy_model": "en_core_web_sm",
-                        "text": "Andorra is as nice as Andorra.",
-                        "toponyms": toponyms,
-                    }
-                ],
-            },
-        }
-        sessions_cache.save(session["session_id"], session)
+        set_session(session_id, toponyms=toponyms)
     data = {
         "session_id": session_id,
         "doc_index": 0,
@@ -736,21 +595,9 @@ def test_get_document_text(client: FlaskClient, valid_session: bool):
     session_id = "get_document_text"
     toponyms = [{"text": "Andorra", "start": 0, "end": 7, "loc_id": ""}]
     if valid_session:
-        session = {
-            **get_session("geonames"),
-            **{
-                "session_id": session_id,
-                "documents": [
-                    {
-                        "filename": "test.txt",
-                        "spacy_model": "en_core_web_sm",
-                        "text": "Andorra is as nice as Andorra.",
-                        "toponyms": toponyms,
-                    }
-                ],
-            },
-        }
-        sessions_cache.save(session["session_id"], session)
+        set_session(
+            session_id, toponyms=toponyms, text="Andorra is as nice as Andorra."
+        )
     data = {
         "session_id": session_id,
         "doc_index": 0,
@@ -778,21 +625,7 @@ def test_get_document_progress(client: FlaskClient, valid_session: bool, loc_id:
     session_id = "get_document_progress"
     toponyms = [{"text": "Andorra", "start": 0, "end": 7, "loc_id": loc_id}]
     if valid_session:
-        session = {
-            **get_session("geonames"),
-            **{
-                "session_id": session_id,
-                "documents": [
-                    {
-                        "filename": "test.txt",
-                        "spacy_model": "en_core_web_sm",
-                        "text": "Andorra is as nice as Andorra.",
-                        "toponyms": toponyms,
-                    }
-                ],
-            },
-        }
-        sessions_cache.save(session["session_id"], session)
+        set_session(session_id, toponyms=toponyms)
     data = {
         "session_id": session_id,
         "doc_index": 0,
@@ -819,23 +652,8 @@ def test_get_document_progress(client: FlaskClient, valid_session: bool, loc_id:
 @pytest.mark.parametrize("valid_session", [True, False])
 def test_get_session_settings(client: FlaskClient, valid_session: bool):
     session_id = "get_session_settings"
-    toponyms = [{"text": "Andorra", "start": 0, "end": 7, "loc_id": ""}]
     if valid_session:
-        session = {
-            **get_session("geonames"),
-            **{
-                "session_id": session_id,
-                "documents": [
-                    {
-                        "filename": "test.txt",
-                        "spacy_model": "en_core_web_sm",
-                        "text": "Andorra is as nice as Andorra.",
-                        "toponyms": toponyms,
-                    }
-                ],
-            },
-        }
-        sessions_cache.save(session["session_id"], session)
+        set_session(session_id)
     data = {
         "session_id": session_id,
     }
@@ -855,28 +673,12 @@ def test_get_session_settings(client: FlaskClient, valid_session: bool):
 @pytest.mark.parametrize("valid_session", [True, False])
 def test_update_settings(client: FlaskClient, valid_session: bool):
     session_id = "update_settings"
-    toponyms = [{"text": "Andorra", "start": 0, "end": 7, "loc_id": ""}]
     if valid_session:
         old_settings = {
             "one_sense_per_discourse": False,
             "auto_close_annotation_modal": False,
         }
-        session = {
-            **get_session("geonames"),
-            **{
-                "session_id": session_id,
-                "documents": [
-                    {
-                        "filename": "test.txt",
-                        "spacy_model": "en_core_web_sm",
-                        "text": "Andorra is as nice as Andorra.",
-                        "toponyms": toponyms,
-                    }
-                ],
-                "settings": old_settings,
-            },
-        }
-        sessions_cache.save(session["session_id"], session)
+        set_session(session_id, settings=old_settings)
         # check if old settings are in place
         assert sessions_cache.load(session_id)["settings"] == old_settings
     new_settings = {
