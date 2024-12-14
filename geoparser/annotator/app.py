@@ -365,7 +365,7 @@ def delete_annotation():
     total_toponyms = len(toponyms)
     annotated_toponyms = sum(1 for t in toponyms if t["loc_id"] != "")
     progress_percentage = (
-        (annotated_toponyms / total_toponyms) * 100 if total_toponyms > 0 else 0
+        (annotated_toponyms / total_toponyms) * 100 if total_toponyms > 0 else 0.0
     )
 
     return jsonify(
