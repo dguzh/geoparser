@@ -5,9 +5,7 @@ import threading
 import uuid
 import webbrowser
 from datetime import datetime
-from pathlib import Path
 
-import spacy
 from appdirs import user_data_dir
 from flask import (
     Flask,
