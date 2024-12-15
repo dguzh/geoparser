@@ -36,4 +36,4 @@ jobs:
       - name: Install project dependencies
         run: poetry install
       - name: Check unused imports with pylint
-        run: pylint --disable=all --enable=W0611 geoparser/
+        run: pylint --disable=all --enable=W0611 geoparser/ tests/
