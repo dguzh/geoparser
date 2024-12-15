@@ -140,7 +140,7 @@ def test_create_location_description_divisions(
 
 
 def test_read_file(swissnames3d_patched: SwissNames3D, test_chunk_shp: pd.DataFrame):
-    file = get_static_test_file("minimal.shp")
+    file = get_static_test_file("gazetteers/swissnames_minimal/minimal.shp")
     columns = [
         "UUID",
         "OBJEKTART",
