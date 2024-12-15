@@ -30,6 +30,7 @@ pydantic = "^2.9.2"
 geopandas = "^1.0.1"
 flask = "^3.1.0"
 typer = "^0.12.5"
+flask-jsglue = {git = "https://github.com/Centers-Health/Flask-JSGlue.git"}
 
 
 [tool.poetry.group.dev.dependencies]
@@ -62,5 +63,12 @@ exclude_also = [
     ]
 
 [tool.coverage.run]
+source = ["geoparser"]
 omit = ["tests/*"]
 relative_files = true
+
+[tool.coverage.paths]
+source = [
+    'geoparser/',
+    'geoparser\',
+]
