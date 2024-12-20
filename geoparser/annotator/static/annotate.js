@@ -50,44 +50,42 @@ document.addEventListener('DOMContentLoaded', function() {
     var autoCloseAnnotationModalCheckbox = document.getElementById('auto-close-annotation-modal');
 
     // Fetch session settings
-    fetch(Flask.url_for("get_session_settings"), {
-        method: 'POST',
+    fetch(Flask.url_for("get_session_settings", {session_id: sessionId}), {
+        method: 'GET',
         headers: {
             'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-            'session_id': sessionId
-        })
+        }
     })
-    .then(response => response.json())
-    .then(data => {
-        if (data.status === 'success') {
-            sessionSettings = data.settings;
+    .then(response => {
+        if (response.status === 200) {
+            return response.json()
         } else {
             alert('Failed to load settings.');
         }
+    })
+    .then(data => {
+        sessionSettings = data;
     });
 
     settingsBtn.addEventListener('click', function() {
         // Load current settings from the server
-        fetch(Flask.url_for("get_session_settings"), {
-            method: 'POST',
+        fetch(Flask.url_for("get_session_settings", {session_id: sessionId}), {
+            method: 'GET',
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({
-                'session_id': sessionId
-            })
         })
-        .then(response => response.json())
-        .then(data => {
-            if (data.status === 'success') {
-                oneSensePerDiscourseCheckbox.checked = data.settings.one_sense_per_discourse;
-                autoCloseAnnotationModalCheckbox.checked = data.settings.auto_close_annotation_modal;
-                settingsModal.show();
+        .then(response => {
+            if (response.status === 200) {
+                return response.json()
             } else {
                 alert('Failed to load settings.');
             }
+        })
+        .then(data => {
+            oneSensePerDiscourseCheckbox.checked = data.one_sense_per_discourse;
+            autoCloseAnnotationModalCheckbox.checked = data.auto_close_annotation_modal;
+            settingsModal.show();
         });
     });
 
@@ -101,15 +99,12 @@ document.addEventListener('DOMContentLoaded', function() {
             'auto_close_annotation_modal': autoCloseAnnotationModal
         };
 
-        fetch(Flask.url_for("update_settings"), {
-            method: 'POST',
+        fetch(Flask.url_for("put_session_settings", {session_id: sessionId}), {
+            method: 'PUT',
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({
-                'session_id': sessionId,
-                'settings': settingsData
-            })
+            body: JSON.stringify(settingsData)
         })
         .then(response => response.json())
         .then(data => {

@@ -1,6 +1,6 @@
 function deleteSession(sessionId) {
     if (confirm('Are you sure you want to delete this session?')) {
-        fetch(Flask.url_for('delete_session', {session_id:''}) + sessionId, {
+        fetch(Flask.url_for('delete_session', {session_id: sessionId}), {
             method: 'POST'
         })
         .then(response => {

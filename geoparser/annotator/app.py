@@ -531,11 +531,8 @@ def get_document_progress():
     )
 
 
-@app.post("/get_session_settings")
-def get_session_settings():
-    data = request.json
-    session_id = data["session_id"]
-
+@app.get("/session/<session_id>/settings")
+def get_session_settings(session_id):
     session = sessions_cache.load(session_id)
     if not session:
         return jsonify({"status": "error", "error": "Session not found"}), 404
@@ -548,14 +545,12 @@ def get_session_settings():
         },
     )
 
-    return jsonify({"status": "success", "settings": settings})
+    return jsonify(settings)
 
 
-@app.post("/update_settings")
-def update_settings():
-    data = request.json
-    session_id = data["session_id"]
-    settings = data["settings"]
+@app.put("/session/<session_id>/settings")
+def put_session_settings(session_id):
+    settings = request.json
 
     session = sessions_cache.load(session_id)
     if not session:
