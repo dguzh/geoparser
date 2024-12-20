@@ -654,12 +654,8 @@ def test_get_session_settings(client: FlaskClient, valid_session: bool):
     session_id = "get_session_settings"
     if valid_session:
         set_session(session_id)
-    data = {
-        "session_id": session_id,
-    }
-    response = client.post(
-        "/get_session_settings",
-        json=data,
+    response = client.get(
+        f"/session/{session_id}/settings",
         content_type="application/json",
     )
     if not valid_session:
@@ -685,10 +681,9 @@ def test_update_settings(client: FlaskClient, valid_session: bool):
         "auto_close_annotation_modal": True,
         "one_sense_per_discourse": True,
     }
-    data = {"session_id": session_id, "settings": new_settings}
-    response = client.post(
-        "/update_settings",
-        json=data,
+    response = client.put(
+        f"/session/{session_id}/settings",
+        json=new_settings,
         content_type="application/json",
     )
     if not valid_session:
