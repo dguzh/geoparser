@@ -53,7 +53,7 @@ def index():
 
 
 @app.get("/start_new_session")
-def start_new_session_get():
+def start_new_session():
     gazetteers = GAZETTEERS
     return render_template(
         "start_new_session.html",
@@ -62,78 +62,10 @@ def start_new_session_get():
     )
 
 
-@app.post("/start_new_session")
-def start_new_session_post():
-    uploaded_files = request.files.getlist("files[]")
-
-    # Get selected gazetteer and spacy model
-    selected_gazetteer = request.form.get("gazetteer")
-    selected_spacy_model = request.form.get("spacy_model")
-
-    # Re-initialize gazetteer with selected option
-    annotator.gazetteer = annotator.setup_gazetteer(selected_gazetteer)
-
-    # Process uploaded files and create a new session
-    session = get_session(selected_gazetteer)
-    for document in annotator.parse_files(uploaded_files, selected_spacy_model):
-        session["documents"].append(document)
-
-    # Save session to cache
-    sessions_cache.save(session["session_id"], session)
-
-    return redirect(url_for("annotate", session_id=session["session_id"], doc_index=0))
-
-
 @app.get("/continue_session")
-def continue_session_get():
+def continue_session():
     cached_sessions = sessions_cache.get_cached_sessions()
     return render_template("continue_session.html", cached_sessions=cached_sessions)
-
-
-@app.post("/continue_session")
-def continue_session_post():
-    action = request.form.get("action")
-    if action == "load_cached":
-        selected_session_id = request.form.get("cached_session")
-        if not selected_session_id:
-            return redirect(url_for("continue_session_get"))
-
-        # Load selected session directly without creating a new session
-        session = sessions_cache.load(selected_session_id)
-        if not session:
-            return redirect(url_for("continue_session_get"))
-
-        # Re-initialize gazetteer
-        annotator.gazetteer = annotator.setup_gazetteer(session["gazetteer"])
-
-        # Redirect to annotate page
-        return redirect(
-            url_for("annotate", session_id=selected_session_id, doc_index=0)
-        )
-
-    elif action == "load_file":
-        # Handle uploaded session file
-        session_file = request.files.get("session_file")
-        if session_file and session_file.filename:
-            session_data = json.load(session_file.stream)
-            session_id = session_data.get("session_id")
-            if not session_id:
-                # Generate a new session_id if not present
-                session_id = uuid.uuid4().hex
-                session_data["session_id"] = session_id
-
-            # Save session to cache
-            sessions_cache.save(session_id, session_data)
-
-            # Re-initialize gazetteer
-            annotator.gazetteer = annotator.setup_gazetteer(session_data["gazetteer"])
-
-            # Redirect to annotate page
-            return redirect(url_for("annotate", session_id=session_id, doc_index=0))
-        else:
-            return redirect(url_for("continue_session_get"))
-    else:
-        return redirect(url_for("continue_session_get"))
 
 
 @app.get("/annotate/<session_id>")
@@ -171,6 +103,74 @@ def annotate(session_id):
         annotated_toponyms=annotated_toponyms,
         spacy_models=spacy_models,  # Include spaCy models for the modal
     )
+
+
+@app.post("/start_new_session")
+def start_new_session_post():
+    uploaded_files = request.files.getlist("files[]")
+
+    # Get selected gazetteer and spacy model
+    selected_gazetteer = request.form.get("gazetteer")
+    selected_spacy_model = request.form.get("spacy_model")
+
+    # Re-initialize gazetteer with selected option
+    annotator.gazetteer = annotator.setup_gazetteer(selected_gazetteer)
+
+    # Process uploaded files and create a new session
+    session = get_session(selected_gazetteer)
+    for document in annotator.parse_files(uploaded_files, selected_spacy_model):
+        session["documents"].append(document)
+
+    # Save session to cache
+    sessions_cache.save(session["session_id"], session)
+
+    return redirect(url_for("annotate", session_id=session["session_id"], doc_index=0))
+
+
+@app.post("/continue_session")
+def continue_session_post():
+    action = request.form.get("action")
+    if action == "load_cached":
+        selected_session_id = request.form.get("cached_session")
+        if not selected_session_id:
+            return redirect(url_for("continue_session"))
+
+        # Load selected session directly without creating a new session
+        session = sessions_cache.load(selected_session_id)
+        if not session:
+            return redirect(url_for("continue_session"))
+
+        # Re-initialize gazetteer
+        annotator.gazetteer = annotator.setup_gazetteer(session["gazetteer"])
+
+        # Redirect to annotate page
+        return redirect(
+            url_for("annotate", session_id=selected_session_id, doc_index=0)
+        )
+
+    elif action == "load_file":
+        # Handle uploaded session file
+        session_file = request.files.get("session_file")
+        if session_file and session_file.filename:
+            session_data = json.load(session_file.stream)
+            session_id = session_data.get("session_id")
+            if not session_id:
+                # Generate a new session_id if not present
+                session_id = uuid.uuid4().hex
+                session_data["session_id"] = session_id
+
+            # Save session to cache
+            sessions_cache.save(session_id, session_data)
+
+            # Re-initialize gazetteer
+            annotator.gazetteer = annotator.setup_gazetteer(session_data["gazetteer"])
+
+            # Redirect to annotate page
+            return redirect(url_for("annotate", session_id=session_id, doc_index=0))
+        else:
+            return redirect(url_for("continue_session"))
+    else:
+        return redirect(url_for("continue_session"))
 
 
 @app.post("/get_candidates")
