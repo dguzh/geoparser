@@ -127,6 +127,15 @@ def post_session():
     return redirect(url_for("annotate", session_id=session["session_id"], doc_index=0))
 
 
+@app.delete("/session/<session_id>")
+def delete_session(session_id):
+    success = sessions_cache.delete(session_id)
+    if success:
+        return jsonify({"status": "success"})
+    else:
+        return jsonify({"message": "Session not found.", "status": "error"})
+
+
 @app.post("/session/continue/cached")
 def continue_session_cached():
     selected_session_id = request.form.get("cached_session")
@@ -272,15 +281,6 @@ def download_annotations(session_id):
         as_attachment=True,
         download_name=f"annotations_{session_id}.json",
     )
-
-
-@app.post("/delete_session/<session_id>")
-def delete_session(session_id):
-    success = sessions_cache.delete(session_id)
-    if success:
-        return jsonify({"status": "success"})
-    else:
-        return jsonify({"message": "Session not found.", "status": "error"})
 
 
 @app.post("/add_documents")
