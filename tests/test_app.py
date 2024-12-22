@@ -134,10 +134,10 @@ def test_start_new_session_get(client: FlaskClient):
     assert b"<title>Start New Session</title>" in response.data
 
 
-def test_start_new_session_post(client: FlaskClient):
+def test_post_session(client: FlaskClient):
     filename = "annotator_doc0.txt"
     response = client.post(
-        "/start_new_session",
+        "/session",
         data={
             "gazetteer": "geonames",
             "spacy_model": "en_core_web_sm",
@@ -667,7 +667,7 @@ def test_get_session_settings(client: FlaskClient, valid_session: bool):
 
 
 @pytest.mark.parametrize("valid_session", [True, False])
-def test_update_settings(client: FlaskClient, valid_session: bool):
+def test_put_session_settings(client: FlaskClient, valid_session: bool):
     session_id = "update_settings"
     if valid_session:
         old_settings = {
