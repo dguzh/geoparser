@@ -1,5 +1,3 @@
-import pytest
-
 from geoparser.geodoc import GeoDoc
 from geoparser.geospan import GeoSpan
 

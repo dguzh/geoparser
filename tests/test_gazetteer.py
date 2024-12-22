@@ -1,7 +1,6 @@
 import sqlite3
 import tempfile
 import typing as t
-from difflib import get_close_matches
 from pathlib import Path
 
 import py
