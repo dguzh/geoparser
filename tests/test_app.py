@@ -395,7 +395,7 @@ def test_delete_session(client: FlaskClient, valid_session: bool):
     if valid_session:
         set_session(session_id)
     # call endpoint for first time
-    response = client.post(f"/delete_session/{session_id}")
+    response = client.delete(f"/session/{session_id}")
     if not valid_session:
         # delete fails if there is no session in the first place
         validate_json_response(
@@ -405,7 +405,7 @@ def test_delete_session(client: FlaskClient, valid_session: bool):
         # first delete is successful
         validate_json_response(response, 200, {"status": "success"})
         # second delete fails
-        second_response = client.post(f"/delete_session/{session_id}")
+        second_response = client.delete(f"/session/{session_id}")
         validate_json_response(
             second_response, 200, {"message": "Session not found.", "status": "error"}
         )
