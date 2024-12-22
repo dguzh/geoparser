@@ -105,8 +105,8 @@ def annotate(session_id):
     )
 
 
-@app.post("/start_new_session")
-def start_new_session_post():
+@app.post("/session")
+def post_session():
     uploaded_files = request.files.getlist("files[]")
 
     # Get selected gazetteer and spacy model
