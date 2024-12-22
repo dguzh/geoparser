@@ -127,48 +127,44 @@ def post_session():
     return redirect(url_for("annotate", session_id=session["session_id"], doc_index=0))
 
 
-@app.post("/continue_session")
-def continue_session_post():
-    action = request.form.get("action")
-    if action == "load_cached":
-        selected_session_id = request.form.get("cached_session")
-        if not selected_session_id:
-            return redirect(url_for("continue_session"))
+@app.post("/session/continue/cached")
+def continue_session_cached():
+    selected_session_id = request.form.get("cached_session")
+    if not selected_session_id:
+        return redirect(url_for("continue_session"))
 
-        # Load selected session directly without creating a new session
-        session = sessions_cache.load(selected_session_id)
-        if not session:
-            return redirect(url_for("continue_session"))
+    # Load selected session directly without creating a new session
+    session = sessions_cache.load(selected_session_id)
+    if not session:
+        return redirect(url_for("continue_session"))
+
+    # Re-initialize gazetteer
+    annotator.gazetteer = annotator.setup_gazetteer(session["gazetteer"])
+
+    # Redirect to annotate page
+    return redirect(url_for("annotate", session_id=selected_session_id, doc_index=0))
+
+
+@app.post("/session/continue/file")
+def continue_session_file():
+    # Handle uploaded session file
+    session_file = request.files.get("session_file")
+    if session_file and session_file.filename:
+        session_data = json.load(session_file.stream)
+        session_id = session_data.get("session_id")
+        if not session_id:
+            # Generate a new session_id if not present
+            session_id = uuid.uuid4().hex
+            session_data["session_id"] = session_id
+
+        # Save session to cache
+        sessions_cache.save(session_id, session_data)
 
         # Re-initialize gazetteer
-        annotator.gazetteer = annotator.setup_gazetteer(session["gazetteer"])
+        annotator.gazetteer = annotator.setup_gazetteer(session_data["gazetteer"])
 
         # Redirect to annotate page
-        return redirect(
-            url_for("annotate", session_id=selected_session_id, doc_index=0)
-        )
-
-    elif action == "load_file":
-        # Handle uploaded session file
-        session_file = request.files.get("session_file")
-        if session_file and session_file.filename:
-            session_data = json.load(session_file.stream)
-            session_id = session_data.get("session_id")
-            if not session_id:
-                # Generate a new session_id if not present
-                session_id = uuid.uuid4().hex
-                session_data["session_id"] = session_id
-
-            # Save session to cache
-            sessions_cache.save(session_id, session_data)
-
-            # Re-initialize gazetteer
-            annotator.gazetteer = annotator.setup_gazetteer(session_data["gazetteer"])
-
-            # Redirect to annotate page
-            return redirect(url_for("annotate", session_id=session_id, doc_index=0))
-        else:
-            return redirect(url_for("continue_session"))
+        return redirect(url_for("annotate", session_id=session_id, doc_index=0))
     else:
         return redirect(url_for("continue_session"))
 
