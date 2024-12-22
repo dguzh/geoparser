@@ -165,17 +165,17 @@ def test_continue_session_get(client: FlaskClient):
 
 @pytest.mark.parametrize("cached_session", [None, "test_load_cached"])
 @pytest.mark.parametrize("file_exists", [True, False])
-def test_continue_session_post_load_cached(
+def test_continue_session_cached(
     client: FlaskClient, cached_session: str, file_exists: bool, monkeypatch
 ):
     if file_exists and cached_session:
         session = {**get_session("geonames"), **{"session_id": cached_session}}
         sessions_cache.save(session["session_id"], session)
-    data = {"action": "load_cached"}
+    data = {}
     if cached_session:
         data = {**data, **{"cached_session": cached_session}}
     response = client.post(
-        "/continue_session",
+        "/session/continue/cached",
         data=data,
         content_type="multipart/form-data",
     )
@@ -195,9 +195,7 @@ def test_continue_session_post_load_cached(
 
 @pytest.mark.parametrize("file", [True, False])
 @pytest.mark.parametrize("session_id", ["", "test_session"])
-def test_continue_session_post_load_file(
-    client: FlaskClient, file: bool, session_id: bool
-):
+def test_continue_session_file(client: FlaskClient, file: bool, session_id: bool):
     data = {"action": "load_file"}
     if file:
         file_content = {
@@ -230,7 +228,7 @@ def test_continue_session_post_load_file(
             },
         }
     response = client.post(
-        "/continue_session",
+        "/session/continue/file",
         data=data,
         content_type="multipart/form-data",
     )
@@ -243,18 +241,6 @@ def test_continue_session_post_load_file(
     else:
         assert response.status_code == 302
         assert b'<a href="/continue_session">/continue_session</a>' in response.data
-
-
-def test_continue_session_post_bad_action(client: FlaskClient):
-    # bad action always redirects to continue_session
-    data = {"action": "bad_action"}
-    response = client.post(
-        "/continue_session",
-        data=data,
-        content_type="multipart/form-data",
-    )
-    assert response.status_code == 302
-    assert b'<a href="/continue_session">/continue_session</a>' in response.data
 
 
 @pytest.mark.parametrize("valid_session", [True, False])
