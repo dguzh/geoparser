@@ -291,17 +291,15 @@ def test_get_candidates(
     toponyms = [{"text": "Andorra", "start": 0, "end": 7, "loc_id": ""}]
     if valid_session:
         set_session(session_id, toponyms=toponyms)
-    data = {
-        "session_id": session_id,
-        "doc_index": 0,
+    params = {
         "query_text": toponyms[0]["text"],
         "text": toponyms[0]["text"],
         "start": toponyms[0]["start"] if valid_toponym else 99,
         "end": toponyms[0]["end"] if valid_toponym else 100,
     }
-    response = client.post(
-        "/get_candidates",
-        json=data,
+    response = client.get(
+        f"/session/{session_id}/document/{0}/candidates",
+        query_string=params,
         content_type="application/json",
     )
     if not valid_session:

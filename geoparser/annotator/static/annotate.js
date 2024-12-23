@@ -668,17 +668,16 @@ document.addEventListener('DOMContentLoaded', function() {
                 lastQueryText = queryText; // Store the last query text
             }
 
-            fetch(Flask.url_for("get_candidates"), {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    'session_id': sessionId,
-                    'doc_index': docIndex,
-                    'start': currentToponym.start,
-                    'end': currentToponym.end,
-                    'text': currentToponym.text,
-                    'query_text': queryText
-                })
+            fetch(Flask.url_for("get_candidates", {
+                'session_id': sessionId,
+                'doc_index': docIndex,
+                'start': currentToponym.start,
+                'end': currentToponym.end,
+                'text': currentToponym.text,
+                'query_text': queryText
+            }), {
+                method: 'GET',
+                headers: { 'Content-Type': 'application/json' }
             })
             .then(response => response.json())
             .then(data => {

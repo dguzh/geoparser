@@ -178,15 +178,13 @@ def continue_session_file():
         return redirect(url_for("continue_session"))
 
 
-@app.post("/get_candidates")
-def get_candidates():
-    data = request.json
-    session_id = data["session_id"]
-    doc_index = data["doc_index"]
-    start = data["start"]
-    end = data["end"]
-    toponym_text = data["text"]
-    query_text = data.get("query_text", "").strip()
+@app.get("/session/<session_id>/document/<doc_index>/candidates")
+def get_candidates(session_id, doc_index):
+    doc_index = int(doc_index)
+    start = int(request.args.get("start", 0))
+    end = int(request.args.get("end", 0))
+    toponym_text = request.args.get("text", "")
+    query_text = request.args.get("query_text", "").strip()
 
     session = sessions_cache.load(session_id)
     if not session:
