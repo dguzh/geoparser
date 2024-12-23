@@ -426,8 +426,8 @@ def test_add_documents(
     )
     model = {"spacy_model": "en_core_web_sm"} if spacy_model else {}
     response = client.post(
-        "/add_documents",
-        data={"gazetteer": "geonames", "session_id": session_id, **files, **model},
+        f"/session/{session_id}/documents",
+        data={**files, **model},
         content_type="multipart/form-data",
     )
     if not valid_session:
@@ -450,9 +450,8 @@ def test_remove_document(client: FlaskClient, valid_session: bool, doc_index: in
     session_id = "remove_document"
     if valid_session:
         set_session(session_id)
-    response = client.post(
-        "/remove_document",
-        json={"session_id": session_id, "doc_index": doc_index},
+    response = client.delete(
+        f"/session/{session_id}/document/{doc_index}",
         content_type="application/json",
     )
     if not valid_session:
@@ -582,13 +581,8 @@ def test_get_document_text(client: FlaskClient, valid_session: bool):
         set_session(
             session_id, toponyms=toponyms, text="Andorra is as nice as Andorra."
         )
-    data = {
-        "session_id": session_id,
-        "doc_index": 0,
-    }
-    response = client.post(
-        "/get_document_text",
-        json=data,
+    response = client.get(
+        f"/session/{session_id}/document/{0}/text",
         content_type="application/json",
     )
     if not valid_session:
@@ -610,13 +604,8 @@ def test_get_document_progress(client: FlaskClient, valid_session: bool, loc_id:
     toponyms = [{"text": "Andorra", "start": 0, "end": 7, "loc_id": loc_id}]
     if valid_session:
         set_session(session_id, toponyms=toponyms)
-    data = {
-        "session_id": session_id,
-        "doc_index": 0,
-    }
-    response = client.post(
-        "/get_document_progress",
-        json=data,
+    response = client.get(
+        f"/session/{session_id}/document/{0}/progress",
         content_type="application/json",
     )
     if not valid_session:
