@@ -424,15 +424,14 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Function to reload the document text from the server
     function reloadDocumentText() {
-        fetch(Flask.url_for("get_document_text"), {
-            method: 'POST',
+        fetch(Flask.url_for("get_document_text", {
+            'session_id': sessionId,
+            'doc_index': docIndex
+        }), {
+            method: 'GET',
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({
-                'session_id': sessionId,
-                'doc_index': docIndex
-            })
         })
         .then(response => response.json())
         .then(data => {
@@ -455,15 +454,14 @@ document.addEventListener('DOMContentLoaded', function() {
     // Function to update progress bar
     function updateProgressBar() {
         // Fetch updated progress from the server
-        fetch(Flask.url_for("get_document_progress"), {
-            method: 'POST',
+        fetch(Flask.url_for("get_document_progress", {
+            'session_id': sessionId,
+            'doc_index': docIndex
+        }), {
+            method: 'GET',
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({
-                'session_id': sessionId,
-                'doc_index': docIndex
-            })
         })
         .then(response => response.json())
         .then(data => {
@@ -1082,9 +1080,8 @@ document.addEventListener('DOMContentLoaded', function() {
     addDocumentForm.addEventListener('submit', function(event) {
         event.preventDefault();
         var formData = new FormData(addDocumentForm);
-        formData.append('session_id', sessionId);
 
-        fetch(Flask.url_for("add_documents"), {
+        fetch(Flask.url_for("add_documents", {"session_id": sessionId}), {
             method: 'POST',
             body: formData
         })
@@ -1105,15 +1102,14 @@ document.addEventListener('DOMContentLoaded', function() {
         btn.addEventListener('click', function(event) {
             var docIndexToRemove = btn.getAttribute('data-doc-index');
             if (confirm('Are you sure you want to remove this document? All annotations for this document will be lost.')) {
-                fetch(Flask.url_for("remove_document"), {
-                    method: 'POST',
+                fetch(Flask.url_for("delete_document", {
+                    'session_id': sessionId,
+                    'doc_index': docIndexToRemove
+                }), {
+                    method: 'DELETE',
                     headers: {
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify({
-                        'session_id': sessionId,
-                        'doc_index': docIndexToRemove
-                    })
                 })
                 .then(response => response.json())
                 .then(data => {

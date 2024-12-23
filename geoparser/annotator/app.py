@@ -178,6 +178,92 @@ def continue_session_file():
         return redirect(url_for("continue_session"))
 
 
+@app.post("/session/<session_id>/documents")
+def add_documents(session_id):
+    session = sessions_cache.load(session_id)
+    if not session:
+        return jsonify({"message": "Session not found.", "status": "error"})
+
+    uploaded_files = request.files.getlist("files[]")
+    selected_spacy_model = request.form.get("spacy_model")
+
+    if not uploaded_files or not selected_spacy_model:
+        return jsonify(
+            {"message": "No files or SpaCy model selected.", "status": "error"}
+        )
+
+    # Process uploaded files
+    for document in annotator.parse_files(uploaded_files, selected_spacy_model):
+        session["documents"].append(document)
+
+    # Save updated session
+    sessions_cache.save(session_id, session)
+
+    return jsonify({"status": "success"})
+
+
+@app.delete("/session/<session_id>/document/<doc_index>")
+def delete_document(session_id, doc_index):
+    doc_index = int(doc_index)
+
+    session = sessions_cache.load(session_id)
+    if not session:
+        return jsonify({"message": "Session not found.", "status": "error"})
+
+    if 0 <= doc_index < len(session["documents"]):
+        # Remove the document
+        del session["documents"][doc_index]
+
+        # Save updated session
+        sessions_cache.save(session_id, session)
+
+        return jsonify({"status": "success"})
+    else:
+        return jsonify({"message": "Invalid document index.", "status": "error"})
+
+
+@app.get("/session/<session_id>/document/<doc_index>/text")
+def get_document_text(session_id, doc_index):
+    doc_index = int(doc_index)
+
+    session = sessions_cache.load(session_id)
+    if not session:
+        return jsonify({"error": "Session not found", "status": "error"}), 404
+
+    doc = session["documents"][doc_index]
+
+    # Prepare pre-annotated text
+    pre_annotated_text = annotator.get_pre_annotated_text(doc["text"], doc["toponyms"])
+
+    return jsonify({"status": "success", "pre_annotated_text": pre_annotated_text})
+
+
+@app.get("/session/<session_id>/document/<doc_index>/progress")
+def get_document_progress(session_id, doc_index):
+    doc_index = int(doc_index)
+
+    session = sessions_cache.load(session_id)
+    if not session:
+        return jsonify({"error": "Session not found", "status": "error"}), 404
+
+    doc = session["documents"][doc_index]
+    toponyms = doc["toponyms"]
+    total_toponyms = len(toponyms)
+    annotated_toponyms = sum(1 for t in toponyms if t["loc_id"] != "")
+    progress_percentage = (
+        (annotated_toponyms / total_toponyms) * 100 if total_toponyms > 0 else 0
+    )
+
+    return jsonify(
+        {
+            "status": "success",
+            "annotated_toponyms": annotated_toponyms,
+            "total_toponyms": total_toponyms,
+            "progress_percentage": progress_percentage,
+        }
+    )
+
+
 @app.get("/session/<session_id>/document/<doc_index>/candidates")
 def get_candidates(session_id, doc_index):
     doc_index = int(doc_index)
@@ -279,53 +365,6 @@ def download_annotations(session_id):
         as_attachment=True,
         download_name=f"annotations_{session_id}.json",
     )
-
-
-@app.post("/add_documents")
-def add_documents():
-    session_id = request.form.get("session_id")
-    session = sessions_cache.load(session_id)
-    if not session:
-        return jsonify({"message": "Session not found.", "status": "error"})
-
-    uploaded_files = request.files.getlist("files[]")
-    selected_spacy_model = request.form.get("spacy_model")
-
-    if not uploaded_files or not selected_spacy_model:
-        return jsonify(
-            {"message": "No files or SpaCy model selected.", "status": "error"}
-        )
-
-    # Process uploaded files
-    for document in annotator.parse_files(uploaded_files, selected_spacy_model):
-        session["documents"].append(document)
-
-    # Save updated session
-    sessions_cache.save(session_id, session)
-
-    return jsonify({"status": "success"})
-
-
-@app.post("/remove_document")
-def remove_document():
-    data = request.json
-    session_id = data.get("session_id")
-    doc_index = int(data.get("doc_index"))
-
-    session = sessions_cache.load(session_id)
-    if not session:
-        return jsonify({"message": "Session not found.", "status": "error"})
-
-    if 0 <= doc_index < len(session["documents"]):
-        # Remove the document
-        del session["documents"][doc_index]
-
-        # Save updated session
-        sessions_cache.save(session_id, session)
-
-        return jsonify({"status": "success"})
-    else:
-        return jsonify({"message": "Invalid document index.", "status": "error"})
 
 
 @app.post("/delete_annotation")
@@ -463,52 +502,6 @@ def create_annotation():
     sessions_cache.save(session_id, session)
 
     # Recalculate progress for the current document
-    total_toponyms = len(toponyms)
-    annotated_toponyms = sum(1 for t in toponyms if t["loc_id"] != "")
-    progress_percentage = (
-        (annotated_toponyms / total_toponyms) * 100 if total_toponyms > 0 else 0
-    )
-
-    return jsonify(
-        {
-            "status": "success",
-            "annotated_toponyms": annotated_toponyms,
-            "total_toponyms": total_toponyms,
-            "progress_percentage": progress_percentage,
-        }
-    )
-
-
-@app.post("/get_document_text")
-def get_document_text():
-    data = request.json
-    session_id = data["session_id"]
-    doc_index = data["doc_index"]
-
-    session = sessions_cache.load(session_id)
-    if not session:
-        return jsonify({"error": "Session not found", "status": "error"}), 404
-
-    doc = session["documents"][doc_index]
-
-    # Prepare pre-annotated text
-    pre_annotated_text = annotator.get_pre_annotated_text(doc["text"], doc["toponyms"])
-
-    return jsonify({"status": "success", "pre_annotated_text": pre_annotated_text})
-
-
-@app.post("/get_document_progress")
-def get_document_progress():
-    data = request.json
-    session_id = data["session_id"]
-    doc_index = data["doc_index"]
-
-    session = sessions_cache.load(session_id)
-    if not session:
-        return jsonify({"error": "Session not found", "status": "error"}), 404
-
-    doc = session["documents"][doc_index]
-    toponyms = doc["toponyms"]
     total_toponyms = len(toponyms)
     annotated_toponyms = sum(1 for t in toponyms if t["loc_id"] != "")
     progress_percentage = (
