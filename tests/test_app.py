@@ -343,16 +343,12 @@ def test_save_annotation(
             text="Andorra is as nice as Andorra.",
         )
     data = {
-        "session_id": f"{session_id}-{one_sense_per_discourse}",
-        "doc_index": 0,
-        "annotation": {
-            "start": toponyms[0]["start"] if valid_toponym else 99,
-            "end": toponyms[0]["end"] if valid_toponym else 99,
-            "loc_id": radio_andorra_id,
-        },
+        "start": toponyms[0]["start"] if valid_toponym else 99,
+        "end": toponyms[0]["end"] if valid_toponym else 99,
+        "loc_id": radio_andorra_id,
     }
     response = client.post(
-        "/save_annotation",
+        f"/session/{session_id}-{one_sense_per_discourse}/document/{0}/annotation",
         json=data,
         content_type="application/json",
     )
