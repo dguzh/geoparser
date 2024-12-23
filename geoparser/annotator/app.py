@@ -284,12 +284,10 @@ def get_candidates(session_id, doc_index):
     return jsonify(annotator.get_candidates(toponym, toponym_text, query_text))
 
 
-@app.post("/save_annotation")
-def save_annotation():
-    data = request.json
-    session_id = data["session_id"]
-    doc_index = data["doc_index"]
-    annotation = data["annotation"]
+@app.post("/session/<session_id>/document/<doc_index>/annotation")
+def post_annotation(session_id, doc_index):
+    doc_index = int(doc_index)
+    annotation = request.json
 
     session = sessions_cache.load(session_id)
     if not session:

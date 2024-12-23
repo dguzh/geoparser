@@ -993,18 +993,17 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Function to save the annotation
         function saveAnnotation(loc_id) {
-            fetch(Flask.url_for("save_annotation"), {
+            fetch(Flask.url_for("post_annotation", {
+                'session_id': sessionId,
+                'doc_index': docIndex
+            }), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    'session_id': sessionId,
-                    'doc_index': docIndex,
-                    'annotation': {
-                        'toponym': currentToponym.text,
-                        'start': currentToponym.start,
-                        'end': currentToponym.end,
-                        'loc_id': loc_id // Can be null or empty string
-                    }
+                    'toponym': currentToponym.text,
+                    'start': currentToponym.start,
+                    'end': currentToponym.end,
+                    'loc_id': loc_id // Can be null or empty string
                 })
             })
             .then(response => response.json())
@@ -1031,20 +1030,19 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Function to deselect the annotation (reset to unprocessed state)
         function deselectCandidate() {
-            fetch(Flask.url_for("save_annotation"), {
+            fetch(Flask.url_for("post_annotation", {
+                'session_id': sessionId,
+                'doc_index': docIndex
+            }), {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
-                    'session_id': sessionId,
-                    'doc_index': docIndex,
-                    'annotation': {
-                        'toponym': currentToponym.text,
-                        'start': currentToponym.start,
-                        'end': currentToponym.end,
-                        'loc_id': ''  // Reset loc_id to empty string to mark as unprocessed
-                    }
+                    'toponym': currentToponym.text,
+                    'start': currentToponym.start,
+                    'end': currentToponym.end,
+                    'loc_id': ''  // Reset loc_id to empty string to mark as unprocessed
                 })
             })
             .then(response => response.json())
