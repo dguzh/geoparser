@@ -122,7 +122,7 @@ def test_index(client: FlaskClient):
     assert b"<title>Geoparser Annotator</title>" in response.data
 
 
-def test_start_new_session_get(client: FlaskClient):
+def test_start_new_session(client: FlaskClient):
     with captured_templates(app) as templates:
         response = client.get("/start_new_session")
         template = get_first_template(templates)
@@ -134,7 +134,47 @@ def test_start_new_session_get(client: FlaskClient):
     assert b"<title>Start New Session</title>" in response.data
 
 
-def test_post_session(client: FlaskClient):
+def test_continue_session(client: FlaskClient):
+    with captured_templates(app) as templates:
+        response = client.get("/continue_session")
+        template = get_first_template(templates)
+    assert response.status_code == 200
+    # index.html has been used
+    assert len(templates) == 1
+    assert template.name == "continue_session.html"
+    # no errors: returns continue_session html template
+    assert b"<title>Continue Session</title>" in response.data
+
+
+@pytest.mark.parametrize("valid_session", [True, False])
+@pytest.mark.parametrize("doc_index", [0, 1])
+def test_annotate(client: FlaskClient, valid_session: bool, doc_index: int):
+    session_id = "annotate"
+    if valid_session:
+        set_session(session_id)
+    with captured_templates(app) as templates:
+        response = client.get(
+            f"/session/{session_id}/annotate", query_string={"doc_index": doc_index}
+        )
+        template = get_first_template(templates)
+    # redirect to index if session is invalid
+    if not valid_session:
+        assert response.status_code == 302
+        assert b'<a href="/">/</a>' in response.data
+    # invalid doc_index always redirects to 0
+    elif valid_session and doc_index == 1:
+        assert response.status_code == 302
+        assert (
+            b' <a href="/session/annotate/annotate?doc_index=0">/session/annotate/annotate?doc_index=0</a>'
+            in response.data
+        )
+    # vaild doc_index returns the annotate page
+    elif valid_session and doc_index == 0:
+        assert response.status_code == 200
+        assert template.name == "annotate.html"
+
+
+def test_create_session(client: FlaskClient):
     filename = "annotator_doc0.txt"
     response = client.post(
         "/session",
@@ -149,18 +189,6 @@ def test_post_session(client: FlaskClient):
     # redirected to annotate page for first document
     assert b"/annotate" in response.data
     assert b"?doc_index=0" in response.data
-
-
-def test_continue_session_get(client: FlaskClient):
-    with captured_templates(app) as templates:
-        response = client.get("/continue_session")
-        template = get_first_template(templates)
-    assert response.status_code == 200
-    # index.html has been used
-    assert len(templates) == 1
-    assert template.name == "continue_session.html"
-    # no errors: returns continue_session html template
-    assert b"<title>Continue Session</title>" in response.data
 
 
 @pytest.mark.parametrize("cached_session", [None, "test_load_cached"])
@@ -244,146 +272,6 @@ def test_continue_session_file(client: FlaskClient, file: bool, session_id: bool
 
 
 @pytest.mark.parametrize("valid_session", [True, False])
-@pytest.mark.parametrize("doc_index", [0, 1])
-def test_annotate(client: FlaskClient, valid_session: bool, doc_index: int):
-    session_id = "annotate"
-    if valid_session:
-        set_session(session_id)
-    with captured_templates(app) as templates:
-        response = client.get(
-            f"/session/{session_id}/annotate", query_string={"doc_index": doc_index}
-        )
-        template = get_first_template(templates)
-    # redirect to index if session is invalid
-    if not valid_session:
-        assert response.status_code == 302
-        assert b'<a href="/">/</a>' in response.data
-    # invalid doc_index always redirects to 0
-    elif valid_session and doc_index == 1:
-        assert response.status_code == 302
-        assert (
-            b' <a href="/session/annotate/annotate?doc_index=0">/session/annotate/annotate?doc_index=0</a>'
-            in response.data
-        )
-    # vaild doc_index returns the annotate page
-    elif valid_session and doc_index == 0:
-        assert response.status_code == 200
-        assert template.name == "annotate.html"
-
-
-@pytest.mark.parametrize("valid_session", [True, False])
-@pytest.mark.parametrize("valid_toponym", [True, False])
-def test_get_candidates(
-    client: FlaskClient, valid_session: bool, valid_toponym: bool, monkeypatch
-):
-    monkeypatched_return = {
-        "candidates": [{}],
-        "existing_candidate": None,
-        "existing_loc_id": "123",
-        "filter_attributes": [],
-    }
-    monkeypatch.setattr(
-        annotator,
-        "get_candidates",
-        lambda *args, **kwargs: monkeypatched_return,
-    )
-    session_id = "get_candidates"
-    toponyms = [{"text": "Andorra", "start": 0, "end": 7, "loc_id": ""}]
-    if valid_session:
-        set_session(session_id, toponyms=toponyms)
-    params = {
-        "query_text": toponyms[0]["text"],
-        "text": toponyms[0]["text"],
-        "start": toponyms[0]["start"] if valid_toponym else 99,
-        "end": toponyms[0]["end"] if valid_toponym else 100,
-    }
-    response = client.get(
-        f"/session/{session_id}/document/{0}/candidates",
-        query_string=params,
-        content_type="application/json",
-    )
-    if not valid_session:
-        validate_json_response(response, 404, {"error": "Session not found"})
-    elif not valid_toponym:
-        validate_json_response(response, 404, {"error": "Toponym not found"})
-    else:
-        validate_json_response(response, 200, monkeypatched_return)
-
-
-@pytest.mark.parametrize("valid_session", [True, False])
-@pytest.mark.parametrize("valid_toponym", [True, False])
-@pytest.mark.parametrize("one_sense_per_discourse", [True, False])
-def test_save_annotation(
-    client: FlaskClient,
-    valid_session: bool,
-    valid_toponym: bool,
-    one_sense_per_discourse: bool,
-    radio_andorra_id: int,
-):
-    session_id = "save_annotation"
-    toponyms = [
-        {
-            "text": "Andorra",
-            "start": 0,
-            "end": 7,
-            "loc_id": "",
-        },
-        {
-            "text": "Andorra",
-            "start": 22,
-            "end": 29,
-            "loc_id": "",
-        },
-    ]
-    if valid_session:
-        set_session(
-            f"{session_id}-{one_sense_per_discourse}",
-            settings={"one_sense_per_discourse": one_sense_per_discourse},
-            toponyms=toponyms,
-            text="Andorra is as nice as Andorra.",
-        )
-    data = {
-        "start": toponyms[0]["start"] if valid_toponym else 99,
-        "end": toponyms[0]["end"] if valid_toponym else 99,
-        "loc_id": radio_andorra_id,
-    }
-    response = client.put(
-        f"/session/{session_id}-{one_sense_per_discourse}/document/{0}/annotation",
-        json=data,
-        content_type="application/json",
-    )
-    if not valid_session:
-        validate_json_response(response, 404, {"error": "Session not found"})
-    elif not valid_toponym:
-        validate_json_response(response, 404, {"error": "Toponym not found"})
-    else:
-        expected = {
-            "annotated_toponyms": 1 if not one_sense_per_discourse else 2,
-            "progress_percentage": 50.0 if not one_sense_per_discourse else 100.0,
-            "status": "success",
-            "total_toponyms": 2,
-        }
-        validate_json_response(response, 200, expected)
-
-
-@pytest.mark.parametrize("valid_session", [True, False])
-def test_download_annotations(client: FlaskClient, valid_session: bool):
-    session_id = "download_annotations"
-    if valid_session:
-        session = set_session(session_id)
-    response = client.get(f"/session/{session_id}/annotations/download")
-    if not valid_session:
-        assert response.status_code == 404
-        assert b"Session not found" in response.data
-    else:
-        # exact same session is downloaded again
-        assert response.status_code == 200
-        assert json.loads(response.data.decode("utf8")) == session
-        # wait for file to be deleted
-        time.sleep(1.001)
-
-
-@pytest.mark.parametrize("valid_session", [True, False])
 def test_delete_session(client: FlaskClient, valid_session: bool):
     session_id = "delete_session"
     if valid_session:
@@ -441,8 +329,57 @@ def test_add_documents(
 
 
 @pytest.mark.parametrize("valid_session", [True, False])
+@pytest.mark.parametrize("loc_id", ["", "123"])
+def test_get_document_progress(client: FlaskClient, valid_session: bool, loc_id: str):
+    session_id = "get_document_progress"
+    toponyms = [{"text": "Andorra", "start": 0, "end": 7, "loc_id": loc_id}]
+    if valid_session:
+        set_session(session_id, toponyms=toponyms)
+    response = client.get(
+        f"/session/{session_id}/document/{0}/progress",
+        content_type="application/json",
+    )
+    if not valid_session:
+        validate_json_response(
+            response, 404, {"error": "Session not found", "status": "error"}
+        )
+    else:
+        expected = {
+            "annotated_toponyms": 0 if not loc_id else 1,
+            "progress_percentage": 0.0 if not loc_id else 100.0,
+            "status": "success",
+            "total_toponyms": 1,
+        }
+        validate_json_response(response, 200, expected)
+
+
+@pytest.mark.parametrize("valid_session", [True, False])
+def test_get_document_text(client: FlaskClient, valid_session: bool):
+    session_id = "get_document_text"
+    toponyms = [{"text": "Andorra", "start": 0, "end": 7, "loc_id": ""}]
+    if valid_session:
+        set_session(
+            session_id, toponyms=toponyms, text="Andorra is as nice as Andorra."
+        )
+    response = client.get(
+        f"/session/{session_id}/document/{0}/text",
+        content_type="application/json",
+    )
+    if not valid_session:
+        validate_json_response(
+            response, 404, {"error": "Session not found", "status": "error"}
+        )
+    else:
+        expected = {
+            "pre_annotated_text": '<span class="toponym " data-start="0" data-end="7">Andorra</span> is as nice as Andorra.',
+            "status": "success",
+        }
+        validate_json_response(response, 200, expected)
+
+
+@pytest.mark.parametrize("valid_session", [True, False])
 @pytest.mark.parametrize("doc_index", [0, 1])
-def test_remove_document(client: FlaskClient, valid_session: bool, doc_index: int):
+def test_delete_document(client: FlaskClient, valid_session: bool, doc_index: int):
     session_id = "remove_document"
     if valid_session:
         set_session(session_id)
@@ -464,22 +401,33 @@ def test_remove_document(client: FlaskClient, valid_session: bool, doc_index: in
 
 @pytest.mark.parametrize("valid_session", [True, False])
 @pytest.mark.parametrize("valid_toponym", [True, False])
-def test_delete_annotation(
-    client: FlaskClient, valid_session: bool, valid_toponym: bool
+def test_get_candidates(
+    client: FlaskClient, valid_session: bool, valid_toponym: bool, monkeypatch
 ):
-    session_id = "delete_annotation"
+    monkeypatched_return = {
+        "candidates": [{}],
+        "existing_candidate": None,
+        "existing_loc_id": "123",
+        "filter_attributes": [],
+    }
+    monkeypatch.setattr(
+        annotator,
+        "get_candidates",
+        lambda *args, **kwargs: monkeypatched_return,
+    )
+    session_id = "get_candidates"
     toponyms = [{"text": "Andorra", "start": 0, "end": 7, "loc_id": ""}]
     if valid_session:
-        set_session(session_id)
-    data = {
+        set_session(session_id, toponyms=toponyms)
+    params = {
         "query_text": toponyms[0]["text"],
         "text": toponyms[0]["text"],
         "start": toponyms[0]["start"] if valid_toponym else 99,
         "end": toponyms[0]["end"] if valid_toponym else 100,
     }
-    response = client.delete(
-        f"/session/{session_id}/document/{0}/annotation",
-        json=data,
+    response = client.get(
+        f"/session/{session_id}/document/{0}/candidates",
+        query_string=params,
         content_type="application/json",
     )
     if not valid_session:
@@ -487,48 +435,7 @@ def test_delete_annotation(
     elif not valid_toponym:
         validate_json_response(response, 404, {"error": "Toponym not found"})
     else:
-        expected = {
-            "annotated_toponyms": 0,
-            "progress_percentage": 0.0,
-            "status": "success",
-            "total_toponyms": 0,
-        }
-        validate_json_response(response, 200, expected)
-
-
-@pytest.mark.parametrize("valid_session", [True, False])
-@pytest.mark.parametrize("valid_toponym", [True, False])
-def test_patch_annotation(
-    client: FlaskClient, valid_session: bool, valid_toponym: bool
-):
-    session_id = "patch_annotation"
-    toponyms = [{"text": "Andorra", "start": 0, "end": 7, "loc_id": "123"}]
-    if valid_session:
-        set_session(session_id, toponyms=toponyms)
-    data = {
-        "old_start": toponyms[0]["start"] if valid_toponym else 99,
-        "old_end": toponyms[0]["end"] if valid_toponym else 100,
-        "new_text": "Andorra la Vella",
-        "new_start": 0,
-        "new_end": 16,
-    }
-    response = client.patch(
-        f"/session/{session_id}/document/{0}/annotation",
-        json=data,
-        content_type="application/json",
-    )
-    if not valid_session:
-        validate_json_response(response, 404, {"error": "Session not found"})
-    elif not valid_toponym:
-        validate_json_response(response, 404, {"error": "Toponym not found"})
-    else:
-        expected = {
-            "annotated_toponyms": 1,
-            "progress_percentage": 100.0,
-            "status": "success",
-            "total_toponyms": 1,
-        }
-        validate_json_response(response, 200, expected)
+        validate_json_response(response, 200, monkeypatched_return)
 
 
 @pytest.mark.parametrize("valid_session", [True, False])
@@ -568,50 +475,143 @@ def test_create_annotation(
 
 
 @pytest.mark.parametrize("valid_session", [True, False])
-def test_get_document_text(client: FlaskClient, valid_session: bool):
-    session_id = "get_document_text"
-    toponyms = [{"text": "Andorra", "start": 0, "end": 7, "loc_id": ""}]
+def test_download_annotations(client: FlaskClient, valid_session: bool):
+    session_id = "download_annotations"
+    if valid_session:
+        session = set_session(session_id)
+    response = client.get(f"/session/{session_id}/annotations/download")
+    if not valid_session:
+        assert response.status_code == 404
+        assert b"Session not found" in response.data
+    else:
+        # exact same session is downloaded again
+        assert response.status_code == 200
+        assert json.loads(response.data.decode("utf8")) == session
+        # wait for file to be deleted
+        time.sleep(1.001)
+
+
+@pytest.mark.parametrize("valid_session", [True, False])
+@pytest.mark.parametrize("valid_toponym", [True, False])
+@pytest.mark.parametrize("one_sense_per_discourse", [True, False])
+def test_overwrite_annotation(
+    client: FlaskClient,
+    valid_session: bool,
+    valid_toponym: bool,
+    one_sense_per_discourse: bool,
+    radio_andorra_id: int,
+):
+    session_id = "save_annotation"
+    toponyms = [
+        {
+            "text": "Andorra",
+            "start": 0,
+            "end": 7,
+            "loc_id": "",
+        },
+        {
+            "text": "Andorra",
+            "start": 22,
+            "end": 29,
+            "loc_id": "",
+        },
+    ]
     if valid_session:
         set_session(
-            session_id, toponyms=toponyms, text="Andorra is as nice as Andorra."
+            f"{session_id}-{one_sense_per_discourse}",
+            settings={"one_sense_per_discourse": one_sense_per_discourse},
+            toponyms=toponyms,
+            text="Andorra is as nice as Andorra.",
         )
-    response = client.get(
-        f"/session/{session_id}/document/{0}/text",
+    data = {
+        "start": toponyms[0]["start"] if valid_toponym else 99,
+        "end": toponyms[0]["end"] if valid_toponym else 99,
+        "loc_id": radio_andorra_id,
+    }
+    response = client.put(
+        f"/session/{session_id}-{one_sense_per_discourse}/document/{0}/annotation",
+        json=data,
         content_type="application/json",
     )
     if not valid_session:
-        validate_json_response(
-            response, 404, {"error": "Session not found", "status": "error"}
-        )
+        validate_json_response(response, 404, {"error": "Session not found"})
+    elif not valid_toponym:
+        validate_json_response(response, 404, {"error": "Toponym not found"})
     else:
         expected = {
-            "pre_annotated_text": '<span class="toponym " data-start="0" data-end="7">Andorra</span> is as nice as Andorra.',
+            "annotated_toponyms": 1 if not one_sense_per_discourse else 2,
+            "progress_percentage": 50.0 if not one_sense_per_discourse else 100.0,
             "status": "success",
+            "total_toponyms": 2,
         }
         validate_json_response(response, 200, expected)
 
 
 @pytest.mark.parametrize("valid_session", [True, False])
-@pytest.mark.parametrize("loc_id", ["", "123"])
-def test_get_document_progress(client: FlaskClient, valid_session: bool, loc_id: str):
-    session_id = "get_document_progress"
-    toponyms = [{"text": "Andorra", "start": 0, "end": 7, "loc_id": loc_id}]
+@pytest.mark.parametrize("valid_toponym", [True, False])
+def test_update_annotation(
+    client: FlaskClient, valid_session: bool, valid_toponym: bool
+):
+    session_id = "patch_annotation"
+    toponyms = [{"text": "Andorra", "start": 0, "end": 7, "loc_id": "123"}]
     if valid_session:
         set_session(session_id, toponyms=toponyms)
-    response = client.get(
-        f"/session/{session_id}/document/{0}/progress",
+    data = {
+        "old_start": toponyms[0]["start"] if valid_toponym else 99,
+        "old_end": toponyms[0]["end"] if valid_toponym else 100,
+        "new_text": "Andorra la Vella",
+        "new_start": 0,
+        "new_end": 16,
+    }
+    response = client.patch(
+        f"/session/{session_id}/document/{0}/annotation",
+        json=data,
         content_type="application/json",
     )
     if not valid_session:
-        validate_json_response(
-            response, 404, {"error": "Session not found", "status": "error"}
-        )
+        validate_json_response(response, 404, {"error": "Session not found"})
+    elif not valid_toponym:
+        validate_json_response(response, 404, {"error": "Toponym not found"})
     else:
         expected = {
-            "annotated_toponyms": 0 if not loc_id else 1,
-            "progress_percentage": 0.0 if not loc_id else 100.0,
+            "annotated_toponyms": 1,
+            "progress_percentage": 100.0,
             "status": "success",
             "total_toponyms": 1,
+        }
+        validate_json_response(response, 200, expected)
+
+
+@pytest.mark.parametrize("valid_session", [True, False])
+@pytest.mark.parametrize("valid_toponym", [True, False])
+def test_delete_annotation(
+    client: FlaskClient, valid_session: bool, valid_toponym: bool
+):
+    session_id = "delete_annotation"
+    toponyms = [{"text": "Andorra", "start": 0, "end": 7, "loc_id": ""}]
+    if valid_session:
+        set_session(session_id)
+    data = {
+        "query_text": toponyms[0]["text"],
+        "text": toponyms[0]["text"],
+        "start": toponyms[0]["start"] if valid_toponym else 99,
+        "end": toponyms[0]["end"] if valid_toponym else 100,
+    }
+    response = client.delete(
+        f"/session/{session_id}/document/{0}/annotation",
+        json=data,
+        content_type="application/json",
+    )
+    if not valid_session:
+        validate_json_response(response, 404, {"error": "Session not found"})
+    elif not valid_toponym:
+        validate_json_response(response, 404, {"error": "Toponym not found"})
+    else:
+        expected = {
+            "annotated_toponyms": 0,
+            "progress_percentage": 0.0,
+            "status": "success",
+            "total_toponyms": 0,
         }
         validate_json_response(response, 200, expected)
 

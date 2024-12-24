@@ -242,7 +242,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Function to create a new annotation
     function createAnnotation(toponymInfo) {
-        fetch(Flask.url_for("post_annotation", {
+        fetch(Flask.url_for("create_annotation", {
             'session_id': sessionId,
             'doc_index': docIndex,
         }), {
@@ -379,7 +379,7 @@ document.addEventListener('DOMContentLoaded', function() {
             var newEnd = parseInt(currentToponymElement.getAttribute('data-end'));
             var newText = currentToponymElement.textContent;
 
-            fetch(Flask.url_for("patch_annotation", {
+            fetch(Flask.url_for("update_annotation", {
                 'session_id': sessionId,
                 'doc_index': docIndex,
             }), {
@@ -996,7 +996,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Function to save the annotation
         function saveAnnotation(loc_id) {
-            fetch(Flask.url_for("put_annotation", {
+            fetch(Flask.url_for("overwrite_annotation", {
                 'session_id': sessionId,
                 'doc_index': docIndex
             }), {
@@ -1033,7 +1033,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Function to deselect the annotation (reset to unprocessed state)
         function deselectCandidate() {
-            fetch(Flask.url_for("put_annotation", {
+            fetch(Flask.url_for("overwrite_annotation", {
                 'session_id': sessionId,
                 'doc_index': docIndex
             }), {

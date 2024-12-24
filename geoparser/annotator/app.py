@@ -106,7 +106,7 @@ def annotate(session_id):
 
 
 @app.post("/session")
-def post_session():
+def create_session():
     uploaded_files = request.files.getlist("files[]")
 
     # Get selected gazetteer and spacy model
@@ -125,15 +125,6 @@ def post_session():
     sessions_cache.save(session["session_id"], session)
 
     return redirect(url_for("annotate", session_id=session["session_id"], doc_index=0))
-
-
-@app.delete("/session/<session_id>")
-def delete_session(session_id):
-    success = sessions_cache.delete(session_id)
-    if success:
-        return jsonify({"status": "success"})
-    else:
-        return jsonify({"message": "Session not found.", "status": "error"})
 
 
 @app.post("/session/continue/cached")
@@ -178,6 +169,15 @@ def continue_session_file():
         return redirect(url_for("continue_session"))
 
 
+@app.delete("/session/<session_id>")
+def delete_session(session_id):
+    success = sessions_cache.delete(session_id)
+    if success:
+        return jsonify({"status": "success"})
+    else:
+        return jsonify({"message": "Session not found.", "status": "error"})
+
+
 @app.post("/session/<session_id>/documents")
 def add_documents(session_id):
     session = sessions_cache.load(session_id)
@@ -200,42 +200,6 @@ def add_documents(session_id):
     sessions_cache.save(session_id, session)
 
     return jsonify({"status": "success"})
-
-
-@app.delete("/session/<session_id>/document/<doc_index>")
-def delete_document(session_id, doc_index):
-    doc_index = int(doc_index)
-
-    session = sessions_cache.load(session_id)
-    if not session:
-        return jsonify({"message": "Session not found.", "status": "error"})
-
-    if 0 <= doc_index < len(session["documents"]):
-        # Remove the document
-        del session["documents"][doc_index]
-
-        # Save updated session
-        sessions_cache.save(session_id, session)
-
-        return jsonify({"status": "success"})
-    else:
-        return jsonify({"message": "Invalid document index.", "status": "error"})
-
-
-@app.get("/session/<session_id>/document/<doc_index>/text")
-def get_document_text(session_id, doc_index):
-    doc_index = int(doc_index)
-
-    session = sessions_cache.load(session_id)
-    if not session:
-        return jsonify({"error": "Session not found", "status": "error"}), 404
-
-    doc = session["documents"][doc_index]
-
-    # Prepare pre-annotated text
-    pre_annotated_text = annotator.get_pre_annotated_text(doc["text"], doc["toponyms"])
-
-    return jsonify({"status": "success", "pre_annotated_text": pre_annotated_text})
 
 
 @app.get("/session/<session_id>/document/<doc_index>/progress")
@@ -264,6 +228,42 @@ def get_document_progress(session_id, doc_index):
     )
 
 
+@app.get("/session/<session_id>/document/<doc_index>/text")
+def get_document_text(session_id, doc_index):
+    doc_index = int(doc_index)
+
+    session = sessions_cache.load(session_id)
+    if not session:
+        return jsonify({"error": "Session not found", "status": "error"}), 404
+
+    doc = session["documents"][doc_index]
+
+    # Prepare pre-annotated text
+    pre_annotated_text = annotator.get_pre_annotated_text(doc["text"], doc["toponyms"])
+
+    return jsonify({"status": "success", "pre_annotated_text": pre_annotated_text})
+
+
+@app.delete("/session/<session_id>/document/<doc_index>")
+def delete_document(session_id, doc_index):
+    doc_index = int(doc_index)
+
+    session = sessions_cache.load(session_id)
+    if not session:
+        return jsonify({"message": "Session not found.", "status": "error"})
+
+    if 0 <= doc_index < len(session["documents"]):
+        # Remove the document
+        del session["documents"][doc_index]
+
+        # Save updated session
+        sessions_cache.save(session_id, session)
+
+        return jsonify({"status": "success"})
+    else:
+        return jsonify({"message": "Invalid document index.", "status": "error"})
+
+
 @app.get("/session/<session_id>/document/<doc_index>/candidates")
 def get_candidates(session_id, doc_index):
     doc_index = int(doc_index)
@@ -285,7 +285,7 @@ def get_candidates(session_id, doc_index):
 
 
 @app.post("/session/<session_id>/document/<doc_index>/annotation")
-def post_annotation(session_id, doc_index):
+def create_annotation(session_id, doc_index):
     doc_index = int(doc_index)
     data = request.json
     start = data["start"]
@@ -339,8 +339,42 @@ def post_annotation(session_id, doc_index):
     )
 
 
+@app.get("/session/<session_id>/annotations/download")
+def download_annotations(session_id):
+    session = sessions_cache.load(session_id)
+    if not session:
+        return "Session not found.", 404
+
+    # Prepare annotations file for download
+    annotations_data = session
+
+    # Create a temporary file
+    with tempfile.NamedTemporaryFile(
+        delete=False, suffix=".json", mode="w+", encoding="utf-8"
+    ) as temp_file:
+        temp_file_name = temp_file.name  # Store the file name to use it later
+        json.dump(annotations_data, temp_file, ensure_ascii=False, indent=4)
+
+    # Ensure the file is deleted after some delay
+    @after_this_request
+    def remove_file(response):
+        def delayed_delete(file_path):
+            os.remove(file_path)
+
+        # Delay the deletion to ensure the file is no longer in use
+        threading.Timer(1, delayed_delete, args=[temp_file_name]).start()
+        return response
+
+    # Send the file to the client
+    return send_file(
+        temp_file_name,
+        as_attachment=True,
+        download_name=f"annotations_{session_id}.json",
+    )
+
+
 @app.put("/session/<session_id>/document/<doc_index>/annotation")
-def put_annotation(session_id, doc_index):
+def overwrite_annotation(session_id, doc_index):
     doc_index = int(doc_index)
     annotation = request.json
 
@@ -387,7 +421,7 @@ def put_annotation(session_id, doc_index):
 
 
 @app.patch("/session/<session_id>/document/<doc_index>/annotation")
-def patch_annotation(session_id, doc_index):
+def update_annotation(session_id, doc_index):
     doc_index = int(doc_index)
     data = request.json
     old_start = data["old_start"]
@@ -476,40 +510,6 @@ def delete_annotation(session_id, doc_index):
             "total_toponyms": total_toponyms,
             "progress_percentage": progress_percentage,
         }
-    )
-
-
-@app.get("/session/<session_id>/annotations/download")
-def download_annotations(session_id):
-    session = sessions_cache.load(session_id)
-    if not session:
-        return "Session not found.", 404
-
-    # Prepare annotations file for download
-    annotations_data = session
-
-    # Create a temporary file
-    with tempfile.NamedTemporaryFile(
-        delete=False, suffix=".json", mode="w+", encoding="utf-8"
-    ) as temp_file:
-        temp_file_name = temp_file.name  # Store the file name to use it later
-        json.dump(annotations_data, temp_file, ensure_ascii=False, indent=4)
-
-    # Ensure the file is deleted after some delay
-    @after_this_request
-    def remove_file(response):
-        def delayed_delete(file_path):
-            os.remove(file_path)
-
-        # Delay the deletion to ensure the file is no longer in use
-        threading.Timer(1, delayed_delete, args=[temp_file_name]).start()
-        return response
-
-    # Send the file to the client
-    return send_file(
-        temp_file_name,
-        as_attachment=True,
-        download_name=f"annotations_{session_id}.json",
     )
 
 
