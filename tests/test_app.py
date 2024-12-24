@@ -347,7 +347,7 @@ def test_save_annotation(
         "end": toponyms[0]["end"] if valid_toponym else 99,
         "loc_id": radio_andorra_id,
     }
-    response = client.post(
+    response = client.put(
         f"/session/{session_id}-{one_sense_per_discourse}/document/{0}/annotation",
         json=data,
         content_type="application/json",
@@ -371,7 +371,7 @@ def test_download_annotations(client: FlaskClient, valid_session: bool):
     session_id = "download_annotations"
     if valid_session:
         session = set_session(session_id)
-    response = client.get(f"/download_annotations/{session_id}")
+    response = client.get(f"/session/{session_id}/annotations/download")
     if not valid_session:
         assert response.status_code == 404
         assert b"Session not found" in response.data
@@ -472,15 +472,13 @@ def test_delete_annotation(
     if valid_session:
         set_session(session_id)
     data = {
-        "session_id": session_id,
-        "doc_index": 0,
         "query_text": toponyms[0]["text"],
         "text": toponyms[0]["text"],
         "start": toponyms[0]["start"] if valid_toponym else 99,
         "end": toponyms[0]["end"] if valid_toponym else 100,
     }
-    response = client.post(
-        "/delete_annotation",
+    response = client.delete(
+        f"/session/{session_id}/document/{0}/annotation",
         json=data,
         content_type="application/json",
     )
@@ -500,22 +498,22 @@ def test_delete_annotation(
 
 @pytest.mark.parametrize("valid_session", [True, False])
 @pytest.mark.parametrize("valid_toponym", [True, False])
-def test_edit_annotation(client: FlaskClient, valid_session: bool, valid_toponym: bool):
-    session_id = "delete_annotation"
+def test_patch_annotation(
+    client: FlaskClient, valid_session: bool, valid_toponym: bool
+):
+    session_id = "patch_annotation"
     toponyms = [{"text": "Andorra", "start": 0, "end": 7, "loc_id": "123"}]
     if valid_session:
         set_session(session_id, toponyms=toponyms)
     data = {
-        "session_id": session_id,
-        "doc_index": 0,
         "old_start": toponyms[0]["start"] if valid_toponym else 99,
         "old_end": toponyms[0]["end"] if valid_toponym else 100,
         "new_text": "Andorra la Vella",
         "new_start": 0,
         "new_end": 16,
     }
-    response = client.post(
-        "/edit_annotation",
+    response = client.patch(
+        f"/session/{session_id}/document/{0}/annotation",
         json=data,
         content_type="application/json",
     )
@@ -551,7 +549,7 @@ def test_create_annotation(
         "end": toponyms[0]["end"] if existing_toponym else 29,
     }
     response = client.post(
-        "/create_annotation",
+        f"/session/{session_id}/document/{0}/annotation",
         json=data,
         content_type="application/json",
     )
