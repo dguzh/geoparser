@@ -242,14 +242,15 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Function to create a new annotation
     function createAnnotation(toponymInfo) {
-        fetch(Flask.url_for("create_annotation"), {
+        fetch(Flask.url_for("post_annotation", {
+            'session_id': sessionId,
+            'doc_index': docIndex,
+        }), {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                'session_id': sessionId,
-                'doc_index': docIndex,
                 'start': toponymInfo.start,
                 'end': toponymInfo.end,
                 'text': toponymInfo.text
@@ -271,14 +272,15 @@ document.addEventListener('DOMContentLoaded', function() {
         var start = parseInt(toponymElement.getAttribute('data-start'));
         var end = parseInt(toponymElement.getAttribute('data-end'));
 
-        fetch(Flask.url_for("delete_annotation"), {
-            method: 'POST',
+        fetch(Flask.url_for("delete_annotation", {
+            'session_id': sessionId,
+            'doc_index': docIndex,
+        }), {
+            method: 'DELETE',
             headers: {
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                'session_id': sessionId,
-                'doc_index': docIndex,
                 'start': start,
                 'end': end
             })
@@ -377,14 +379,15 @@ document.addEventListener('DOMContentLoaded', function() {
             var newEnd = parseInt(currentToponymElement.getAttribute('data-end'));
             var newText = currentToponymElement.textContent;
 
-            fetch(Flask.url_for("edit_annotation"), {
-                method: 'POST',
+            fetch(Flask.url_for("patch_annotation", {
+                'session_id': sessionId,
+                'doc_index': docIndex,
+            }), {
+                method: 'PATCH',
                 headers: {
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
-                    'session_id': sessionId,
-                    'doc_index': docIndex,
                     'old_start': originalStart,
                     'old_end': originalEnd,
                     'new_start': newStart,
@@ -993,11 +996,11 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Function to save the annotation
         function saveAnnotation(loc_id) {
-            fetch(Flask.url_for("post_annotation", {
+            fetch(Flask.url_for("put_annotation", {
                 'session_id': sessionId,
                 'doc_index': docIndex
             }), {
-                method: 'POST',
+                method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     'toponym': currentToponym.text,
