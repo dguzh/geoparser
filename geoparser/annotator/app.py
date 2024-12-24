@@ -175,21 +175,24 @@ def delete_session(session_id):
     if success:
         return jsonify({"status": "success"})
     else:
-        return jsonify({"message": "Session not found.", "status": "error"})
+        return jsonify({"message": "Session not found.", "status": "error"}), 404
 
 
 @app.post("/session/<session_id>/documents")
 def add_documents(session_id):
     session = sessions_cache.load(session_id)
     if not session:
-        return jsonify({"message": "Session not found.", "status": "error"})
+        return jsonify({"message": "Session not found.", "status": "error"}), 404
 
     uploaded_files = request.files.getlist("files[]")
     selected_spacy_model = request.form.get("spacy_model")
 
     if not uploaded_files or not selected_spacy_model:
-        return jsonify(
-            {"message": "No files or SpaCy model selected.", "status": "error"}
+        return (
+            jsonify(
+                {"message": "No files or SpaCy model selected.", "status": "error"}
+            ),
+            422,
         )
 
     # Process uploaded files
@@ -250,7 +253,7 @@ def delete_document(session_id, doc_index):
 
     session = sessions_cache.load(session_id)
     if not session:
-        return jsonify({"message": "Session not found.", "status": "error"})
+        return jsonify({"message": "Session not found.", "status": "error"}), 404
 
     if 0 <= doc_index < len(session["documents"]):
         # Remove the document
@@ -261,7 +264,7 @@ def delete_document(session_id, doc_index):
 
         return jsonify({"status": "success"})
     else:
-        return jsonify({"message": "Invalid document index.", "status": "error"})
+        return jsonify({"message": "Invalid document index.", "status": "error"}), 422
 
 
 @app.get("/session/<session_id>/document/<doc_index>/candidates")
@@ -302,7 +305,7 @@ def create_annotation(session_id, doc_index):
     # Check if there is already an annotation at this position
     existing_toponym = annotator.get_toponym(toponyms, start, end)
     if existing_toponym:
-        return jsonify({"error": "Toponym already exists"}), 400
+        return jsonify({"error": "Toponym already exists"}), 422
 
     # Add new toponym
     toponym = {

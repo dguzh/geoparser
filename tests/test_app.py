@@ -281,7 +281,7 @@ def test_delete_session(client: FlaskClient, valid_session: bool):
     if not valid_session:
         # delete fails if there is no session in the first place
         validate_json_response(
-            response, 200, {"message": "Session not found.", "status": "error"}
+            response, 404, {"message": "Session not found.", "status": "error"}
         )
     else:
         # first delete is successful
@@ -289,7 +289,7 @@ def test_delete_session(client: FlaskClient, valid_session: bool):
         # second delete fails
         second_response = client.delete(f"/session/{session_id}")
         validate_json_response(
-            second_response, 200, {"message": "Session not found.", "status": "error"}
+            second_response, 404, {"message": "Session not found.", "status": "error"}
         )
 
 
@@ -316,12 +316,12 @@ def test_add_documents(
     )
     if not valid_session:
         validate_json_response(
-            response, 200, {"message": "Session not found.", "status": "error"}
+            response, 404, {"message": "Session not found.", "status": "error"}
         )
     elif not uploaded_files or not spacy_model:
         validate_json_response(
             response,
-            200,
+            422,
             {"message": "No files or SpaCy model selected.", "status": "error"},
         )
     else:
@@ -389,11 +389,11 @@ def test_delete_document(client: FlaskClient, valid_session: bool, doc_index: in
     )
     if not valid_session:
         validate_json_response(
-            response, 200, {"message": "Session not found.", "status": "error"}
+            response, 404, {"message": "Session not found.", "status": "error"}
         )
     elif doc_index == 1:
         validate_json_response(
-            response, 200, {"message": "Invalid document index.", "status": "error"}
+            response, 422, {"message": "Invalid document index.", "status": "error"}
         )
     else:
         validate_json_response(response, 200, {"status": "success"})
@@ -463,7 +463,7 @@ def test_create_annotation(
     if not valid_session:
         validate_json_response(response, 404, {"error": "Session not found"})
     elif existing_toponym:
-        validate_json_response(response, 400, {"error": "Toponym already exists"})
+        validate_json_response(response, 422, {"error": "Toponym already exists"})
     else:
         expected = {
             "annotated_toponyms": 0,
