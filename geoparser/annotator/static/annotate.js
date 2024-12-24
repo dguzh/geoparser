@@ -1033,11 +1033,11 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Function to deselect the annotation (reset to unprocessed state)
         function deselectCandidate() {
-            fetch(Flask.url_for("post_annotation", {
+            fetch(Flask.url_for("put_annotation", {
                 'session_id': sessionId,
                 'doc_index': docIndex
             }), {
-                method: 'POST',
+                method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json'
                 },
