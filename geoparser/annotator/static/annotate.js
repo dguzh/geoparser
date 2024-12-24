@@ -64,7 +64,9 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     })
     .then(data => {
-        sessionSettings = data;
+        if (Boolean(data)) {
+            sessionSettings = data;
+        }
     });
 
     settingsBtn.addEventListener('click', function() {
@@ -83,9 +85,11 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         })
         .then(data => {
-            oneSensePerDiscourseCheckbox.checked = data.one_sense_per_discourse;
-            autoCloseAnnotationModalCheckbox.checked = data.auto_close_annotation_modal;
-            settingsModal.show();
+            if (Boolean(data)) {
+                oneSensePerDiscourseCheckbox.checked = data.one_sense_per_discourse;
+                autoCloseAnnotationModalCheckbox.checked = data.auto_close_annotation_modal;
+                settingsModal.show();
+            }
         });
     });
 
@@ -106,14 +110,18 @@ document.addEventListener('DOMContentLoaded', function() {
             },
             body: JSON.stringify(settingsData)
         })
-        .then(response => response.json())
+        .then(response => {
+            if (response.status === 200) {
+                return response.json()
+            } else {
+                alert('Failed to save settings.');
+            }
+        })
         .then(data => {
-            if (data.status === 'success') {
+            if (Boolean(data)) {
                 // Update sessionSettings variable
                 sessionSettings = settingsData;
                 settingsModal.hide();
-            } else {
-                alert('Failed to save settings.');
             }
         });
     });
@@ -1086,13 +1094,17 @@ document.addEventListener('DOMContentLoaded', function() {
             method: 'POST',
             body: formData
         })
-        .then(response => response.json())
+        .then(response => {
+            if (response.status !== 200) {
+                alert('Failed to add documents.');
+            } else {
+                return response.json();
+            }
+        })
         .then(data => {
-            if (data.status === 'success') {
+            if (Boolean(data)) {
                 // Reload the page to reflect new documents
                 window.location.reload();
-            } else {
-                alert('Failed to add documents.');
             }
         });
     });
