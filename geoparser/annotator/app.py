@@ -68,7 +68,7 @@ def continue_session():
     return render_template("continue_session.html", cached_sessions=cached_sessions)
 
 
-@app.get("/annotate/<session_id>")
+@app.get("/session/<session_id>/annotate")
 def annotate(session_id):
     doc_index = int(request.args.get("doc_index", 0))
     session = sessions_cache.load(session_id)

@@ -15,7 +15,7 @@ var queryTextInput = null;
 document.addEventListener('DOMContentLoaded', function() {
     // Variables for the current document
     var path = window.location.href.split('?')[0];
-    var sessionId = path.split('/').pop();
+    var sessionId = path.split('/').at(-2);
     var params = new URLSearchParams(window.location.search)
     var docIndex = Number(params.get("doc_index"));
     var progressBar = document.getElementById('progress-bar-' + docIndex);

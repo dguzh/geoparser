@@ -147,7 +147,7 @@ def test_post_session(client: FlaskClient):
     )
     assert response.status_code == 302
     # redirected to annotate page for first document
-    assert b"/annotate/" in response.data
+    assert b"/annotate" in response.data
     assert b"?doc_index=0" in response.data
 
 
@@ -184,7 +184,7 @@ def test_continue_session_cached(
     if cached_session and file_exists:
         assert response.status_code == 302
         assert (
-            b'<a href="/annotate/test_load_cached?doc_index=0">/annotate/test_load_cached?doc_index=0</a>'
+            b'<a href="/session/test_load_cached/annotate?doc_index=0">/session/test_load_cached/annotate?doc_index=0</a>'
             in response.data
         )
     # otherwise, always redirect to continue_session
@@ -235,7 +235,7 @@ def test_continue_session_file(client: FlaskClient, file: bool, session_id: bool
     # redirect to annotate page if file can be read
     if file:
         assert response.status_code == 302
-        assert b"/annotate/" in response.data
+        assert b"/annotate" in response.data
         assert b"?doc_index=0" in response.data
     # otherwise, always redirect to continue_session
     else:
@@ -251,7 +251,7 @@ def test_annotate(client: FlaskClient, valid_session: bool, doc_index: int):
         set_session(session_id)
     with captured_templates(app) as templates:
         response = client.get(
-            f"/annotate/{session_id}", query_string={"doc_index": doc_index}
+            f"/session/{session_id}/annotate", query_string={"doc_index": doc_index}
         )
         template = get_first_template(templates)
     # redirect to index if session is invalid
@@ -262,7 +262,7 @@ def test_annotate(client: FlaskClient, valid_session: bool, doc_index: int):
     elif valid_session and doc_index == 1:
         assert response.status_code == 302
         assert (
-            b' <a href="/annotate/annotate?doc_index=0">/annotate/annotate?doc_index=0</a>'
+            b' <a href="/session/annotate/annotate?doc_index=0">/session/annotate/annotate?doc_index=0</a>'
             in response.data
         )
     # vaild doc_index returns the annotate page
