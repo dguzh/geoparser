@@ -134,6 +134,32 @@ def test_download_file(
     assert sorted(files) == sorted(dataset.extracted_files + zipfile)
 
 
+@pytest.mark.parametrize("is_directory", [True, False])
+def test_delete_file(localdb_gazetteer: LocalDBGazetteer, is_directory: bool):
+    dataset = GazetteerData(
+        name="a",
+        url="https://my.url.org/path/to/a.txt",
+        extracted_files=["a.txt"],
+        columns=[Column(name="", type="")],
+    )
+    raw_element = Path(localdb_gazetteer.data_dir) / dataset.url.split("/")[-1]
+    if is_directory:
+        # create directory to delete
+        raw_element.mkdir(parents=True, exist_ok=True)
+        test_function = lambda x: x.is_dir()
+    else:
+        # create file to delete
+        with open(get_static_test_file(raw_element), "w") as _:
+            pass
+        test_function = lambda x: x.is_file()
+    # element exists before deletion
+    assert test_function(raw_element)
+    # delete element
+    localdb_gazetteer._delete_file(dataset)
+    # element has been deleted
+    assert not test_function(raw_element)
+
+
 def test_create_data_table(geonames_patched: GeoNames):
     table_data = geonames_patched.config.data[0]
     check_table_creation(
