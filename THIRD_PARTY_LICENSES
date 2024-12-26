@@ -38,6 +38,13 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 ================================================================================
 
+Package: Flask-JSGlue==0.3.1
+License: BSD License
+
+UNKNOWN
+
+================================================================================
+
 Package: Jinja2==3.1.4
 License: BSD License
 
