@@ -29,11 +29,6 @@ jobs:
         run: |
           poetry config virtualenvs.create true --local
           poetry config virtualenvs.in-project true --local
-      - uses: actions/cache@v4
-        name: Define cache for the virtual environment based on poetry.lock file
-        with:
-          path: ./.venv
-          key: venv-${{ matrix.os }}-${{ matrix.python-version }}-${{ hashFiles('poetry.lock') }}
       - name: Install project dependencies
         run: poetry install
       - name: Run pytest
@@ -71,7 +66,7 @@ jobs:
         with:
           GITHUB_TOKEN: ${{ github.token }}
           MINIMUM_GREEN: 100
-          MINIMUM_ORANGE: 95
+          MINIMUM_ORANGE: 98
       - name: Store Pull Request comment to be posted
         uses: actions/upload-artifact@v4
         if: steps.coverage_comment.outputs.COMMENT_FILE_WRITTEN == 'true'
