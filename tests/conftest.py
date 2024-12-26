@@ -48,6 +48,8 @@ def geonames_patched() -> GeoNames:
 def geonames_real_data(monkeymodule) -> GeoNames:
     # skip download for tests
     monkeymodule.setattr(GeoNames, "_download_file", lambda *args, **kwargs: None)
+    # skip deleting downloaded files
+    monkeymodule.setattr(GeoNames, "_delete_file", lambda *args, **kwargs: None)
     # do not delete test files
     monkeymodule.setattr(GeoNames, "clean_dir", lambda *args, **kwargs: None)
     gazetteer = GeoNames()
