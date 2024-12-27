@@ -135,7 +135,7 @@ def test_start_new_session_get(client: FlaskClient):
 
 
 def test_start_new_session_post(client: FlaskClient):
-    filename = "annotator_doc0.txt"
+    filename = "annotator/annotator_doc0.txt"
     response = client.post(
         "/start_new_session",
         data={
@@ -434,7 +434,7 @@ def test_add_documents(
     session_id = "add_documents"
     if valid_session:
         set_session(session_id)
-    filename = "annotator_doc0.txt"
+    filename = "annotator/annotator_doc0.txt"
     files = (
         {"files[]": [(open(get_static_test_file(filename), "rb"), filename)]}
         if uploaded_files

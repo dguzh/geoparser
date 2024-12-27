@@ -157,7 +157,7 @@ def test_retokenize_toponym(
 
 
 def test_load_json_file(trainer_real_data: GeoparserTrainer):
-    annotations_file = get_static_test_file("annotations.json")
+    annotations_file = get_static_test_file("trainer/annotations.json")
     corpus = trainer_real_data._load_json_file(annotations_file)
     assert type(corpus) is list
     for entry in corpus:
@@ -206,7 +206,7 @@ def test_annotate_corpus(
 
 
 def test_annotate_file(trainer_real_data: GeoparserTrainer):
-    annotations_file = get_static_test_file("annotations.json")
+    annotations_file = get_static_test_file("trainer/annotations.json")
     annotated_corpus = trainer_real_data.annotate(annotations_file)
     # we are only checking for return types here because logic is
     # covered by previous test
