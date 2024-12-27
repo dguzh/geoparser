@@ -19,3 +19,21 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: isort/isort-action@master
+
+  pylint:
+    name: unused imports
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+      - name: Install poetry
+        run: pipx install poetry
+      - name: Setup local virtual environment
+        run: |
+          poetry config virtualenvs.create true --local
+          poetry config virtualenvs.in-project true --local
+      - name: Install project dependencies
+        run: poetry install
+      - name: Check unused imports with pylint
+        run: poetry run pylint --disable=all --enable=W0611 geoparser/ tests/
