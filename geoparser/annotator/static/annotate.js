@@ -49,6 +49,10 @@ document.addEventListener('DOMContentLoaded', function() {
     var oneSensePerDiscourseCheckbox = document.getElementById('one-sense-per-discourse');
     var autoCloseAnnotationModalCheckbox = document.getElementById('auto-close-annotation-modal');
 
+    // Toponym recognition indictaor
+    var toponymRecognitionIndicator = document.getElementById('toponym-recognition-indicator');
+    toponymRecognitionIndicator.style.display = "block";
+
     // Fetch session settings
     fetch(Flask.url_for("get_session_settings", {session_id: sessionId}), {
         method: 'GET',
@@ -79,6 +83,8 @@ document.addEventListener('DOMContentLoaded', function() {
     .then(response => {
         if (response.status === 200) {
             reloadDocumentText();
+            // hide toponym recognition indicator
+            toponymRecognitionIndicator.style.display = "none";
         } else {
             alert('Failed to load settings.');
         }
