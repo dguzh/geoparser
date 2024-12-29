@@ -329,31 +329,6 @@ def test_add_documents(
 
 
 @pytest.mark.parametrize("valid_session", [True, False])
-@pytest.mark.parametrize("loc_id", ["", "123"])
-def test_get_document_progress(client: FlaskClient, valid_session: bool, loc_id: str):
-    session_id = "get_document_progress"
-    toponyms = [{"text": "Andorra", "start": 0, "end": 7, "loc_id": loc_id}]
-    if valid_session:
-        set_session(session_id, toponyms=toponyms)
-    response = client.get(
-        f"/session/{session_id}/document/{0}/progress",
-        content_type="application/json",
-    )
-    if not valid_session:
-        validate_json_response(
-            response, 404, {"error": "Session not found", "status": "error"}
-        )
-    else:
-        expected = {
-            "annotated_toponyms": 0 if not loc_id else 1,
-            "progress_percentage": 0.0 if not loc_id else 100.0,
-            "status": "success",
-            "total_toponyms": 1,
-        }
-        validate_json_response(response, 200, expected)
-
-
-@pytest.mark.parametrize("valid_session", [True, False])
 @pytest.mark.parametrize("doc_index", [0, 1])
 @pytest.mark.parametrize("spacy_applied", [True, False])
 def test_parse_document(
@@ -381,6 +356,31 @@ def test_parse_document(
         # document has been parsed with spacy
         session = sessions_cache.load(session_id)
         assert session["documents"][doc_index]["spacy_applied"] is True
+
+
+@pytest.mark.parametrize("valid_session", [True, False])
+@pytest.mark.parametrize("loc_id", ["", "123"])
+def test_get_document_progress(client: FlaskClient, valid_session: bool, loc_id: str):
+    session_id = "get_document_progress"
+    toponyms = [{"text": "Andorra", "start": 0, "end": 7, "loc_id": loc_id}]
+    if valid_session:
+        set_session(session_id, toponyms=toponyms)
+    response = client.get(
+        f"/session/{session_id}/document/{0}/progress",
+        content_type="application/json",
+    )
+    if not valid_session:
+        validate_json_response(
+            response, 404, {"error": "Session not found", "status": "error"}
+        )
+    else:
+        expected = {
+            "annotated_toponyms": 0 if not loc_id else 1,
+            "progress_percentage": 0.0 if not loc_id else 100.0,
+            "status": "success",
+            "total_toponyms": 1,
+        }
+        validate_json_response(response, 200, expected)
 
 
 @pytest.mark.parametrize("valid_session", [True, False])

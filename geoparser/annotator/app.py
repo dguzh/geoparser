@@ -209,6 +209,27 @@ def add_documents(session_id):
     return jsonify({"status": "success"})
 
 
+@app.post("/session/<session_id>/document/<doc_index>/parse")
+def parse_document(session_id, doc_index):
+    doc_index = int(doc_index)
+
+    session = sessions_cache.load(session_id)
+    if not session:
+        return jsonify({"message": "Session not found", "status": "error"}), 404
+
+    if doc_index >= len(session["documents"]):
+        return jsonify({"message": "Invalid document index", "status": "error"}), 422
+
+    doc = session["documents"][doc_index]
+    if not doc.get("spacy_applied"):
+        doc = annotator.parse_doc(doc)
+        # save parsed toponyms into session
+        session["documents"][doc_index] = doc
+        sessions_cache.save(session["session_id"], session)
+        return jsonify({"status": "success", "parsed": True})
+    return jsonify({"status": "success", "parsed": False})
+
+
 @app.get("/session/<session_id>/document/<doc_index>/progress")
 def get_document_progress(session_id, doc_index):
     doc_index = int(doc_index)
@@ -233,27 +254,6 @@ def get_document_progress(session_id, doc_index):
             "progress_percentage": progress_percentage,
         }
     )
-
-
-@app.post("/session/<session_id>/document/<doc_index>/parse")
-def parse_document(session_id, doc_index):
-    doc_index = int(doc_index)
-
-    session = sessions_cache.load(session_id)
-    if not session:
-        return jsonify({"message": "Session not found", "status": "error"}), 404
-
-    if doc_index >= len(session["documents"]):
-        return jsonify({"message": "Invalid document index", "status": "error"}), 422
-
-    doc = session["documents"][doc_index]
-    if not doc.get("spacy_applied"):
-        doc = annotator.parse_doc(doc)
-        # save parsed toponyms into session
-        session["documents"][doc_index] = doc
-        sessions_cache.save(session["session_id"], session)
-        return jsonify({"status": "success", "parsed": True})
-    return jsonify({"status": "success", "parsed": False})
 
 
 @app.get("/session/<session_id>/document/<doc_index>/text")
