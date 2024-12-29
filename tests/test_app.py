@@ -172,9 +172,6 @@ def test_annotate(client: FlaskClient, valid_session: bool, doc_index: int):
     elif valid_session and doc_index == 0:
         assert response.status_code == 200
         assert template.name == "annotate.html"
-        # document has been parsed with spacy
-        session = sessions_cache.load(session_id)
-        assert session["documents"][doc_index]["spacy_applied"] is True
 
 
 def test_create_session(client: FlaskClient):
@@ -354,6 +351,36 @@ def test_get_document_progress(client: FlaskClient, valid_session: bool, loc_id:
             "total_toponyms": 1,
         }
         validate_json_response(response, 200, expected)
+
+
+@pytest.mark.parametrize("valid_session", [True, False])
+@pytest.mark.parametrize("doc_index", [0, 1])
+@pytest.mark.parametrize("spacy_applied", [True, False])
+def test_parse_document(
+    client: FlaskClient, valid_session: bool, doc_index: int, spacy_applied: bool
+):
+    session_id = "parse_document"
+    if valid_session:
+        set_session(session_id, spacy_applied=spacy_applied)
+    response = client.post(
+        f"/session/{session_id}/document/{doc_index}/parse",
+        content_type="application/json",
+    )
+    if not valid_session:
+        validate_json_response(
+            response, 404, {"message": "Session not found", "status": "error"}
+        )
+    elif doc_index == 1:
+        validate_json_response(
+            response, 422, {"message": "Invalid document index", "status": "error"}
+        )
+    else:
+        validate_json_response(
+            response, 200, {"parsed": not spacy_applied, "status": "success"}
+        )
+        # document has been parsed with spacy
+        session = sessions_cache.load(session_id)
+        assert session["documents"][doc_index]["spacy_applied"] is True
 
 
 @pytest.mark.parametrize("valid_session", [True, False])

@@ -80,11 +80,6 @@ def annotate(session_id):
         return redirect(url_for("annotate", session_id=session_id, doc_index=0))
 
     doc = session["documents"][doc_index]
-    if not doc.get("spacy_applied"):
-        doc = annotator.parse_doc(doc)
-        # save parsed toponyms into session
-        session["documents"][doc_index] = doc
-        sessions_cache.save(session["session_id"], session)
 
     # Prepare pre-annotated text
     pre_annotated_text = annotator.get_pre_annotated_text(doc["text"], doc["toponyms"])
@@ -238,6 +233,27 @@ def get_document_progress(session_id, doc_index):
             "progress_percentage": progress_percentage,
         }
     )
+
+
+@app.post("/session/<session_id>/document/<doc_index>/parse")
+def parse_document(session_id, doc_index):
+    doc_index = int(doc_index)
+
+    session = sessions_cache.load(session_id)
+    if not session:
+        return jsonify({"message": "Session not found", "status": "error"}), 404
+
+    if doc_index >= len(session["documents"]):
+        return jsonify({"message": "Invalid document index", "status": "error"}), 422
+
+    doc = session["documents"][doc_index]
+    if not doc.get("spacy_applied"):
+        doc = annotator.parse_doc(doc)
+        # save parsed toponyms into session
+        session["documents"][doc_index] = doc
+        sessions_cache.save(session["session_id"], session)
+        return jsonify({"status": "success", "parsed": True})
+    return jsonify({"status": "success", "parsed": False})
 
 
 @app.get("/session/<session_id>/document/<doc_index>/text")

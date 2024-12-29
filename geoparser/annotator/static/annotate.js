@@ -69,6 +69,21 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
+    // parse document with spacy
+    fetch(Flask.url_for("parse_document", {session_id: sessionId, doc_index: docIndex}), {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(response => {
+        if (response.status === 200) {
+            reloadDocumentText();
+        } else {
+            alert('Failed to load settings.');
+        }
+    });
+
     settingsBtn.addEventListener('click', function() {
         // Load current settings from the server
         fetch(Flask.url_for("get_session_settings", {session_id: sessionId}), {
