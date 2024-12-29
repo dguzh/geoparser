@@ -51,7 +51,7 @@ class GeoparserAnnotator(Geoparser):
     def parse_doc(self, doc: dict) -> dict:
         self.nlp = self.setup_spacy(doc["spacy_model"])
         spacy_doc = self.nlp(doc["text"])
-        new_toponyms = [
+        toponyms = [
             {
                 "text": top.text,
                 "start": top.start_char,
@@ -60,7 +60,6 @@ class GeoparserAnnotator(Geoparser):
             }
             for top in spacy_doc.toponyms
         ]
-        toponyms = self.merge_toponyms(doc["toponyms"], new_toponyms)
         doc["toponyms"] = toponyms
         doc["spacy_applied"] = True
         return doc
