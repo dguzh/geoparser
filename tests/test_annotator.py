@@ -76,6 +76,7 @@ def test_parse_files(annotator: GeoparserAnnotator, apply_spacy: bool):
             assert type(elem) is dict
             assert elem["filename"] == f"annotator_doc{i}.txt"
             assert elem["spacy_model"] == model
+            assert elem["spacy_applied"] == apply_spacy
             documents[i].seek(0)
             assert elem["text"] == documents[i].read().decode("utf-8")
             n_toponyms = len(elem["toponyms"])
@@ -86,6 +87,146 @@ def test_parse_files(annotator: GeoparserAnnotator, apply_spacy: bool):
                 assert (
                     elem["text"][toponym["start"] : toponym["end"]] == toponym["text"]
                 )
+
+
+def test_parse_doc(annotator: GeoparserAnnotator):
+    doc = {
+        "filename": "test.txt",
+        "spacy_model": "en_core_web_sm",
+        "text": "Canada is a nice place.",
+        "toponyms": [],
+        "spacy_applied": False,
+    }
+    result = annotator.parse_doc(doc)
+    assert result["spacy_applied"] is True
+    assert len(result["toponyms"]) == 1
+    toponym = result["toponyms"][0]
+    assert toponym["text"] == "Canada"
+    assert toponym["start"] == 0
+    assert toponym["end"] == 6
+    assert toponym["loc_id"] == ""
+
+
+@pytest.mark.parametrize(
+    "old_toponyms,new_toponyms,expected",
+    [
+        (
+            [],
+            [],
+            [],
+        ),
+        (
+            [],
+            [
+                {
+                    "text": "test1",
+                    "start": 0,
+                    "end": 1,
+                    "loc_id": "",
+                }
+            ],
+            [
+                {
+                    "text": "test1",
+                    "start": 0,
+                    "end": 1,
+                    "loc_id": "",
+                }
+            ],
+        ),
+        (
+            [
+                {
+                    "text": "test1",
+                    "start": 0,
+                    "end": 1,
+                    "loc_id": "",
+                }
+            ],
+            [],
+            [
+                {
+                    "text": "test1",
+                    "start": 0,
+                    "end": 1,
+                    "loc_id": "",
+                }
+            ],
+        ),
+        (
+            [
+                {
+                    "text": "test1",
+                    "start": 0,
+                    "end": 1,
+                    "loc_id": "42",
+                }
+            ],
+            [
+                {
+                    "text": "test1",
+                    "start": 0,
+                    "end": 1,
+                    "loc_id": "",
+                }
+            ],
+            [
+                {
+                    "text": "test1",
+                    "start": 0,
+                    "end": 1,
+                    "loc_id": "42",
+                }
+            ],
+        ),
+        (
+            [
+                {
+                    "text": "test1",
+                    "start": 0,
+                    "end": 1,
+                    "loc_id": "41",
+                }
+            ],
+            [
+                {
+                    "text": "test1",
+                    "start": 0,
+                    "end": 1,
+                    "loc_id": "",
+                },
+                {
+                    "text": "test2",
+                    "start": 3,
+                    "end": 4,
+                    "loc_id": "",
+                },
+            ],
+            [
+                {
+                    "text": "test1",
+                    "start": 0,
+                    "end": 1,
+                    "loc_id": "41",
+                },
+                {
+                    "text": "test2",
+                    "start": 3,
+                    "end": 4,
+                    "loc_id": "",
+                },
+            ],
+        ),
+    ],
+)
+def test_merge_toponyms(
+    annotator: GeoparserAnnotator,
+    old_toponyms: list[dict],
+    new_toponyms: list[dict],
+    expected: list[dict],
+):
+    result = annotator.merge_toponyms(old_toponyms, new_toponyms)
+    assert result == expected
 
 
 def test_get_pre_annotated_text(annotator: GeoparserAnnotator):

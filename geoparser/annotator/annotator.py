@@ -48,6 +48,35 @@ class GeoparserAnnotator(Geoparser):
                 "spacy_applied": apply_spacy,
             }
 
+    def parse_doc(self, doc: dict) -> dict:
+        self.nlp = self.setup_spacy(doc["spacy_model"])
+        spacy_doc = self.nlp(doc["text"])
+        new_toponyms = [
+            {
+                "text": top.text,
+                "start": top.start_char,
+                "end": top.end_char,
+                "loc_id": "",  # Empty string indicates not annotated yet
+            }
+            for top in spacy_doc.toponyms
+        ]
+        toponyms = self.merge_toponyms(doc["toponyms"], new_toponyms)
+        doc["toponyms"] = toponyms
+        doc["spacy_applied"] = True
+        return doc
+
+    def merge_toponyms(
+        self, old_toponyms: list[dict], new_toponyms: list[dict]
+    ) -> list[dict]:
+        toponyms = []
+        for new_toponym in new_toponyms:
+            # only add the spacy-toponym if there is no existing one
+            if not self.get_toponym(
+                old_toponyms, new_toponym["start"], new_toponym["end"]
+            ):
+                toponyms.append(new_toponym)
+        return sorted(toponyms + old_toponyms, key=lambda x: x["start"])
+
     def get_pre_annotated_text(self, text: str, toponyms: dict[str, str]) -> str:
         html_parts = []
         last_idx = 0

@@ -172,6 +172,9 @@ def test_annotate(client: FlaskClient, valid_session: bool, doc_index: int):
     elif valid_session and doc_index == 0:
         assert response.status_code == 200
         assert template.name == "annotate.html"
+        # document has been parsed with spacy
+        session = sessions_cache.load(session_id)
+        assert session["documents"][doc_index]["spacy_applied"] is True
 
 
 def test_create_session(client: FlaskClient):
