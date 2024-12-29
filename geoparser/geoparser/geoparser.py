@@ -90,7 +90,13 @@ class Geoparser:
 
         spacy.prefer_gpu()
 
-        nlp = spacy.load(spacy_model)
+        # only load spacy model if needed
+        if (
+            not (nlp := getattr(self, "nlp", None))
+            or not isinstance(nlp, spacy.language.Language)
+            or f"{nlp.meta['lang']}_{nlp.meta['name']}" != spacy_model
+        ):
+            nlp = spacy.load(spacy_model)
         nlp.make_doc = lambda text: GeoDoc(
             self,
             nlp.vocab,
