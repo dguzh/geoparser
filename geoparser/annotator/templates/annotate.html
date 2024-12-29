@@ -110,9 +110,11 @@
 
         <!-- Main Content -->
         <div class="col-md-10" id="main-content">
-            <h2 class="mt-3">{{ doc.filename }}</h2>
-            <h2 class="mt-3" id="toponym-recognition-indicator">toponym recognition...</h2>
-            <div id="document-text">{{ pre_annotated_text | safe }}</div>
+          <div class="col-md-10" id="document-header">
+            <h2 class="mt-3" style="text-align:left;float:left;">{{ doc.filename }}</h2>
+            <h2 class="mt-3" style="text-align:left;float:left;font-style:italic;color:#696969" id="toponym-recognition-indicator">toponym recognition in progress...</h2>
+          </div>
+          <div id="document-text">{{ pre_annotated_text | safe }}</div>
         </div>
     </div>
 </div>
