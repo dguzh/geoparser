@@ -54,7 +54,8 @@ def test_get_toponym(annotator: GeoparserAnnotator, query: tuple[int, int]):
         assert result is None
 
 
-def test_parse_files(annotator: GeoparserAnnotator):
+@pytest.mark.parametrize("apply_spacy", [True, False])
+def test_parse_files(annotator: GeoparserAnnotator, apply_spacy: bool):
     model = "en_core_web_sm"
     with open(get_static_test_file("annotator_doc0.txt"), "rb") as doc1, open(
         get_static_test_file("annotator_doc1.txt"), "rb"
@@ -66,6 +67,7 @@ def test_parse_files(annotator: GeoparserAnnotator):
                 for i in range(2)
             ],
             model,
+            apply_spacy,
         )
         assert type(result) is types.GeneratorType
         result = list(result)
@@ -76,12 +78,13 @@ def test_parse_files(annotator: GeoparserAnnotator):
             assert elem["spacy_model"] == model
             documents[i].seek(0)
             assert elem["text"] == documents[i].read().decode("utf-8")
+            n_toponyms = len(elem["toponyms"])
+            assert n_toponyms == 1 if apply_spacy else n_toponyms == 0
             for toponym in elem["toponyms"]:
                 for key in ["text", "start", "end", "loc_id"]:
                     assert key in toponym
                 assert (
-                    elem["text"][toponym["start"] : toponym["end"] + 1]
-                    == toponym["text"]
+                    elem["text"][toponym["start"] : toponym["end"]] == toponym["text"]
                 )
 
 

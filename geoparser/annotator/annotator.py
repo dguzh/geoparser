@@ -20,26 +20,32 @@ class GeoparserAnnotator(Geoparser):
             None,
         )
 
-    def parse_files(self, files: list[t.IO], spacy_model: str) -> t.Iterator[dict]:
-        self.nlp = self.setup_spacy(spacy_model)
+    def parse_files(
+        self, files: list[t.IO], spacy_model: str, apply_spacy: bool = True
+    ) -> t.Iterator[dict]:
+        if apply_spacy:
+            self.nlp = self.setup_spacy(spacy_model)
         for file in files:
             filename = secure_filename(file.filename)
             text = file.read().decode("utf-8")
-            doc = self.nlp(text)
-            toponyms = [
-                {
-                    "text": top.text,
-                    "start": top.start_char,
-                    "end": top.end_char,
-                    "loc_id": "",  # Empty string indicates not annotated yet
-                }
-                for top in doc.toponyms
-            ]
+            toponyms = []
+            if apply_spacy:
+                doc = self.nlp(text)
+                toponyms = [
+                    {
+                        "text": top.text,
+                        "start": top.start_char,
+                        "end": top.end_char,
+                        "loc_id": "",  # Empty string indicates not annotated yet
+                    }
+                    for top in doc.toponyms
+                ]
             yield {
                 "filename": filename,
                 "spacy_model": spacy_model,
                 "text": text,
                 "toponyms": toponyms,
+                "spacy_applied": apply_spacy,
             }
 
     def get_pre_annotated_text(self, text: str, toponyms: dict[str, str]) -> str:
