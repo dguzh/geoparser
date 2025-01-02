@@ -89,20 +89,37 @@ document.addEventListener('DOMContentLoaded', function() {
     .then(data => {
         if (Boolean(data)) {
             documents = data;
-            prepareCurrentDocument(documents);
-            prepareOtherDocuments(documents);
+            markTaggedDocuments(documents);
+            prepareCurrentDocument(documents)
+            .then(() => {
+                tagUntaggedDocuments(documents)
+            });
         }
     });
+
+    // Function to mark all documents that have already been tagged
+    function markTaggedDocuments(documents) {
+        let i = 0;
+        while (i < documents.length) {
+            let currentDoc = documents[i];
+            if (i !== docIndex && currentDoc["spacy_applied"] === true) {
+                markDocumentReady(i);
+
+            }
+            i++;
+        }
+    }
 
     // Function to prepare current document for editing
     function prepareCurrentDocument(documents) {
         let i = 0;
+        let prom = Promise.resolve(true)
         while (i < documents.length) {
             let currentDoc = documents[i];
             if (i === docIndex) {
                 if (currentDoc["spacy_applied"] === false) {
                     taggingLoadSpinner.style.display = "block";
-                    fetch(Flask.url_for("parse_document", {session_id: sessionId, doc_index: i}), {
+                    prom = fetch(Flask.url_for("parse_document", {session_id: sessionId, doc_index: i}), {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json'
@@ -127,12 +144,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             i++;
         }
-    }
-
-    // Function to prepare other documents in the background
-    function prepareOtherDocuments(documents) {
-        markTaggedDocuments(documents);
-        tagUntaggedDocuments(documents);
+        return prom
     }
 
     // Function to tag all yet untagged documents
@@ -152,19 +164,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 } else {
                     console.error(`Failed to tag document ${i}`);
                 }
-            }
-            i++;
-        }
-    }
-
-    // Function to mark all documents that have already been tagged
-    function markTaggedDocuments(documents) {
-        let i = 0;
-        while (i < documents.length) {
-            let currentDoc = documents[i];
-            if (i !== docIndex && currentDoc["spacy_applied"] === true) {
-                markDocumentReady(i);
-
             }
             i++;
         }
