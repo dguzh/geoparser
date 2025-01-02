@@ -233,10 +233,10 @@ def parse_document(session_id, doc_index):
     doc = session["documents"][doc_index]
     if not doc.get("spacy_applied"):
         doc = annotator.parse_doc(doc)
-        # reload toponyms in case the user has added some in the meantime
-        old_toponyms = sessions_cache.load(session_id)["documents"][doc_index][
-            "toponyms"
-        ]
+        # reload session in case there have been changes to it in the meantime
+        session = sessions_cache.load(session_id)
+        # merge toponyms in case the user has added some in the meantime
+        old_toponyms = session["documents"][doc_index]["toponyms"]
         spacy_toponyms = doc["toponyms"]
         doc["toponyms"] = annotator.merge_toponyms(old_toponyms, spacy_toponyms)
         # save parsed toponyms into session
