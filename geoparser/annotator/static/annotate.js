@@ -20,8 +20,11 @@ document.addEventListener('DOMContentLoaded', function() {
     var docIndex = Number(params.get("doc_index"));
     var progressBar = document.getElementById('progress-bar-' + docIndex);
 
-    // Get the document text container
+    // Get the document text container and load spinner
     var documentText = document.getElementById('document-text');
+    documentText.style.display = "none";
+    var taggingLoadSpinner = document.getElementById('toponym-recognition-indicator');
+    taggingLoadSpinner.style.display = "block";
 
     // Initialize totalTextLength
     var totalTextLength = documentText.textContent.length;
@@ -49,9 +52,6 @@ document.addEventListener('DOMContentLoaded', function() {
     var oneSensePerDiscourseCheckbox = document.getElementById('one-sense-per-discourse');
     var autoCloseAnnotationModalCheckbox = document.getElementById('auto-close-annotation-modal');
 
-    // Toponym recognition indictaor
-    var toponymRecognitionIndicator = document.getElementById('toponym-recognition-indicator');
-    toponymRecognitionIndicator.style.display = "block";
 
     // Fetch session settings
     fetch(Flask.url_for("get_session_settings", {session_id: sessionId}), {
@@ -83,8 +83,9 @@ document.addEventListener('DOMContentLoaded', function() {
     .then(response => {
         if (response.status === 200) {
             reloadDocumentText();
-            // hide toponym recognition indicator
-            toponymRecognitionIndicator.style.display = "none";
+            // allow editing document
+            taggingLoadSpinner.style.display = "none";
+            documentText.style.display = "block";
         } else {
             alert('Failed to load settings.');
         }
