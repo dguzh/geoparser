@@ -75,10 +75,11 @@ def set_session(session_id: str, *, settings=None, **document_kwargs) -> dict:
             "documents": [
                 {
                     "filename": "test.txt",
+                    "spacy_applied": False,
                     "spacy_model": "en_core_web_sm",
                     "text": "Andorra is nice.",
                     "toponyms": [
-                        {"text": "Andorra", "start": 0, "end": 7, "loc_id": ""},
+                        {"end": 7, "loc_id": "", "start": 0, "text": "Andorra"},
                     ],
                 }
             ],
@@ -326,6 +327,23 @@ def test_add_documents(
         )
     else:
         validate_json_response(response, 200, {"status": "success"})
+
+
+@pytest.mark.parametrize("valid_session", [True, False])
+def test_get_documents(client: FlaskClient, valid_session: bool):
+    session_id = "get_documents"
+    if valid_session:
+        session = set_session(session_id)
+    response = client.get(
+        f"/session/{session_id}/documents",
+        content_type="application/json",
+    )
+    if not valid_session:
+        validate_json_response(
+            response, 404, {"message": "Session not found.", "status": "error"}
+        )
+    else:
+        validate_json_response(response, 200, session["documents"])
 
 
 @pytest.mark.parametrize("valid_session", [True, False])

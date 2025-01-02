@@ -209,6 +209,16 @@ def add_documents(session_id):
     return jsonify({"status": "success"})
 
 
+@app.get("/session/<session_id>/documents")
+def get_documents(session_id):
+    session = sessions_cache.load(session_id)
+    if not session:
+        return jsonify({"message": "Session not found.", "status": "error"}), 404
+
+    docs = session["documents"]
+    return jsonify(docs)
+
+
 @app.post("/session/<session_id>/document/<doc_index>/parse")
 def parse_document(session_id, doc_index):
     doc_index = int(doc_index)
