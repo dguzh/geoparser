@@ -22,9 +22,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Get the document text container and load spinner
     var documentText = document.getElementById('document-text');
-    documentText.style.display = "none";
     var taggingLoadSpinner = document.getElementById('toponym-recognition-indicator');
-    taggingLoadSpinner.style.display = "block";
 
     // Initialize totalTextLength
     var totalTextLength = documentText.textContent.length;
@@ -39,6 +37,7 @@ document.addEventListener('DOMContentLoaded', function() {
     var originalStart = 0;
     var originalEnd = 0;
     var currentToponymElement = null;
+    var documents = null;
 
     var documentList = document.getElementById('document-list');
 
@@ -73,23 +72,110 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    // parse document with spacy
-    fetch(Flask.url_for("parse_document", {session_id: sessionId, doc_index: docIndex}), {
-        method: 'POST',
+    // prepare documents
+    fetch(Flask.url_for("get_documents", {session_id: sessionId}), {
+        method: 'GET',
         headers: {
             'Content-Type': 'application/json'
         }
     })
     .then(response => {
         if (response.status === 200) {
-            reloadDocumentText();
-            // allow editing document
-            taggingLoadSpinner.style.display = "none";
-            documentText.style.display = "block";
+            return response.json()
         } else {
-            alert('Failed to load settings.');
+            alert('Failed to load documents.');
+        }
+    })
+    .then(data => {
+        if (Boolean(data)) {
+            documents = data;
+            prepareCurrentDocument(documents);
+            prepareOtherDocuments(documents);
         }
     });
+
+    // Function to prepare current document for editing
+    function prepareCurrentDocument(documents) {
+        let i = 0;
+        while (i < documents.length) {
+            let currentDoc = documents[i];
+            if (i === docIndex) {
+                if (currentDoc["spacy_applied"] === false) {
+                    taggingLoadSpinner.style.display = "block";
+                    fetch(Flask.url_for("parse_document", {session_id: sessionId, doc_index: i}), {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        }
+                    })
+                    .then(response => {
+                        if (response.status === 200) {
+                            // allow editing document
+                            taggingLoadSpinner.style.display = "none";
+                            documentText.style.display = "block";
+                            markDocumentReady(i);
+                            reloadDocumentText();
+                        } else {
+                            alert('Failed to parse document.');
+                        }
+                    });
+                } else {
+                    documentText.style.display = "block";
+                    markDocumentReady(i);
+                }
+                break;
+            }
+            i++;
+        }
+    }
+
+    // Function to prepare other documents in the background
+    function prepareOtherDocuments(documents) {
+        markTaggedDocuments(documents);
+        tagUntaggedDocuments(documents);
+    }
+
+    // Function to tag all yet untagged documents
+    async function tagUntaggedDocuments(documents) {
+        let i = 0;
+        while (i < documents.length) {
+            let currentDoc = documents[i];
+            if (i !== docIndex && currentDoc["spacy_applied"] === false) {
+                let response = await fetch(Flask.url_for("parse_document", {session_id: sessionId, doc_index: i}), {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                })
+                if (response.status === 200) {
+                    markDocumentReady(i);                    
+                } else {
+                    console.error(`Failed to tag document ${i}`);
+                }
+            }
+            i++;
+        }
+    }
+
+    // Function to mark all documents that have already been tagged
+    function markTaggedDocuments(documents) {
+        let i = 0;
+        while (i < documents.length) {
+            let currentDoc = documents[i];
+            if (i !== docIndex && currentDoc["spacy_applied"] === true) {
+                markDocumentReady(i);
+
+            }
+            i++;
+        }
+    }
+
+    // Function to mark a document as ready in the sidebar
+    function markDocumentReady(docId) {
+        let readyIndicator = document.getElementById(`tagged-${docId}`);
+        readyIndicator.style.display = "block";
+    }
+
 
     settingsBtn.addEventListener('click', function() {
         // Load current settings from the server
