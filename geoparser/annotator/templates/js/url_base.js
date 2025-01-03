@@ -1,1 +1,1 @@
-const urlBase = "{{ url_for('index') }}";
+const urlBase = "{{ url_for('index') }}".slice(0,-1);
