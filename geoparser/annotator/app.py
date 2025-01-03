@@ -107,12 +107,16 @@ async def continue_session(request: Request):
 def annotate(request: Request, session_id: str, doc_index: int = 0):
     session = sessions_cache.load(session_id)
     if not session:
-        return RedirectResponse(request.url_for("index"))
+        return RedirectResponse(
+            url=app.url_path_for("index"),
+            status_code=status.HTTP_302_FOUND,
+        )
 
     if doc_index >= len(session["documents"]):
         # If the document index is out of range, redirect to the first document
         return RedirectResponse(
-            request.url_for("annotate", session_id=session_id, doc_index=0)
+            url=app.url_path_for("annotate", session_id=session_id) + "?doc_index=0",
+            status_code=status.HTTP_302_FOUND,
         )
 
     doc = session["documents"][doc_index]
@@ -146,7 +150,6 @@ def annotate(request: Request, session_id: str, doc_index: int = 0):
 
 @app.post("/session", tags=["session"])
 def create_session(
-    request: Request,
     files: list[UploadFile],
     gazetteer: t.Annotated[str, Form()],
     spacy_model: t.Annotated[str, Form()],
@@ -164,32 +167,34 @@ def create_session(
     sessions_cache.save(session["session_id"], session)
 
     return RedirectResponse(
-        request.url_for("annotate", session_id=session["session_id"], doc_index=0)
+        url=app.url_path_for("annotate", session_id=session["session_id"])
+        + "?doc_index=0",
+        status_code=status.HTTP_302_FOUND,
     )
 
 
 @app.post("/session/continue/cached", tags=["session"])
-def continue_session_cached(request: Request, session_id: t.Annotated[str, Form()]):
+def continue_session_cached(session_id: t.Annotated[str, Form()]):
 
     # Load selected session directly without creating a new session
     session = sessions_cache.load(session_id)
     if not session:
-        return RedirectResponse(request.url_for("continue_session"))
+        return RedirectResponse(
+            app.url_path_for("continue_session"), status_code=status.HTTP_302_FOUND
+        )
 
     # Re-initialize gazetteer
     annotator.gazetteer = annotator.setup_gazetteer(session["gazetteer"])
 
     # Redirect to annotate page
     return RedirectResponse(
-        request.url_for("annotate", session_id=session["session_id"], doc_index=0)
+        app.url_path_for("annotate", session_id=session["session_id"]) + "?doc_index=0",
+        status_code=status.HTTP_302_FOUND,
     )
 
 
 @app.post("/session/continue/file", tags=["session"])
-def continue_session_file(
-    request: Request,
-    file: UploadFile,
-):
+def continue_session_file(file: UploadFile):
     # Handle uploaded session file
     if file and file.filename:
         session_data = json.load(file.stream)
@@ -207,10 +212,13 @@ def continue_session_file(
 
         # Redirect to annotate page
         return RedirectResponse(
-            request.url_for("annotate", session_id=session_id, doc_index=0)
+            app.url_path_for("annotate", session_id=session_id) + "?doc_index=0",
+            status_code=status.HTTP_302_FOUND,
         )
     else:
-        return RedirectResponse(request.url_for("continue_session"))
+        return RedirectResponse(
+            app.url_path_for("continue_session"), status_code=status.HTTP_302_FOUND
+        )
 
 
 @app.delete("/session/{session_id}", tags=["session"])
