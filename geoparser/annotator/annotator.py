@@ -27,7 +27,7 @@ class GeoparserAnnotator(Geoparser):
             self.nlp = self.setup_spacy(spacy_model)
         for file in files:
             filename = secure_filename(file.filename)
-            text = file.read().decode("utf-8")
+            text = file.file.read().decode("utf-8")
             toponyms = []
             if apply_spacy:
                 doc = self.nlp(text)
