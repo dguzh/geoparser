@@ -86,7 +86,7 @@
                   <!-- File Upload -->
                   <div class="mb-3">
                     <label for="files" class="form-label">Select Documents:</label>
-                    <input type="file" class="form-control" name="files[]" multiple required>
+                    <input type="file" class="form-control" name="files" multiple required>
                   </div>
                   <!-- SpaCy Model Selection -->
                   <div class="mb-3">
@@ -233,6 +233,7 @@
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 
 <!-- Custom JS -->
+<script>{% include 'js/url_base.js' %}</script>
 <script src="{{url_for('static', path='/annotate.js')}}"></script>
 
 </body>
