@@ -7,7 +7,7 @@ from appdirs import user_data_dir
 
 
 class SessionsCache:
-    def __init__(self, cache_dir: str = "app"):
+    def __init__(self, cache_dir: str = "annotator"):
         self.cache_dir = os.path.join(user_data_dir("geoparser", ""), cache_dir)
         os.makedirs(self.cache_dir, exist_ok=True)
 
