@@ -197,10 +197,10 @@ def continue_session_cached(session_id: t.Annotated[str, Form()]):
 
 
 @app.post("/session/continue/file", tags=["session"])
-def continue_session_file(file: UploadFile):
+def continue_session_file(session_file: UploadFile):
     # Handle uploaded session file
-    if file and file.filename:
-        session_data = json.loads(file.file.read().decode())
+    if session_file and session_file.filename:
+        session_data = json.loads(session_file.file.read().decode())
         session_id = session_data.get("session_id")
         if not session_id:
             # Generate a new session_id if not present
@@ -629,7 +629,7 @@ def get_session_settings(session_id: str):
     return JSONResponse(settings)
 
 
-@app.put("/session/<session_id>/settings", tags=["settings"])
+@app.put("/session/{session_id}/settings", tags=["settings"])
 def put_session_settings(session_id: str, session_settings: SessionSettings):
     session = sessions_cache.load(session_id)
     if not session:
