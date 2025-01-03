@@ -107,7 +107,7 @@ async def continue_session(request: Request):
     )
 
 
-@app.get("/session/{session_id}/annotate", tags=["pages"])
+@app.get("/session/{session_id}/document/{doc_index}/annotate", tags=["pages"])
 def annotate(request: Request, session_id: str, doc_index: int = 0):
     session = sessions_cache.load(session_id)
     if not session:
@@ -119,7 +119,7 @@ def annotate(request: Request, session_id: str, doc_index: int = 0):
     if doc_index >= len(session["documents"]):
         # If the document index is out of range, redirect to the first document
         return RedirectResponse(
-            url=app.url_path_for("annotate", session_id=session_id) + "?doc_index=0",
+            url=app.url_path_for("annotate", session_id=session_id, doc_index=0),
             status_code=status.HTTP_302_FOUND,
         )
 
@@ -171,8 +171,7 @@ def create_session(
     sessions_cache.save(session["session_id"], session)
 
     return RedirectResponse(
-        url=app.url_path_for("annotate", session_id=session["session_id"])
-        + "?doc_index=0",
+        url=app.url_path_for("annotate", session_id=session["session_id"], doc_index=0),
         status_code=status.HTTP_302_FOUND,
     )
 
@@ -192,7 +191,7 @@ def continue_session_cached(session_id: t.Annotated[str, Form()]):
 
     # Redirect to annotate page
     return RedirectResponse(
-        app.url_path_for("annotate", session_id=session["session_id"]) + "?doc_index=0",
+        app.url_path_for("annotate", session_id=session["session_id"], doc_index=0),
         status_code=status.HTTP_302_FOUND,
     )
 
@@ -201,7 +200,7 @@ def continue_session_cached(session_id: t.Annotated[str, Form()]):
 def continue_session_file(file: UploadFile):
     # Handle uploaded session file
     if file and file.filename:
-        session_data = json.load(file.stream)
+        session_data = json.loads(file.file.read().decode())
         session_id = session_data.get("session_id")
         if not session_id:
             # Generate a new session_id if not present
@@ -216,7 +215,7 @@ def continue_session_file(file: UploadFile):
 
         # Redirect to annotate page
         return RedirectResponse(
-            app.url_path_for("annotate", session_id=session_id) + "?doc_index=0",
+            app.url_path_for("annotate", session_id=session_id, doc_index=0),
             status_code=status.HTTP_302_FOUND,
         )
     else:
@@ -226,13 +225,13 @@ def continue_session_file(file: UploadFile):
 
 
 @app.delete("/session/{session_id}", tags=["session"])
-def delete_session(session_id: int):
+def delete_session(session_id: str):
     success = sessions_cache.delete(session_id)
     if success:
-        return JSONResponse(data={"status": "success"})
+        return JSONResponse({"status": "success"})
     else:
         return JSONResponse(
-            data={"message": "Session not found.", "status": "error"},
+            {"message": "Session not found.", "status": "error"},
             status_code=status.HTTP_404_NOT_FOUND,
         )
 
@@ -380,7 +379,9 @@ def delete_document(session_id: str, doc_index: int):
         )
 
 
-@app.get("/session/{session_id}/document/{doc_index}/candidates", tags=["candidates"])
+@app.post(
+    "/session/{session_id}/document/{doc_index}/get_candidates", tags=["candidates"]
+)
 def get_candidates(session_id: str, doc_index: int, candidates_request: CandidatesGet):
 
     session = sessions_cache.load(session_id)
@@ -477,7 +478,7 @@ def download_annotations(session_id: str):
 
 
 @app.put("/session/{session_id}/document/{doc_index}/annotation", tags=["annotation"])
-def overwrite_annotation(session_id, doc_index, annotation: Annotation):
+def overwrite_annotation(session_id: str, doc_index: int, annotation: Annotation):
     session = sessions_cache.load(session_id)
     if not session:
         return JSONResponse(

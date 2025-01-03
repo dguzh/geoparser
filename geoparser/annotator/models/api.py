@@ -7,6 +7,7 @@ class Annotation(BaseModel):
     start: int
     end: int
     text: str | None
+    loc_id: str | None = None
 
 
 class AnnotationEdit(BaseModel):
