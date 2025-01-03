@@ -85,14 +85,14 @@ def get_session(gazetteer: str):
 
 @app.get("/", tags=["pages"])
 async def index(request: Request):
-    return templates.TemplateResponse(request=request, name="index.html")
+    return templates.TemplateResponse(request=request, name="html/index.html")
 
 
 @app.get("/start_new_session", tags=["pages"])
 async def start_new_session(request: Request):
     return templates.TemplateResponse(
         request=request,
-        name="start_new_session.html",
+        name="html/start_new_session.html",
         context={"gazetteers": GAZETTEERS, "spacy_models": spacy_models},
     )
 
@@ -102,7 +102,7 @@ async def continue_session(request: Request):
     cached_sessions = sessions_cache.get_cached_sessions()
     return templates.TemplateResponse(
         request=request,
-        name="continue_session.html",
+        name="html/continue_session.html",
         context={"cached_sessions": cached_sessions},
     )
 
@@ -136,7 +136,7 @@ def annotate(request: Request, session_id: str, doc_index: int = 0):
 
     return templates.TemplateResponse(
         request=request,
-        name="annotate.html",
+        name="html/annotate.html",
         context={
             "doc": doc,
             "doc_index": doc_index,

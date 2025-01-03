@@ -53,7 +53,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
 
     // Fetch session settings
-    fetch(Flask.url_for("get_session_settings", {session_id: sessionId}), {
+    fetch(`${urlBase}/session/${sessionId}/settings`, {
         method: 'GET',
         headers: {
             'Content-Type': 'application/json'
@@ -73,7 +73,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     // prepare documents
-    fetch(Flask.url_for("get_documents", {session_id: sessionId}), {
+    fetch(`${urlBase}/session/${sessionId}/documents`, {
         method: 'GET',
         headers: {
             'Content-Type': 'application/json'
@@ -119,7 +119,7 @@ document.addEventListener('DOMContentLoaded', function() {
             if (i === docIndex) {
                 if (currentDoc["spacy_applied"] === false) {
                     taggingLoadSpinner.style.display = "block";
-                    prom = fetch(Flask.url_for("parse_document", {session_id: sessionId, doc_index: i}), {
+                    prom = fetch(`${urlBase}/session/${sessionId}/document/${i}/parse`, {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json'
@@ -153,7 +153,7 @@ document.addEventListener('DOMContentLoaded', function() {
         while (i < documents.length) {
             let currentDoc = documents[i];
             if (i !== docIndex && currentDoc["spacy_applied"] === false) {
-                let response = await fetch(Flask.url_for("parse_document", {session_id: sessionId, doc_index: i}), {
+                let response = await fetch(`${urlBase}/session/${sessionId}/document/${i}/parse`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -178,7 +178,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     settingsBtn.addEventListener('click', function() {
         // Load current settings from the server
-        fetch(Flask.url_for("get_session_settings", {session_id: sessionId}), {
+        fetch(`${urlBase}/session/${sessionId}/settings`, {
             method: 'GET',
             headers: {
                 'Content-Type': 'application/json'
@@ -210,7 +210,7 @@ document.addEventListener('DOMContentLoaded', function() {
             'auto_close_annotation_modal': autoCloseAnnotationModal
         };
 
-        fetch(Flask.url_for("put_session_settings", {session_id: sessionId}), {
+        fetch(`${urlBase}/session/${sessionId}/settings`, {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json'
@@ -357,10 +357,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Function to create a new annotation
     function createAnnotation(toponymInfo) {
-        fetch(Flask.url_for("create_annotation", {
-            'session_id': sessionId,
-            'doc_index': docIndex,
-        }), {
+        fetch(`${urlBase}/session/${sessionId}/document/${docIndex}/annotation`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -387,10 +384,7 @@ document.addEventListener('DOMContentLoaded', function() {
         var start = parseInt(toponymElement.getAttribute('data-start'));
         var end = parseInt(toponymElement.getAttribute('data-end'));
 
-        fetch(Flask.url_for("delete_annotation", {
-            'session_id': sessionId,
-            'doc_index': docIndex,
-        }), {
+        fetch(`${urlBase}/session/${sessionId}/document/${docIndex}/annotation`, {
             method: 'DELETE',
             headers: {
                 'Content-Type': 'application/json'
@@ -494,10 +488,7 @@ document.addEventListener('DOMContentLoaded', function() {
             var newEnd = parseInt(currentToponymElement.getAttribute('data-end'));
             var newText = currentToponymElement.textContent;
 
-            fetch(Flask.url_for("update_annotation", {
-                'session_id': sessionId,
-                'doc_index': docIndex,
-            }), {
+            fetch(`${urlBase}/session/${sessionId}/document/${docIndex}/annotation`, {
                 method: 'PATCH',
                 headers: {
                     'Content-Type': 'application/json'
@@ -542,10 +533,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Function to reload the document text from the server
     function reloadDocumentText() {
-        fetch(Flask.url_for("get_document_text", {
-            'session_id': sessionId,
-            'doc_index': docIndex
-        }), {
+        fetch(`${urlBase}/session/${sessionId}/document/${docIndex}/text`, {
             method: 'GET',
             headers: {
                 'Content-Type': 'application/json'
@@ -572,10 +560,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Function to update progress bar
     function updateProgressBar() {
         // Fetch updated progress from the server
-        fetch(Flask.url_for("get_document_progress", {
-            'session_id': sessionId,
-            'doc_index': docIndex
-        }), {
+        fetch(`${urlBase}/session/${sessionId}/document/${docIndex}/progress`, {
             method: 'GET',
             headers: {
                 'Content-Type': 'application/json'
@@ -784,16 +769,15 @@ document.addEventListener('DOMContentLoaded', function() {
                 lastQueryText = queryText; // Store the last query text
             }
 
-            fetch(Flask.url_for("get_candidates", {
-                'session_id': sessionId,
-                'doc_index': docIndex,
-                'start': currentToponym.start,
-                'end': currentToponym.end,
-                'text': currentToponym.text,
-                'query_text': queryText
-            }), {
-                method: 'GET',
-                headers: { 'Content-Type': 'application/json' }
+            fetch(`${urlBase}/session/${sessionId}/document/${docIndex}/get_candidates`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    'start': currentToponym.start,
+                    'end': currentToponym.end,
+                    'text': currentToponym.text,
+                    'query_text': queryText
+                })
             })
             .then(response => response.json())
             .then(data => {
@@ -1111,10 +1095,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Function to save the annotation
         function saveAnnotation(loc_id) {
-            fetch(Flask.url_for("overwrite_annotation", {
-                'session_id': sessionId,
-                'doc_index': docIndex
-            }), {
+            fetch(`${urlBase}/session/${sessionId}/document/${docIndex}/annotation`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -1148,10 +1129,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Function to deselect the annotation (reset to unprocessed state)
         function deselectCandidate() {
-            fetch(Flask.url_for("overwrite_annotation", {
-                'session_id': sessionId,
-                'doc_index': docIndex
-            }), {
+            fetch(`${urlBase}/session/${sessionId}/document/${docIndex}/annotation`, {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json'
@@ -1197,7 +1175,7 @@ document.addEventListener('DOMContentLoaded', function() {
         event.preventDefault();
         var formData = new FormData(addDocumentForm);
 
-        fetch(Flask.url_for("add_documents", {"session_id": sessionId}), {
+        fetch(`${urlBase}/session/${sessionId}/documents`, {
             method: 'POST',
             body: formData
         })
@@ -1222,10 +1200,7 @@ document.addEventListener('DOMContentLoaded', function() {
         btn.addEventListener('click', function(event) {
             var docIndexToRemove = btn.getAttribute('data-doc-index');
             if (confirm('Are you sure you want to remove this document? All annotations for this document will be lost.')) {
-                fetch(Flask.url_for("delete_document", {
-                    'session_id': sessionId,
-                    'doc_index': docIndexToRemove
-                }), {
+                fetch(`${urlBase}/session/${sessionId}/document/${docIndexToRemove}`, {
                     method: 'DELETE',
                     headers: {
                         'Content-Type': 'application/json'
@@ -1236,7 +1211,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (data.status === 'success') {
                         // Reload the page to reflect document removal
                         if (parseInt(docIndexToRemove) === docIndex) {
-                            window.location.href = Flask.url_for("annotate", {"session_id": sessionId, "doc_index": 0});
+                            window.location.href = `${urlBase}/session/${sessionId}/document/${0}/annotate`;
                         } else {
                             window.location.reload();
                         }
