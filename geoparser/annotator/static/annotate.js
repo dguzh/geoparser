@@ -1,4 +1,3 @@
-
 // Variables to hold map and markers
 var map = null;
 var markersGroup = null;
@@ -15,7 +14,7 @@ var queryTextInput = null;
 document.addEventListener('DOMContentLoaded', function() {
     // Variables for the current document
     var path = window.location.href.split('?')[0];
-    var sessionId = path.split('/').at(-2);
+    var sessionId = path.split('/').at(-4);
     var params = new URLSearchParams(window.location.search)
     var docIndex = Number(params.get("doc_index"));
     var progressBar = document.getElementById('progress-bar-' + docIndex);
@@ -1099,7 +1098,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    'toponym': currentToponym.text,
+                    'text': currentToponym.text,
                     'start': currentToponym.start,
                     'end': currentToponym.end,
                     'loc_id': loc_id // Can be null or empty string
@@ -1135,7 +1134,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
-                    'toponym': currentToponym.text,
+                    'text': currentToponym.text,
                     'start': currentToponym.start,
                     'end': currentToponym.end,
                     'loc_id': ''  // Reset loc_id to empty string to mark as unprocessed
