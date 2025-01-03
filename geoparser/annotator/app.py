@@ -51,7 +51,11 @@ tags_metadata = [
     },
 ]
 
-app = FastAPI(openapi_tags=tags_metadata)
+app = FastAPI(
+    title="Irchel Geoparser",
+    summary="API docs for the Irchel Geoparser annotator.",
+    openapi_tags=tags_metadata,
+)
 app.mount(
     "/static",
     StaticFiles(directory=os.path.join(os.path.dirname(__file__), "static")),
