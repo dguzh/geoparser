@@ -23,7 +23,7 @@ class CandidatesGet(BaseModel):
     model_config = ConfigDict(str_strip_whitespace=True)
     start: int | None = 0
     end: int | None = 0
-    toponym_text: str | None = ""
+    text: str | None = ""
     query_text: str | None = ""
 
 

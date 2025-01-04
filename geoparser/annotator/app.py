@@ -401,7 +401,7 @@ def get_candidates(session_id: str, doc_index: int, candidates_request: Candidat
 
     return JSONResponse(
         annotator.get_candidates(
-            toponym, candidates_request.toponym_text, candidates_request.query_text
+            toponym, candidates_request.text, candidates_request.query_text
         )
     )
 
