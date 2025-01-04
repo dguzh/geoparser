@@ -382,15 +382,8 @@ document.addEventListener('DOMContentLoaded', function() {
         var start = parseInt(toponymElement.getAttribute('data-start'));
         var end = parseInt(toponymElement.getAttribute('data-end'));
 
-        fetch(`${urlBase}/session/${sessionId}/document/${docIndex}/annotation`, {
-            method: 'DELETE',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                'start': start,
-                'end': end
-            })
+        fetch(`${urlBase}/session/${sessionId}/document/${docIndex}/annotation?start=${start}&end=${end}`, {
+            method: 'DELETE'
         })
         .then(response => response.json())
         .then(data => {

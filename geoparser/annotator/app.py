@@ -197,7 +197,7 @@ def continue_session_cached(session_id: t.Annotated[str, Form()]):
 
 
 @app.post("/session/continue/file", tags=["session"])
-def continue_session_file(session_file: UploadFile):
+def continue_session_file(session_file: UploadFile | None = None):
     # Handle uploaded session file
     if session_file and session_file.filename:
         session_data = json.loads(session_file.file.read().decode())
@@ -239,8 +239,8 @@ def delete_session(session_id: str):
 @app.post("/session/{session_id}/documents", tags=["document"])
 def add_documents(
     session_id: str,
-    files: list[UploadFile],
     spacy_model: t.Annotated[str, Form()],
+    files: list[UploadFile] | None = None,
 ):
     session = sessions_cache.load(session_id)
     if not session:
@@ -249,12 +249,10 @@ def add_documents(
             status_code=status.HTTP_404_NOT_FOUND,
         )
 
-    if not files or not spacy_model:
-        return (
-            JSONResponse(
-                {"message": "No files or SpaCy model selected.", "status": "error"},
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            ),
+    if not files:
+        return JSONResponse(
+            {"message": "No files selected.", "status": "error"},
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
         )
 
     # Process uploaded files
@@ -465,7 +463,9 @@ def create_annotation(session_id: str, doc_index: int, annotation: Annotation):
 def download_annotations(session_id: str):
     session = sessions_cache.load(session_id)
     if not session:
-        return "Session not found.", 404
+        return JSONResponse(
+            {"error": "Session not found"}, status_code=status.HTTP_404_NOT_FOUND
+        )
 
     # Prepare annotations file for download
     annotations_data = session
@@ -579,7 +579,8 @@ def update_annotation(session_id: str, doc_index: int, annotation: AnnotationEdi
 @app.delete(
     "/session/{session_id}/document/{doc_index}/annotation", tags=["annotation"]
 )
-def delete_annotation(session_id: str, doc_index: int, annotation: Annotation):
+def delete_annotation(session_id: str, doc_index: int, start: int, end: int):
+    annotation = Annotation(start=start, end=end)
     session = sessions_cache.load(session_id)
     if not session:
         return JSONResponse(
