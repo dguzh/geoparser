@@ -197,7 +197,7 @@ def continue_session_cached(session_id: t.Annotated[str, Form()]):
 
 
 @app.post("/session/continue/file", tags=["session"])
-def continue_session_file(session_file: UploadFile | None = None):
+def continue_session_file(session_file: t.Optional[UploadFile] = None):
     # Handle uploaded session file
     if session_file and session_file.filename:
         session_data = json.loads(session_file.file.read().decode())
@@ -240,7 +240,7 @@ def delete_session(session_id: str):
 def add_documents(
     session_id: str,
     spacy_model: t.Annotated[str, Form()],
-    files: list[UploadFile] | None = None,
+    files: t.Optional[list[UploadFile]] = None,
 ):
     session = sessions_cache.load(session_id)
     if not session:
