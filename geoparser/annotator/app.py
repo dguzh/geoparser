@@ -1,15 +1,15 @@
 import json
 import os
-import tempfile
 import threading
 import typing as t
 import uuid
 import webbrowser
 from datetime import datetime
+from io import StringIO
 
 import uvicorn
 from fastapi import FastAPI, Form, Request, UploadFile, status
-from fastapi.responses import JSONResponse, RedirectResponse, Response
+from fastapi.responses import JSONResponse, RedirectResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from spacy.util import get_installed_models
@@ -469,12 +469,17 @@ def download_annotations(session_id: str):
 
     # Prepare annotations file for download
     annotations_data = session
-    file_content = json.dumps(annotations_data, ensure_ascii=False, indent=4).encode(
-        "utf-8"
-    )
+
+    file_content = json.dumps(annotations_data, ensure_ascii=False, indent=4)
 
     # Send the file to the client
-    return Response(content=file_content, media_type="application/json")
+    return StreamingResponse(
+        StringIO(file_content),
+        media_type="application/octet-stream",
+        headers={
+            "Content-Disposition": f'attachment; filename="annotations_{session_id}.json"'
+        },
+    )
 
 
 @app.put("/session/{session_id}/document/{doc_index}/annotation", tags=["annotation"])
