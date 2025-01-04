@@ -2,6 +2,7 @@ import types
 import typing as t
 
 import pytest
+from fastapi import UploadFile
 from markupsafe import Markup
 from werkzeug.datastructures import FileStorage
 
@@ -63,7 +64,10 @@ def test_parse_files(annotator: GeoparserAnnotator, apply_spacy: bool):
         documents = {0: doc1, 1: doc2}
         result = annotator.parse_files(
             [
-                FileStorage(stream=documents[i], filename=f"annotator_doc{i}.txt")
+                UploadFile(
+                    file=FileStorage(stream=documents[i]),
+                    filename=f"annotator_doc{i}.txt",
+                )
                 for i in range(2)
             ],
             model,

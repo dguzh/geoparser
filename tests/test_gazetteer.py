@@ -318,7 +318,6 @@ def test_query_candidates(geonames_real_data: GeoNames, radio_andorra_id: int):
 
 
 def test_query_locations(geonames_real_data: GeoNames, radio_andorra_id: int):
-    print(geonames_real_data.query_locations([radio_andorra_id]))
     expected_info = {
         "geonameid": "3039328",
         "name": "Radio Andorra",

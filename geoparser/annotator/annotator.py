@@ -1,5 +1,6 @@
 import typing as t
 
+from fastapi import UploadFile
 from markupsafe import Markup
 from pyproj import Transformer
 from werkzeug.utils import secure_filename
@@ -21,7 +22,7 @@ class GeoparserAnnotator(Geoparser):
         )
 
     def parse_files(
-        self, files: list[t.IO], spacy_model: str, apply_spacy: bool = True
+        self, files: list[UploadFile], spacy_model: str, apply_spacy: bool = True
     ) -> t.Iterator[dict]:
         if apply_spacy:
             self.nlp = self.setup_spacy(spacy_model)
