@@ -57,7 +57,7 @@
                     </p>
                     <button class="btn btn-danger delete-session-btn" data-session-id="{{ session.session_id }}" onclick="deleteSession('{{ session.session_id }}')">Delete</button>
                     <form action="{{ url_for('continue_session_cached') }}" method="post">
-                        <input type="hidden" name="cached_session" value="{{ session.session_id }}">
+                        <input type="hidden" name="session_id" value="{{ session.session_id }}">
                         <button type="submit" class="btn btn-primary">Load Session</button>
                     </form>
                 </div>
