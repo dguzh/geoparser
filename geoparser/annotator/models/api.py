@@ -6,14 +6,14 @@ from geoparser.constants import DEFAULT_SESSION_SETTINGS
 class Annotation(BaseModel):
     start: int
     end: int
-    text: str | None
+    text: str | None = None
     loc_id: str | None = None
 
 
 class AnnotationEdit(BaseModel):
     old_start: int
     old_end: int
-    old_text: str | None
+    old_text: str | None = None
     new_start: int
     new_end: int
     new_text: str

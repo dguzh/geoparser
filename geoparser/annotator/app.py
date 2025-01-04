@@ -89,7 +89,7 @@ async def index(request: Request):
 
 
 @app.get("/start_new_session", tags=["pages"])
-async def start_new_session(request: Request):
+def start_new_session(request: Request):
     return templates.TemplateResponse(
         request=request,
         name="html/start_new_session.html",
@@ -98,7 +98,7 @@ async def start_new_session(request: Request):
 
 
 @app.get("/continue_session", tags=["pages"])
-async def continue_session(request: Request):
+def continue_session(request: Request):
     cached_sessions = sessions_cache.get_cached_sessions()
     return templates.TemplateResponse(
         request=request,
