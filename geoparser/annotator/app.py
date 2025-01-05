@@ -97,9 +97,7 @@ def _get_document(session: t.Annotated[dict, Depends(_get_session)], doc_index: 
 
 
 def get_document(session: t.Annotated[dict, Depends(get_session)], doc_index: int):
-    if not session:
-        raise SessionNotFoundException
-    elif doc_index >= len(session["documents"]):
+    if doc_index >= len(session["documents"]):
         raise DocumentNotFoundException
     return session["documents"][doc_index]
 
