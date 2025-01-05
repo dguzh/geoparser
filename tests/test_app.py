@@ -10,7 +10,7 @@ import pytest
 from fastapi.testclient import TestClient
 from werkzeug.wrappers import Response
 
-from geoparser.annotator.app import annotator, app, get_session, sessions_cache
+from geoparser.annotator.app import annotator, app, create_new_session, sessions_cache
 from geoparser.constants import DEFAULT_SESSION_SETTINGS
 from tests.utils import get_static_test_file
 
@@ -43,7 +43,7 @@ def validate_json_response(
 
 def set_session(session_id: str, *, settings=None, **document_kwargs) -> dict:
     session = {
-        **get_session("geonames"),
+        **create_new_session("geonames"),
         **{
             "session_id": session_id,
             "documents": [
@@ -67,9 +67,9 @@ def set_session(session_id: str, *, settings=None, **document_kwargs) -> dict:
     return session
 
 
-def test_get_session():
+def test_create_session():
     gazetteer = "geonames"
-    session = get_session(gazetteer)
+    session = create_new_session(gazetteer)
     assert type(session) is dict
     # valid uuid (would raise Error if not)
     uuid.UUID(session["session_id"])
@@ -156,7 +156,7 @@ def test_continue_session_cached(
     client: TestClient, cached_session: str, file_exists: bool
 ):
     if file_exists and cached_session != "bad_session":
-        session = {**get_session("geonames"), **{"session_id": cached_session}}
+        session = {**create_new_session("geonames"), **{"session_id": cached_session}}
         sessions_cache.save(session["session_id"], session)
     data = {}
     if cached_session:
@@ -335,11 +335,11 @@ def test_parse_document(
     )
     if not valid_session:
         validate_json_response(
-            response, 404, {"message": "Session not found", "status": "error"}
+            response, 404, {"message": "Session not found.", "status": "error"}
         )
     elif doc_index == 1:
         validate_json_response(
-            response, 422, {"message": "Invalid document index", "status": "error"}
+            response, 422, {"message": "Invalid document index.", "status": "error"}
         )
     else:
         validate_json_response(
@@ -362,7 +362,7 @@ def test_get_document_progress(client: TestClient, valid_session: bool, loc_id: 
     )
     if not valid_session:
         validate_json_response(
-            response, 404, {"error": "Session not found", "status": "error"}
+            response, 404, {"message": "Session not found.", "status": "error"}
         )
     else:
         expected = {
@@ -387,7 +387,7 @@ def test_get_document_text(client: TestClient, valid_session: bool):
     )
     if not valid_session:
         validate_json_response(
-            response, 404, {"error": "Session not found", "status": "error"}
+            response, 404, {"message": "Session not found.", "status": "error"}
         )
     else:
         expected = {
@@ -449,7 +449,9 @@ def test_get_candidates(
         json=query,
     )
     if not valid_session:
-        validate_json_response(response, 404, {"error": "Session not found"})
+        validate_json_response(
+            response, 404, {"message": "Session not found.", "status": "error"}
+        )
     elif not valid_toponym:
         validate_json_response(response, 404, {"error": "Toponym not found"})
     else:
@@ -478,7 +480,9 @@ def test_create_annotation(
         json=data,
     )
     if not valid_session:
-        validate_json_response(response, 404, {"error": "Session not found"})
+        validate_json_response(
+            response, 404, {"message": "Session not found.", "status": "error"}
+        )
     elif existing_toponym:
         validate_json_response(response, 422, {"error": "Toponym already exists"})
     else:
@@ -498,7 +502,9 @@ def test_download_annotations(client: TestClient, valid_session: bool):
         session = set_session(session_id)
     response = client.get(f"/session/{session_id}/annotations/download")
     if not valid_session:
-        validate_json_response(response, 404, {"error": "Session not found"})
+        validate_json_response(
+            response, 404, {"message": "Session not found.", "status": "error"}
+        )
     else:
         # exact same session is downloaded again
         assert response.status_code == 200
@@ -547,7 +553,9 @@ def test_overwrite_annotation(
         json=data,
     )
     if not valid_session:
-        validate_json_response(response, 404, {"error": "Session not found"})
+        validate_json_response(
+            response, 404, {"message": "Session not found.", "status": "error"}
+        )
     elif not valid_toponym:
         validate_json_response(response, 404, {"error": "Toponym not found"})
     else:
@@ -581,7 +589,9 @@ def test_update_annotation(
         json=data,
     )
     if not valid_session:
-        validate_json_response(response, 404, {"error": "Session not found"})
+        validate_json_response(
+            response, 404, {"message": "Session not found.", "status": "error"}
+        )
     elif not valid_toponym:
         validate_json_response(response, 404, {"error": "Toponym not found"})
     else:
@@ -612,7 +622,9 @@ def test_delete_annotation(
         params=data,
     )
     if not valid_session:
-        validate_json_response(response, 404, {"error": "Session not found"})
+        validate_json_response(
+            response, 404, {"message": "Session not found.", "status": "error"}
+        )
     elif not valid_toponym:
         validate_json_response(response, 404, {"error": "Toponym not found"})
     else:
@@ -635,10 +647,12 @@ def test_get_session_settings(client: TestClient, valid_session: bool):
     )
     if not valid_session:
         validate_json_response(
-            response, 404, {"status": "error", "error": "Session not found"}
+            response, 404, {"message": "Session not found.", "status": "error"}
         )
     else:
-        validate_json_response(response, 200, get_session("geonames")["settings"])
+        validate_json_response(
+            response, 200, create_new_session("geonames")["settings"]
+        )
 
 
 @pytest.mark.parametrize("valid_session", [True, False])
@@ -661,7 +675,9 @@ def test_put_session_settings(client: TestClient, valid_session: bool):
         json=new_settings,
     )
     if not valid_session:
-        validate_json_response(response, 404, {"error": "Session not found"})
+        validate_json_response(
+            response, 404, {"message": "Session not found.", "status": "error"}
+        )
     else:
         validate_json_response(response, 200, {"status": "success"})
         # check if new settings are in place

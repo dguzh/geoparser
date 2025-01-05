@@ -8,13 +8,19 @@ from datetime import datetime
 from io import StringIO
 
 import uvicorn
-from fastapi import FastAPI, Form, Request, UploadFile, status
+from fastapi import Depends, FastAPI, Form, Request, UploadFile, status
 from fastapi.responses import JSONResponse, RedirectResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from spacy.util import get_installed_models
 
 from geoparser.annotator.annotator import GeoparserAnnotator
+from geoparser.annotator.exceptions import (
+    DocumentNotFoundException,
+    SessionNotFoundException,
+    document_exception_handler,
+    session_exception_handler,
+)
 from geoparser.annotator.models.api import (
     Annotation,
     AnnotationEdit,
@@ -61,6 +67,8 @@ app.mount(
     StaticFiles(directory=os.path.join(os.path.dirname(__file__), "static")),
     name="static",
 )
+app.add_exception_handler(DocumentNotFoundException, document_exception_handler)
+app.add_exception_handler(SessionNotFoundException, session_exception_handler)
 templates = Jinja2Templates(
     directory=os.path.join(os.path.dirname(__file__), "templates")
 )
@@ -70,7 +78,30 @@ sessions_cache = SessionsCache()
 spacy_models = list(get_installed_models())
 
 
-def get_session(gazetteer: str):
+def _get_session(session_id: str):
+    return sessions_cache.load(session_id)
+
+
+def get_session(session: t.Annotated[dict, Depends(_get_session)]):
+    if not session:
+        raise SessionNotFoundException
+    return session
+
+
+def _get_document(session: t.Annotated[dict, Depends(_get_session)], doc_index: int):
+    if session is not None and doc_index < len(session["documents"]):
+        return session["documents"][doc_index]
+
+
+def get_document(session: t.Annotated[dict, Depends(get_session)], doc_index: int):
+    if not session:
+        raise SessionNotFoundException
+    elif doc_index >= len(session["documents"]):
+        raise DocumentNotFoundException
+    return session["documents"][doc_index]
+
+
+def create_new_session(gazetteer: str):
     session_id = uuid.uuid4().hex
     session = {
         "session_id": session_id,
@@ -108,32 +139,31 @@ def continue_session(request: Request):
 
 
 @app.get("/session/{session_id}/document/{doc_index}/annotate", tags=["pages"])
-def annotate(request: Request, session_id: str, doc_index: int = 0):
-    session = sessions_cache.load(session_id)
+def annotate(
+    request: Request,
+    session: t.Annotated[dict, Depends(_get_session)],
+    doc: t.Annotated[dict, Depends(_get_document)],
+    doc_index: int = 0,
+):
     if not session:
         return RedirectResponse(
             url=app.url_path_for("index"),
             status_code=status.HTTP_302_FOUND,
         )
-
-    if doc_index >= len(session["documents"]):
+    if not doc:
         # If the document index is out of range, redirect to the first document
         return RedirectResponse(
-            url=app.url_path_for("annotate", session_id=session_id, doc_index=0),
+            url=app.url_path_for(
+                "annotate", session_id=session["session_id"], doc_index=0
+            ),
             status_code=status.HTTP_302_FOUND,
         )
-
-    doc = session["documents"][doc_index]
-
     # Prepare pre-annotated text
     pre_annotated_text = annotator.get_pre_annotated_text(doc["text"], doc["toponyms"])
-
     # Prepare documents list with progress
     documents = list(annotator.prepare_documents(session["documents"]))
-
     total_toponyms = len(doc["toponyms"])
     annotated_toponyms = sum(1 for t in doc["toponyms"] if t["loc_id"] != "")
-
     return templates.TemplateResponse(
         request=request,
         name="html/annotate.html",
@@ -144,7 +174,7 @@ def annotate(request: Request, session_id: str, doc_index: int = 0):
             "total_docs": len(session["documents"]),
             "gazetteer": annotator.gazetteer,
             "documents": documents,
-            "session_id": session_id,
+            "session_id": session["session_id"],
             "total_toponyms": total_toponyms,
             "annotated_toponyms": annotated_toponyms,
             "spacy_models": spacy_models,  # Include spaCy models for the modal
@@ -158,18 +188,14 @@ def create_session(
     gazetteer: t.Annotated[str, Form()],
     spacy_model: t.Annotated[str, Form()],
 ):
-
     # Re-initialize gazetteer with selected option
     annotator.gazetteer = annotator.setup_gazetteer(gazetteer)
-
     # Process uploaded files and create a new session
-    session = get_session(gazetteer)
+    session = create_new_session(gazetteer)
     for document in annotator.parse_files(files, spacy_model, apply_spacy=False):
         session["documents"].append(document)
-
     # Save session to cache
     sessions_cache.save(session["session_id"], session)
-
     return RedirectResponse(
         url=app.url_path_for("annotate", session_id=session["session_id"], doc_index=0),
         status_code=status.HTTP_302_FOUND,
@@ -178,17 +204,14 @@ def create_session(
 
 @app.post("/session/continue/cached", tags=["session"])
 def continue_session_cached(session_id: t.Annotated[str, Form()]):
-
     # Load selected session directly without creating a new session
-    session = sessions_cache.load(session_id)
+    session = _get_session(session_id)
     if not session:
         return RedirectResponse(
             app.url_path_for("continue_session"), status_code=status.HTTP_302_FOUND
         )
-
     # Re-initialize gazetteer
     annotator.gazetteer = annotator.setup_gazetteer(session["gazetteer"])
-
     # Redirect to annotate page
     return RedirectResponse(
         app.url_path_for("annotate", session_id=session["session_id"], doc_index=0),
@@ -206,13 +229,10 @@ def continue_session_file(session_file: t.Optional[UploadFile] = None):
             # Generate a new session_id if not present
             session_id = uuid.uuid4().hex
             session_data["session_id"] = session_id
-
         # Save session to cache
         sessions_cache.save(session_id, session_data)
-
         # Re-initialize gazetteer
         annotator.gazetteer = annotator.setup_gazetteer(session_data["gazetteer"])
-
         # Redirect to annotate page
         return RedirectResponse(
             app.url_path_for("annotate", session_id=session_id, doc_index=0),
@@ -225,79 +245,46 @@ def continue_session_file(session_file: t.Optional[UploadFile] = None):
 
 
 @app.delete("/session/{session_id}", tags=["session"])
-def delete_session(session_id: str):
-    success = sessions_cache.delete(session_id)
-    if success:
-        return JSONResponse({"status": "success"})
-    else:
-        return JSONResponse(
-            {"message": "Session not found.", "status": "error"},
-            status_code=status.HTTP_404_NOT_FOUND,
-        )
+def delete_session(session: t.Annotated[dict, Depends(get_session)]):
+    sessions_cache.delete(session["session_id"])
+    return JSONResponse({"status": "success"})
 
 
 @app.post("/session/{session_id}/documents", tags=["document"])
 def add_documents(
-    session_id: str,
+    session: t.Annotated[dict, Depends(get_session)],
     spacy_model: t.Annotated[str, Form()],
     files: t.Optional[list[UploadFile]] = None,
 ):
-    session = sessions_cache.load(session_id)
-    if not session:
-        return JSONResponse(
-            {"message": "Session not found.", "status": "error"},
-            status_code=status.HTTP_404_NOT_FOUND,
-        )
-
     if not files:
         return JSONResponse(
             {"message": "No files selected.", "status": "error"},
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
         )
-
     # Process uploaded files
     for document in annotator.parse_files(files, spacy_model, apply_spacy=False):
         session["documents"].append(document)
-
     # Save updated session
-    sessions_cache.save(session_id, session)
-
+    sessions_cache.save(session["session_id"], session)
     return JSONResponse({"status": "success"})
 
 
 @app.get("/session/{session_id}/documents", tags=["document"])
-def get_documents(session_id: str):
-    session = sessions_cache.load(session_id)
-    if not session:
-        return JSONResponse(
-            {"message": "Session not found.", "status": "error"},
-            status_code=status.HTTP_404_NOT_FOUND,
-        )
-
+def get_documents(session: t.Annotated[dict, Depends(get_session)]):
     docs = session["documents"]
     return JSONResponse(docs)
 
 
 @app.post("/session/{session_id}/document/{doc_index}/parse", tags=["document"])
-def parse_document(session_id: str, doc_index: int):
-    session = sessions_cache.load(session_id)
-    if not session:
-        return JSONResponse(
-            {"message": "Session not found", "status": "error"},
-            status_code=status.HTTP_404_NOT_FOUND,
-        )
-
-    if doc_index >= len(session["documents"]):
-        return JSONResponse(
-            {"message": "Invalid document index", "status": "error"},
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-        )
-
-    doc = session["documents"][doc_index]
+def parse_document(
+    session: t.Annotated[dict, Depends(get_session)],
+    doc: t.Annotated[dict, Depends(get_document)],
+    doc_index: int,
+):
     if not doc.get("spacy_applied"):
         doc = annotator.parse_doc(doc)
         # reload session in case there have been changes to it in the meantime
-        session = sessions_cache.load(session_id)
+        session = sessions_cache.load(session["session_id"])
         # merge toponyms in case the user has added some in the meantime
         old_toponyms = session["documents"][doc_index]["toponyms"]
         spacy_toponyms = doc["toponyms"]
@@ -310,22 +297,15 @@ def parse_document(session_id: str, doc_index: int):
 
 
 @app.get("/session/{session_id}/document/{doc_index}/progress", tags=["document"])
-def get_document_progress(session_id: str, doc_index: int):
-    session = sessions_cache.load(session_id)
-    if not session:
-        return JSONResponse(
-            {"error": "Session not found", "status": "error"},
-            status_code=status.HTTP_404_NOT_FOUND,
-        )
-
-    doc = session["documents"][doc_index]
+def get_document_progress(
+    doc: t.Annotated[dict, Depends(get_document)],
+):
     toponyms = doc["toponyms"]
     total_toponyms = len(toponyms)
     annotated_toponyms = sum(1 for t in toponyms if t["loc_id"] != "")
     progress_percentage = (
         (annotated_toponyms / total_toponyms) * 100 if total_toponyms > 0 else 0
     )
-
     return JSONResponse(
         {
             "status": "success",
@@ -337,58 +317,34 @@ def get_document_progress(session_id: str, doc_index: int):
 
 
 @app.get("/session/{session_id}/document/{doc_index}/text", tags=["document"])
-def get_document_text(session_id: str, doc_index: int):
-    session = sessions_cache.load(session_id)
-    if not session:
-        return JSONResponse(
-            {"error": "Session not found", "status": "error"},
-            status_code=status.HTTP_404_NOT_FOUND,
-        )
-
-    doc = session["documents"][doc_index]
-
+def get_document_text(
+    doc: t.Annotated[dict, Depends(get_document)],
+):
     # Prepare pre-annotated text
     pre_annotated_text = annotator.get_pre_annotated_text(doc["text"], doc["toponyms"])
-
     return JSONResponse({"status": "success", "pre_annotated_text": pre_annotated_text})
 
 
-@app.delete("/session/{session_id}/document/{doc_index}", tags=["document"])
-def delete_document(session_id: str, doc_index: int):
-    session = sessions_cache.load(session_id)
-    if not session:
-        return JSONResponse(
-            {"message": "Session not found.", "status": "error"},
-            status_code=status.HTTP_404_NOT_FOUND,
-        )
-
-    if 0 <= doc_index < len(session["documents"]):
-        # Remove the document
-        del session["documents"][doc_index]
-
-        # Save updated session
-        sessions_cache.save(session_id, session)
-
-        return JSONResponse({"status": "success"})
-    else:
-        return JSONResponse(
-            {"message": "Invalid document index.", "status": "error"},
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-        )
+@app.delete(
+    "/session/{session_id}/document/{doc_index}",
+    tags=["document"],
+    dependencies=[Depends(get_document)],
+)
+def delete_document(session: t.Annotated[dict, Depends(get_session)], doc_index: int):
+    # Remove the document
+    del session["documents"][doc_index]
+    # Save updated session
+    sessions_cache.save(session["session_id"], session)
+    return JSONResponse({"status": "success"})
 
 
 @app.post(
     "/session/{session_id}/document/{doc_index}/get_candidates", tags=["candidates"]
 )
-def get_candidates(session_id: str, doc_index: int, candidates_request: CandidatesGet):
-
-    session = sessions_cache.load(session_id)
-    if not session:
-        return JSONResponse(
-            {"error": "Session not found"}, status_code=status.HTTP_404_NOT_FOUND
-        )
-
-    doc = session["documents"][doc_index]
+def get_candidates(
+    doc: t.Annotated[dict, Depends(get_document)],
+    candidates_request: CandidatesGet,
+):
     toponym = annotator.get_toponym(
         doc["toponyms"], candidates_request.start, candidates_request.end
     )
@@ -405,17 +361,12 @@ def get_candidates(session_id: str, doc_index: int, candidates_request: Candidat
 
 
 @app.post("/session/{session_id}/document/{doc_index}/annotation", tags=["annotation"])
-def create_annotation(session_id: str, doc_index: int, annotation: Annotation):
-
-    session = sessions_cache.load(session_id)
-    if not session:
-        return JSONResponse(
-            {"error": "Session not found"}, status_code=status.HTTP_404_NOT_FOUND
-        )
-
-    doc = session["documents"][doc_index]
+def create_annotation(
+    session: t.Annotated[dict, Depends(get_session)],
+    doc: t.Annotated[dict, Depends(get_document)],
+    annotation: Annotation,
+):
     toponyms = doc["toponyms"]
-
     # Check if there is already an annotation at this position
     existing_toponym = annotator.get_toponym(toponyms, annotation.start, annotation.end)
     if existing_toponym:
@@ -423,7 +374,6 @@ def create_annotation(session_id: str, doc_index: int, annotation: Annotation):
             {"error": "Toponym already exists"},
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
         )
-
     # Add new toponym
     toponym = {
         "text": annotation.text,
@@ -435,20 +385,16 @@ def create_annotation(session_id: str, doc_index: int, annotation: Annotation):
 
     # Sort toponyms by start position
     toponyms.sort(key=lambda x: x["start"])
-
     # Update last_updated timestamp
     session["last_updated"] = datetime.now().isoformat()
-
     # Save session
-    sessions_cache.save(session_id, session)
-
+    sessions_cache.save(session["session_id"], session)
     # Recalculate progress for the current document
     total_toponyms = len(toponyms)
     annotated_toponyms = sum(1 for t in toponyms if t["loc_id"] != "")
     progress_percentage = (
         (annotated_toponyms / total_toponyms) * 100 if total_toponyms > 0 else 0
     )
-
     return JSONResponse(
         {
             "status": "success",
@@ -460,19 +406,11 @@ def create_annotation(session_id: str, doc_index: int, annotation: Annotation):
 
 
 @app.get("/session/{session_id}/annotations/download", tags=["annotation"])
-def download_annotations(session_id: str):
-    session = sessions_cache.load(session_id)
-    if not session:
-        return JSONResponse(
-            {"error": "Session not found"}, status_code=status.HTTP_404_NOT_FOUND
-        )
-
+def download_annotations(annotations_data: t.Annotated[dict, Depends(get_session)]):
     # Prepare annotations file for download
-    annotations_data = session
-
     file_content = json.dumps(annotations_data, ensure_ascii=False, indent=4)
-
     # Send the file to the client
+    session_id = annotations_data["session_id"]
     return StreamingResponse(
         StringIO(file_content),
         media_type="application/octet-stream",
@@ -483,14 +421,11 @@ def download_annotations(session_id: str):
 
 
 @app.put("/session/{session_id}/document/{doc_index}/annotation", tags=["annotation"])
-def overwrite_annotation(session_id: str, doc_index: int, annotation: Annotation):
-    session = sessions_cache.load(session_id)
-    if not session:
-        return JSONResponse(
-            {"error": "Session not found"}, status_code=status.HTTP_404_NOT_FOUND
-        )
-
-    doc = session["documents"][doc_index]
+def overwrite_annotation(
+    session: t.Annotated[dict, Depends(get_session)],
+    doc: t.Annotated[dict, Depends(get_document)],
+    annotation: Annotation,
+):
     toponyms = doc["toponyms"]
     # Find the toponym to update
     toponym = annotator.get_toponym(toponyms, annotation.start, annotation.end)
@@ -498,7 +433,6 @@ def overwrite_annotation(session_id: str, doc_index: int, annotation: Annotation
         return JSONResponse(
             {"error": "Toponym not found"}, status_code=status.HTTP_404_NOT_FOUND
         )
-
     # Get the "one_sense_per_discourse" setting
     one_sense_per_discourse = session.get("settings", {}).get(
         "one_sense_per_discourse", False
@@ -506,20 +440,16 @@ def overwrite_annotation(session_id: str, doc_index: int, annotation: Annotation
     doc["toponyms"] = annotator.annotate_toponyms(
         doc["toponyms"], annotation.model_dump(), one_sense_per_discourse
     )
-
     # Update last_updated timestamp
     session["last_updated"] = datetime.now().isoformat()
-
     # Save session
-    sessions_cache.save(session_id, session)
-
+    sessions_cache.save(session["session_id"], session)
     # Recalculate progress for the current document
     total_toponyms = len(toponyms)
     annotated_toponyms = sum(1 for t in toponyms if t["loc_id"] != "")
     progress_percentage = (
         (annotated_toponyms / total_toponyms) * 100 if total_toponyms > 0 else 0
     )
-
     return JSONResponse(
         {
             "status": "success",
@@ -531,41 +461,32 @@ def overwrite_annotation(session_id: str, doc_index: int, annotation: Annotation
 
 
 @app.patch("/session/{session_id}/document/{doc_index}/annotation", tags=["annotation"])
-def update_annotation(session_id: str, doc_index: int, annotation: AnnotationEdit):
-    session = sessions_cache.load(session_id)
-    if not session:
-        return JSONResponse(
-            {"error": "Session not found"}, status_code=status.HTTP_404_NOT_FOUND
-        )
-
-    doc = session["documents"][doc_index]
+def update_annotation(
+    session: t.Annotated[dict, Depends(get_session)],
+    doc: t.Annotated[dict, Depends(get_document)],
+    annotation: AnnotationEdit,
+):
     toponyms = doc["toponyms"]
-
     # Find the toponym to edit
     toponym = annotator.get_toponym(toponyms, annotation.old_start, annotation.old_end)
     if not toponym:
         return JSONResponse(
             {"error": "Toponym not found"}, status_code=status.HTTP_404_NOT_FOUND
         )
-
     # Update the toponym
     toponym["start"] = annotation.new_start
     toponym["end"] = annotation.new_end
     toponym["text"] = annotation.new_text
-
     # Update last_updated timestamp
     session["last_updated"] = datetime.now().isoformat()
-
     # Save session
-    sessions_cache.save(session_id, session)
-
+    sessions_cache.save(session["session_id"], session)
     # Recalculate progress for the current document
     total_toponyms = len(toponyms)
     annotated_toponyms = sum(1 for t in toponyms if t["loc_id"] != "")
     progress_percentage = (
         (annotated_toponyms / total_toponyms) * 100 if total_toponyms > 0 else 0
     )
-
     return JSONResponse(
         {
             "status": "success",
@@ -579,15 +500,13 @@ def update_annotation(session_id: str, doc_index: int, annotation: AnnotationEdi
 @app.delete(
     "/session/{session_id}/document/{doc_index}/annotation", tags=["annotation"]
 )
-def delete_annotation(session_id: str, doc_index: int, start: int, end: int):
+def delete_annotation(
+    session: t.Annotated[dict, Depends(get_session)],
+    doc: t.Annotated[dict, Depends(get_document)],
+    start: int,
+    end: int,
+):
     annotation = Annotation(start=start, end=end)
-    session = sessions_cache.load(session_id)
-    if not session:
-        return JSONResponse(
-            {"error": "Session not found"}, status_code=status.HTTP_404_NOT_FOUND
-        )
-
-    doc = session["documents"][doc_index]
     toponyms = doc["toponyms"]
     # Find the toponym to delete
     toponym = annotator.get_toponym(toponyms, annotation.start, annotation.end)
@@ -595,22 +514,17 @@ def delete_annotation(session_id: str, doc_index: int, start: int, end: int):
         return JSONResponse(
             {"error": "Toponym not found"}, status_code=status.HTTP_404_NOT_FOUND
         )
-
     doc = annotator.remove_toponym(doc, toponym)
-
     # Update last_updated timestamp
     session["last_updated"] = datetime.now().isoformat()
-
     # Save session
-    sessions_cache.save(session_id, session)
-
+    sessions_cache.save(session["session_id"], session)
     # Recalculate progress for the current document
     total_toponyms = len(toponyms)
     annotated_toponyms = sum(1 for t in toponyms if t["loc_id"] != "")
     progress_percentage = (
         (annotated_toponyms / total_toponyms) * 100 if total_toponyms > 0 else 0.0
     )
-
     return JSONResponse(
         {
             "status": "success",
@@ -622,33 +536,19 @@ def delete_annotation(session_id: str, doc_index: int, start: int, end: int):
 
 
 @app.get("/session/{session_id}/settings", tags=["settings"])
-def get_session_settings(session_id: str):
-    session = sessions_cache.load(session_id)
-    if not session:
-        return JSONResponse(
-            {"status": "error", "error": "Session not found"},
-            status_code=status.HTTP_404_NOT_FOUND,
-        )
-
+def get_session_settings(session: t.Annotated[dict, Depends(get_session)]):
     settings = session.get("settings", DEFAULT_SESSION_SETTINGS)
-
     return JSONResponse(settings)
 
 
 @app.put("/session/{session_id}/settings", tags=["settings"])
-def put_session_settings(session_id: str, session_settings: SessionSettings):
-    session = sessions_cache.load(session_id)
-    if not session:
-        return JSONResponse(
-            {"error": "Session not found"}, status_code=status.HTTP_404_NOT_FOUND
-        )
-
+def put_session_settings(
+    session: t.Annotated[dict, Depends(get_session)], session_settings: SessionSettings
+):
     # Update settings
     session["settings"] = session_settings.model_dump()
-
     # Save session
-    sessions_cache.save(session_id, session)
-
+    sessions_cache.save(session["session_id"], session)
     return JSONResponse({"status": "success"})
 
 
