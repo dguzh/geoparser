@@ -18,8 +18,10 @@ from geoparser.annotator.annotator import GeoparserAnnotator
 from geoparser.annotator.exceptions import (
     DocumentNotFoundException,
     SessionNotFoundException,
+    ToponymNotFoundException,
     document_exception_handler,
     session_exception_handler,
+    toponym_exception_handler,
 )
 from geoparser.annotator.models.api import (
     Annotation,
@@ -69,6 +71,7 @@ app.mount(
 )
 app.add_exception_handler(DocumentNotFoundException, document_exception_handler)
 app.add_exception_handler(SessionNotFoundException, session_exception_handler)
+app.add_exception_handler(ToponymNotFoundException, toponym_exception_handler)
 templates = Jinja2Templates(
     directory=os.path.join(os.path.dirname(__file__), "templates")
 )
@@ -349,9 +352,7 @@ def get_candidates(
         doc["toponyms"], candidates_request.start, candidates_request.end
     )
     if not toponym:
-        return JSONResponse(
-            {"error": "Toponym not found"}, status_code=status.HTTP_404_NOT_FOUND
-        )
+        raise ToponymNotFoundException
 
     return JSONResponse(
         annotator.get_candidates(
@@ -430,9 +431,7 @@ def overwrite_annotation(
     # Find the toponym to update
     toponym = annotator.get_toponym(toponyms, annotation.start, annotation.end)
     if not toponym:
-        return JSONResponse(
-            {"error": "Toponym not found"}, status_code=status.HTTP_404_NOT_FOUND
-        )
+        raise ToponymNotFoundException
     # Get the "one_sense_per_discourse" setting
     one_sense_per_discourse = session.get("settings", {}).get(
         "one_sense_per_discourse", False
@@ -470,9 +469,7 @@ def update_annotation(
     # Find the toponym to edit
     toponym = annotator.get_toponym(toponyms, annotation.old_start, annotation.old_end)
     if not toponym:
-        return JSONResponse(
-            {"error": "Toponym not found"}, status_code=status.HTTP_404_NOT_FOUND
-        )
+        raise ToponymNotFoundException
     # Update the toponym
     toponym["start"] = annotation.new_start
     toponym["end"] = annotation.new_end
@@ -511,9 +508,7 @@ def delete_annotation(
     # Find the toponym to delete
     toponym = annotator.get_toponym(toponyms, annotation.start, annotation.end)
     if not toponym:
-        return JSONResponse(
-            {"error": "Toponym not found"}, status_code=status.HTTP_404_NOT_FOUND
-        )
+        raise ToponymNotFoundException
     doc = annotator.remove_toponym(doc, toponym)
     # Update last_updated timestamp
     session["last_updated"] = datetime.now().isoformat()
