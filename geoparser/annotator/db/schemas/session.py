@@ -15,7 +15,7 @@ class Session(BaseModel):
     settings: t.Optional[SessionSettings] = SessionSettings()
     documents: t.Optional[list[Document]] = []
 
-    @field_validator("toponyms", mode="after")
+    @field_validator("documents", mode="after")
     @classmethod
     def sort_documents(cls, value: list[Document]) -> list[Document]:
         return sorted(value, key=lambda x: x.doc_index)
