@@ -9,7 +9,7 @@ from geoparser.annotator.db.models.base import Base
 class Session(Base):
     __tablename__ = "sessions"
 
-    id: Mapped[str] = mapped_column(String, primary_key=True, index=True)
+    session_id: Mapped[str] = mapped_column(String, primary_key=True, index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime)
     last_updated: Mapped[datetime] = mapped_column(DateTime)
     gazetteer: Mapped[str] = mapped_column(String)
