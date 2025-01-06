@@ -175,7 +175,7 @@ def test_annotate(client: FlaskClient, valid_session: bool, doc_index: int):
 
 
 def test_create_session(client: FlaskClient):
-    filename = "annotator_doc0.txt"
+    filename = "annotator/annotator_doc0.txt"
     response = client.post(
         "/session",
         data={
@@ -302,7 +302,7 @@ def test_add_documents(
     session_id = "add_documents"
     if valid_session:
         set_session(session_id)
-    filename = "annotator_doc0.txt"
+    filename = "annotator/annotator_doc0.txt"
     files = (
         {"files[]": [(open(get_static_test_file(filename), "rb"), filename)]}
         if uploaded_files
