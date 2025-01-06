@@ -66,7 +66,7 @@ def check_table_population(
 def localdb_gazetteer(monkeypatch) -> LocalDBGazetteer:
     monkeypatch.setattr(
         "geoparser.config.config.get_config_file",
-        lambda _: get_static_test_file("gazetteers_config_valid.yaml"),
+        lambda _: get_static_test_file("config/gazetteers_config_valid.yaml"),
     )
     localdb_gazetteer = make_concrete(LocalDBGazetteer)(gazetteer_name="test-full")
     tmpdir = py.path.local(tempfile.mkdtemp())
@@ -124,7 +124,7 @@ def test_download_file(
     requests_mock: Mocker,
 ):
     raw_file = dataset.url.split("/")[-1]
-    with open(get_static_test_file(raw_file), "rb") as file:
+    with open(get_static_test_file(f"gazetteers/misc/{raw_file}"), "rb") as file:
         requests_mock.get(dataset.url, body=file)
         localdb_gazetteer._download_file(dataset=dataset)
     dir_content = Path(localdb_gazetteer.db_path).parent.glob("**/*")
