@@ -5,8 +5,9 @@ from datetime import datetime
 from sqlalchemy.orm import relationship
 from sqlmodel import Field, Relationship, SQLModel
 
-from geoparser.annotator.db.models.document import Document
-from geoparser.annotator.db.models.settings import SessionSettings
+if t.TYPE_CHECKING:
+    from geoparser.annotator.db.models.document import Document
+    from geoparser.annotator.db.models.settings import SessionSettings
 
 
 class SessionBase(SQLModel):
@@ -17,8 +18,8 @@ class SessionBase(SQLModel):
 
 class Session(SessionBase, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-    settings: SessionSettings = Relationship(back_populates="session")
-    documents: list[Document] = relationship(
+    settings: "SessionSettings" = Relationship(back_populates="session")
+    documents: list["Document"] = relationship(
         back_populates="session", order_by="desc(Document.doc_index)"
     )
 

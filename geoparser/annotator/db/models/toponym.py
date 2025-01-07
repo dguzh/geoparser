@@ -3,6 +3,9 @@ import uuid
 
 from sqlmodel import Field, Relationship, SQLModel
 
+if t.TYPE_CHECKING:
+    from geoparser.annotator.db.models.document import Document
+
 
 class ToponymBase(SQLModel):
     text: str
