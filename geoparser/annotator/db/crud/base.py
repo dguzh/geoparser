@@ -27,9 +27,6 @@ class BaseRepository(ABC):
         db.commit()
         db.refresh(db_item)
 
-    def overwrite(self, db: Session, item: t.Type[SQLModel]):
-        self.update(db, item)
-
     def delete(self, db: Session, item: t.Type[SQLModel]):
         item = db.get(self.model, item.id)
         db.delete(item)
