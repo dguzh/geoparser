@@ -15,7 +15,7 @@ var queryTextInput = null;
 document.addEventListener('DOMContentLoaded', function() {
     // Variables for the current document
     var path = window.location.href.split('?')[0];
-    var sessionId = path.split('/').pop();
+    var sessionId = path.split('/').at(-2);
     var params = new URLSearchParams(window.location.search)
     var docIndex = Number(params.get("doc_index"));
     var progressBar = document.getElementById('progress-bar-' + docIndex);
@@ -50,43 +50,45 @@ document.addEventListener('DOMContentLoaded', function() {
     var autoCloseAnnotationModalCheckbox = document.getElementById('auto-close-annotation-modal');
 
     // Fetch session settings
-    fetch(Flask.url_for("get_session_settings"), {
-        method: 'POST',
+    fetch(Flask.url_for("get_session_settings", {session_id: sessionId}), {
+        method: 'GET',
         headers: {
             'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-            'session_id': sessionId
-        })
+        }
     })
-    .then(response => response.json())
-    .then(data => {
-        if (data.status === 'success') {
-            sessionSettings = data.settings;
+    .then(response => {
+        if (response.status === 200) {
+            return response.json()
         } else {
             alert('Failed to load settings.');
+        }
+    })
+    .then(data => {
+        if (Boolean(data)) {
+            sessionSettings = data;
         }
     });
 
     settingsBtn.addEventListener('click', function() {
         // Load current settings from the server
-        fetch(Flask.url_for("get_session_settings"), {
-            method: 'POST',
+        fetch(Flask.url_for("get_session_settings", {session_id: sessionId}), {
+            method: 'GET',
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({
-                'session_id': sessionId
-            })
         })
-        .then(response => response.json())
-        .then(data => {
-            if (data.status === 'success') {
-                oneSensePerDiscourseCheckbox.checked = data.settings.one_sense_per_discourse;
-                autoCloseAnnotationModalCheckbox.checked = data.settings.auto_close_annotation_modal;
-                settingsModal.show();
+        .then(response => {
+            if (response.status === 200) {
+                return response.json()
             } else {
                 alert('Failed to load settings.');
+            }
+        })
+        .then(data => {
+            if (Boolean(data)) {
+                oneSensePerDiscourseCheckbox.checked = data.one_sense_per_discourse;
+                autoCloseAnnotationModalCheckbox.checked = data.auto_close_annotation_modal;
+                settingsModal.show();
             }
         });
     });
@@ -101,24 +103,25 @@ document.addEventListener('DOMContentLoaded', function() {
             'auto_close_annotation_modal': autoCloseAnnotationModal
         };
 
-        fetch(Flask.url_for("update_settings"), {
-            method: 'POST',
+        fetch(Flask.url_for("put_session_settings", {session_id: sessionId}), {
+            method: 'PUT',
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({
-                'session_id': sessionId,
-                'settings': settingsData
-            })
+            body: JSON.stringify(settingsData)
         })
-        .then(response => response.json())
+        .then(response => {
+            if (response.status === 200) {
+                return response.json()
+            } else {
+                alert('Failed to save settings.');
+            }
+        })
         .then(data => {
-            if (data.status === 'success') {
+            if (Boolean(data)) {
                 // Update sessionSettings variable
                 sessionSettings = settingsData;
                 settingsModal.hide();
-            } else {
-                alert('Failed to save settings.');
             }
         });
     });
@@ -247,14 +250,15 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Function to create a new annotation
     function createAnnotation(toponymInfo) {
-        fetch(Flask.url_for("create_annotation"), {
+        fetch(Flask.url_for("create_annotation", {
+            'session_id': sessionId,
+            'doc_index': docIndex,
+        }), {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                'session_id': sessionId,
-                'doc_index': docIndex,
                 'start': toponymInfo.start,
                 'end': toponymInfo.end,
                 'text': toponymInfo.text
@@ -276,14 +280,15 @@ document.addEventListener('DOMContentLoaded', function() {
         var start = parseInt(toponymElement.getAttribute('data-start'));
         var end = parseInt(toponymElement.getAttribute('data-end'));
 
-        fetch(Flask.url_for("delete_annotation"), {
-            method: 'POST',
+        fetch(Flask.url_for("delete_annotation", {
+            'session_id': sessionId,
+            'doc_index': docIndex,
+        }), {
+            method: 'DELETE',
             headers: {
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                'session_id': sessionId,
-                'doc_index': docIndex,
                 'start': start,
                 'end': end
             })
@@ -382,14 +387,15 @@ document.addEventListener('DOMContentLoaded', function() {
             var newEnd = parseInt(currentToponymElement.getAttribute('data-end'));
             var newText = currentToponymElement.textContent;
 
-            fetch(Flask.url_for("edit_annotation"), {
-                method: 'POST',
+            fetch(Flask.url_for("update_annotation", {
+                'session_id': sessionId,
+                'doc_index': docIndex,
+            }), {
+                method: 'PATCH',
                 headers: {
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
-                    'session_id': sessionId,
-                    'doc_index': docIndex,
                     'old_start': originalStart,
                     'old_end': originalEnd,
                     'new_start': newStart,
@@ -429,15 +435,14 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Function to reload the document text from the server
     function reloadDocumentText() {
-        fetch(Flask.url_for("get_document_text"), {
-            method: 'POST',
+        fetch(Flask.url_for("get_document_text", {
+            'session_id': sessionId,
+            'doc_index': docIndex
+        }), {
+            method: 'GET',
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({
-                'session_id': sessionId,
-                'doc_index': docIndex
-            })
         })
         .then(response => response.json())
         .then(data => {
@@ -460,15 +465,14 @@ document.addEventListener('DOMContentLoaded', function() {
     // Function to update progress bar
     function updateProgressBar() {
         // Fetch updated progress from the server
-        fetch(Flask.url_for("get_document_progress"), {
-            method: 'POST',
+        fetch(Flask.url_for("get_document_progress", {
+            'session_id': sessionId,
+            'doc_index': docIndex
+        }), {
+            method: 'GET',
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({
-                'session_id': sessionId,
-                'doc_index': docIndex
-            })
         })
         .then(response => response.json())
         .then(data => {
@@ -673,17 +677,16 @@ document.addEventListener('DOMContentLoaded', function() {
                 lastQueryText = queryText; // Store the last query text
             }
 
-            fetch(Flask.url_for("get_candidates"), {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    'session_id': sessionId,
-                    'doc_index': docIndex,
-                    'start': currentToponym.start,
-                    'end': currentToponym.end,
-                    'text': currentToponym.text,
-                    'query_text': queryText
-                })
+            fetch(Flask.url_for("get_candidates", {
+                'session_id': sessionId,
+                'doc_index': docIndex,
+                'start': currentToponym.start,
+                'end': currentToponym.end,
+                'text': currentToponym.text,
+                'query_text': queryText
+            }), {
+                method: 'GET',
+                headers: { 'Content-Type': 'application/json' }
             })
             .then(response => response.json())
             .then(data => {
@@ -1001,18 +1004,17 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Function to save the annotation
         function saveAnnotation(loc_id) {
-            fetch(Flask.url_for("save_annotation"), {
-                method: 'POST',
+            fetch(Flask.url_for("overwrite_annotation", {
+                'session_id': sessionId,
+                'doc_index': docIndex
+            }), {
+                method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    'session_id': sessionId,
-                    'doc_index': docIndex,
-                    'annotation': {
-                        'toponym': currentToponym.text,
-                        'start': currentToponym.start,
-                        'end': currentToponym.end,
-                        'loc_id': loc_id // Can be null or empty string
-                    }
+                    'toponym': currentToponym.text,
+                    'start': currentToponym.start,
+                    'end': currentToponym.end,
+                    'loc_id': loc_id // Can be null or empty string
                 })
             })
             .then(response => response.json())
@@ -1039,20 +1041,19 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Function to deselect the annotation (reset to unprocessed state)
         function deselectCandidate() {
-            fetch(Flask.url_for("save_annotation"), {
-                method: 'POST',
+            fetch(Flask.url_for("overwrite_annotation", {
+                'session_id': sessionId,
+                'doc_index': docIndex
+            }), {
+                method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
-                    'session_id': sessionId,
-                    'doc_index': docIndex,
-                    'annotation': {
-                        'toponym': currentToponym.text,
-                        'start': currentToponym.start,
-                        'end': currentToponym.end,
-                        'loc_id': ''  // Reset loc_id to empty string to mark as unprocessed
-                    }
+                    'toponym': currentToponym.text,
+                    'start': currentToponym.start,
+                    'end': currentToponym.end,
+                    'loc_id': ''  // Reset loc_id to empty string to mark as unprocessed
                 })
             })
             .then(response => response.json())
@@ -1088,19 +1089,22 @@ document.addEventListener('DOMContentLoaded', function() {
     addDocumentForm.addEventListener('submit', function(event) {
         event.preventDefault();
         var formData = new FormData(addDocumentForm);
-        formData.append('session_id', sessionId);
 
-        fetch(Flask.url_for("add_documents"), {
+        fetch(Flask.url_for("add_documents", {"session_id": sessionId}), {
             method: 'POST',
             body: formData
         })
-        .then(response => response.json())
+        .then(response => {
+            if (response.status !== 200) {
+                alert('Failed to add documents.');
+            } else {
+                return response.json();
+            }
+        })
         .then(data => {
-            if (data.status === 'success') {
+            if (Boolean(data)) {
                 // Reload the page to reflect new documents
                 window.location.reload();
-            } else {
-                alert('Failed to add documents.');
             }
         });
     });
@@ -1111,15 +1115,14 @@ document.addEventListener('DOMContentLoaded', function() {
         btn.addEventListener('click', function(event) {
             var docIndexToRemove = btn.getAttribute('data-doc-index');
             if (confirm('Are you sure you want to remove this document? All annotations for this document will be lost.')) {
-                fetch(Flask.url_for("remove_document"), {
-                    method: 'POST',
+                fetch(Flask.url_for("delete_document", {
+                    'session_id': sessionId,
+                    'doc_index': docIndexToRemove
+                }), {
+                    method: 'DELETE',
                     headers: {
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify({
-                        'session_id': sessionId,
-                        'doc_index': docIndexToRemove
-                    })
                 })
                 .then(response => response.json())
                 .then(data => {
