@@ -1,12 +1,24 @@
 import typing as t
+import uuid
 
-from sqlmodel import Field, SQLModel, Relationship
+from sqlmodel import Field, Relationship, SQLModel
 
 
-class Toponym(SQLModel, table=True):
-    id: t.Optional[int] = Field(default=None, primary_key=True)
-    document: t.Optional["Document"] = Relationship(back_populates="toponyms")
+class ToponymBase(SQLModel):
     text: str
     start: int
     end: int
     loc_id: t.Optional[str] = ""
+
+
+class Toponym(ToponymBase, table=True):
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    document: t.Optional["Document"] = Relationship(back_populates="toponyms")
+
+
+class ToponymCreate(ToponymBase):
+    pass
+
+
+class ToponymGet(ToponymBase):
+    id: uuid.UUID

@@ -1,22 +1,31 @@
 import typing as t
+import uuid
 from datetime import datetime
-from sqlmodel import SQLModel, Relationship, Field
-from pydantic import BaseModel, field_validator
+
+from sqlalchemy.orm import relationship
+from sqlmodel import Field, Relationship, SQLModel
 
 from geoparser.annotator.db.models.document import Document
 from geoparser.annotator.db.models.settings import SessionSettings
 
 
-class Session(SQLModel, table=True):
-    id: t.Optional[int] = Field(default=None, primary_key=True)
-    session_id: str
+class SessionBase(SQLModel):
     created_at: t.Optional[datetime] = datetime.now()
     last_updated: t.Optional[datetime] = datetime.now()
     gazetteer: str
-    toponyms: list[SessionSettings] = Relationship(back_populates="session")
-    documents: list[Document] = Relationship(back_populates="session")
 
-    # @field_validator("documents", mode="after")
-    # @classmethod
-    # def sort_documents(cls, value: list[Document]) -> list[Document]:
-    #     return sorted(value, key=lambda x: x.doc_index)
+
+class Session(SessionBase, table=True):
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    settings: SessionSettings = Relationship(back_populates="session")
+    documents: list[Document] = relationship(
+        back_populates="session", order_by="desc(Document.doc_index)"
+    )
+
+
+class SessionCreate(SessionBase):
+    pass
+
+
+class SessionGet(SessionBase):
+    id: uuid.UUID
