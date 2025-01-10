@@ -58,8 +58,8 @@ def test_get_toponym(annotator: GeoparserAnnotator, query: tuple[int, int]):
 @pytest.mark.parametrize("apply_spacy", [True, False])
 def test_parse_files(annotator: GeoparserAnnotator, apply_spacy: bool):
     model = "en_core_web_sm"
-    with open(get_static_test_file("annotator_doc0.txt"), "rb") as doc1, open(
-        get_static_test_file("annotator_doc1.txt"), "rb"
+    with open(get_static_test_file("annotator/annotator_doc0.txt"), "rb") as doc1, open(
+        get_static_test_file("annotator/annotator_doc1.txt"), "rb"
     ) as doc2:
         documents = {0: doc1, 1: doc2}
         result = annotator.parse_files(

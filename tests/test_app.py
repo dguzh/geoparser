@@ -132,7 +132,7 @@ def test_annotate(client: TestClient, valid_session: bool, doc_index: int):
 
 
 def test_create_session(client: TestClient):
-    filename = "annotator_doc0.txt"
+    filename = "annotator/annotator_doc0.txt"
     response = client.post(
         "/session",
         data={
@@ -269,7 +269,7 @@ def test_add_documents(client: TestClient, valid_session: bool, uploaded_files: 
     session_id = "add_documents"
     if valid_session:
         set_session(session_id)
-    filename = "annotator_doc0.txt"
+    filename = "annotator/annotator_doc0.txt"
     files = (
         {
             "files": [
