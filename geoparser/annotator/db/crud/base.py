@@ -18,8 +18,8 @@ class BaseRepository(ABC):
         item = db.get(self.model, item.id)
         return item
 
-    def read_all(self, db: Session, filter: dict) -> list[t.Type[SQLModel]]:
-        items = db.exec(select(self.model).filter(**filter)).all()
+    def read_all(self, db: Session, **filter_kwargs) -> list[t.Type[SQLModel]]:
+        items = db.exec(select(self.model).filter(**filter_kwargs)).all()
         return items
 
     def update(self, db: Session, item: t.Type[SQLModel]) -> t.Type[SQLModel]:
