@@ -27,3 +27,8 @@ class SessionSettingsCreate(SessionSettingsBase):
 
 class SessionSettingsGet(SessionSettingsBase):
     id: uuid.UUID
+
+
+class SessionSettingsUpdate(SessionSettingsGet):
+    auto_close_annotation_modal: t.Optional[bool]
+    one_sense_per_discourse: t.Optional[bool]
