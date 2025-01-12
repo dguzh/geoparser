@@ -32,3 +32,10 @@ class DocumentCreate(DocumentBase):
 
 class DocumentGet(DocumentBase):
     id: uuid.UUID
+
+
+class DocumentUpdate(DocumentGet):
+    filename: t.Optional[str]
+    spacy_model: t.Optional[str]
+    spacy_applied: t.Optional[bool]
+    text: t.Optional[str]
