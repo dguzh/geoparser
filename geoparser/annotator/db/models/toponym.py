@@ -25,3 +25,10 @@ class ToponymCreate(ToponymBase):
 
 class ToponymGet(ToponymBase):
     id: uuid.UUID
+
+
+class ToponymUpdate(ToponymCreate):
+    text: t.Optional[str]
+    start: t.Optional[int]
+    end: t.Optional[int]
+    loc_id: t.Optional[str]
