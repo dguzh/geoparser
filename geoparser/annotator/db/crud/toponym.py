@@ -16,7 +16,7 @@ class ToponymRepository(BaseRepository):
 
     def validate_overlap(self, db: DBSession, toponym: ToponymCreate) -> bool:
         toponyms = sorted(
-            self.read_all(db, document=toponym.document.id) + [toponym],
+            self.read_all(db, Toponym.document.id == toponym.document.id) + [toponym],
             key=lambda x: x.start,
         )
         toponym_bigrams = [
