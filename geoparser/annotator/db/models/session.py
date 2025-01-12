@@ -2,7 +2,6 @@ import typing as t
 import uuid
 from datetime import datetime
 
-from sqlalchemy.orm import relationship
 from sqlmodel import Field, Relationship, SQLModel
 
 if t.TYPE_CHECKING:
@@ -19,8 +18,9 @@ class SessionBase(SQLModel):
 class Session(SessionBase, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     settings: "SessionSettings" = Relationship(back_populates="session")
-    documents: list["Document"] = relationship(
-        back_populates="session", order_by="asc(Document.doc_index)"
+    documents: list["Document"] = Relationship(
+        back_populates="session",
+        sa_relationship_kwargs={"order_by": "asc(Document.doc_index)"},
     )
 
 
