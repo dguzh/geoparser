@@ -9,7 +9,7 @@ from geoparser.annotator.db.models.settings import (
 )
 
 
-class SessionRepository(BaseRepository):
+class SessionSettingsRepository(BaseRepository):
     def __init__(self):
         model = SessionSettings
 
@@ -19,8 +19,8 @@ class SessionRepository(BaseRepository):
     def read(self, db: DBSession, item: SessionSettingsGet) -> SessionSettingsGet:
         return super().read(db, item)
 
-    def read_all(self, db: DBSession) -> list[SessionSettingsGet]:
-        return super().read_all(db)
+    def read_all(self, db: DBSession, filter: dict) -> list[SessionSettingsGet]:
+        return super().read_all(db, filter)
 
     def update(self, db: DBSession, item: SessionSettingsUpdate) -> SessionSettingsGet:
         return super().update(db, item)

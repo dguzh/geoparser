@@ -22,7 +22,7 @@ class Document(DocumentBase, table=True):
     doc_index: int
     session: t.Optional["Session"] = Relationship(back_populates="documents")
     toponyms: list[Toponym] = relationship(
-        back_populates="document", order_by="desc(Toponym.start)"
+        back_populates="document", order_by="asc(Toponym.start)"
     )
 
 

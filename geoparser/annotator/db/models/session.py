@@ -20,7 +20,7 @@ class Session(SessionBase, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     settings: "SessionSettings" = Relationship(back_populates="session")
     documents: list["Document"] = relationship(
-        back_populates="session", order_by="desc(Document.doc_index)"
+        back_populates="session", order_by="asc(Document.doc_index)"
     )
 
 

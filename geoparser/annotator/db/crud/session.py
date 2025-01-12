@@ -19,8 +19,8 @@ class SessionRepository(BaseRepository):
     def read(self, db: DBSession, item: SessionGet) -> SessionGet:
         return super().read(db, item)
 
-    def read_all(self, db: DBSession) -> list[SessionGet]:
-        return super().read_all(db)
+    def read_all(self, db: DBSession, filter: dict) -> list[SessionGet]:
+        return super().read_all(db, filter)
 
     def update(self, db: DBSession, item: SessionUpdate) -> SessionGet:
         return super().update(db, item)
