@@ -1,7 +1,7 @@
 import typing as t
 import uuid
 
-from sqlmodel import Field, Relationship, SQLModel
+from sqlmodel import Field, Relationship, SQLModel, ForeignKey
 
 if t.TYPE_CHECKING:
     from geoparser.annotator.db.models.document import Document
@@ -16,7 +16,9 @@ class ToponymBase(SQLModel):
 
 class Toponym(ToponymBase, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-    document: t.Optional["Document"] = Relationship(back_populates="toponyms")
+    document: t.Optional["Document"] = Relationship(
+        back_populates="toponyms", sa_relationship=ForeignKey("document.id")
+    )
 
 
 class ToponymCreate(ToponymBase):

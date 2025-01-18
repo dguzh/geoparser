@@ -1,7 +1,7 @@
 import typing as t
 import uuid
 
-from sqlmodel import Field, Relationship, SQLModel
+from sqlmodel import Field, Relationship, SQLModel, ForeignKey
 
 from geoparser.constants import DEFAULT_SESSION_SETTINGS
 
@@ -18,7 +18,9 @@ class SessionSettingsBase(SQLModel):
 
 class SessionSettings(SessionSettingsBase, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-    session: t.Optional["Session"] = Relationship(back_populates="settings")
+    session: t.Optional["Session"] = Relationship(
+        back_populates="settings", sa_relationship=ForeignKey("session.id")
+    )
 
 
 class SessionSettingsCreate(SessionSettingsBase):

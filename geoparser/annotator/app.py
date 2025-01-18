@@ -15,6 +15,11 @@ from fastapi.templating import Jinja2Templates
 from spacy.util import get_installed_models
 
 from geoparser.annotator.annotator import GeoparserAnnotator
+from geoparser.annotator.db.db import create_db_and_tables, get_db
+from geoparser.annotator.db.models.document import Document
+from geoparser.annotator.db.models.session import Session
+from geoparser.annotator.db.models.settings import SessionSettings
+from geoparser.annotator.db.models.toponym import Toponym
 from geoparser.annotator.exceptions import (
     DocumentNotFoundException,
     SessionNotFoundException,
@@ -549,5 +554,6 @@ def run(use_reloader=False):  # pragma: no cover
     def open_browser():
         webbrowser.open_new("http://127.0.0.1:5000/")
 
+    create_db_and_tables()
     threading.Timer(1.0, open_browser).start()
     uvicorn.run(app, host="0.0.0.0", port=5000, reload=use_reloader)
