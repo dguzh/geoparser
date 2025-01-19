@@ -13,27 +13,29 @@ from geoparser.annotator.db.models.document import (
 
 class DocumentRepository(BaseRepository):
     def __init__(self):
-        model = Document
+        self.model = Document
 
-    def reindex_documents(self, db: DBSession, document: DocumentGet):
-        sorted_documents = sorted(
-            self.read_all(db, Document.session.id == document.session.id),
-            key=lambda x: x.doc_index,
-        )
-        for i, doc in enumerate(sorted_documents):
-            if i != doc.doc_index:
-                doc.doc_index = i
-                self.update(db, doc)
-
-    def get_hightest_index(self, db: DBSession, session_id: str):
+    def get_highest_index(self, db: DBSession, session_id: str):
         return db.exec(
             select(Document.doc_index)
-            .where(Document.session.id == session_id)
+            .where(Document.session_id == session_id)
             .order_by(Document.doc_index.desc())
-        ).first()
+        ).scalar()
+
+    def reindex_documents(self, db: DBSession, session_id: str):
+        documents = db.exec(
+            select(Document)
+            .where(Document.session_id == session_id)
+            .order_by(Document.doc_index.asc())
+        ).all()
+        for i, doc in enumerate(documents):
+            if doc.doc_index != i:
+                doc.doc_index = i
+                db.add(doc)
+        db.commit()
 
     def validate_doc_index(self, db: DBSession, document: DocumentGet):
-        highest_index = self.get_hightest_index(db, document.session.id)
+        highest_index = self.get_highest_index(db, document.session.id)
         if document.doc_index <= highest_index:
             raise PydanticCustomError(
                 "existing_doc_index",
@@ -46,14 +48,14 @@ class DocumentRepository(BaseRepository):
         if item.doc_index:
             self.validate_doc_index(db, item)
         else:
-            item.doc_index = self.get_hightest_index(db, item.session.id) + 1
+            item.doc_index = self.get_highest_index(db, item.session.id) + 1
         return super().create(db, item)
 
     def read(self, db: DBSession, item: DocumentGet) -> DocumentGet:
         return super().read(db, item)
 
-    def read_all(self, db: DBSession, filter: dict) -> list[DocumentGet]:
-        return super().read_all(db, filter)
+    def read_all(self, db: DBSession, **filter) -> list[DocumentGet]:
+        return super().read_all(db, **filter)
 
     def update(self, db: DBSession, item: DocumentUpdate) -> DocumentGet:
         return super().update(db, item)
