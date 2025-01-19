@@ -1,12 +1,11 @@
 import typing as t
 import uuid
 
-from sqlmodel import Field, Relationship, SQLModel, ForeignKey
-
-from geoparser.annotator.db.models.toponym import Toponym
+from sqlmodel import Field, Relationship, SQLModel
 
 if t.TYPE_CHECKING:
     from geoparser.annotator.db.models.session import Session
+    from geoparser.annotator.db.models.toponym import Toponym
 
 
 class DocumentBase(SQLModel):
@@ -19,19 +18,9 @@ class DocumentBase(SQLModel):
 
 class Document(DocumentBase, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-    session: t.Optional["Session"] = Relationship(
-        back_populates="documents",
-        sa_relationship_kwargs={
-            "foreign_keys": "Session.id",
-        },
-    )
-    toponyms: list[Toponym] = Relationship(
-        back_populates="document",
-        sa_relationship_kwargs={
-            "order_by": "asc(Toponym.start)",
-            "foreign_keys": "Toponym.id",
-        },
-    )
+    session_id: uuid.UUID = Field(foreign_key="session.id")
+    session: t.Optional["Session"] = Relationship(back_populates="documents")
+    toponyms: list["Toponym"] = Relationship(back_populates="document")
 
 
 class DocumentCreate(DocumentBase):

@@ -2,8 +2,7 @@ import typing as t
 import uuid
 from datetime import datetime
 
-from sqlmodel import Field, Relationship, SQLModel, ForeignKey
-from sqlalchemy.orm import RelationshipProperty
+from sqlmodel import Field, Relationship, SQLModel
 
 if t.TYPE_CHECKING:
     from geoparser.annotator.db.models.document import Document
@@ -11,23 +10,15 @@ if t.TYPE_CHECKING:
 
 
 class SessionBase(SQLModel):
-    created_at: t.Optional[datetime] = datetime.now()
-    last_updated: t.Optional[datetime] = datetime.now()
+    created_at: datetime = Field(default_factory=datetime.now)
+    last_updated: datetime = Field(default_factory=datetime.now)
     gazetteer: str
 
 
 class Session(SessionBase, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-    settings: "SessionSettings" = Relationship(
-        back_populates="session", sa_relationship=ForeignKey("sessionsettings.id")
-    )
-    documents: list["Document"] = Relationship(
-        back_populates="session",
-        sa_relationship_kwargs={
-            "order_by": "asc(Document.doc_index)",
-            "foreign_keys": "Document.id",
-        },
-    )
+    settings: "SessionSettings" = Relationship(back_populates="session")
+    documents: list["Document"] = Relationship(back_populates="session")
 
 
 class SessionCreate(SessionBase):
