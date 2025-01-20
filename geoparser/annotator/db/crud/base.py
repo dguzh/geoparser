@@ -18,6 +18,19 @@ class BaseRepository(ABC):
         db.refresh(item)
         return item
 
+    def upsert(self, db: Session, item: T, match_keys: List[str] = ["id"]) -> T:
+        filter_args = [
+            getattr(self.model, key) == getattr(item, key) for key in match_keys
+        ]
+        existing_item = db.exec(select(self.model).where(*filter_args)).first()
+        if existing_item:
+            item_data = item.model_dump(exclude_unset=True)
+            for key, value in item_data.items():
+                setattr(existing_item, key, value)
+            return self.update(db, existing_item)
+        else:
+            return self.create(db, item)
+
     def read(self, db: Session, id: str) -> Optional[T]:
         return db.get(self.model, id)
 
