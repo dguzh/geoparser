@@ -25,7 +25,7 @@ class SessionCreate(SessionBase):
     pass
 
 
-class SessionGet(SessionBase):
+class SessionGet:
     id: uuid.UUID
 
 

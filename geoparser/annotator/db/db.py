@@ -16,7 +16,7 @@ engine = create_engine(sqlite_url, echo=True)
 
 @event.listens_for(Query, "before_compile", retval=True)
 def enforce_document_order(query):
-    """Ensure documents are always ordered by doc_index when queried."""
+    """Ensure documents are always ordered by Document.doc_index when queried."""
     if hasattr(query, "_entities"):
         for entity in query._entities:
             if hasattr(entity, "mapper") and entity.mapper.class_ is Document:

@@ -13,13 +13,27 @@ from fastapi.responses import JSONResponse, RedirectResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from spacy.util import get_installed_models
+from sqlmodel import Session as DBSession
 
 from geoparser.annotator.annotator import GeoparserAnnotator
+from geoparser.annotator.db.crud import (
+    DocumentRepository,
+    SessionRepository,
+    SessionSettingsRepository,
+    ToponymRepository,
+)
 from geoparser.annotator.db.db import create_db_and_tables, get_db
-from geoparser.annotator.db.models.document import Document
-from geoparser.annotator.db.models.session import Session
-from geoparser.annotator.db.models.settings import SessionSettings
-from geoparser.annotator.db.models.toponym import Toponym
+from geoparser.annotator.db.models import (
+    Document,
+    DocumentCreate,
+    DocumentGet,
+    Session,
+    SessionCreate,
+    SessionGet,
+    SessionSettings,
+    Toponym,
+    ToponymCreate,
+)
 from geoparser.annotator.exceptions import (
     DocumentNotFoundException,
     SessionNotFoundException,
@@ -86,8 +100,8 @@ sessions_cache = SessionsCache()
 spacy_models = list(get_installed_models())
 
 
-def _get_session(session_id: str):
-    return sessions_cache.load(session_id)
+def _get_session(db: t.Annotated[DBSession, Depends(get_db)], session_id: str):
+    return SessionRepository().read(db, SessionGet(id=session_id))
 
 
 def get_session(session: t.Annotated[dict, Depends(_get_session)]):
@@ -97,22 +111,18 @@ def get_session(session: t.Annotated[dict, Depends(_get_session)]):
 
 
 def _get_document(session: t.Annotated[dict, Depends(_get_session)], doc_index: int):
-    if session is not None and doc_index < len(session["documents"]):
-        return session["documents"][doc_index]
+    if session is not None and doc_index < len(session.documents):
+        return session.documents[doc_index]
 
 
 def get_document(session: t.Annotated[dict, Depends(get_session)], doc_index: int):
-    if doc_index >= len(session["documents"]):
+    if doc_index >= len(session.documents):
         raise DocumentNotFoundException
-    return session["documents"][doc_index]
+    return session.documents[doc_index]
 
 
 def create_new_session(gazetteer: str):
-    session_id = uuid.uuid4().hex
     session = {
-        "session_id": session_id,
-        "created_at": datetime.now().isoformat(),
-        "last_updated": datetime.now().isoformat(),
         "gazetteer": gazetteer,
         "settings": DEFAULT_SESSION_SETTINGS,
         "documents": [],
@@ -136,7 +146,7 @@ def start_new_session(request: Request):
 
 @app.get("/continue_session", tags=["pages"])
 def continue_session(request: Request):
-    cached_sessions = sessions_cache.get_cached_sessions()
+    cached_sessions = SessionRepository.read_all()
     return templates.TemplateResponse(
         request=request,
         name="html/continue_session.html",
@@ -193,17 +203,25 @@ def create_session(
     files: list[UploadFile],
     gazetteer: t.Annotated[str, Form()],
     spacy_model: t.Annotated[str, Form()],
+    db: t.Annotated[DBSession, Depends(get_db)],
 ):
     # Re-initialize gazetteer with selected option
     annotator.gazetteer = annotator.setup_gazetteer(gazetteer)
     # Process uploaded files and create a new session
-    session = create_new_session(gazetteer)
-    for document in annotator.parse_files(files, spacy_model, apply_spacy=False):
-        session["documents"].append(document)
-    # Save session to cache
-    sessions_cache.save(session["session_id"], session)
+    session = SessionRepository.create(db, SessionCreate(gazetteer=gazetteer))
+    for document_dict in annotator.parse_files(files, spacy_model, apply_spacy=False):
+        document = DocumentCreate.model_validate(
+            {**document_dict, "session_id": session.id}
+        )
+        document = DocumentRepository.create(db, document)
+        for toponym_dict in document_dict["toponyms"]:
+            ToponymRepository.create(
+                ToponymCreate.model_validate(
+                    {**toponym_dict, "document_id": document.id}
+                )
+            )
     return RedirectResponse(
-        url=app.url_path_for("annotate", session_id=session["session_id"], doc_index=0),
+        url=app.url_path_for("annotate", session_id=session.session_id, doc_index=0),
         status_code=status.HTTP_302_FOUND,
     )
 
@@ -217,10 +235,10 @@ def continue_session_cached(session_id: t.Annotated[str, Form()]):
             app.url_path_for("continue_session"), status_code=status.HTTP_302_FOUND
         )
     # Re-initialize gazetteer
-    annotator.gazetteer = annotator.setup_gazetteer(session["gazetteer"])
+    annotator.gazetteer = annotator.setup_gazetteer(session.gazetteer)
     # Redirect to annotate page
     return RedirectResponse(
-        app.url_path_for("annotate", session_id=session["session_id"], doc_index=0),
+        app.url_path_for("annotate", session_id=session.id, doc_index=0),
         status_code=status.HTTP_302_FOUND,
     )
 
@@ -229,19 +247,15 @@ def continue_session_cached(session_id: t.Annotated[str, Form()]):
 def continue_session_file(session_file: t.Optional[UploadFile] = None):
     # Handle uploaded session file
     if session_file and session_file.filename:
-        session_data = json.loads(session_file.file.read().decode())
-        session_id = session_data.get("session_id")
-        if not session_id:
-            # Generate a new session_id if not present
-            session_id = uuid.uuid4().hex
-            session_data["session_id"] = session_id
         # Save session to cache
-        sessions_cache.save(session_id, session_data)
+        session = SessionRepository.create(
+            SessionCreate.model_validate(json.loads(session_file.file.read().decode()))
+        )
         # Re-initialize gazetteer
-        annotator.gazetteer = annotator.setup_gazetteer(session_data["gazetteer"])
+        annotator.gazetteer = annotator.setup_gazetteer(session.gazetteer)
         # Redirect to annotate page
         return RedirectResponse(
-            app.url_path_for("annotate", session_id=session_id, doc_index=0),
+            app.url_path_for("annotate", session_id=session.id, doc_index=0),
             status_code=status.HTTP_302_FOUND,
         )
     else:
@@ -252,7 +266,7 @@ def continue_session_file(session_file: t.Optional[UploadFile] = None):
 
 @app.delete("/session/{session_id}", tags=["session"])
 def delete_session(session: t.Annotated[dict, Depends(get_session)]):
-    sessions_cache.delete(session["session_id"])
+    SessionRepository().delete(session)
     return JSONResponse({"status": "success"})
 
 

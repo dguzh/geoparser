@@ -27,7 +27,7 @@ class DocumentCreate(DocumentBase):
     pass
 
 
-class DocumentGet(DocumentBase):
+class DocumentGet:
     id: uuid.UUID
 
 
