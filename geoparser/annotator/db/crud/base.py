@@ -1,15 +1,15 @@
+import typing as t
 from abc import ABC, abstractmethod
-from typing import List, Optional, Type, TypeVar
 
 from sqlmodel import Session, SQLModel, select
 
-T = TypeVar("T", bound=SQLModel)
+T = t.TypeVar("T", bound=SQLModel)
 
 
 class BaseRepository(ABC):
     @property
     @abstractmethod
-    def model(self) -> Type[T]:
+    def model(self) -> t.Type[T]:
         pass
 
     def create(self, db: Session, item: T) -> T:
@@ -18,7 +18,7 @@ class BaseRepository(ABC):
         db.refresh(item)
         return item
 
-    def upsert(self, db: Session, item: T, match_keys: List[str] = ["id"]) -> T:
+    def upsert(self, db: Session, item: T, match_keys: t.List[str] = ["id"]) -> T:
         filter_args = [
             getattr(self.model, key) == getattr(item, key) for key in match_keys
         ]
@@ -31,10 +31,10 @@ class BaseRepository(ABC):
         else:
             return self.create(db, item)
 
-    def read(self, db: Session, id: str) -> Optional[T]:
+    def read(self, db: Session, id: str) -> t.Optional[T]:
         return db.get(self.model, id)
 
-    def read_all(self, db: Session, **filters) -> List[T]:
+    def read_all(self, db: Session, **filters) -> t.List[T]:
         filter_args = [
             getattr(self.model, key) == value for key, value in filters.items()
         ]
@@ -52,7 +52,7 @@ class BaseRepository(ABC):
         db.refresh(db_item)
         return db_item
 
-    def delete(self, db: Session, id: str) -> Optional[T]:
+    def delete(self, db: Session, id: str) -> t.Optional[T]:
         item = db.get(self.model, id)
         if not item:
             raise ValueError(f"{self.model.__name__} with ID {id} not found.")

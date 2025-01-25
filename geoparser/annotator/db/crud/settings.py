@@ -1,3 +1,5 @@
+import typing as t
+
 from sqlmodel import Session as DBSession
 
 from geoparser.annotator.db.crud.base import BaseRepository
@@ -15,6 +17,14 @@ class SessionSettingsRepository(BaseRepository):
 
     def create(self, db: DBSession, item: SessionSettingsCreate) -> SessionSettingsGet:
         return super().create(db, item)
+
+    def upsert(
+        self,
+        db: DBSession,
+        item: t.Union[SessionSettingsCreate, SessionSettingsUpdate],
+        match_keys: t.List[str] = ["id"],
+    ) -> SessionSettingsGet:
+        return super().upsert(db, item, match_keys)
 
     def read(self, db: DBSession, item: SessionSettingsGet) -> SessionSettingsGet:
         return super().read(db, item)

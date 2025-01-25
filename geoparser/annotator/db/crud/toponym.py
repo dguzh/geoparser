@@ -1,3 +1,5 @@
+import typing as t
+
 from pydantic_core import PydanticCustomError
 from sqlmodel import Session as DBSession
 from sqlmodel import select
@@ -31,6 +33,15 @@ class ToponymRepository(BaseRepository):
     def create(self, db: DBSession, item: ToponymCreate) -> ToponymGet:
         self.validate_overlap(item)
         return super().create(db, item)
+
+    def upsert(
+        self,
+        db: DBSession,
+        item: t.Union[ToponymCreate, ToponymUpdate],
+        match_keys: t.List[str] = ["id"],
+    ) -> ToponymGet:
+        self.validate_overlap(item)
+        return super().upsert(db, item, match_keys)
 
     def read(self, db: DBSession, item: ToponymGet) -> ToponymGet:
         return super().read(db, item)

@@ -1,3 +1,5 @@
+import typing as t
+
 from pydantic_core import PydanticCustomError
 from sqlmodel import Session as DBSession
 from sqlmodel import select
@@ -50,6 +52,22 @@ class DocumentRepository(BaseRepository):
         else:
             item.doc_index = self.get_highest_index(db, item.session.id) + 1
         return super().create(db, item)
+
+    def upsert(
+        self,
+        db: DBSession,
+        item: t.Union[DocumentCreate, DocumentUpdate],
+        match_keys: t.List[str] = ["id"],
+    ) -> DocumentGet:
+        filter_args = [
+            getattr(self.model, key) == getattr(item, key) for key in match_keys
+        ]
+        existing_item = db.exec(select(self.model).where(*filter_args)).first()
+        if existing_item and item.doc_index:
+            self.validate_doc_index(db, item)
+        else:
+            item.doc_index = self.get_highest_index(db, item.session.id) + 1
+        return super().upsert(db, item, match_keys)
 
     def read(self, db: DBSession, item: DocumentGet) -> DocumentGet:
         return super().read(db, item)
