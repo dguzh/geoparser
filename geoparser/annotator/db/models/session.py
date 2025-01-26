@@ -25,7 +25,7 @@ class Session(SessionBase, table=True):
 
 
 class SessionCreate(SessionBase):
-    settings: t.Optional["SessionSettingsCreate"] = None
+    settings: "SessionSettingsCreate" = SessionSettingsCreate()
     documents: t.Optional[list["DocumentCreate"]] = []
 
 

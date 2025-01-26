@@ -3,13 +3,19 @@ import uuid
 
 from sqlmodel import Field, Relationship, SQLModel
 
+from geoparser.constants import DEFAULT_SESSION_SETTINGS
+
 if t.TYPE_CHECKING:
     from geoparser.annotator.db.models.session import Session
 
 
 class SessionSettingsBase(SQLModel):
-    auto_close_annotation_modal: bool
-    one_sense_per_discourse: bool
+    auto_close_annotation_modal: t.Optional[bool] = DEFAULT_SESSION_SETTINGS[
+        "auto_close_annotation_modal"
+    ]
+    one_sense_per_discourse: t.Optional[bool] = DEFAULT_SESSION_SETTINGS[
+        "one_sense_per_discourse"
+    ]
 
 
 class SessionSettings(SessionSettingsBase, table=True):
