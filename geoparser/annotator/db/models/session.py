@@ -5,8 +5,11 @@ from datetime import datetime
 from sqlmodel import Field, Relationship, SQLModel
 
 if t.TYPE_CHECKING:
-    from geoparser.annotator.db.models.document import Document
-    from geoparser.annotator.db.models.settings import SessionSettings
+    from geoparser.annotator.db.models.document import Document, DocumentCreate
+    from geoparser.annotator.db.models.settings import (
+        SessionSettings,
+        SessionSettingsCreate,
+    )
 
 
 class SessionBase(SQLModel):
@@ -22,7 +25,8 @@ class Session(SessionBase, table=True):
 
 
 class SessionCreate(SessionBase):
-    pass
+    settings: t.Optional["SessionSettingsCreate"] = None
+    documents: t.Optional[list["DocumentCreate"]] = []
 
 
 class SessionGet:

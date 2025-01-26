@@ -4,6 +4,7 @@ from pydantic_core import PydanticCustomError
 from sqlmodel import Session as DBSession
 from sqlmodel import select
 
+from geoparser.annotator.db.crud import ToponymRepository
 from geoparser.annotator.db.crud.base import BaseRepository
 from geoparser.annotator.db.models.document import (
     Document,
@@ -47,11 +48,18 @@ class DocumentRepository(BaseRepository):
         return True
 
     def create(self, db: DBSession, item: DocumentCreate) -> DocumentGet:
+        # create the main document object
         if item.doc_index:
             self.validate_doc_index(db, item)
         else:
             item.doc_index = self.get_highest_index(db, item.session.id) + 1
-        return super().create(db, item)
+        document = super().create(db, item)
+        # create toponyms if provided
+        if item.toponyms:
+            for toponym in item.documents:
+                toponym.document_id = toponym.id
+                ToponymRepository().create(db, toponym)
+        return document
 
     def upsert(
         self,

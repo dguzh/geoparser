@@ -2,6 +2,7 @@ import typing as t
 
 from sqlmodel import Session as DBSession
 
+from geoparser.annotator.db.crud import DocumentRepository, SessionSettingsRepository
 from geoparser.annotator.db.crud.base import BaseRepository
 from geoparser.annotator.db.models.session import (
     Session,
@@ -16,7 +17,18 @@ class SessionRepository(BaseRepository):
         self.model = Session
 
     def create(self, db: DBSession, item: SessionCreate) -> SessionGet:
-        return super().create(db, item)
+        # create the main session object
+        session = super().create(db, item)
+        # create settings if provided
+        if item.settings:
+            item.settings.session_id = session.id
+            SessionSettingsRepository().create(db, item.settings)
+        # create documents if provided
+        if item.documents:
+            for document in item.documents:
+                document.session_id = session.id
+                DocumentRepository().create(db, document)
+        return session
 
     def upsert(
         self,
