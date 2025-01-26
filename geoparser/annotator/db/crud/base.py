@@ -12,6 +12,12 @@ class BaseRepository(ABC):
     def model(self) -> t.Type[T]:
         pass
 
+    def get_db_item(self, db: Session, id: str) -> T:
+        db_item = db.get(self.model, id)
+        if not db_item:
+            raise ValueError(f"{self.model.__name__} with ID {id} not found.")
+        return db_item
+
     def create(self, db: Session, item: T) -> T:
         db.add(item)
         db.commit()
@@ -32,7 +38,7 @@ class BaseRepository(ABC):
             return self.create(db, item)
 
     def read(self, db: Session, id: str) -> t.Optional[T]:
-        return db.get(self.model, id)
+        return self.get_db_item(db, id)
 
     def read_all(self, db: Session, **filters) -> t.List[T]:
         filter_args = [
@@ -41,9 +47,7 @@ class BaseRepository(ABC):
         return db.exec(select(self.model).where(*filter_args)).all()
 
     def update(self, db: Session, item: T) -> T:
-        db_item = db.get(self.model, item.id)
-        if not db_item:
-            raise ValueError(f"{self.model.__name__} with ID {item.id} not found.")
+        db_item = self.get_db_item(db, item.id)
         item_data = item.model_dump(exclude_unset=True)
         for key, value in item_data.items():
             setattr(db_item, key, value)
@@ -53,9 +57,7 @@ class BaseRepository(ABC):
         return db_item
 
     def delete(self, db: Session, id: str) -> t.Optional[T]:
-        item = db.get(self.model, id)
-        if not item:
-            raise ValueError(f"{self.model.__name__} with ID {id} not found.")
+        item = self.get_db_item(db, id)
         db.delete(item)
         db.commit()
         return item
