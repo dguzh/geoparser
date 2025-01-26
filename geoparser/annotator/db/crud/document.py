@@ -76,6 +76,8 @@ class DocumentRepository(BaseRepository):
         return super().read_all(db, **filter)
 
     def update(self, db: DBSession, item: DocumentUpdate) -> DocumentGet:
+        if item.doc_index:
+            self.validate_doc_index(db, item)
         return super().update(db, item)
 
     def delete(self, db: DBSession, item: DocumentGet) -> DocumentGet:
