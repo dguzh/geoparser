@@ -50,6 +50,7 @@ class ToponymRepository(BaseRepository):
         return super().read_all(db, **filter)
 
     def update(self, db: DBSession, item: ToponymUpdate) -> ToponymGet:
+        self.validate_overlap(item)
         return super().update(db, item)
 
     def delete(self, db: DBSession, item: ToponymGet) -> ToponymGet:
