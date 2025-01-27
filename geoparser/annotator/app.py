@@ -2,7 +2,6 @@ import json
 import os
 import threading
 import typing as t
-import uuid
 import webbrowser
 from datetime import datetime
 from io import StringIO
@@ -24,14 +23,12 @@ from geoparser.annotator.db.crud import (
 )
 from geoparser.annotator.db.db import create_db_and_tables, get_db
 from geoparser.annotator.db.models import (
-    Document,
     DocumentCreate,
-    DocumentGet,
-    Session,
     SessionCreate,
     SessionGet,
-    SessionSettings,
-    Toponym,
+    SessionSettingsBase,
+    SessionSettingsUpdate,
+    SessionUpdate,
     ToponymCreate,
 )
 from geoparser.annotator.exceptions import (
@@ -42,12 +39,7 @@ from geoparser.annotator.exceptions import (
     session_exception_handler,
     toponym_exception_handler,
 )
-from geoparser.annotator.models.api import (
-    Annotation,
-    AnnotationEdit,
-    CandidatesGet,
-    SessionSettings,
-)
+from geoparser.annotator.models.api import Annotation, AnnotationEdit, CandidatesGet
 from geoparser.annotator.sessions_cache import SessionsCache
 from geoparser.constants import DEFAULT_SESSION_SETTINGS, GAZETTEERS
 
@@ -119,15 +111,6 @@ def get_document(session: t.Annotated[dict, Depends(get_session)], doc_index: in
     if doc_index >= len(session.documents):
         raise DocumentNotFoundException
     return session.documents[doc_index]
-
-
-def create_new_session(gazetteer: str):
-    session = {
-        "gazetteer": gazetteer,
-        "settings": DEFAULT_SESSION_SETTINGS,
-        "documents": [],
-    }
-    return session
 
 
 @app.get("/", tags=["pages"])
@@ -208,20 +191,25 @@ def create_session(
     # Re-initialize gazetteer with selected option
     annotator.gazetteer = annotator.setup_gazetteer(gazetteer)
     # Process uploaded files and create a new session
-    session = SessionRepository.create(db, SessionCreate(gazetteer=gazetteer))
-    for document_dict in annotator.parse_files(files, spacy_model, apply_spacy=False):
-        document = DocumentCreate.model_validate(
-            {**document_dict, "session_id": session.id}
+    documents = [
+        DocumentCreate.model_validate(
+            {
+                **document_dict,
+                "toponyms": [
+                    ToponymCreate.model_validate(toponym_dict)
+                    for toponym_dict in document_dict["toponyms"]
+                ],
+            }
         )
-        document = DocumentRepository.create(db, document)
-        for toponym_dict in document_dict["toponyms"]:
-            ToponymRepository.create(
-                ToponymCreate.model_validate(
-                    {**toponym_dict, "document_id": document.id}
-                )
-            )
+        for document_dict in annotator.parse_files(
+            files, spacy_model, apply_spacy=False
+        )
+    ]
+    session = SessionRepository.create_from_json(
+        db, SessionCreate(gazetteer=gazetteer, documents=documents)
+    )
     return RedirectResponse(
-        url=app.url_path_for("annotate", session_id=session.session_id, doc_index=0),
+        url=app.url_path_for("annotate", session_id=session.id, doc_index=0),
         status_code=status.HTTP_302_FOUND,
     )
 
@@ -244,12 +232,15 @@ def continue_session_cached(session_id: t.Annotated[str, Form()]):
 
 
 @app.post("/session/continue/file", tags=["session"])
-def continue_session_file(session_file: t.Optional[UploadFile] = None):
+def continue_session_file(
+    db: t.Annotated[DBSession, Depends(get_db)],
+    session_file: t.Optional[UploadFile] = None,
+):
     # Handle uploaded session file
     if session_file and session_file.filename:
         # Save session to cache
-        session = SessionRepository.create(
-            SessionCreate.model_validate(json.loads(session_file.file.read().decode()))
+        session = SessionRepository.create_from_json(
+            db, session_file.file.read().decode()
         )
         # Re-initialize gazetteer
         annotator.gazetteer = annotator.setup_gazetteer(session.gazetteer)
@@ -282,36 +273,41 @@ def add_documents(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
         )
     # Process uploaded files
-    for document in annotator.parse_files(files, spacy_model, apply_spacy=False):
-        session["documents"].append(document)
-    # Save updated session
-    sessions_cache.save(session["session_id"], session)
+    for document_dict in annotator.parse_files(files, spacy_model, apply_spacy=False):
+        document = DocumentCreate.model_validate(
+            {
+                **document_dict,
+                "toponyms": [
+                    ToponymCreate.model_validate(toponym_dict)
+                    for toponym_dict in document_dict["toponyms"]
+                ],
+            }
+        )
+        document.session_id = session.id
+        DocumentRepository().create(document)
     return JSONResponse({"status": "success"})
 
 
 @app.get("/session/{session_id}/documents", tags=["document"])
 def get_documents(session: t.Annotated[dict, Depends(get_session)]):
-    docs = session["documents"]
+    docs = session.documents
     return JSONResponse(docs)
 
 
 @app.post("/session/{session_id}/document/{doc_index}/parse", tags=["document"])
 def parse_document(
+    db: t.Annotated[DBSession, Depends(get_db)],
     session: t.Annotated[dict, Depends(get_session)],
     doc: t.Annotated[dict, Depends(get_document)],
     doc_index: int,
 ):
-    if not doc.get("spacy_applied"):
+    if not doc.spacy_applied:
         doc = annotator.parse_doc(doc)
-        # reload session in case there have been changes to it in the meantime
-        session = sessions_cache.load(session["session_id"])
-        # merge toponyms in case the user has added some in the meantime
-        old_toponyms = session["documents"][doc_index]["toponyms"]
-        spacy_toponyms = doc["toponyms"]
-        doc["toponyms"] = annotator.merge_toponyms(old_toponyms, spacy_toponyms)
-        # save parsed toponyms into session
-        session["documents"][doc_index] = doc
-        sessions_cache.save(session["session_id"], session)
+        old_toponyms = session.documents[doc_index].toponyms
+        spacy_toponyms = doc.toponyms
+        merged_toponyms = annotator.merge_toponyms(old_toponyms, spacy_toponyms)
+        for toponym in merged_toponyms:
+            ToponymRepository().upsert(db, toponym)
         return JSONResponse({"status": "success", "parsed": True})
     return JSONResponse({"status": "success", "parsed": False})
 
@@ -320,9 +316,9 @@ def parse_document(
 def get_document_progress(
     doc: t.Annotated[dict, Depends(get_document)],
 ):
-    toponyms = doc["toponyms"]
+    toponyms = doc.toponyms
     total_toponyms = len(toponyms)
-    annotated_toponyms = sum(1 for t in toponyms if t["loc_id"] != "")
+    annotated_toponyms = sum(1 for t in toponyms if t.loc_id != "")
     progress_percentage = (
         (annotated_toponyms / total_toponyms) * 100 if total_toponyms > 0 else 0
     )
@@ -341,7 +337,7 @@ def get_document_text(
     doc: t.Annotated[dict, Depends(get_document)],
 ):
     # Prepare pre-annotated text
-    pre_annotated_text = annotator.get_pre_annotated_text(doc["text"], doc["toponyms"])
+    pre_annotated_text = annotator.get_pre_annotated_text(doc.text, doc.toponyms)
     return JSONResponse({"status": "success", "pre_annotated_text": pre_annotated_text})
 
 
@@ -350,11 +346,13 @@ def get_document_text(
     tags=["document"],
     dependencies=[Depends(get_document)],
 )
-def delete_document(session: t.Annotated[dict, Depends(get_session)], doc_index: int):
+def delete_document(
+    db: t.Annotated[DBSession, Depends(get_db)],
+    session: t.Annotated[dict, Depends(get_session)],
+    doc_index: int,
+):
     # Remove the document
-    del session["documents"][doc_index]
-    # Save updated session
-    sessions_cache.save(session["session_id"], session)
+    DocumentRepository().delete(db, session.documents[doc_index])
     return JSONResponse({"status": "success"})
 
 
@@ -366,11 +364,10 @@ def get_candidates(
     candidates_request: CandidatesGet,
 ):
     toponym = annotator.get_toponym(
-        doc["toponyms"], candidates_request.start, candidates_request.end
+        doc.toponyms, candidates_request.start, candidates_request.end
     )
     if not toponym:
         raise ToponymNotFoundException
-
     return JSONResponse(
         annotator.get_candidates(
             toponym, candidates_request.text, candidates_request.query_text
@@ -380,11 +377,12 @@ def get_candidates(
 
 @app.post("/session/{session_id}/document/{doc_index}/annotation", tags=["annotation"])
 def create_annotation(
+    db: t.Annotated[DBSession, Depends(get_db)],
     session: t.Annotated[dict, Depends(get_session)],
     doc: t.Annotated[dict, Depends(get_document)],
     annotation: Annotation,
 ):
-    toponyms = doc["toponyms"]
+    toponyms = doc.toponyms
     # Check if there is already an annotation at this position
     existing_toponym = annotator.get_toponym(toponyms, annotation.start, annotation.end)
     if existing_toponym:
@@ -393,23 +391,16 @@ def create_annotation(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
         )
     # Add new toponym
-    toponym = {
-        "text": annotation.text,
-        "start": annotation.start,
-        "end": annotation.end,
-        "loc_id": "",  # Empty loc_id
-    }
-    toponyms.append(toponym)
-
-    # Sort toponyms by start position
-    toponyms.sort(key=lambda x: x["start"])
-    # Update last_updated timestamp
-    session["last_updated"] = datetime.now().isoformat()
-    # Save session
-    sessions_cache.save(session["session_id"], session)
+    ToponymRepository().create(
+        db,
+        ToponymCreate(text=annotation.text, start=annotation.start, end=annotation.end),
+    )
+    SessionRepository.update(
+        db, SessionUpdate(id=session.id, last_updated=datetime.now())
+    )
     # Recalculate progress for the current document
     total_toponyms = len(toponyms)
-    annotated_toponyms = sum(1 for t in toponyms if t["loc_id"] != "")
+    annotated_toponyms = sum(1 for t in toponyms if t.loc_id != "")
     progress_percentage = (
         (annotated_toponyms / total_toponyms) * 100 if total_toponyms > 0 else 0
     )
@@ -424,11 +415,11 @@ def create_annotation(
 
 
 @app.get("/session/{session_id}/annotations/download", tags=["annotation"])
-def download_annotations(annotations_data: t.Annotated[dict, Depends(get_session)]):
+def download_annotations(session: t.Annotated[dict, Depends(get_session)]):
     # Prepare annotations file for download
-    file_content = json.dumps(annotations_data, ensure_ascii=False, indent=4)
+    file_content = json.dumps(session.model_dump(), ensure_ascii=False, indent=4)
     # Send the file to the client
-    session_id = annotations_data["session_id"]
+    session_id = session.id
     return StreamingResponse(
         StringIO(file_content),
         media_type="application/octet-stream",
@@ -440,29 +431,31 @@ def download_annotations(annotations_data: t.Annotated[dict, Depends(get_session
 
 @app.put("/session/{session_id}/document/{doc_index}/annotation", tags=["annotation"])
 def overwrite_annotation(
+    db: t.Annotated[DBSession, Depends(get_db)],
     session: t.Annotated[dict, Depends(get_session)],
     doc: t.Annotated[dict, Depends(get_document)],
     annotation: Annotation,
 ):
-    toponyms = doc["toponyms"]
+    toponyms = doc.toponyms
     # Find the toponym to update
     toponym = annotator.get_toponym(toponyms, annotation.start, annotation.end)
     if not toponym:
         raise ToponymNotFoundException
     # Get the "one_sense_per_discourse" setting
-    one_sense_per_discourse = session.get("settings", {}).get(
-        "one_sense_per_discourse", False
-    )
-    doc["toponyms"] = annotator.annotate_toponyms(
-        doc["toponyms"], annotation.model_dump(), one_sense_per_discourse
-    )
+    one_sense_per_discourse = session.settings.one_sense_per_discourse
+    for toponym in annotator.annotate_toponyms(
+        doc.toponyms, annotation.model_dump(), one_sense_per_discourse
+    ):
+        ToponymRepository.update(db, toponym)
     # Update last_updated timestamp
-    session["last_updated"] = datetime.now().isoformat()
+    SessionRepository.update(
+        db, SessionUpdate(id=session.id, last_updated=datetime.now())
+    )
     # Save session
     sessions_cache.save(session["session_id"], session)
     # Recalculate progress for the current document
     total_toponyms = len(toponyms)
-    annotated_toponyms = sum(1 for t in toponyms if t["loc_id"] != "")
+    annotated_toponyms = sum(1 for t in toponyms if t.loc_id != "")
     progress_percentage = (
         (annotated_toponyms / total_toponyms) * 100 if total_toponyms > 0 else 0
     )
@@ -478,21 +471,23 @@ def overwrite_annotation(
 
 @app.patch("/session/{session_id}/document/{doc_index}/annotation", tags=["annotation"])
 def update_annotation(
+    db: t.Annotated[DBSession, Depends(get_db)],
     session: t.Annotated[dict, Depends(get_session)],
     doc: t.Annotated[dict, Depends(get_document)],
     annotation: AnnotationEdit,
 ):
-    toponyms = doc["toponyms"]
+    toponyms = doc.toponyms
     # Find the toponym to edit
     toponym = annotator.get_toponym(toponyms, annotation.old_start, annotation.old_end)
     if not toponym:
         raise ToponymNotFoundException
     # Update the toponym
-    toponym["start"] = annotation.new_start
-    toponym["end"] = annotation.new_end
-    toponym["text"] = annotation.new_text
+    toponym.start = annotation.new_start
+    toponym.end = annotation.new_end
+    toponym.text = annotation.new_text
+    ToponymRepository().update(db, toponym)
     # Update last_updated timestamp
-    session["last_updated"] = datetime.now().isoformat()
+    SessionRepository.update(SessionUpdate(id=session.id, last_updated=datetime.now()))
     # Save session
     sessions_cache.save(session["session_id"], session)
     # Recalculate progress for the current document
@@ -515,25 +510,26 @@ def update_annotation(
     "/session/{session_id}/document/{doc_index}/annotation", tags=["annotation"]
 )
 def delete_annotation(
+    db: t.Annotated[DBSession, Depends(get_db)],
     session: t.Annotated[dict, Depends(get_session)],
     doc: t.Annotated[dict, Depends(get_document)],
     start: int,
     end: int,
 ):
     annotation = Annotation(start=start, end=end)
-    toponyms = doc["toponyms"]
+    toponyms = doc.toponyms
     # Find the toponym to delete
     toponym = annotator.get_toponym(toponyms, annotation.start, annotation.end)
     if not toponym:
         raise ToponymNotFoundException
-    doc = annotator.remove_toponym(doc, toponym)
+    ToponymRepository().delete(db, toponym)
     # Update last_updated timestamp
-    session["last_updated"] = datetime.now().isoformat()
-    # Save session
-    sessions_cache.save(session["session_id"], session)
+    SessionRepository.update(
+        SessionUpdate(db, id=session.id, last_updated=datetime.now())
+    )
     # Recalculate progress for the current document
     total_toponyms = len(toponyms)
-    annotated_toponyms = sum(1 for t in toponyms if t["loc_id"] != "")
+    annotated_toponyms = sum(1 for t in toponyms if t.loc_id != "")
     progress_percentage = (
         (annotated_toponyms / total_toponyms) * 100 if total_toponyms > 0 else 0.0
     )
@@ -549,18 +545,19 @@ def delete_annotation(
 
 @app.get("/session/{session_id}/settings", tags=["settings"])
 def get_session_settings(session: t.Annotated[dict, Depends(get_session)]):
-    settings = session.get("settings", DEFAULT_SESSION_SETTINGS)
-    return JSONResponse(settings)
+    return JSONResponse(session.settings)
 
 
 @app.put("/session/{session_id}/settings", tags=["settings"])
 def put_session_settings(
-    session: t.Annotated[dict, Depends(get_session)], session_settings: SessionSettings
+    db: t.Annotated[DBSession, Depends(get_db)],
+    session: t.Annotated[dict, Depends(get_session)],
+    session_settings: SessionSettingsBase,
 ):
     # Update settings
-    session["settings"] = session_settings.model_dump()
-    # Save session
-    sessions_cache.save(session["session_id"], session)
+    SessionSettingsRepository().update(
+        db, SessionSettingsUpdate(id=session.id, **session_settings.model_dump())
+    )
     return JSONResponse({"status": "success"})
 
 
