@@ -7,47 +7,50 @@ T = t.TypeVar("T", bound=SQLModel)
 
 
 class BaseRepository(ABC):
-    @property
-    @abstractmethod
-    def model(self) -> t.Type[T]:
-        pass
+    model: t.Type[T]
 
-    def get_db_item(self, db: Session, id: str) -> T:
-        db_item = db.get(self.model, id)
+    @classmethod
+    def get_db_item(cls, db: Session, id: str) -> T:
+        db_item = db.get(cls.model, id)
         if not db_item:
-            raise ValueError(f"{self.model.__name__} with ID {id} not found.")
+            raise ValueError(f"{cls.model.__name__} with ID {id} not found.")
         return db_item
 
-    def create(self, db: Session, item: T) -> T:
+    @classmethod
+    def create(cls, db: Session, item: T) -> T:
         db.add(item)
         db.commit()
         db.refresh(item)
         return item
 
-    def upsert(self, db: Session, item: T, match_keys: t.List[str] = ["id"]) -> T:
+    @classmethod
+    def upsert(cls, db: Session, item: T, match_keys: t.List[str] = ["id"]) -> T:
         filter_args = [
-            getattr(self.model, key) == getattr(item, key) for key in match_keys
+            getattr(cls.model, key) == getattr(item, key) for key in match_keys
         ]
-        existing_item = db.exec(select(self.model).where(*filter_args)).first()
+        existing_item = db.exec(select(cls.model).where(*filter_args)).first()
         if existing_item:
             item_data = item.model_dump(exclude_unset=True)
             for key, value in item_data.items():
                 setattr(existing_item, key, value)
-            return self.update(db, existing_item)
+            return cls.update(db, existing_item)
         else:
-            return self.create(db, item)
+            return cls.create(db, item)
 
-    def read(self, db: Session, id: str) -> t.Optional[T]:
-        return self.get_db_item(db, id)
+    @classmethod
+    def read(cls, db: Session, id: str) -> t.Optional[T]:
+        return cls.get_db_item(db, id)
 
-    def read_all(self, db: Session, **filters) -> t.List[T]:
+    @classmethod
+    def read_all(cls, db: Session, **filters) -> t.List[T]:
         filter_args = [
-            getattr(self.model, key) == value for key, value in filters.items()
+            getattr(cls.model, key) == value for key, value in filters.items()
         ]
-        return db.exec(select(self.model).where(*filter_args)).all()
+        return db.exec(select(cls.model).where(*filter_args)).all()
 
-    def update(self, db: Session, item: T) -> T:
-        db_item = self.get_db_item(db, item.id)
+    @classmethod
+    def update(cls, db: Session, item: T) -> T:
+        db_item = cls.get_db_item(db, item.id)
         item_data = item.model_dump(exclude_unset=True)
         for key, value in item_data.items():
             setattr(db_item, key, value)
@@ -56,8 +59,9 @@ class BaseRepository(ABC):
         db.refresh(db_item)
         return db_item
 
-    def delete(self, db: Session, id: str) -> t.Optional[T]:
-        item = self.get_db_item(db, id)
+    @classmethod
+    def delete(cls, db: Session, id: str) -> t.Optional[T]:
+        item = cls.get_db_item(db, id)
         db.delete(item)
         db.commit()
         return item

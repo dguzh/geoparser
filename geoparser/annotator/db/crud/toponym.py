@@ -14,10 +14,10 @@ from geoparser.annotator.db.models.toponym import (
 
 
 class ToponymRepository(BaseRepository):
-    def __init__(self):
-        self.model = Toponym
+    model = Toponym
 
-    def validate_overlap(self, db: DBSession, toponym: ToponymCreate) -> bool:
+    @classmethod
+    def validate_overlap(cls, db: DBSession, toponym: ToponymCreate) -> bool:
         overlapping = db.exec(
             select(Toponym)
             .where(Toponym.document_id == toponym.document_id)
@@ -30,28 +30,34 @@ class ToponymRepository(BaseRepository):
             )
         return True
 
-    def create(self, db: DBSession, item: ToponymCreate) -> ToponymGet:
-        self.validate_overlap(item)
+    @classmethod
+    def create(cls, db: DBSession, item: ToponymCreate) -> ToponymGet:
+        cls.validate_overlap(db, item)
         return super().create(db, item)
 
+    @classmethod
     def upsert(
-        self,
+        cls,
         db: DBSession,
         item: t.Union[ToponymCreate, ToponymUpdate],
         match_keys: t.List[str] = ["id"],
     ) -> ToponymGet:
-        self.validate_overlap(item)
+        cls.validate_overlap(db, item)
         return super().upsert(db, item, match_keys)
 
-    def read(self, db: DBSession, item: ToponymGet) -> ToponymGet:
-        return super().read(db, item)
+    @classmethod
+    def read(cls, db: DBSession, id: str) -> ToponymGet:
+        return super().read(db, id)
 
-    def read_all(self, db: DBSession, **filter) -> list[ToponymGet]:
-        return super().read_all(db, **filter)
+    @classmethod
+    def read_all(cls, db: DBSession, **filters) -> list[ToponymGet]:
+        return super().read_all(db, **filters)
 
-    def update(self, db: DBSession, item: ToponymUpdate) -> ToponymGet:
-        self.validate_overlap(item)
+    @classmethod
+    def update(cls, db: DBSession, item: ToponymUpdate) -> ToponymGet:
+        cls.validate_overlap(db, item)
         return super().update(db, item)
 
-    def delete(self, db: DBSession, item: ToponymGet) -> ToponymGet:
-        return super().delete(db, item)
+    @classmethod
+    def delete(cls, db: DBSession, id: str) -> ToponymGet:
+        return super().delete(db, id)

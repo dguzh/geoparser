@@ -18,24 +18,26 @@ from geoparser.annotator.db.models.toponym import ToponymCreate
 
 
 class SessionRepository(BaseRepository):
-    def __init__(self):
-        self.model = Session
+    model = Session
 
-    def create(self, db: DBSession, item: SessionCreate) -> SessionGet:
-        # create the main session object
+    @classmethod
+    def create(cls, db: DBSession, item: SessionCreate) -> SessionGet:
+        # Create the main session object
         session = super().create(db, item)
-        # create settings if provided
+        # Create settings if provided
         if item.settings:
             item.settings.session_id = session.id
-            SessionSettingsRepository().create(db, item.settings)
-        # create documents if provided
+            SessionSettingsRepository.create(db, item.settings)
+        # Create documents if provided
         if item.documents:
             for document in item.documents:
                 document.session_id = session.id
-                DocumentRepository().create(db, document)
+                DocumentRepository.create(db, document)
         return session
 
-    def create_from_json(self, db: DBSession, json_str: str) -> SessionGet:
+    @classmethod
+    def create_from_json(cls, db: DBSession, json_str: str) -> SessionGet:
+        # Parse the JSON input
         content = json.loads(json_str)
         session = SessionCreate.model_validate(
             {
@@ -58,24 +60,29 @@ class SessionRepository(BaseRepository):
                 ],
             }
         )
-        return self.create(db, session)
+        return cls.create(db, session)
 
+    @classmethod
     def upsert(
-        self,
+        cls,
         db: DBSession,
         item: t.Union[SessionCreate, SessionUpdate],
         match_keys: t.List[str] = ["id"],
     ) -> SessionGet:
         return super().upsert(db, item, match_keys)
 
-    def read(self, db: DBSession, item: SessionGet) -> SessionGet:
-        return super().read(db, item)
+    @classmethod
+    def read(cls, db: DBSession, id: str) -> SessionGet:
+        return super().read(db, id)
 
-    def read_all(self, db: DBSession, **filters) -> list[SessionGet]:
+    @classmethod
+    def read_all(cls, db: DBSession, **filters) -> list[SessionGet]:
         return super().read_all(db, **filters)
 
-    def update(self, db: DBSession, item: SessionUpdate) -> SessionGet:
+    @classmethod
+    def update(cls, db: DBSession, item: SessionUpdate) -> SessionGet:
         return super().update(db, item)
 
-    def delete(self, db: DBSession, item: SessionGet) -> SessionGet:
-        return super().delete(db, item)
+    @classmethod
+    def delete(cls, db: DBSession, id: str) -> SessionGet:
+        return super().delete(db, id)

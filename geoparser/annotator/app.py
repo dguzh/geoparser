@@ -93,7 +93,7 @@ spacy_models = list(get_installed_models())
 
 
 def _get_session(db: t.Annotated[DBSession, Depends(get_db)], session_id: str):
-    return SessionRepository().read(db, SessionGet(id=session_id))
+    return SessionRepository.read(db, SessionGet(id=session_id))
 
 
 def get_session(session: t.Annotated[dict, Depends(_get_session)]):
@@ -257,7 +257,7 @@ def continue_session_file(
 
 @app.delete("/session/{session_id}", tags=["session"])
 def delete_session(session: t.Annotated[dict, Depends(get_session)]):
-    SessionRepository().delete(session)
+    SessionRepository.delete(session)
     return JSONResponse({"status": "success"})
 
 
@@ -284,7 +284,7 @@ def add_documents(
             }
         )
         document.session_id = session.id
-        DocumentRepository().create(document)
+        DocumentRepository.create(document)
     return JSONResponse({"status": "success"})
 
 
@@ -307,7 +307,7 @@ def parse_document(
         spacy_toponyms = doc.toponyms
         merged_toponyms = annotator.merge_toponyms(old_toponyms, spacy_toponyms)
         for toponym in merged_toponyms:
-            ToponymRepository().upsert(db, toponym)
+            ToponymRepository.upsert(db, toponym)
         return JSONResponse({"status": "success", "parsed": True})
     return JSONResponse({"status": "success", "parsed": False})
 
@@ -352,7 +352,7 @@ def delete_document(
     doc_index: int,
 ):
     # Remove the document
-    DocumentRepository().delete(db, session.documents[doc_index])
+    DocumentRepository.delete(db, session.documents[doc_index])
     return JSONResponse({"status": "success"})
 
 
@@ -391,7 +391,7 @@ def create_annotation(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
         )
     # Add new toponym
-    ToponymRepository().create(
+    ToponymRepository.create(
         db,
         ToponymCreate(text=annotation.text, start=annotation.start, end=annotation.end),
     )
@@ -485,7 +485,7 @@ def update_annotation(
     toponym.start = annotation.new_start
     toponym.end = annotation.new_end
     toponym.text = annotation.new_text
-    ToponymRepository().update(db, toponym)
+    ToponymRepository.update(db, toponym)
     # Update last_updated timestamp
     SessionRepository.update(SessionUpdate(id=session.id, last_updated=datetime.now()))
     # Save session
@@ -522,7 +522,7 @@ def delete_annotation(
     toponym = annotator.get_toponym(toponyms, annotation.start, annotation.end)
     if not toponym:
         raise ToponymNotFoundException
-    ToponymRepository().delete(db, toponym)
+    ToponymRepository.delete(db, toponym)
     # Update last_updated timestamp
     SessionRepository.update(
         SessionUpdate(db, id=session.id, last_updated=datetime.now())
@@ -555,7 +555,7 @@ def put_session_settings(
     session_settings: SessionSettingsBase,
 ):
     # Update settings
-    SessionSettingsRepository().update(
+    SessionSettingsRepository.update(
         db, SessionSettingsUpdate(id=session.id, **session_settings.model_dump())
     )
     return JSONResponse({"status": "success"})

@@ -12,28 +12,33 @@ from geoparser.annotator.db.models.settings import (
 
 
 class SessionSettingsRepository(BaseRepository):
-    def __init__(self):
-        self.model = SessionSettings
+    model = SessionSettings
 
-    def create(self, db: DBSession, item: SessionSettingsCreate) -> SessionSettingsGet:
+    @classmethod
+    def create(cls, db: DBSession, item: SessionSettingsCreate) -> SessionSettingsGet:
         return super().create(db, item)
 
+    @classmethod
     def upsert(
-        self,
+        cls,
         db: DBSession,
         item: t.Union[SessionSettingsCreate, SessionSettingsUpdate],
         match_keys: t.List[str] = ["id"],
     ) -> SessionSettingsGet:
         return super().upsert(db, item, match_keys)
 
-    def read(self, db: DBSession, item: SessionSettingsGet) -> SessionSettingsGet:
-        return super().read(db, item)
+    @classmethod
+    def read(cls, db: DBSession, id: str) -> SessionSettingsGet:
+        return super().read(db, id)
 
-    def read_all(self, db: DBSession, **filters) -> list[SessionSettingsGet]:
+    @classmethod
+    def read_all(cls, db: DBSession, **filters) -> list[SessionSettingsGet]:
         return super().read_all(db, **filters)
 
-    def update(self, db: DBSession, item: SessionSettingsUpdate) -> SessionSettingsGet:
+    @classmethod
+    def update(cls, db: DBSession, item: SessionSettingsUpdate) -> SessionSettingsGet:
         return super().update(db, item)
 
-    def delete(self, db: DBSession, item: SessionSettingsGet) -> SessionSettingsGet:
-        return super().delete(db, item)
+    @classmethod
+    def delete(cls, db: DBSession, id: str) -> SessionSettingsGet:
+        return super().delete(db, id)
