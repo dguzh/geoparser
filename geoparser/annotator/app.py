@@ -41,7 +41,7 @@ from geoparser.annotator.exceptions import (
 )
 from geoparser.annotator.models.api import Annotation, AnnotationEdit, CandidatesGet
 from geoparser.annotator.sessions_cache import SessionsCache
-from geoparser.constants import DEFAULT_SESSION_SETTINGS, GAZETTEERS
+from geoparser.constants import GAZETTEERS
 
 tags_metadata = [
     {
