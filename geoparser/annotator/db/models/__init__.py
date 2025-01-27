@@ -14,3 +14,6 @@ from .settings import (
     SessionSettingsUpdate,
 )
 from .toponym import Toponym, ToponymBase, ToponymCreate, ToponymGet, ToponymUpdate
+
+for rebuild in [Session, SessionCreate, Document, DocumentCreate]:
+    rebuild.model_rebuild()
