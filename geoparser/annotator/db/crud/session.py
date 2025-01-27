@@ -3,8 +3,9 @@ import typing as t
 
 from sqlmodel import Session as DBSession
 
-from geoparser.annotator.db.crud import DocumentRepository, SessionSettingsRepository
 from geoparser.annotator.db.crud.base import BaseRepository
+from geoparser.annotator.db.crud.document import DocumentRepository
+from geoparser.annotator.db.crud.settings import SessionSettingsRepository
 from geoparser.annotator.db.models.document import DocumentCreate
 from geoparser.annotator.db.models.session import (
     Session,

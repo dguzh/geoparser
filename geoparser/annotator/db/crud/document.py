@@ -4,8 +4,8 @@ from pydantic_core import PydanticCustomError
 from sqlmodel import Session as DBSession
 from sqlmodel import select
 
-from geoparser.annotator.db.crud import ToponymRepository
 from geoparser.annotator.db.crud.base import BaseRepository
+from geoparser.annotator.db.crud.toponym import ToponymRepository
 from geoparser.annotator.db.models.document import (
     Document,
     DocumentCreate,
