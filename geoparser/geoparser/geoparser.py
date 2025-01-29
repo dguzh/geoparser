@@ -117,6 +117,24 @@ class Geoparser:
         """
         return SentenceTransformer(transformer_model)
 
+    def get_filter_attributes(self) -> list[str]:
+        """
+        Get filter attributes for a specific gazetteer
+
+        Returns:
+            List[str]: List of filter attributes
+        """
+        location_identifier = self.gazetteer.config.location_identifier
+        location_columns = self.gazetteer.config.location_columns
+        filter_attributes = [
+            col.name
+            for col in location_columns
+            if col.type == "TEXT"
+            and col.name != location_identifier
+            and not col.name.endswith(location_identifier)
+        ]
+        return filter_attributes
+
     def parse(
         self,
         texts: t.List[str],

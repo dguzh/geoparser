@@ -2,15 +2,6 @@ import typing as t
 
 from pydantic import BaseModel, ConfigDict
 
-from geoparser.constants import DEFAULT_SESSION_SETTINGS
-
-
-class Annotation(BaseModel):
-    start: int
-    end: int
-    text: t.Optional[str] = None
-    loc_id: t.Optional[str] = None
-
 
 class AnnotationEdit(BaseModel):
     old_start: int
@@ -27,10 +18,3 @@ class CandidatesGet(BaseModel):
     end: t.Optional[int] = 0
     text: t.Optional[str] = ""
     query_text: t.Optional[str] = ""
-
-
-class SessionSettings(BaseModel):
-    auto_close_annotation_modal: bool = DEFAULT_SESSION_SETTINGS[
-        "auto_close_annotation_modal"
-    ]
-    one_sense_per_discourse: bool = DEFAULT_SESSION_SETTINGS["one_sense_per_discourse"]

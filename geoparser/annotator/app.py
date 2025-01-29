@@ -29,6 +29,7 @@ from geoparser.annotator.db.models import (
     SessionSettingsBase,
     SessionSettingsUpdate,
     SessionUpdate,
+    ToponymBase,
     ToponymCreate,
 )
 from geoparser.annotator.exceptions import (
@@ -39,7 +40,7 @@ from geoparser.annotator.exceptions import (
     session_exception_handler,
     toponym_exception_handler,
 )
-from geoparser.annotator.models.api import Annotation, AnnotationEdit, CandidatesGet
+from geoparser.annotator.models.api import AnnotationEdit, CandidatesGet
 from geoparser.annotator.sessions_cache import SessionsCache
 from geoparser.constants import GAZETTEERS
 
@@ -341,15 +342,8 @@ def get_candidates(
     doc: t.Annotated[dict, Depends(get_document)],
     candidates_request: CandidatesGet,
 ):
-    toponym = annotator.get_toponym(
-        doc.toponyms, candidates_request.start, candidates_request.end
-    )
-    if not toponym:
-        raise ToponymNotFoundException
     return JSONResponse(
-        annotator.get_candidates(
-            toponym, candidates_request.text, candidates_request.query_text
-        )
+        ToponymRepository.get_candidates(doc, annotator, candidates_request)
     )
 
 
@@ -358,7 +352,7 @@ def create_annotation(
     db: t.Annotated[DBSession, Depends(get_db)],
     session: t.Annotated[dict, Depends(get_session)],
     doc: t.Annotated[dict, Depends(get_document)],
-    annotation: Annotation,
+    annotation: ToponymBase,
 ):
     toponyms = doc.toponyms
     # Check if there is already an annotation at this position
@@ -412,7 +406,7 @@ def overwrite_annotation(
     db: t.Annotated[DBSession, Depends(get_db)],
     session: t.Annotated[dict, Depends(get_session)],
     doc: t.Annotated[dict, Depends(get_document)],
-    annotation: Annotation,
+    annotation: ToponymBase,
 ):
     toponyms = doc.toponyms
     # Find the toponym to update
@@ -534,7 +528,8 @@ def put_session_settings(
 ):
     # Update settings
     SessionSettingsRepository.update(
-        db, SessionSettingsUpdate(id=session.id, **session_settings.model_dump())
+        db,
+        SessionSettingsUpdate(id=session.settings.id, **session_settings.model_dump()),
     )
     return JSONResponse({"status": "success"})
 
