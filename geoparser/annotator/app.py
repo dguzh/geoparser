@@ -311,10 +311,11 @@ def get_document_progress(
 
 @app.get("/session/{session_id}/document/{doc_index}/text", tags=["document"])
 def get_document_text(
+    db: t.Annotated[DBSession, Depends(get_db)],
     doc: t.Annotated[dict, Depends(get_document)],
 ):
     # Prepare pre-annotated text
-    pre_annotated_text = annotator.get_pre_annotated_text(doc.text, doc.toponyms)
+    pre_annotated_text = DocumentRepository.get_pre_annotated_text(db, doc.id)
     return JSONResponse({"status": "success", "pre_annotated_text": pre_annotated_text})
 
 
