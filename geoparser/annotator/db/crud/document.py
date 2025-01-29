@@ -116,6 +116,23 @@ class DocumentRepository(BaseRepository):
         return html
 
     @classmethod
+    def get_progress(cls, db: DBSession, **filters) -> t.Iterator[dict]:
+        documents = cls.read_all(db, **filters)
+        for document in documents:
+            total_toponyms = len(document.toponyms)
+            annotated_toponyms = sum(t.loc_id != "" for t in document.toponyms)
+            progress_percentage = (
+                (annotated_toponyms / total_toponyms) * 100 if total_toponyms > 0 else 0
+            )
+            yield {
+                "filename": document.filename,
+                "doc_index": document.doc_index,
+                "annotated_toponyms": annotated_toponyms,
+                "total_toponyms": total_toponyms,
+                "progress_percentage": progress_percentage,
+            }
+
+    @classmethod
     def read_all(cls, db: DBSession, **filters) -> list[Document]:
         return super().read_all(db, **filters)
 

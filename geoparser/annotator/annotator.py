@@ -51,19 +51,6 @@ class GeoparserAnnotator(Geoparser):
                 toponyms.append(new_toponym)
         return sorted(toponyms + old_toponyms, key=lambda x: x["start"])
 
-    def prepare_documents(self, documents: list[dict]) -> t.Iterator[dict]:
-        for idx, doc_item in enumerate(documents):
-            total_toponyms = len(doc_item["toponyms"])
-            annotated_toponyms = sum(
-                1 for t in doc_item["toponyms"] if t["loc_id"] != ""
-            )
-            yield {
-                "filename": doc_item["filename"],
-                "total_toponyms": total_toponyms,
-                "annotated_toponyms": annotated_toponyms,
-                "doc_index": idx,
-            }
-
     def get_existing_loc_id(self, toponym: dict) -> str:
         return toponym.get("loc_id", "")
 

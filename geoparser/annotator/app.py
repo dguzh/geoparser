@@ -159,9 +159,9 @@ def annotate(
     # Prepare pre-annotated text
     pre_annotated_text = DocumentRepository.get_pre_annotated_text(db, doc.id)
     # Prepare documents list with progress
-    documents = list(annotator.prepare_documents(session.documents))
+    documents = DocumentRepository.get_progress(db, session_id=session.id)
     total_toponyms = len(doc.toponyms)
-    annotated_toponyms = sum(1 for t in doc.toponyms if t.loc_id != "")
+    annotated_toponyms = sum(t.loc_id != "" for t in doc.toponyms)
     return templates.TemplateResponse(
         request=request,
         name="html/annotate.html",
@@ -169,10 +169,10 @@ def annotate(
             "doc": doc,
             "doc_index": doc_index,
             "pre_annotated_text": pre_annotated_text,
-            "total_docs": len(session["documents"]),
+            "total_docs": len(session.documents),
             "gazetteer": annotator.gazetteer,
             "documents": documents,
-            "session_id": session["session_id"],
+            "session_id": session.id,
             "total_toponyms": total_toponyms,
             "annotated_toponyms": annotated_toponyms,
             "spacy_models": spacy_models,  # Include spaCy models for the modal
