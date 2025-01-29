@@ -9,6 +9,8 @@ from geoparser.geoparser import Geoparser
 
 
 class GeoparserAnnotator(Geoparser):
+    """Geoparser subclass without model initialization"""
+
     def __init__(self, *args, **kwargs):
         # Do not initialize spacy model here
         self.gazetteer = None
@@ -20,34 +22,6 @@ class GeoparserAnnotator(Geoparser):
             (t for t in toponyms if t["start"] == start and t["end"] == end),
             None,
         )
-
-    def parse_files(
-        self, files: list[UploadFile], spacy_model: str, apply_spacy: bool = True
-    ) -> t.Iterator[dict]:
-        if apply_spacy:
-            self.nlp = self.setup_spacy(spacy_model)
-        for file in files:
-            filename = secure_filename(file.filename)
-            text = file.file.read().decode("utf-8")
-            toponyms = []
-            if apply_spacy:
-                doc = self.nlp(text)
-                toponyms = [
-                    {
-                        "text": top.text,
-                        "start": top.start_char,
-                        "end": top.end_char,
-                        "loc_id": "",  # Empty string indicates not annotated yet
-                    }
-                    for top in doc.toponyms
-                ]
-            yield {
-                "filename": filename,
-                "spacy_model": spacy_model,
-                "text": text,
-                "toponyms": toponyms,
-                "spacy_applied": apply_spacy,
-            }
 
     def parse_doc(self, doc: dict) -> dict:
         self.nlp = self.setup_spacy(doc["spacy_model"])

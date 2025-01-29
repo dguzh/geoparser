@@ -15,7 +15,7 @@ from fastapi.templating import Jinja2Templates
 from spacy.util import get_installed_models
 from sqlmodel import Session as DBSession
 
-from geoparser.annotator.annotator import GeoparserAnnotator
+from geoparser import Geoparser
 from geoparser.annotator.db.crud import (
     DocumentRepository,
     SessionRepository,
@@ -87,7 +87,7 @@ templates = Jinja2Templates(
     directory=os.path.join(os.path.dirname(__file__), "templates")
 )
 
-annotator = GeoparserAnnotator()
+annotator = Geoparser()
 sessions_cache = SessionsCache()
 spacy_models = list(get_installed_models())
 
@@ -188,23 +188,8 @@ def create_session(
 ):
     # Re-initialize gazetteer with selected option
     annotator.gazetteer = annotator.setup_gazetteer(gazetteer)
-    # Process uploaded files and create a new session
-    documents = [
-        DocumentCreate.model_validate(
-            {
-                **document_dict,
-                "toponyms": [
-                    ToponymCreate.model_validate(toponym_dict)
-                    for toponym_dict in document_dict["toponyms"]
-                ],
-            }
-        )
-        for document_dict in annotator.parse_files(
-            files, spacy_model, apply_spacy=False
-        )
-    ]
-    session = SessionRepository.create(
-        db, SessionCreate(gazetteer=gazetteer, documents=documents)
+    session = SessionRepository.create_from_text_files(
+        db, annotator, files, gazetteer, spacy_model, apply_spacy=False
     )
     return RedirectResponse(
         url=app.url_path_for("annotate", session_id=session.id, doc_index=0),
