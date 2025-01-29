@@ -51,36 +51,6 @@ class GeoparserAnnotator(Geoparser):
                 toponyms.append(new_toponym)
         return sorted(toponyms + old_toponyms, key=lambda x: x["start"])
 
-    def get_pre_annotated_text(self, text: str, toponyms: dict[str, str]) -> str:
-        html_parts = []
-        last_idx = 0
-        for toponym in sorted(toponyms, key=lambda x: x["start"]):
-            start_char = toponym["start"]
-            end_char = toponym["end"]
-            annotated = toponym["loc_id"] != ""
-            # Escape the text before the toponym
-            before_toponym = Markup.escape(text[last_idx:start_char])
-            html_parts.append(before_toponym)
-
-            # Create the span for the toponym
-            toponym_text = Markup.escape(text[start_char:end_char])
-            span = Markup(
-                '<span class="toponym {annotated_class}" data-start="{start}" data-end="{end}">{text}</span>'
-            ).format(
-                annotated_class="annotated" if annotated else "",
-                start=start_char,
-                end=end_char,
-                text=toponym_text,
-            )
-            html_parts.append(span)
-            last_idx = end_char
-        # Append the remaining text after the last toponym
-        after_toponym = Markup.escape(text[last_idx:])
-        html_parts.append(after_toponym)
-        # Combine all parts into a single Markup object
-        html = Markup("").join(html_parts)
-        return html
-
     def prepare_documents(self, documents: list[dict]) -> t.Iterator[dict]:
         for idx, doc_item in enumerate(documents):
             total_toponyms = len(doc_item["toponyms"])

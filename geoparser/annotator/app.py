@@ -142,6 +142,7 @@ def annotate(
     request: Request,
     session: t.Annotated[dict, Depends(_get_session)],
     doc: t.Annotated[dict, Depends(_get_document)],
+    db: t.Annotated[DBSession, Depends(get_db)],
     doc_index: int = 0,
 ):
     if not session:
@@ -156,7 +157,7 @@ def annotate(
             status_code=status.HTTP_302_FOUND,
         )
     # Prepare pre-annotated text
-    pre_annotated_text = annotator.get_pre_annotated_text(doc.text, doc.toponyms)
+    pre_annotated_text = DocumentRepository.get_pre_annotated_text(db, doc.id)
     # Prepare documents list with progress
     documents = list(annotator.prepare_documents(session.documents))
     total_toponyms = len(doc.toponyms)

@@ -1,5 +1,6 @@
 import typing as t
 
+from markupsafe import Markup
 from pydantic_core import PydanticCustomError
 from sqlmodel import Session as DBSession
 from sqlmodel import select
@@ -81,6 +82,38 @@ class DocumentRepository(BaseRepository):
     @classmethod
     def read(cls, db: DBSession, id: str) -> Document:
         return super().read(db, id)
+
+    @classmethod
+    def get_pre_annotated_text(cls, db: DBSession, id: str) -> str:
+        document = cls.read(db, id)
+        html_parts = []
+        last_idx = 0
+        for toponym in document.toponyms:
+            start_char = toponym.start
+            end_char = toponym.end
+            annotated = toponym.loc_id != ""
+            # Escape the text before the toponym
+            before_toponym = Markup.escape(document.text[last_idx:start_char])
+            html_parts.append(before_toponym)
+
+            # Create the span for the toponym
+            toponym_text = Markup.escape(document.text[start_char:end_char])
+            span = Markup(
+                '<span class="toponym {annotated_class}" data-start="{start}" data-end="{end}">{text}</span>'
+            ).format(
+                annotated_class="annotated" if annotated else "",
+                start=start_char,
+                end=end_char,
+                text=toponym_text,
+            )
+            html_parts.append(span)
+            last_idx = end_char
+        # Append the remaining text after the last toponym
+        after_toponym = Markup.escape(document.text[last_idx:])
+        html_parts.append(after_toponym)
+        # Combine all parts into a single Markup object
+        html = Markup("").join(html_parts)
+        return html
 
     @classmethod
     def read_all(cls, db: DBSession, **filters) -> list[Document]:
