@@ -21,17 +21,14 @@ class SessionSettingsBase(SQLModel):
 class SessionSettings(SessionSettingsBase, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     session_id: uuid.UUID = Field(foreign_key="session.id")
-    session: t.Optional["Session"] = Relationship(back_populates="settings")
+    session: "Session" = Relationship(back_populates="settings")
 
 
 class SessionSettingsCreate(SessionSettingsBase):
     pass
 
 
-class SessionSettingsGet(SessionSettingsBase):
+class SessionSettingsUpdate:
     id: uuid.UUID
-
-
-class SessionSettingsUpdate(SessionSettingsGet):
     auto_close_annotation_modal: t.Optional[bool]
     one_sense_per_discourse: t.Optional[bool]

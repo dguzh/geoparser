@@ -9,7 +9,6 @@ if t.TYPE_CHECKING:
 
 
 class DocumentBase(SQLModel):
-    doc_index: t.Optional[int] = None
     filename: str
     spacy_model: str
     spacy_applied: t.Optional[bool] = False
@@ -18,8 +17,9 @@ class DocumentBase(SQLModel):
 
 class Document(DocumentBase, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    doc_index: int
     session_id: uuid.UUID = Field(foreign_key="session.id")
-    session: t.Optional["Session"] = Relationship(back_populates="documents")
+    session: "Session" = Relationship(back_populates="documents")
     toponyms: list["Toponym"] = Relationship(back_populates="document")
 
 
@@ -27,11 +27,8 @@ class DocumentCreate(DocumentBase):
     toponyms: t.Optional[list["ToponymCreate"]] = []
 
 
-class DocumentGet:
+class DocumentUpdate:
     id: uuid.UUID
-
-
-class DocumentUpdate(DocumentGet):
     filename: t.Optional[str]
     spacy_model: t.Optional[str]
     spacy_applied: t.Optional[bool]

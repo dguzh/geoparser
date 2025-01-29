@@ -6,7 +6,6 @@ from geoparser.annotator.db.crud.base import BaseRepository
 from geoparser.annotator.db.models.settings import (
     SessionSettings,
     SessionSettingsCreate,
-    SessionSettingsGet,
     SessionSettingsUpdate,
 )
 
@@ -15,30 +14,30 @@ class SessionSettingsRepository(BaseRepository):
     model = SessionSettings
 
     @classmethod
-    def create(cls, db: DBSession, item: SessionSettingsCreate) -> SessionSettingsGet:
-        return super().create(db, item)
-
-    @classmethod
-    def upsert(
+    def create(
         cls,
         db: DBSession,
-        item: t.Union[SessionSettingsCreate, SessionSettingsUpdate],
-        match_keys: t.List[str] = ["id"],
-    ) -> SessionSettingsGet:
-        return super().upsert(db, item, match_keys)
+        item: SessionSettingsCreate,
+        exclude: t.Optional[list[str]] = [],
+        additional: t.Optional[dict[str, t.Any]] = {},
+    ) -> SessionSettings:
+        assert (
+            "session_id" in additional
+        ), "settings cannot be created without link to session"
+        return super().create(db, item, exclude=exclude, additional=additional)
 
     @classmethod
-    def read(cls, db: DBSession, id: str) -> SessionSettingsGet:
+    def read(cls, db: DBSession, id: str) -> SessionSettings:
         return super().read(db, id)
 
     @classmethod
-    def read_all(cls, db: DBSession, **filters) -> list[SessionSettingsGet]:
+    def read_all(cls, db: DBSession, **filters) -> list[SessionSettings]:
         return super().read_all(db, **filters)
 
     @classmethod
-    def update(cls, db: DBSession, item: SessionSettingsUpdate) -> SessionSettingsGet:
+    def update(cls, db: DBSession, item: SessionSettingsUpdate) -> SessionSettings:
         return super().update(db, item)
 
     @classmethod
-    def delete(cls, db: DBSession, id: str) -> SessionSettingsGet:
+    def delete(cls, db: DBSession, id: str) -> SessionSettings:
         return super().delete(db, id)

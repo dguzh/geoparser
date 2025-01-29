@@ -9,7 +9,6 @@ from geoparser.annotator.db.crud.toponym import ToponymRepository
 from geoparser.annotator.db.models.document import (
     Document,
     DocumentCreate,
-    DocumentGet,
     DocumentUpdate,
 )
 
@@ -19,11 +18,12 @@ class DocumentRepository(BaseRepository):
 
     @classmethod
     def get_highest_index(cls, db: DBSession, session_id: str):
-        return db.exec(
+        result = db.exec(
             select(Document.doc_index)
             .where(Document.session_id == session_id)
             .order_by(Document.doc_index.desc())
-        ).scalar()
+        ).first()
+        return result if result is not None else -1
 
     @classmethod
     def reindex_documents(cls, db: DBSession, session_id: str):
@@ -50,53 +50,50 @@ class DocumentRepository(BaseRepository):
         return True
 
     @classmethod
-    def create(cls, db: DBSession, item: DocumentCreate) -> DocumentGet:
+    def create(
+        cls,
+        db: DBSession,
+        item: DocumentCreate,
+        exclude: t.Optional[list[str]] = [],
+        additional: t.Optional[dict[str, t.Any]] = {},
+    ) -> Document:
+        assert (
+            "session_id" in additional
+        ), "document cannot be created without link to session"
         # Create the main document object
-        if item.doc_index:
-            cls.validate_doc_index(db, item)
-        else:
-            item.doc_index = cls.get_highest_index(db, item.session.id) + 1
-        document = super().create(db, item)
+        document = super().create(
+            db,
+            item,
+            exclude=["toponyms", *exclude],
+            additional={
+                "doc_index": cls.get_highest_index(db, additional["session_id"]) + 1,
+                **additional,
+            },
+        )
         # Create toponyms if provided
         if item.toponyms:
             for toponym in item.toponyms:
-                toponym.document_id = document.id
-                ToponymRepository.create(db, toponym)
+                ToponymRepository.create(
+                    db, toponym, additional={"document_id": document.id}
+                )
         return document
 
     @classmethod
-    def upsert(
-        cls,
-        db: DBSession,
-        item: t.Union[DocumentCreate, DocumentUpdate],
-        match_keys: t.List[str] = ["id"],
-    ) -> DocumentGet:
-        filter_args = [
-            getattr(cls.model, key) == getattr(item, key) for key in match_keys
-        ]
-        existing_item = db.exec(select(cls.model).where(*filter_args)).first()
-        if existing_item and item.doc_index:
-            cls.validate_doc_index(db, item)
-        else:
-            item.doc_index = cls.get_highest_index(db, item.session.id) + 1
-        return super().upsert(db, item, match_keys)
-
-    @classmethod
-    def read(cls, db: DBSession, id: str) -> DocumentGet:
+    def read(cls, db: DBSession, id: str) -> Document:
         return super().read(db, id)
 
     @classmethod
-    def read_all(cls, db: DBSession, **filters) -> list[DocumentGet]:
+    def read_all(cls, db: DBSession, **filters) -> list[Document]:
         return super().read_all(db, **filters)
 
     @classmethod
-    def update(cls, db: DBSession, item: DocumentUpdate) -> DocumentGet:
+    def update(cls, db: DBSession, item: DocumentUpdate) -> Document:
         if item.doc_index:
             cls.validate_doc_index(db, item)
         return super().update(db, item)
 
     @classmethod
-    def delete(cls, db: DBSession, id: str) -> DocumentGet:
+    def delete(cls, db: DBSession, id: str) -> Document:
         deleted = super().delete(db, id)
         cls.reindex_documents(db, id)
         return deleted

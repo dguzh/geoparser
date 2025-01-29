@@ -10,6 +10,16 @@ class BaseRepository(ABC):
     model: t.Type[T]
 
     @classmethod
+    def get_mapped_class(
+        cls,
+        item: T,
+        exclude: t.Optional[list[str]] = [],
+        additional: t.Optional[dict[str, t.Any]] = {},
+    ) -> T:
+        item_data = item.model_dump(exclude=exclude, exclude_unset=True)
+        return cls.model(**item_data, **additional)
+
+    @classmethod
     def get_db_item(cls, db: Session, id: str) -> T:
         db_item = db.get(cls.model, id)
         if not db_item:
@@ -17,25 +27,18 @@ class BaseRepository(ABC):
         return db_item
 
     @classmethod
-    def create(cls, db: Session, item: T) -> T:
+    def create(
+        cls,
+        db: Session,
+        item: T,
+        exclude: t.Optional[list[str]] = [],
+        additional: t.Optional[dict[str, t.Any]] = {},
+    ) -> T:
+        item = cls.get_mapped_class(item, exclude, additional)
         db.add(item)
         db.commit()
         db.refresh(item)
         return item
-
-    @classmethod
-    def upsert(cls, db: Session, item: T, match_keys: t.List[str] = ["id"]) -> T:
-        filter_args = [
-            getattr(cls.model, key) == getattr(item, key) for key in match_keys
-        ]
-        existing_item = db.exec(select(cls.model).where(*filter_args)).first()
-        if existing_item:
-            item_data = item.model_dump(exclude_unset=True)
-            for key, value in item_data.items():
-                setattr(existing_item, key, value)
-            return cls.update(db, existing_item)
-        else:
-            return cls.create(db, item)
 
     @classmethod
     def read(cls, db: Session, id: str) -> t.Optional[T]:

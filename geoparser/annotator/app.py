@@ -25,7 +25,6 @@ from geoparser.annotator.db.db import create_db_and_tables, get_db
 from geoparser.annotator.db.models import (
     DocumentCreate,
     SessionCreate,
-    SessionGet,
     SessionSettingsBase,
     SessionSettingsUpdate,
     SessionUpdate,
@@ -93,7 +92,7 @@ spacy_models = list(get_installed_models())
 
 
 def _get_session(db: t.Annotated[DBSession, Depends(get_db)], session_id: str):
-    return SessionRepository.read(db, SessionGet(id=session_id))
+    return SessionRepository.read(db, session_id)
 
 
 def get_session(session: t.Annotated[dict, Depends(_get_session)]):
@@ -205,7 +204,7 @@ def create_session(
             files, spacy_model, apply_spacy=False
         )
     ]
-    session = SessionRepository.create_from_json(
+    session = SessionRepository.create(
         db, SessionCreate(gazetteer=gazetteer, documents=documents)
     )
     return RedirectResponse(

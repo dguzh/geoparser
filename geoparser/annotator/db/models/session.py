@@ -28,11 +28,8 @@ class SessionCreate(SessionBase):
     documents: t.Optional[list["DocumentCreate"]] = []
 
 
-class SessionGet:
+class SessionUpdate:
     id: uuid.UUID
-
-
-class SessionUpdate(SessionGet):
     created_at: t.Optional[datetime]
     last_updated: t.Optional[datetime]
     gazetteer: t.Optional[str]

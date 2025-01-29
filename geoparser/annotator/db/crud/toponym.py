@@ -5,22 +5,19 @@ from sqlmodel import Session as DBSession
 from sqlmodel import select
 
 from geoparser.annotator.db.crud.base import BaseRepository
-from geoparser.annotator.db.models.toponym import (
-    Toponym,
-    ToponymCreate,
-    ToponymGet,
-    ToponymUpdate,
-)
+from geoparser.annotator.db.models.toponym import Toponym, ToponymCreate, ToponymUpdate
 
 
 class ToponymRepository(BaseRepository):
     model = Toponym
 
     @classmethod
-    def validate_overlap(cls, db: DBSession, toponym: ToponymCreate) -> bool:
+    def validate_overlap(
+        cls, db: DBSession, toponym: ToponymCreate, document_id: str
+    ) -> bool:
         overlapping = db.exec(
             select(Toponym)
-            .where(Toponym.document_id == toponym.document_id)
+            .where(Toponym.document_id == document_id)
             .where((Toponym.start <= toponym.end) & (Toponym.end >= toponym.start))
         ).all()
         if overlapping:
@@ -31,33 +28,32 @@ class ToponymRepository(BaseRepository):
         return True
 
     @classmethod
-    def create(cls, db: DBSession, item: ToponymCreate) -> ToponymGet:
-        cls.validate_overlap(db, item)
-        return super().create(db, item)
-
-    @classmethod
-    def upsert(
+    def create(
         cls,
         db: DBSession,
-        item: t.Union[ToponymCreate, ToponymUpdate],
-        match_keys: t.List[str] = ["id"],
-    ) -> ToponymGet:
-        cls.validate_overlap(db, item)
-        return super().upsert(db, item, match_keys)
+        item: ToponymCreate,
+        exclude: t.Optional[list[str]] = [],
+        additional: t.Optional[dict[str, t.Any]] = {},
+    ) -> Toponym:
+        assert (
+            "document_id" in additional
+        ), "toponym cannot be created without link to document"
+        cls.validate_overlap(db, item, additional["document_id"])
+        return super().create(db, item, exclude=exclude, additional=additional)
 
     @classmethod
-    def read(cls, db: DBSession, id: str) -> ToponymGet:
+    def read(cls, db: DBSession, id: str) -> Toponym:
         return super().read(db, id)
 
     @classmethod
-    def read_all(cls, db: DBSession, **filters) -> list[ToponymGet]:
+    def read_all(cls, db: DBSession, **filters) -> list[Toponym]:
         return super().read_all(db, **filters)
 
     @classmethod
-    def update(cls, db: DBSession, item: ToponymUpdate) -> ToponymGet:
+    def update(cls, db: DBSession, item: ToponymUpdate) -> Toponym:
         cls.validate_overlap(db, item)
         return super().update(db, item)
 
     @classmethod
-    def delete(cls, db: DBSession, id: str) -> ToponymGet:
+    def delete(cls, db: DBSession, id: str) -> Toponym:
         return super().delete(db, id)
