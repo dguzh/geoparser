@@ -2,6 +2,7 @@ import json
 import os
 import threading
 import typing as t
+import uuid
 import webbrowser
 from datetime import datetime
 from io import StringIO
@@ -92,7 +93,7 @@ spacy_models = list(get_installed_models())
 
 
 def _get_session(db: t.Annotated[DBSession, Depends(get_db)], session_id: str):
-    return SessionRepository.read(db, session_id)
+    return SessionRepository.read(db, uuid.UUID(session_id))
 
 
 def get_session(session: t.Annotated[dict, Depends(_get_session)]):
@@ -151,17 +152,15 @@ def annotate(
     if not doc:
         # If the document index is out of range, redirect to the first document
         return RedirectResponse(
-            url=app.url_path_for(
-                "annotate", session_id=session["session_id"], doc_index=0
-            ),
+            url=app.url_path_for("annotate", session_id=session.id, doc_index=0),
             status_code=status.HTTP_302_FOUND,
         )
     # Prepare pre-annotated text
-    pre_annotated_text = annotator.get_pre_annotated_text(doc["text"], doc["toponyms"])
+    pre_annotated_text = annotator.get_pre_annotated_text(doc.text, doc.toponyms)
     # Prepare documents list with progress
-    documents = list(annotator.prepare_documents(session["documents"]))
-    total_toponyms = len(doc["toponyms"])
-    annotated_toponyms = sum(1 for t in doc["toponyms"] if t["loc_id"] != "")
+    documents = list(annotator.prepare_documents(session.documents))
+    total_toponyms = len(doc.toponyms)
+    annotated_toponyms = sum(1 for t in doc.toponyms if t.loc_id != "")
     return templates.TemplateResponse(
         request=request,
         name="html/annotate.html",
