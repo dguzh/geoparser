@@ -27,9 +27,9 @@ class DocumentCreate(DocumentBase):
     toponyms: t.Optional[list["ToponymCreate"]] = []
 
 
-class DocumentUpdate:
+class DocumentUpdate(SQLModel):
     id: uuid.UUID
-    filename: t.Optional[str]
-    spacy_model: t.Optional[str]
-    spacy_applied: t.Optional[bool]
-    text: t.Optional[str]
+    filename: t.Optional[str] = None
+    spacy_model: t.Optional[str] = None
+    spacy_applied: t.Optional[bool] = None
+    text: t.Optional[str] = None

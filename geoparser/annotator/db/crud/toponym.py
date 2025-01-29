@@ -46,6 +46,26 @@ class ToponymRepository(BaseRepository):
         return super().read(db, id)
 
     @classmethod
+    def read_from_list(
+        cls, toponyms: list[ToponymCreate], start: int, end: int
+    ) -> t.Optional[ToponymCreate]:
+        return next(
+            (t for t in toponyms if t.start == start and t.end == end),
+            None,
+        )
+
+    @classmethod
+    def _remove_duplicates(
+        cls, old_toponyms: list[ToponymCreate], new_toponyms: list[ToponymCreate]
+    ) -> list[dict]:
+        toponyms = []
+        for new_toponym in new_toponyms:
+            # only add the new toponym if there is no existing one
+            if not cls.read_from_list(old_toponyms, new_toponym.start, new_toponym.end):
+                toponyms.append(new_toponym)
+        return sorted(toponyms + old_toponyms, key=lambda x: x.start)
+
+    @classmethod
     def read_all(cls, db: DBSession, **filters) -> list[Toponym]:
         return super().read_all(db, **filters)
 

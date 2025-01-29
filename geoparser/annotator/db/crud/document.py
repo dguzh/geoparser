@@ -5,6 +5,7 @@ from pydantic_core import PydanticCustomError
 from sqlmodel import Session as DBSession
 from sqlmodel import select
 
+from geoparser import Geoparser
 from geoparser.annotator.db.crud.base import BaseRepository
 from geoparser.annotator.db.crud.toponym import ToponymRepository
 from geoparser.annotator.db.models.document import (
@@ -12,6 +13,7 @@ from geoparser.annotator.db.models.document import (
     DocumentCreate,
     DocumentUpdate,
 )
+from geoparser.annotator.db.models.toponym import ToponymCreate
 
 
 class DocumentRepository(BaseRepository):
@@ -27,7 +29,7 @@ class DocumentRepository(BaseRepository):
         return result if result is not None else -1
 
     @classmethod
-    def reindex_documents(cls, db: DBSession, session_id: str):
+    def _reindex_documents(cls, db: DBSession, session_id: str):
         documents = db.exec(
             select(Document)
             .where(Document.session_id == session_id)
@@ -40,7 +42,7 @@ class DocumentRepository(BaseRepository):
         db.commit()
 
     @classmethod
-    def validate_doc_index(cls, db: DBSession, document: DocumentCreate):
+    def _validate_doc_index(cls, db: DBSession, document: DocumentCreate):
         highest_index = cls.get_highest_index(db, document.session.id)
         if document.doc_index <= highest_index:
             raise PydanticCustomError(
@@ -138,12 +140,30 @@ class DocumentRepository(BaseRepository):
 
     @classmethod
     def update(cls, db: DBSession, item: DocumentUpdate) -> Document:
-        if item.doc_index:
-            cls.validate_doc_index(db, item)
         return super().update(db, item)
+
+    @classmethod
+    def parse(cls, db: DBSession, geoparser: Geoparser, id: str) -> Document:
+        document = cls.read(db, id)
+        geoparser.nlp = geoparser.setup_spacy(document.spacy_model)
+        spacy_doc = geoparser.nlp(document.text)
+        spacy_toponyms = [
+            ToponymCreate(text=top.text, start=top.start_char, end=top.end_char)
+            for top in spacy_doc.toponyms
+        ]
+        old_toponyms = document.toponyms
+        new_toponyms = ToponymRepository._remove_duplicates(
+            old_toponyms, spacy_toponyms
+        )
+        for toponym in new_toponyms:
+            ToponymRepository.create(
+                db, toponym, additional={"document_id": document.id}
+            )
+        document = cls.update(db, DocumentUpdate(id=document.id, spacy_applied=True))
+        return document
 
     @classmethod
     def delete(cls, db: DBSession, id: str) -> Document:
         deleted = super().delete(db, id)
-        cls.reindex_documents(db, id)
+        cls._reindex_documents(db, id)
         return deleted

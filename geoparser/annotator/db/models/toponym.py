@@ -24,9 +24,9 @@ class ToponymCreate(ToponymBase):
     pass
 
 
-class ToponymUpdate:
+class ToponymUpdate(SQLModel):
     id: uuid.UUID
-    text: t.Optional[str]
-    start: t.Optional[int]
-    end: t.Optional[int]
-    loc_id: t.Optional[str]
+    text: t.Optional[str] = None
+    start: t.Optional[int] = None
+    end: t.Optional[int] = None
+    loc_id: t.Optional[str] = None

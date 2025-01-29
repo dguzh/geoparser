@@ -28,7 +28,7 @@ class SessionSettingsCreate(SessionSettingsBase):
     pass
 
 
-class SessionSettingsUpdate:
+class SessionSettingsUpdate(SQLModel):
     id: uuid.UUID
-    auto_close_annotation_modal: t.Optional[bool]
-    one_sense_per_discourse: t.Optional[bool]
+    auto_close_annotation_modal: t.Optional[bool] = None
+    one_sense_per_discourse: t.Optional[bool] = None

@@ -275,23 +275,16 @@ def add_documents(
 @app.get("/session/{session_id}/documents", tags=["document"])
 def get_documents(session: t.Annotated[dict, Depends(get_session)]):
     docs = session.documents
-    return JSONResponse(docs)
+    return docs
 
 
 @app.post("/session/{session_id}/document/{doc_index}/parse", tags=["document"])
 def parse_document(
     db: t.Annotated[DBSession, Depends(get_db)],
-    session: t.Annotated[dict, Depends(get_session)],
     doc: t.Annotated[dict, Depends(get_document)],
-    doc_index: int,
 ):
     if not doc.spacy_applied:
-        doc = annotator.parse_doc(doc)
-        old_toponyms = session.documents[doc_index].toponyms
-        spacy_toponyms = doc.toponyms
-        merged_toponyms = annotator.merge_toponyms(old_toponyms, spacy_toponyms)
-        for toponym in merged_toponyms:
-            ToponymRepository.upsert(db, toponym)
+        doc = DocumentRepository.parse(db, annotator, doc.id)
         return JSONResponse({"status": "success", "parsed": True})
     return JSONResponse({"status": "success", "parsed": False})
 
@@ -529,7 +522,7 @@ def delete_annotation(
 
 @app.get("/session/{session_id}/settings", tags=["settings"])
 def get_session_settings(session: t.Annotated[dict, Depends(get_session)]):
-    return JSONResponse(session.settings)
+    return session.settings
 
 
 @app.put("/session/{session_id}/settings", tags=["settings"])
