@@ -19,10 +19,20 @@ class SessionBase(SQLModel):
 
 class Session(SessionBase, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-    settings: "SessionSettings" = Relationship(back_populates="session")
+    settings: "SessionSettings" = Relationship(
+        back_populates="session",
+        sa_relationship_kwargs={
+            "cascade": "all, delete-orphan",
+            "passive_deletes": True,
+        },
+    )
     documents: list["Document"] = Relationship(
         back_populates="session",
-        sa_relationship_kwargs={"order_by": "Document.doc_index"},
+        sa_relationship_kwargs={
+            "order_by": "Document.doc_index",
+            "cascade": "all, delete-orphan",
+            "passive_deletes": True,
+        },
     )
 
 

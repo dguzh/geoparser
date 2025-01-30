@@ -248,8 +248,11 @@ def continue_session_file(
 
 
 @app.delete("/session/{session_id}", tags=["session"])
-def delete_session(session: t.Annotated[dict, Depends(get_session)]):
-    SessionRepository.delete(session)
+def delete_session(
+    db: t.Annotated[DBSession, Depends(get_db)],
+    session: t.Annotated[dict, Depends(get_session)],
+):
+    SessionRepository.delete(db, session.id)
     return JSONResponse({"status": "success"})
 
 

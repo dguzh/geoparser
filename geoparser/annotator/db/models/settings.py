@@ -1,6 +1,7 @@
 import typing as t
 import uuid
 
+from sqlalchemy import UUID, Column, ForeignKey
 from sqlmodel import Field, Relationship, SQLModel
 
 from geoparser.constants import DEFAULT_SESSION_SETTINGS
@@ -20,7 +21,11 @@ class SessionSettingsBase(SQLModel):
 
 class SessionSettings(SessionSettingsBase, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-    session_id: uuid.UUID = Field(foreign_key="session.id")
+    session_id: uuid.UUID = Field(
+        sa_column=Column(
+            UUID, ForeignKey("session.id", ondelete="CASCADE"), nullable=False
+        )
+    )
     session: "Session" = Relationship(back_populates="settings")
 
 

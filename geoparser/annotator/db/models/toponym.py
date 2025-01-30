@@ -1,6 +1,7 @@
 import typing as t
 import uuid
 
+from sqlalchemy import UUID, Column, ForeignKey
 from sqlmodel import Field, Relationship, SQLModel
 
 if t.TYPE_CHECKING:
@@ -16,7 +17,11 @@ class ToponymBase(SQLModel):
 
 class Toponym(ToponymBase, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-    document_id: uuid.UUID = Field(foreign_key="document.id")
+    document_id: uuid.UUID = Field(
+        sa_column=Column(
+            UUID, ForeignKey("document.id", ondelete="CASCADE"), nullable=False
+        )
+    )
     document: "Document" = Relationship(back_populates="toponyms")
 
 
