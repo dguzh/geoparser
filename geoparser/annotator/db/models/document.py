@@ -6,7 +6,11 @@ from sqlmodel import Field, Relationship, SQLModel
 
 if t.TYPE_CHECKING:
     from geoparser.annotator.db.models.session import Session
-    from geoparser.annotator.db.models.toponym import Toponym, ToponymCreate
+    from geoparser.annotator.db.models.toponym import (
+        Toponym,
+        ToponymCreate,
+        ToponymDownload,
+    )
 
 
 class DocumentBase(SQLModel):
@@ -37,6 +41,12 @@ class Document(DocumentBase, table=True):
 
 class DocumentCreate(DocumentBase):
     toponyms: t.Optional[list["ToponymCreate"]] = []
+
+
+class DocumentDownload(DocumentBase):
+    id: uuid.UUID
+    doc_index: int
+    toponyms: t.Optional[list["ToponymDownload"]] = []
 
 
 class DocumentUpdate(SQLModel):

@@ -33,6 +33,10 @@ class SessionSettingsCreate(SessionSettingsBase):
     pass
 
 
+class SessionSettingsDownload(SessionSettingsBase):
+    id: uuid.UUID
+
+
 class SessionSettingsUpdate(SQLModel):
     id: uuid.UUID
     auto_close_annotation_modal: t.Optional[bool] = None

@@ -377,16 +377,20 @@ def create_annotation(
 
 
 @app.get("/session/{session_id}/annotations/download", tags=["annotation"])
-def download_annotations(session: t.Annotated[dict, Depends(get_session)]):
+def download_annotations(
+    db: t.Annotated[DBSession, Depends(get_db)],
+    session: t.Annotated[dict, Depends(get_session)],
+):
     # Prepare annotations file for download
-    file_content = json.dumps(session.model_dump(), ensure_ascii=False, indent=4)
+    file_content = json.dumps(
+        SessionRepository.read_to_json(db, session.id), ensure_ascii=False, indent=4
+    )
     # Send the file to the client
-    session_id = session.id
     return StreamingResponse(
         StringIO(file_content),
         media_type="application/octet-stream",
         headers={
-            "Content-Disposition": f'attachment; filename="annotations_{session_id}.json"'
+            "Content-Disposition": f'attachment; filename="annotations_{session.id}.json"'
         },
     )
 

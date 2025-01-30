@@ -2,6 +2,7 @@ import json
 import typing as t
 
 from fastapi import UploadFile
+from fastapi.encoders import jsonable_encoder
 from sqlmodel import Session as DBSession
 from werkzeug.utils import secure_filename
 
@@ -9,10 +10,18 @@ from geoparser import Geoparser
 from geoparser.annotator.db.crud.base import BaseRepository
 from geoparser.annotator.db.crud.document import DocumentRepository
 from geoparser.annotator.db.crud.settings import SessionSettingsRepository
-from geoparser.annotator.db.models.document import DocumentCreate
-from geoparser.annotator.db.models.session import Session, SessionCreate, SessionUpdate
-from geoparser.annotator.db.models.settings import SessionSettingsCreate
-from geoparser.annotator.db.models.toponym import ToponymCreate
+from geoparser.annotator.db.models.document import DocumentCreate, DocumentDownload
+from geoparser.annotator.db.models.session import (
+    Session,
+    SessionCreate,
+    SessionDownload,
+    SessionUpdate,
+)
+from geoparser.annotator.db.models.settings import (
+    SessionSettingsCreate,
+    SessionSettingsDownload,
+)
+from geoparser.annotator.db.models.toponym import ToponymCreate, ToponymDownload
 
 
 class SessionRepository(BaseRepository):
@@ -107,6 +116,25 @@ class SessionRepository(BaseRepository):
     @classmethod
     def read(cls, db: DBSession, id: str) -> Session:
         return super().read(db, id)
+
+    @classmethod
+    def read_to_json(cls, db: DBSession, id: str) -> dict:
+        item = cls.read(db, id)
+        result = SessionDownload(
+            **item.model_dump(),
+            settings=SessionSettingsDownload(**item.settings.model_dump()),
+            documents=[
+                DocumentDownload(
+                    **document.model_dump(),
+                    toponyms=[
+                        ToponymDownload(**toponym.model_dump())
+                        for toponym in document.toponyms
+                    ]
+                )
+                for document in item.documents
+            ]
+        )
+        return jsonable_encoder(result)
 
     @classmethod
     def read_all(cls, db: DBSession, **filters) -> list[Session]:

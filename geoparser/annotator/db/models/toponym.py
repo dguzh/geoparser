@@ -29,6 +29,10 @@ class ToponymCreate(ToponymBase):
     pass
 
 
+class ToponymDownload(ToponymBase):
+    id: uuid.UUID
+
+
 class ToponymUpdate(SQLModel):
     id: uuid.UUID
     text: t.Optional[str] = None

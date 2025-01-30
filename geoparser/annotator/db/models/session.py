@@ -7,8 +7,15 @@ from sqlmodel import Field, Relationship, SQLModel
 from geoparser.annotator.db.models.settings import SessionSettingsCreate
 
 if t.TYPE_CHECKING:
-    from geoparser.annotator.db.models.document import Document, DocumentCreate
-    from geoparser.annotator.db.models.settings import SessionSettings
+    from geoparser.annotator.db.models.document import (
+        Document,
+        DocumentCreate,
+        DocumentDownload,
+    )
+    from geoparser.annotator.db.models.settings import (
+        SessionSettings,
+        SessionSettingsDownload,
+    )
 
 
 class SessionBase(SQLModel):
@@ -39,6 +46,12 @@ class Session(SessionBase, table=True):
 class SessionCreate(SessionBase):
     settings: "SessionSettingsCreate" = SessionSettingsCreate()
     documents: t.Optional[list["DocumentCreate"]] = []
+
+
+class SessionDownload(SessionBase):
+    id: uuid.UUID
+    settings: "SessionSettingsDownload"
+    documents: t.Optional[list["DocumentDownload"]] = []
 
 
 class SessionUpdate(SQLModel):
