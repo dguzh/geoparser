@@ -70,40 +70,6 @@ class SessionRepository(BaseRepository):
         return cls.create(db, session)
 
     @classmethod
-    def create_from_text_files(
-        cls,
-        db: DBSession,
-        geoparser: Geoparser,
-        files: list[UploadFile],
-        gazetteer: str,
-        spacy_model: str,
-        apply_spacy: bool = False,
-    ):
-        if apply_spacy:
-            geoparser.nlp = geoparser.setup_spacy(spacy_model)
-        documents = []
-        for file in files:
-            toponyms = []
-            filename = secure_filename(file.filename)
-            text = file.file.read().decode("utf-8")
-            if apply_spacy:
-                doc = geoparser.nlp(text)
-                toponyms = [
-                    ToponymCreate(text=top.text, start=top.start_char, end=top.end_char)
-                    for top in doc.toponyms
-                ]
-            documents.append(
-                DocumentCreate(
-                    filename=filename,
-                    spacy_model=spacy_model,
-                    text=text,
-                    toponyms=toponyms,
-                    spacy_applied=apply_spacy,
-                )
-            )
-        return cls.create(db, SessionCreate(gazetteer=gazetteer, documents=documents))
-
-    @classmethod
     def read(cls, db: DBSession, id: str) -> Session:
         return super().read(db, id)
 

@@ -1,9 +1,12 @@
 import typing as t
+import uuid
 
+from fastapi import UploadFile
 from markupsafe import Markup
 from pydantic_core import PydanticCustomError
 from sqlmodel import Session as DBSession
 from sqlmodel import select
+from werkzeug.utils import secure_filename
 
 from geoparser import Geoparser
 from geoparser.annotator.db.crud.base import BaseRepository
@@ -80,6 +83,42 @@ class DocumentRepository(BaseRepository):
                     db, toponym, additional={"document_id": document.id}
                 )
         return document
+
+    @classmethod
+    def create_from_text_files(
+        cls,
+        db: DBSession,
+        geoparser: Geoparser,
+        files: list[UploadFile],
+        session_id: uuid.UUID,
+        spacy_model: str,
+        apply_spacy: bool = False,
+    ):
+        if apply_spacy:
+            geoparser.nlp = geoparser.setup_spacy(spacy_model)
+        documents = []
+        for file in files:
+            toponyms = []
+            filename = secure_filename(file.filename)
+            text = file.file.read().decode("utf-8")
+            if apply_spacy:
+                doc = geoparser.nlp(text)
+                toponyms = [
+                    ToponymCreate(text=top.text, start=top.start_char, end=top.end_char)
+                    for top in doc.toponyms
+                ]
+            cls.create(
+                db,
+                DocumentCreate(
+                    filename=filename,
+                    spacy_model=spacy_model,
+                    text=text,
+                    toponyms=toponyms,
+                    spacy_applied=apply_spacy,
+                ),
+                additional={"session_id": session_id},
+            )
+        return documents
 
     @classmethod
     def read(cls, db: DBSession, id: str) -> Document:

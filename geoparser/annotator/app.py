@@ -195,8 +195,9 @@ def create_session(
 ):
     # Re-initialize gazetteer with selected option
     annotator.gazetteer = annotator.setup_gazetteer(gazetteer)
-    session = SessionRepository.create_from_text_files(
-        db, annotator, files, gazetteer, spacy_model, apply_spacy=False
+    session = SessionRepository.create(db, SessionCreate(gazetteer=gazetteer))
+    DocumentRepository.create_from_text_files(
+        db, annotator, files, session.id, spacy_model, apply_spacy=False
     )
     return RedirectResponse(
         url=app.url_path_for("annotate", session_id=session.id, doc_index=0),
@@ -258,6 +259,7 @@ def delete_session(
 
 @app.post("/session/{session_id}/documents", tags=["document"])
 def add_documents(
+    db: t.Annotated[DBSession, Depends(get_db)],
     session: t.Annotated[dict, Depends(get_session)],
     spacy_model: t.Annotated[str, Form()],
     files: t.Optional[list[UploadFile]] = None,
@@ -267,19 +269,9 @@ def add_documents(
             {"message": "No files selected.", "status": "error"},
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
         )
-    # Process uploaded files
-    for document_dict in annotator.parse_files(files, spacy_model, apply_spacy=False):
-        document = DocumentCreate.model_validate(
-            {
-                **document_dict,
-                "toponyms": [
-                    ToponymCreate.model_validate(toponym_dict)
-                    for toponym_dict in document_dict["toponyms"]
-                ],
-            }
-        )
-        document.session_id = session.id
-        DocumentRepository.create(document)
+    DocumentRepository.create_from_text_files(
+        db, annotator, files, session.id, spacy_model, apply_spacy=False
+    )
     return JSONResponse({"status": "success"})
 
 
