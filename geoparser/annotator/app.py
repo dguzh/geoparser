@@ -24,7 +24,6 @@ from geoparser.annotator.db.crud import (
 )
 from geoparser.annotator.db.db import create_db_and_tables, get_db
 from geoparser.annotator.db.models import (
-    DocumentCreate,
     SessionCreate,
     SessionSettingsBase,
     SessionSettingsUpdate,
