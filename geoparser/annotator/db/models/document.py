@@ -43,12 +43,6 @@ class DocumentCreate(DocumentBase):
     toponyms: t.Optional[list["ToponymCreate"]] = []
 
 
-class DocumentDownload(DocumentBase):
-    id: uuid.UUID
-    doc_index: int
-    toponyms: t.Optional[list["ToponymDownload"]] = []
-
-
 class DocumentUpdate(SQLModel):
     id: uuid.UUID
     filename: t.Optional[str] = None

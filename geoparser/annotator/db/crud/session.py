@@ -1,5 +1,6 @@
 import json
 import typing as t
+import uuid
 
 from fastapi import UploadFile
 from fastapi.encoders import jsonable_encoder
@@ -10,18 +11,10 @@ from geoparser import Geoparser
 from geoparser.annotator.db.crud.base import BaseRepository
 from geoparser.annotator.db.crud.document import DocumentRepository
 from geoparser.annotator.db.crud.settings import SessionSettingsRepository
-from geoparser.annotator.db.models.document import DocumentCreate, DocumentDownload
-from geoparser.annotator.db.models.session import (
-    Session,
-    SessionCreate,
-    SessionDownload,
-    SessionUpdate,
-)
-from geoparser.annotator.db.models.settings import (
-    SessionSettingsCreate,
-    SessionSettingsDownload,
-)
-from geoparser.annotator.db.models.toponym import ToponymCreate, ToponymDownload
+from geoparser.annotator.db.models.document import DocumentCreate
+from geoparser.annotator.db.models.session import Session, SessionCreate, SessionUpdate
+from geoparser.annotator.db.models.settings import SessionSettingsCreate
+from geoparser.annotator.db.models.toponym import ToponymCreate
 
 
 class SessionRepository(BaseRepository):
@@ -58,10 +51,7 @@ class SessionRepository(BaseRepository):
         content = json.loads(json_str)
         session = SessionCreate.model_validate(
             {
-                **{
-                    key: content[key]
-                    for key in ["id", "created_at", "last_updated", "gazetteer"]
-                },
+                **content,
                 "settings": SessionSettingsCreate.model_validate(content["settings"]),
                 "documents": [
                     DocumentCreate.model_validate(
@@ -120,17 +110,11 @@ class SessionRepository(BaseRepository):
     @classmethod
     def read_to_json(cls, db: DBSession, id: str) -> dict:
         item = cls.read(db, id)
-        result = SessionDownload(
+        result = SessionCreate(
             **item.model_dump(),
-            settings=SessionSettingsDownload(**item.settings.model_dump()),
+            settings=item.settings,
             documents=[
-                DocumentDownload(
-                    **document.model_dump(),
-                    toponyms=[
-                        ToponymDownload(**toponym.model_dump())
-                        for toponym in document.toponyms
-                    ]
-                )
+                DocumentCreate(**document.model_dump(), toponyms=document.toponyms)
                 for document in item.documents
             ]
         )

@@ -48,12 +48,6 @@ class SessionCreate(SessionBase):
     documents: t.Optional[list["DocumentCreate"]] = []
 
 
-class SessionDownload(SessionBase):
-    id: uuid.UUID
-    settings: "SessionSettingsDownload"
-    documents: t.Optional[list["DocumentDownload"]] = []
-
-
 class SessionUpdate(SQLModel):
     id: uuid.UUID
     created_at: t.Optional[datetime] = None
