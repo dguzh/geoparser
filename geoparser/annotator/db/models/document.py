@@ -20,7 +20,9 @@ class Document(DocumentBase, table=True):
     doc_index: int
     session_id: uuid.UUID = Field(foreign_key="session.id")
     session: "Session" = Relationship(back_populates="documents")
-    toponyms: list["Toponym"] = Relationship(back_populates="document")
+    toponyms: list["Toponym"] = Relationship(
+        back_populates="document", sa_relationship_kwargs={"order_by": "Toponym.start"}
+    )
 
 
 class DocumentCreate(DocumentBase):

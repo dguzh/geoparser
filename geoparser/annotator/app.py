@@ -31,6 +31,7 @@ from geoparser.annotator.db.models import (
     SessionUpdate,
     ToponymBase,
     ToponymCreate,
+    ToponymUpdate,
 )
 from geoparser.annotator.exceptions import (
     DocumentNotFoundException,
@@ -40,7 +41,11 @@ from geoparser.annotator.exceptions import (
     session_exception_handler,
     toponym_exception_handler,
 )
-from geoparser.annotator.models.api import AnnotationEdit, CandidatesGet
+from geoparser.annotator.models.api import (
+    AnnotationEdit,
+    CandidatesGet,
+    ProgressResponse,
+)
 from geoparser.annotator.sessions_cache import SessionsCache
 from geoparser.constants import GAZETTEERS
 
@@ -354,36 +359,16 @@ def create_annotation(
     doc: t.Annotated[dict, Depends(get_document)],
     annotation: ToponymBase,
 ):
-    toponyms = doc.toponyms
-    # Check if there is already an annotation at this position
-    existing_toponym = annotator.get_toponym(toponyms, annotation.start, annotation.end)
-    if existing_toponym:
-        return JSONResponse(
-            {"error": "Toponym already exists"},
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-        )
     # Add new toponym
     ToponymRepository.create(
         db,
         ToponymCreate(text=annotation.text, start=annotation.start, end=annotation.end),
+        additional={"document_id": doc.id},
     )
     SessionRepository.update(
         db, SessionUpdate(id=session.id, last_updated=datetime.now())
     )
-    # Recalculate progress for the current document
-    total_toponyms = len(toponyms)
-    annotated_toponyms = sum(1 for t in toponyms if t.loc_id != "")
-    progress_percentage = (
-        (annotated_toponyms / total_toponyms) * 100 if total_toponyms > 0 else 0
-    )
-    return JSONResponse(
-        {
-            "status": "success",
-            "annotated_toponyms": annotated_toponyms,
-            "total_toponyms": total_toponyms,
-            "progress_percentage": progress_percentage,
-        }
-    )
+    return ProgressResponse(**DocumentRepository.get_document_progress(db, doc.id))
 
 
 @app.get("/session/{session_id}/annotations/download", tags=["annotation"])
@@ -408,37 +393,14 @@ def overwrite_annotation(
     doc: t.Annotated[dict, Depends(get_document)],
     annotation: ToponymBase,
 ):
-    toponyms = doc.toponyms
-    # Find the toponym to update
-    toponym = annotator.get_toponym(toponyms, annotation.start, annotation.end)
+    toponym = ToponymRepository.get_toponym(doc, annotation.start, annotation.end)
     if not toponym:
         raise ToponymNotFoundException
-    # Get the "one_sense_per_discourse" setting
-    one_sense_per_discourse = session.settings.one_sense_per_discourse
-    for toponym in annotator.annotate_toponyms(
-        doc.toponyms, annotation.model_dump(), one_sense_per_discourse
-    ):
-        ToponymRepository.update(db, toponym)
-    # Update last_updated timestamp
+    ToponymRepository.annotate_many(db, doc, annotation)
     SessionRepository.update(
         db, SessionUpdate(id=session.id, last_updated=datetime.now())
     )
-    # Save session
-    sessions_cache.save(session["session_id"], session)
-    # Recalculate progress for the current document
-    total_toponyms = len(toponyms)
-    annotated_toponyms = sum(1 for t in toponyms if t.loc_id != "")
-    progress_percentage = (
-        (annotated_toponyms / total_toponyms) * 100 if total_toponyms > 0 else 0
-    )
-    return JSONResponse(
-        {
-            "status": "success",
-            "annotated_toponyms": annotated_toponyms,
-            "total_toponyms": total_toponyms,
-            "progress_percentage": progress_percentage,
-        }
-    )
+    return ProgressResponse(**DocumentRepository.get_document_progress(db, doc.id))
 
 
 @app.patch("/session/{session_id}/document/{doc_index}/annotation", tags=["annotation"])
@@ -448,34 +410,28 @@ def update_annotation(
     doc: t.Annotated[dict, Depends(get_document)],
     annotation: AnnotationEdit,
 ):
-    toponyms = doc.toponyms
     # Find the toponym to edit
-    toponym = annotator.get_toponym(toponyms, annotation.old_start, annotation.old_end)
+    toponym = ToponymRepository.get_toponym(
+        doc, annotation.old_start, annotation.old_end
+    )
     if not toponym:
         raise ToponymNotFoundException
     # Update the toponym
-    toponym.start = annotation.new_start
-    toponym.end = annotation.new_end
-    toponym.text = annotation.new_text
-    ToponymRepository.update(db, toponym)
+    ToponymRepository.update(
+        db,
+        ToponymUpdate(
+            id=toponym.id,
+            start=annotation.new_start,
+            end=annotation.new_end,
+            text=annotation.new_text,
+        ),
+        document_id=doc.id,
+    )
     # Update last_updated timestamp
-    SessionRepository.update(SessionUpdate(id=session.id, last_updated=datetime.now()))
-    # Save session
-    sessions_cache.save(session["session_id"], session)
-    # Recalculate progress for the current document
-    total_toponyms = len(toponyms)
-    annotated_toponyms = sum(1 for t in toponyms if t["loc_id"] != "")
-    progress_percentage = (
-        (annotated_toponyms / total_toponyms) * 100 if total_toponyms > 0 else 0
+    SessionRepository.update(
+        db, SessionUpdate(id=session.id, last_updated=datetime.now())
     )
-    return JSONResponse(
-        {
-            "status": "success",
-            "annotated_toponyms": annotated_toponyms,
-            "total_toponyms": total_toponyms,
-            "progress_percentage": progress_percentage,
-        }
-    )
+    return ProgressResponse(**DocumentRepository.get_document_progress(db, doc.id))
 
 
 @app.delete(
@@ -488,31 +444,16 @@ def delete_annotation(
     start: int,
     end: int,
 ):
-    annotation = Annotation(start=start, end=end)
-    toponyms = doc.toponyms
     # Find the toponym to delete
-    toponym = annotator.get_toponym(toponyms, annotation.start, annotation.end)
+    toponym = ToponymRepository.get_toponym(doc, start, end)
     if not toponym:
         raise ToponymNotFoundException
-    ToponymRepository.delete(db, toponym)
+    ToponymRepository.delete(db, toponym.id)
     # Update last_updated timestamp
     SessionRepository.update(
-        SessionUpdate(db, id=session.id, last_updated=datetime.now())
+        db, SessionUpdate(id=session.id, last_updated=datetime.now())
     )
-    # Recalculate progress for the current document
-    total_toponyms = len(toponyms)
-    annotated_toponyms = sum(1 for t in toponyms if t.loc_id != "")
-    progress_percentage = (
-        (annotated_toponyms / total_toponyms) * 100 if total_toponyms > 0 else 0.0
-    )
-    return JSONResponse(
-        {
-            "status": "success",
-            "annotated_toponyms": annotated_toponyms,
-            "total_toponyms": total_toponyms,
-            "progress_percentage": progress_percentage,
-        }
-    )
+    return ProgressResponse(**DocumentRepository.get_document_progress(db, doc.id))
 
 
 @app.get("/session/{session_id}/settings", tags=["settings"])

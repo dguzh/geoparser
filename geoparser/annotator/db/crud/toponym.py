@@ -7,7 +7,12 @@ from sqlmodel import select
 
 from geoparser import Geoparser
 from geoparser.annotator.db.crud.base import BaseRepository
-from geoparser.annotator.db.models.toponym import Toponym, ToponymCreate, ToponymUpdate
+from geoparser.annotator.db.models.toponym import (
+    Toponym,
+    ToponymBase,
+    ToponymCreate,
+    ToponymUpdate,
+)
 from geoparser.annotator.exceptions import ToponymNotFoundException
 from geoparser.annotator.models.api import CandidatesGet
 
@@ -22,15 +27,17 @@ class ToponymRepository(BaseRepository):
     def validate_overlap(
         cls, db: DBSession, toponym: ToponymCreate, document_id: str
     ) -> bool:
-        overlapping = db.exec(
-            select(Toponym)
-            .where(Toponym.document_id == document_id)
-            .where((Toponym.start <= toponym.end) & (Toponym.end >= toponym.start))
-        ).all()
+        filter_args = [
+            Toponym.document_id == document_id,
+            (Toponym.start <= toponym.end) & (Toponym.end >= toponym.start),
+        ]
+        if hasattr(toponym, "id"):
+            filter_args.append(Toponym.id != toponym.id)
+        overlapping = db.exec(select(Toponym).where(*filter_args)).all()
         if overlapping:
             raise PydanticCustomError(
                 "overlapping_toponyms",
-                f"Toponyms overlap: {overlapping}",
+                f"Toponyms overlap: {overlapping} and {toponym}",
             )
         return True
 
@@ -41,7 +48,7 @@ class ToponymRepository(BaseRepository):
         toponyms = []
         for new_toponym in new_toponyms:
             # only add the new toponym if there is no existing one
-            if not cls.read_from_list(old_toponyms, new_toponym.start, new_toponym.end):
+            if not cls._get_toponym(old_toponyms, new_toponym.start, new_toponym.end):
                 toponyms.append(new_toponym)
         return sorted(toponyms + old_toponyms, key=lambda x: x.start)
 
@@ -152,13 +159,19 @@ class ToponymRepository(BaseRepository):
         return super().read(db, id)
 
     @classmethod
-    def read_from_list(
+    def _get_toponym(
         cls, toponyms: list[ToponymCreate], start: int, end: int
     ) -> t.Optional[ToponymCreate]:
         return next(
             (t for t in toponyms if t.start == start and t.end == end),
             None,
         )
+
+    @classmethod
+    def get_toponym(
+        cls, document: "Document", start: int, end: int
+    ) -> t.Optional[ToponymCreate]:
+        return cls._get_toponym(document.toponyms, start, end)
 
     @classmethod
     def read_all(cls, db: DBSession, **filters) -> list[Toponym]:
@@ -168,9 +181,7 @@ class ToponymRepository(BaseRepository):
     def get_candidates(
         cls, doc: "Document", geoparser: Geoparser, candidates_request: CandidatesGet
     ) -> dict:
-        toponym = cls.read_from_list(
-            doc.toponyms, candidates_request.start, candidates_request.end
-        )
+        toponym = cls.get_toponym(doc, candidates_request.start, candidates_request.end)
         if not toponym:
             raise ToponymNotFoundException
         candidate_descriptions, existing_candidate_is_appended = (
@@ -191,9 +202,35 @@ class ToponymRepository(BaseRepository):
         }
 
     @classmethod
-    def update(cls, db: DBSession, item: ToponymUpdate) -> Toponym:
-        cls.validate_overlap(db, item)
+    def update(
+        cls, db: DBSession, item: ToponymUpdate, document_id: t.Optional[str] = None
+    ) -> Toponym:
+        cls.validate_overlap(db, item, document_id or item.document_id)
         return super().update(db, item)
+
+    @classmethod
+    def annotate_many(
+        cls, db: DBSession, document: "Document", annotation: ToponymBase
+    ):
+        toponym = cls.get_toponym(document, annotation.start, annotation.end)
+        one_sense_per_discourse = (
+            toponym.document.session.settings.one_sense_per_discourse
+        )
+        # Update the loc_id
+        toponym.loc_id = annotation.loc_id if annotation.loc_id is not None else None
+        cls.update(db, toponym)
+        if one_sense_per_discourse and toponym.loc_id:
+            # Apply the same loc_id to other unannotated toponyms with the same text
+            for other_toponym in document.toponyms:
+                if (
+                    other_toponym.text == toponym.text
+                    and other_toponym.loc_id == ""
+                    and other_toponym is not toponym
+                ):
+                    other_toponym.loc_id = toponym.loc_id
+                    cls.update(db, other_toponym)
+        db.refresh(document)
+        return document.toponyms
 
     @classmethod
     def delete(cls, db: DBSession, id: str) -> Toponym:

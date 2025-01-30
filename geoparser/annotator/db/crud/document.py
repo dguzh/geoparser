@@ -129,10 +129,15 @@ class DocumentRepository(BaseRepository):
             yield {
                 "filename": document.filename,
                 "doc_index": document.doc_index,
+                "doc_id": document.id,
                 "annotated_toponyms": annotated_toponyms,
                 "total_toponyms": total_toponyms,
                 "progress_percentage": progress_percentage,
             }
+
+    @classmethod
+    def get_document_progress(cls, db: DBSession, id: str):
+        return next(cls.get_progress(db, id=id))
 
     @classmethod
     def read_all(cls, db: DBSession, **filters) -> list[Document]:

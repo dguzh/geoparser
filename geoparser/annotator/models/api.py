@@ -1,4 +1,5 @@
 import typing as t
+import uuid
 
 from pydantic import BaseModel, ConfigDict
 
@@ -18,3 +19,13 @@ class CandidatesGet(BaseModel):
     end: t.Optional[int] = 0
     text: t.Optional[str] = ""
     query_text: t.Optional[str] = ""
+
+
+class ProgressResponse(BaseModel):
+    status: t.Optional[str] = "success"
+    filename: str
+    doc_index: int
+    doc_id: uuid.UUID
+    annotated_toponyms: int
+    total_toponyms: int
+    progress_percentage: float
