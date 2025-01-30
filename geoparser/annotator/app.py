@@ -134,8 +134,8 @@ def start_new_session(request: Request):
 
 
 @app.get("/continue_session", tags=["pages"])
-def continue_session(request: Request):
-    cached_sessions = SessionRepository.read_all()
+def continue_session(db: t.Annotated[DBSession, Depends(get_db)], request: Request):
+    cached_sessions = SessionRepository.read_all(db)
     return templates.TemplateResponse(
         request=request,
         name="html/continue_session.html",
@@ -205,9 +205,11 @@ def create_session(
 
 
 @app.post("/session/continue/cached", tags=["session"])
-def continue_session_cached(session_id: t.Annotated[str, Form()]):
+def continue_session_cached(
+    db: t.Annotated[DBSession, Depends(get_db)], session_id: t.Annotated[str, Form()]
+):
     # Load selected session directly without creating a new session
-    session = _get_session(session_id)
+    session = _get_session(db, session_id)
     if not session:
         return RedirectResponse(
             app.url_path_for("continue_session"), status_code=status.HTTP_302_FOUND

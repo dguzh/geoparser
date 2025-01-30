@@ -45,19 +45,19 @@
     {% if cached_sessions %}
     <div class="row">
         {% for session in cached_sessions %}
-        <div class="col-md-6" id="session-card-{{ session.session_id }}">
+        <div class="col-md-6" id="session-card-{{ session.id }}">
             <div class="card session-card mb-4">
                 <div class="card-body">
-                    <h5 class="card-title">Session ID: {{ session.session_id }}</h5>
+                    <h5 class="card-title">Session ID: {{ session.id }}</h5>
                     <p class="card-text">
                         <strong>Created:</strong> {{ session.created_at }}<br>
                         <strong>Modified:</strong> {{ session.last_updated }}<br>
                         <strong>Documents:</strong> {{ session.num_documents }}<br>
                         <strong>Gazetteer:</strong> {{ session.gazetteer }}
                     </p>
-                    <button class="btn btn-danger delete-session-btn" data-session-id="{{ session.session_id }}" onclick="deleteSession('{{ session.session_id }}')">Delete</button>
+                    <button class="btn btn-danger delete-session-btn" data-session-id="{{ session.id }}" onclick="deleteSession('{{ session.id }}')">Delete</button>
                     <form action="{{ url_for('continue_session_cached') }}" method="post">
-                        <input type="hidden" name="session_id" value="{{ session.session_id }}">
+                        <input type="hidden" name="session_id" value="{{ session.id }}">
                         <button type="submit" class="btn btn-primary">Load Session</button>
                     </form>
                 </div>
