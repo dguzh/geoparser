@@ -8,7 +8,7 @@ from io import StringIO
 
 import uvicorn
 from fastapi import Depends, FastAPI, Form, Request, UploadFile, status
-from fastapi.responses import JSONResponse, RedirectResponse, StreamingResponse
+from fastapi.responses import RedirectResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from spacy.util import get_installed_models
@@ -49,7 +49,10 @@ from geoparser.annotator.exceptions import (
 from geoparser.annotator.metadata import tags_metadata
 from geoparser.annotator.models.api import (
     AnnotationEdit,
+    BaseResponse,
     CandidatesGet,
+    ParsingResponse,
+    PreAnnotatedTextResponse,
     ProgressResponse,
 )
 from geoparser.constants import GAZETTEERS
@@ -213,7 +216,7 @@ def delete_session(
     session: t.Annotated[dict, Depends(get_session)],
 ):
     SessionRepository.delete(db, session.id)
-    return JSONResponse({"status": "success"})
+    return BaseResponse()
 
 
 @app.post("/session/{session_id}/documents", tags=["document"])
@@ -224,14 +227,11 @@ def add_documents(
     files: t.Optional[list[UploadFile]] = None,
 ):
     if not files:
-        return JSONResponse(
-            {"message": "No files selected.", "status": "error"},
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-        )
+        return BaseResponse(message="No files selected.", status="error")
     DocumentRepository.create_from_text_files(
         db, geoparser, files, session.id, spacy_model, apply_spacy=False
     )
-    return JSONResponse({"status": "success"})
+    return BaseResponse()
 
 
 @app.get("/session/{session_id}/documents", tags=["document"])
@@ -247,28 +247,16 @@ def parse_document(
 ):
     if not doc.spacy_applied:
         doc = DocumentRepository.parse(db, geoparser, doc.id)
-        return JSONResponse({"status": "success", "parsed": True})
-    return JSONResponse({"status": "success", "parsed": False})
+        return ParsingResponse(parsed=True)
+    return ParsingResponse(parsed=False)
 
 
 @app.get("/session/{session_id}/document/{doc_index}/progress", tags=["document"])
 def get_document_progress(
+    db: t.Annotated[DBSession, Depends(get_db)],
     doc: t.Annotated[dict, Depends(get_document)],
 ):
-    toponyms = doc.toponyms
-    total_toponyms = len(toponyms)
-    annotated_toponyms = sum(1 for t in toponyms if t.loc_id != "")
-    progress_percentage = (
-        (annotated_toponyms / total_toponyms) * 100 if total_toponyms > 0 else 0
-    )
-    return JSONResponse(
-        {
-            "status": "success",
-            "annotated_toponyms": annotated_toponyms,
-            "total_toponyms": total_toponyms,
-            "progress_percentage": progress_percentage,
-        }
-    )
+    return ProgressResponse(**DocumentRepository.get_document_progress(db, doc.id))
 
 
 @app.get("/session/{session_id}/document/{doc_index}/text", tags=["document"])
@@ -278,7 +266,7 @@ def get_document_text(
 ):
     # Prepare pre-annotated text
     pre_annotated_text = DocumentRepository.get_pre_annotated_text(db, doc.id)
-    return JSONResponse({"status": "success", "pre_annotated_text": pre_annotated_text})
+    return PreAnnotatedTextResponse(pre_annotated_text=pre_annotated_text)
 
 
 @app.delete(
@@ -293,7 +281,7 @@ def delete_document(
 ):
     # Remove the document
     DocumentRepository.delete(db, session.documents[doc_index])
-    return JSONResponse({"status": "success"})
+    return BaseResponse()
 
 
 @app.post(
@@ -303,9 +291,7 @@ def get_candidates(
     doc: t.Annotated[dict, Depends(get_document)],
     candidates_request: CandidatesGet,
 ):
-    return JSONResponse(
-        ToponymRepository.get_candidates(doc, geoparser, candidates_request)
-    )
+    return ToponymRepository.get_candidates(doc, geoparser, candidates_request)
 
 
 @app.post("/session/{session_id}/document/{doc_index}/annotation", tags=["annotation"])
@@ -432,7 +418,7 @@ def put_session_settings(
         db,
         SessionSettingsUpdate(id=session.settings.id, **session_settings.model_dump()),
     )
-    return JSONResponse({"status": "success"})
+    return BaseResponse()
 
 
 def run(use_reloader=False):  # pragma: no cover

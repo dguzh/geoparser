@@ -21,8 +21,20 @@ class CandidatesGet(BaseModel):
     query_text: t.Optional[str] = ""
 
 
-class ProgressResponse(BaseModel):
+class BaseResponse(BaseModel):
     status: t.Optional[str] = "success"
+    message: t.Optional[str] = None
+
+
+class ParsingResponse(BaseResponse):
+    parsed: bool
+
+
+class PreAnnotatedTextResponse(BaseResponse):
+    pre_annotated_text: str
+
+
+class ProgressResponse(BaseResponse):
     filename: str
     doc_index: int
     doc_id: uuid.UUID
