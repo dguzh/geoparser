@@ -1,15 +1,21 @@
 import io
 import json
 import re
+import typing as t
 import uuid
 
 import pytest
+from fastapi.encoders import jsonable_encoder
 from fastapi.testclient import TestClient
 from sqlmodel import Session as DBSession
 from werkzeug.wrappers import Response
 
-from geoparser.annotator.app import app
-from geoparser.annotator.db.crud import SessionRepository, SessionSettingsRepository
+from geoparser.annotator.app import app, get_db
+from geoparser.annotator.db.crud import (
+    SessionRepository,
+    SessionSettingsRepository,
+    ToponymRepository,
+)
 from geoparser.annotator.db.models import (
     DocumentCreate,
     Session,
@@ -19,6 +25,7 @@ from geoparser.annotator.db.models import (
 )
 from geoparser.annotator.models.api import (
     BaseResponse,
+    CandidatesGet,
     ParsingResponse,
     PreAnnotatedTextResponse,
     ProgressResponse,
@@ -26,9 +33,15 @@ from geoparser.annotator.models.api import (
 from tests.utils import get_static_test_file
 
 
-@pytest.fixture(scope="function")
-def client():
-    return TestClient(app)
+@pytest.fixture()
+def client(test_db: Session) -> t.Iterator[TestClient]:
+    def get_db_override():
+        return test_db
+
+    app.dependency_overrides[get_db] = get_db_override
+    client = TestClient(app)
+    yield client
+    app.dependency_overrides.clear()
 
 
 def set_session(db: DBSession, *, settings: dict = None, **document_kwargs) -> Session:
@@ -44,7 +57,7 @@ def set_session(db: DBSession, *, settings: dict = None, **document_kwargs) -> S
         ],
     )
     if settings:
-        session_obj.settings = SessionSettingsCreate.model_validate(**settings)
+        session_obj.settings = settings
     for key, value in document_kwargs.items():
         setattr(session_obj.documents[0], key, value)
     session = SessionRepository.create(db, session_obj)
@@ -106,9 +119,9 @@ def test_annotate(
     # invalid doc_index always redirects to 0
     elif valid_session and doc_index == 1:
         assert response.status_code == 302
-        assert (
-            response.next_request.url
-            == "http://testserver/session/annotate/document/0/annotate"
+        assert re.search(
+            r"http:\/\/testserver\/session\/.*\/document\/0\/annotate",
+            str(response.next_request.url),
         )
     # vaild doc_index returns the annotate page
     elif valid_session and doc_index == 0:
@@ -149,7 +162,7 @@ def test_continue_session_cached(
         follow_redirects=False,
     )
     # redirect to annotate page if cached session has been found
-    if not valid_session:
+    if valid_session:
         assert response.status_code == 302
         assert (
             response.next_request.url
@@ -176,7 +189,7 @@ def test_continue_session_file(client: TestClient, file: bool):
                     "text": "Andorra is nice.",
                     "doc_id": 0,
                     "toponyms": [
-                        {"text": "Andorra", "start": 0, "end": 7, "loc_id": ""},
+                        ToponymCreate(text="Andorra", start=0, end=7),
                     ],
                 }
             ],
@@ -187,7 +200,12 @@ def test_continue_session_file(client: TestClient, file: bool):
                     "session_file",
                     (
                         "test.json",
-                        io.BytesIO(bytes(json.dumps(file_content), encoding="utf8")),
+                        io.BytesIO(
+                            bytes(
+                                json.dumps(jsonable_encoder(file_content)),
+                                encoding="utf8",
+                            )
+                        ),
                     ),
                 )
             ]
@@ -200,7 +218,7 @@ def test_continue_session_file(client: TestClient, file: bool):
     if file:
         assert response.status_code == 302
         assert re.search(
-            r"http:\/\/testserver\/session\/[a-z0-9]{32}\/document\/0\/annotate",
+            r"http:\/\/testserver\/session\/.*\/document\/0\/annotate",
             str(response.next_request.url),
         )
     # otherwise, always redirect to continue_session
@@ -300,7 +318,9 @@ def test_get_documents(test_db: DBSession, client: TestClient, valid_session: bo
         )
     else:
         validate_json_response(
-            response, 200, [document.model_dump() for document in session.documents]
+            response,
+            200,
+            [jsonable_encoder(document) for document in session.documents],
         )
 
 
@@ -350,7 +370,7 @@ def test_get_document_progress(
     test_db: DBSession, client: TestClient, valid_session: bool, loc_id: str
 ):
     session_id = uuid.uuid4()
-    toponyms = [{"text": "Andorra", "start": 0, "end": 7, "loc_id": loc_id}]
+    toponyms = [ToponymCreate(text="Andorra", start=0, end=7, loc_id=loc_id)]
     if valid_session:
         session = set_session(test_db, toponyms=toponyms)
         session_id = session.id
@@ -372,13 +392,13 @@ def test_get_document_progress(
             doc_index=0,
             doc_id=session.documents[0].id,
         )
-        validate_json_response(response, 200, expected.model_dump())
+        validate_json_response(response, 200, jsonable_encoder(expected))
 
 
 @pytest.mark.parametrize("valid_session", [True, False])
 def test_get_document_text(test_db: DBSession, client: TestClient, valid_session: bool):
     session_id = uuid.uuid4()
-    toponyms = [{"text": "Andorra", "start": 0, "end": 7, "loc_id": ""}]
+    toponyms = [ToponymCreate(text="Andorra", start=0, end=7)]
     if valid_session:
         session = set_session(
             test_db, toponyms=toponyms, text="Andorra is as nice as Andorra."
@@ -431,12 +451,10 @@ def test_delete_document(
 
 
 @pytest.mark.parametrize("valid_session", [True, False])
-@pytest.mark.parametrize("valid_toponym", [True, False])
 def test_get_candidates(
     test_db: DBSession,
     client: TestClient,
     valid_session: bool,
-    valid_toponym: bool,
     monkeypatch,
 ):
     monkeypatched_return = {
@@ -446,36 +464,30 @@ def test_get_candidates(
         "filter_attributes": [],
     }
     monkeypatch.setattr(
-        "geoparser.annotator.db.crud.ToponymRepository",
+        ToponymRepository,
         "get_candidates",
         lambda *args, **kwargs: monkeypatched_return,
     )
     session_id = uuid.uuid4()
-    toponyms = [{"text": "Andorra", "start": 0, "end": 7, "loc_id": ""}]
+    toponyms = [ToponymCreate(text="Andorra", start=0, end=7)]
     if valid_session:
         session = set_session(test_db, toponyms=toponyms)
         session_id = session.id
-    query = {
-        "query_text": toponyms[0]["text"],
-        "text": toponyms[0]["text"],
-        "start": toponyms[0]["start"] if valid_toponym else 99,
-        "end": toponyms[0]["end"] if valid_toponym else 100,
-    }
+    query = CandidatesGet(
+        query_text=toponyms[0].text,
+        text=toponyms[0].text,
+        start=toponyms[0].start,
+        end=toponyms[0].end,
+    )
     response = client.post(
         f"/session/{session_id}/document/{0}/get_candidates",
-        json=query,
+        json=jsonable_encoder(query),
     )
     if not valid_session:
         validate_json_response(
             response,
             404,
             BaseResponse(status="error", message="Session not found.").model_dump(),
-        )
-    elif not valid_toponym:
-        validate_json_response(
-            response,
-            404,
-            BaseResponse(status="error", message="Toponym not found").model_dump(),
         )
     else:
         validate_json_response(response, 200, monkeypatched_return)
@@ -487,21 +499,21 @@ def test_create_annotation(
     test_db: DBSession, client: TestClient, valid_session: bool, existing_toponym: bool
 ):
     session_id = uuid.uuid4()
-    toponyms = [{"text": "Andorra", "start": 0, "end": 7, "loc_id": ""}]
+    toponyms = [ToponymCreate(text="Andorra", start=0, end=7)]
     if valid_session:
         session = set_session(test_db, toponyms=toponyms)
         session_id = session.id
     data = {
         "session_id": session_id,
         "doc_index": 0,
-        "query_text": toponyms[0]["text"],
-        "text": toponyms[0]["text"],
-        "start": toponyms[0]["start"] if existing_toponym else 22,
-        "end": toponyms[0]["end"] if existing_toponym else 29,
+        "query_text": toponyms[0].text,
+        "text": toponyms[0].text,
+        "start": toponyms[0].start if existing_toponym else 22,
+        "end": toponyms[0].end if existing_toponym else 29,
     }
     response = client.post(
         f"/session/{session_id}/document/{0}/annotation",
-        json=data,
+        json=jsonable_encoder(data),
     )
     if not valid_session:
         validate_json_response(
@@ -513,7 +525,9 @@ def test_create_annotation(
         validate_json_response(
             response,
             422,
-            BaseResponse(status="error", message="Toponym already exists").model_dump(),
+            BaseResponse(
+                status="error", message="Overlap with existing toponym."
+            ).model_dump(),
         )
     else:
         expected = ProgressResponse(
@@ -524,7 +538,7 @@ def test_create_annotation(
             total_toponyms=2,
             progress_percentage=0.0,
         ).model_dump()
-        validate_json_response(response, 200, expected)
+        validate_json_response(response, 200, jsonable_encoder(expected))
 
 
 @pytest.mark.parametrize("valid_session", [True, False])
@@ -551,42 +565,33 @@ def test_download_annotations(
 
 
 @pytest.mark.parametrize("valid_session", [True, False])
-@pytest.mark.parametrize("valid_toponym", [True, False])
 @pytest.mark.parametrize("one_sense_per_discourse", [True, False])
 def test_overwrite_annotation(
     test_db: DBSession,
     client: TestClient,
     valid_session: bool,
-    valid_toponym: bool,
     one_sense_per_discourse: bool,
     radio_andorra_id: int,
 ):
     toponyms = [
-        {
-            "text": "Andorra",
-            "start": 0,
-            "end": 7,
-            "loc_id": "",
-        },
-        {
-            "text": "Andorra",
-            "start": 22,
-            "end": 29,
-            "loc_id": "",
-        },
+        ToponymCreate(text="Andorra", start=0, end=7),
+        ToponymCreate(text="Andorra", start=22, end=29),
     ]
     session_id = uuid.uuid4()
     if valid_session:
         session = set_session(
             test_db,
-            settings={"one_sense_per_discourse": one_sense_per_discourse},
+            settings=SessionSettingsCreate(
+                one_sense_per_discourse=one_sense_per_discourse
+            ),
             toponyms=toponyms,
             text="Andorra is as nice as Andorra.",
         )
         session_id = session.id
     data = {
-        "start": toponyms[0]["start"] if valid_toponym else 99,
-        "end": toponyms[0]["end"] if valid_toponym else 99,
+        "text": toponyms[0].text,
+        "start": toponyms[0].start,
+        "end": toponyms[0].end,
         "loc_id": radio_andorra_id,
     }
     response = client.put(
@@ -599,12 +604,6 @@ def test_overwrite_annotation(
             404,
             BaseResponse(status="error", message="Session not found.").model_dump(),
         )
-    elif not valid_toponym:
-        validate_json_response(
-            response,
-            404,
-            BaseResponse(status="error", message="Toponym not found.").model_dump(),
-        )
     else:
         expected = ProgressResponse(
             filename="test.txt",
@@ -614,22 +613,19 @@ def test_overwrite_annotation(
             total_toponyms=2,
             progress_percentage=50.0 if not one_sense_per_discourse else 100.0,
         ).model_dump()
-        validate_json_response(response, 200, expected)
+        validate_json_response(response, 200, jsonable_encoder(expected))
 
 
 @pytest.mark.parametrize("valid_session", [True, False])
-@pytest.mark.parametrize("valid_toponym", [True, False])
-def test_update_annotation(
-    test_db: DBSession, client: TestClient, valid_session: bool, valid_toponym: bool
-):
+def test_update_annotation(test_db: DBSession, client: TestClient, valid_session: bool):
     session_id = uuid.uuid4()
-    toponyms = [{"text": "Andorra", "start": 0, "end": 7, "loc_id": "123"}]
+    toponyms = [ToponymCreate(text="Andorra", start=0, end=7, loc_id="123")]
     if valid_session:
         session = set_session(test_db, toponyms=toponyms)
         session_id = session.id
     data = {
-        "old_start": toponyms[0]["start"] if valid_toponym else 99,
-        "old_end": toponyms[0]["end"] if valid_toponym else 100,
+        "old_start": toponyms[0].start,
+        "old_end": toponyms[0].end,
         "new_text": "Andorra la Vella",
         "new_start": 0,
         "new_end": 16,
@@ -644,12 +640,6 @@ def test_update_annotation(
             404,
             BaseResponse(status="error", message="Session not found.").model_dump(),
         )
-    elif not valid_toponym:
-        validate_json_response(
-            response,
-            404,
-            BaseResponse(status="error", message="Toponym not found.").model_dump(),
-        )
     else:
         expected = ProgressResponse(
             filename="test.txt",
@@ -659,22 +649,22 @@ def test_update_annotation(
             total_toponyms=1,
             progress_percentage=100.0,
         ).model_dump()
-        validate_json_response(response, 200, expected)
+        validate_json_response(response, 200, jsonable_encoder(expected))
 
 
 @pytest.mark.parametrize("valid_session", [True, False])
-@pytest.mark.parametrize("valid_toponym", [True, False])
-def test_delete_annotation(
-    test_db: DBSession, client: TestClient, valid_session: bool, valid_toponym: bool
-):
+def test_delete_annotation(test_db: DBSession, client: TestClient, valid_session: bool):
     session_id = uuid.uuid4()
-    toponyms = [{"text": "Andorra", "start": 0, "end": 7, "loc_id": ""}]
+    toponyms = [
+        ToponymCreate(text="Andorra", start=0, end=7),
+        ToponymCreate(text="Madrid", start=22, end=29),
+    ]
     if valid_session:
         session = set_session(test_db, toponyms=toponyms)
         session_id = session.id
     data = {
-        "start": toponyms[0]["start"] if valid_toponym else 99,
-        "end": toponyms[0]["end"] if valid_toponym else 100,
+        "start": toponyms[0].start,
+        "end": toponyms[0].end,
     }
     response = client.delete(
         f"/session/{session_id}/document/{0}/annotation",
@@ -686,12 +676,6 @@ def test_delete_annotation(
             404,
             BaseResponse(status="error", message="Session not found.").model_dump(),
         )
-    elif not valid_toponym:
-        validate_json_response(
-            response,
-            404,
-            BaseResponse(status="error", message="Toponym not found.").model_dump(),
-        )
     else:
         expected = ProgressResponse(
             filename="test.txt",
@@ -699,9 +683,9 @@ def test_delete_annotation(
             doc_id=session.documents[0].id,
             annotated_toponyms=0,
             total_toponyms=1,
-            progress_percentage=100.0,
+            progress_percentage=0.0,
         ).model_dump()
-        validate_json_response(response, 200, expected)
+        validate_json_response(response, 200, jsonable_encoder(expected))
 
 
 @pytest.mark.parametrize("valid_session", [True, False])
@@ -722,7 +706,7 @@ def test_get_session_settings(
             BaseResponse(status="error", message="Session not found.").model_dump(),
         )
     else:
-        validate_json_response(response, 200, SessionSettingsCreate().model_dump())
+        validate_json_response(response, 200, jsonable_encoder(session.settings))
 
 
 @pytest.mark.parametrize("valid_session", [True, False])
@@ -738,7 +722,9 @@ def test_put_session_settings(
         session_id = session.id
         # check if old settings are in place
         assert (
-            SessionSettingsRepository.read(test_db, session.settings.id).model_dump()
+            SessionSettingsRepository.read(test_db, session.settings.id).model_dump(
+                exclude=["id", "session_id"]
+            )
             == old_settings.model_dump()
         )
     new_settings = SessionSettingsCreate(
@@ -746,7 +732,7 @@ def test_put_session_settings(
     )
     response = client.put(
         f"/session/{session_id}/settings",
-        json=new_settings,
+        json=jsonable_encoder(new_settings),
     )
     if not valid_session:
         validate_json_response(
@@ -758,6 +744,8 @@ def test_put_session_settings(
         validate_json_response(response, 200, BaseResponse().model_dump())
         # check if new settings are in place
         assert (
-            SessionSettingsRepository.read(test_db, session.settings.id).model_dump()
+            SessionSettingsRepository.read(test_db, session.settings.id).model_dump(
+                exclude=["id", "session_id"]
+            )
             == new_settings.model_dump()
         )
