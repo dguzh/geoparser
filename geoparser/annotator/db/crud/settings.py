@@ -1,4 +1,5 @@
 import typing as t
+import uuid
 
 from sqlmodel import Session as DBSession
 
@@ -31,7 +32,7 @@ class SessionSettingsRepository(BaseRepository):
         return super().create(db, item, exclude=exclude, additional=additional)
 
     @classmethod
-    def read(cls, db: DBSession, id: str) -> SessionSettings:
+    def read(cls, db: DBSession, id: uuid.UUID) -> SessionSettings:
         return super().read(db, id)
 
     @classmethod
@@ -43,5 +44,5 @@ class SessionSettingsRepository(BaseRepository):
         return super().update(db, item)
 
     @classmethod
-    def delete(cls, db: DBSession, id: str) -> SessionSettings:
+    def delete(cls, db: DBSession, id: uuid.UUID) -> SessionSettings:
         return super().delete(db, id)

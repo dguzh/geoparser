@@ -27,7 +27,7 @@ class DocumentRepository(BaseRepository):
     )
 
     @classmethod
-    def get_highest_index(cls, db: DBSession, session_id: str):
+    def get_highest_index(cls, db: DBSession, session_id: uuid.UUID) -> int:
         result = db.exec(
             select(Document.doc_index)
             .where(Document.session_id == session_id)
@@ -36,7 +36,7 @@ class DocumentRepository(BaseRepository):
         return result if result is not None else -1
 
     @classmethod
-    def _reindex_documents(cls, db: DBSession, session_id: str):
+    def _reindex_documents(cls, db: DBSession, session_id: uuid.UUID):
         documents = db.exec(
             select(Document)
             .where(Document.session_id == session_id)
@@ -49,7 +49,7 @@ class DocumentRepository(BaseRepository):
         db.commit()
 
     @classmethod
-    def _validate_doc_index(cls, db: DBSession, document: DocumentCreate):
+    def _validate_doc_index(cls, db: DBSession, document: DocumentCreate) -> bool:
         highest_index = cls.get_highest_index(db, document.session.id)
         if document.doc_index <= highest_index:
             raise PydanticCustomError(
@@ -97,7 +97,7 @@ class DocumentRepository(BaseRepository):
         session_id: uuid.UUID,
         spacy_model: str,
         apply_spacy: bool = False,
-    ):
+    ) -> list[Document]:
         if apply_spacy:
             geoparser.nlp = geoparser.setup_spacy(spacy_model)
         documents = []
@@ -125,11 +125,11 @@ class DocumentRepository(BaseRepository):
         return documents
 
     @classmethod
-    def read(cls, db: DBSession, id: str) -> Document:
+    def read(cls, db: DBSession, id: uuid.UUID) -> Document:
         return super().read(db, id)
 
     @classmethod
-    def get_pre_annotated_text(cls, db: DBSession, id: str) -> str:
+    def get_pre_annotated_text(cls, db: DBSession, id: uuid.UUID) -> str:
         document = cls.read(db, id)
         html_parts = []
         last_idx = 0
@@ -179,7 +179,7 @@ class DocumentRepository(BaseRepository):
             }
 
     @classmethod
-    def get_document_progress(cls, db: DBSession, id: str):
+    def get_document_progress(cls, db: DBSession, id: uuid.UUID) -> dict[str, t.Any]:
         return next(cls.get_progress(db, id=id))
 
     @classmethod
@@ -191,7 +191,7 @@ class DocumentRepository(BaseRepository):
         return super().update(db, item)
 
     @classmethod
-    def parse(cls, db: DBSession, geoparser: Geoparser, id: str) -> Document:
+    def parse(cls, db: DBSession, geoparser: Geoparser, id: uuid.UUID) -> Document:
         document = cls.read(db, id)
         geoparser.nlp = geoparser.setup_spacy(document.spacy_model)
         spacy_doc = geoparser.nlp(document.text)
@@ -211,7 +211,7 @@ class DocumentRepository(BaseRepository):
         return document
 
     @classmethod
-    def delete(cls, db: DBSession, id: str) -> Document:
+    def delete(cls, db: DBSession, id: uuid.UUID) -> Document:
         deleted = super().delete(db, id)
         cls._reindex_documents(db, id)
         return deleted

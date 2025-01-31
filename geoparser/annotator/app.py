@@ -32,12 +32,7 @@ from geoparser.annotator.db.models import (
     ToponymCreate,
     ToponymUpdate,
 )
-from geoparser.annotator.dependencies import (
-    _get_document,
-    _get_session,
-    get_document,
-    get_session,
-)
+from geoparser.annotator.dependencies import get_document, get_session
 from geoparser.annotator.exceptions import (
     DocumentNotFoundException,
     SessionNotFoundException,
@@ -113,17 +108,20 @@ def continue_session(db: t.Annotated[DBSession, Depends(get_db)], request: Reque
 @app.get("/session/{session_id}/document/{doc_index}/annotate", tags=["pages"])
 def annotate(
     request: Request,
-    session: t.Annotated[dict, Depends(_get_session)],
-    doc: t.Annotated[dict, Depends(_get_document)],
     db: t.Annotated[DBSession, Depends(get_db)],
+    session_id: str,
     doc_index: int = 0,
 ):
-    if not session:
+    try:
+        session = get_session(db, session_id)
+    except SessionNotFoundException:
         return RedirectResponse(
             url=app.url_path_for("index"),
             status_code=status.HTTP_302_FOUND,
         )
-    if not doc:
+    try:
+        doc = get_document(session, doc_index)
+    except DocumentNotFoundException:
         # If the document index is out of range, redirect to the first document
         return RedirectResponse(
             url=app.url_path_for("annotate", session_id=session.id, doc_index=0),
@@ -177,8 +175,9 @@ def continue_session_cached(
     db: t.Annotated[DBSession, Depends(get_db)], session_id: t.Annotated[str, Form()]
 ):
     # Load selected session directly without creating a new session
-    session = _get_session(db, session_id)
-    if not session:
+    try:
+        session = get_session(db, session_id)
+    except SessionNotFoundException:
         return RedirectResponse(
             app.url_path_for("continue_session"), status_code=status.HTTP_302_FOUND
         )

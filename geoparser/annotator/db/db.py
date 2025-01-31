@@ -1,3 +1,4 @@
+import typing as t
 from pathlib import Path
 
 from appdirs import user_data_dir
@@ -21,7 +22,7 @@ def create_db_and_tables():
     SQLModel.metadata.create_all(engine)
 
 
-def get_db():
+def get_db() -> t.Iterator[Session]:
     db = Session(engine)
     try:
         yield db

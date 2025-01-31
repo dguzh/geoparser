@@ -1,4 +1,5 @@
 import typing as t
+import uuid
 
 from pydantic_core import PydanticCustomError
 from pyproj import Transformer
@@ -28,7 +29,7 @@ class ToponymRepository(BaseRepository):
 
     @classmethod
     def validate_overlap(
-        cls, db: DBSession, toponym: ToponymCreate, document_id: str
+        cls, db: DBSession, toponym: ToponymCreate, document_id: uuid.UUID
     ) -> bool:
         filter_args = [
             Toponym.document_id == document_id,
@@ -46,8 +47,10 @@ class ToponymRepository(BaseRepository):
 
     @classmethod
     def _remove_duplicates(
-        cls, old_toponyms: list[ToponymCreate], new_toponyms: list[ToponymCreate]
-    ) -> list[dict]:
+        cls,
+        old_toponyms: list[t.Union[Toponym, ToponymCreate]],
+        new_toponyms: list[t.Union[Toponym, ToponymCreate]],
+    ) -> list[ToponymCreate]:
         toponyms = []
         for new_toponym in new_toponyms:
             # only add the new toponym if there is no existing one
@@ -158,13 +161,13 @@ class ToponymRepository(BaseRepository):
         return super().create(db, item, exclude=exclude, additional=additional)
 
     @classmethod
-    def read(cls, db: DBSession, id: str) -> Toponym:
+    def read(cls, db: DBSession, id: uuid.UUID) -> Toponym:
         return super().read(db, id)
 
     @classmethod
     def _get_toponym(
-        cls, toponyms: list[ToponymCreate], start: int, end: int
-    ) -> t.Optional[ToponymCreate]:
+        cls, toponyms: list[t.Union[Toponym, ToponymCreate]], start: int, end: int
+    ) -> t.Optional[t.Union[Toponym, ToponymCreate]]:
         return next(
             (t for t in toponyms if t.start == start and t.end == end),
             None,
@@ -173,7 +176,7 @@ class ToponymRepository(BaseRepository):
     @classmethod
     def get_toponym(
         cls, document: "Document", start: int, end: int
-    ) -> t.Optional[ToponymCreate]:
+    ) -> t.Optional[Toponym]:
         return cls._get_toponym(document.toponyms, start, end)
 
     @classmethod
@@ -214,7 +217,7 @@ class ToponymRepository(BaseRepository):
     @classmethod
     def annotate_many(
         cls, db: DBSession, document: "Document", annotation: ToponymBase
-    ):
+    ) -> list[Toponym]:
         toponym = cls.get_toponym(document, annotation.start, annotation.end)
         one_sense_per_discourse = (
             toponym.document.session.settings.one_sense_per_discourse
@@ -236,5 +239,5 @@ class ToponymRepository(BaseRepository):
         return document.toponyms
 
     @classmethod
-    def delete(cls, db: DBSession, id: str) -> Toponym:
+    def delete(cls, db: DBSession, id: uuid.UUID) -> Toponym:
         return super().delete(db, id)

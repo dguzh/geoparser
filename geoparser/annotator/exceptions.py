@@ -20,7 +20,9 @@ class ToponymNotFoundException(Exception):
     pass
 
 
-def session_exception_handler(request: Request, exc: SessionNotFoundException):
+def session_exception_handler(
+    request: Request, exc: SessionNotFoundException
+) -> JSONResponse:
     return JSONResponse(
         content={
             **BaseResponse(status="error", message="Session not found.").model_dump()
@@ -31,7 +33,7 @@ def session_exception_handler(request: Request, exc: SessionNotFoundException):
 
 def sessionsettings_exception_handler(
     request: Request, exc: SessionSettingsNotFoundException
-):
+) -> JSONResponse:
     return JSONResponse(
         content={
             **BaseResponse(status="error", message="Settings not found.").model_dump()
@@ -40,7 +42,9 @@ def sessionsettings_exception_handler(
     )
 
 
-def document_exception_handler(request: Request, exc: DocumentNotFoundException):
+def document_exception_handler(
+    request: Request, exc: DocumentNotFoundException
+) -> JSONResponse:
     return JSONResponse(
         content={
             **BaseResponse(
@@ -51,7 +55,9 @@ def document_exception_handler(request: Request, exc: DocumentNotFoundException)
     )
 
 
-def toponym_exception_handler(request: Request, exc: ToponymNotFoundException):
+def toponym_exception_handler(
+    request: Request, exc: ToponymNotFoundException
+) -> JSONResponse:
     return JSONResponse(
         content={
             **BaseResponse(status="error", message="Toponym not found").model_dump()

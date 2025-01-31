@@ -1,5 +1,6 @@
 import json
 import typing as t
+import uuid
 
 from sqlmodel import Session as DBSession
 
@@ -72,11 +73,11 @@ class SessionRepository(BaseRepository):
         return cls.create(db, session)
 
     @classmethod
-    def read(cls, db: DBSession, id: str) -> Session:
+    def read(cls, db: DBSession, id: uuid.UUID) -> Session:
         return super().read(db, id)
 
     @classmethod
-    def read_to_json(cls, db: DBSession, id: str) -> dict:
+    def read_to_json(cls, db: DBSession, id: uuid.UUID) -> dict:
         item = cls.read(db, id)
         result = SessionDownload(
             **item.model_dump(),
@@ -96,5 +97,5 @@ class SessionRepository(BaseRepository):
         return super().update(db, item)
 
     @classmethod
-    def delete(cls, db: DBSession, id: str) -> Session:
+    def delete(cls, db: DBSession, id: uuid.UUID) -> Session:
         return super().delete(db, id)

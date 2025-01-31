@@ -1,4 +1,5 @@
 import typing as t
+import uuid
 from abc import ABC
 
 from sqlmodel import Session, SQLModel, select
@@ -23,7 +24,7 @@ class BaseRepository(ABC):
         return cls.model(**item_data, **additional)
 
     @classmethod
-    def get_db_item(cls, db: Session, id: str) -> T:
+    def get_db_item(cls, db: Session, id: uuid.UUID) -> T:
         db_item = db.get(cls.model, id)
         if not db_item:
             raise cls.exception_factory(cls.model.__name__, id)
@@ -44,7 +45,7 @@ class BaseRepository(ABC):
         return item
 
     @classmethod
-    def read(cls, db: Session, id: str) -> t.Optional[T]:
+    def read(cls, db: Session, id: uuid.UUID) -> t.Optional[T]:
         return cls.get_db_item(db, id)
 
     @classmethod
@@ -66,7 +67,7 @@ class BaseRepository(ABC):
         return db_item
 
     @classmethod
-    def delete(cls, db: Session, id: str) -> t.Optional[T]:
+    def delete(cls, db: Session, id: uuid.UUID) -> t.Optional[T]:
         item = cls.get_db_item(db, id)
         db.delete(item)
         db.commit()
