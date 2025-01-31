@@ -38,10 +38,12 @@ from geoparser.annotator.exceptions import (
     SessionNotFoundException,
     SessionSettingsNotFoundException,
     ToponymNotFoundException,
+    ToponymOverlapException,
     document_exception_handler,
     session_exception_handler,
     sessionsettings_exception_handler,
     toponym_exception_handler,
+    toponym_overlap_exception_handler,
 )
 from geoparser.annotator.metadata import tags_metadata
 from geoparser.annotator.models.api import (
@@ -70,11 +72,12 @@ app.add_exception_handler(
 )
 app.add_exception_handler(DocumentNotFoundException, document_exception_handler)
 app.add_exception_handler(ToponymNotFoundException, toponym_exception_handler)
+app.add_exception_handler(ToponymOverlapException, toponym_overlap_exception_handler)
 templates = Jinja2Templates(
     directory=os.path.join(os.path.dirname(__file__), "templates")
 )
 
-geoparser = Geoparser()
+geoparser = Geoparser(skip_init=True)
 spacy_models = list(get_installed_models())
 
 
@@ -284,7 +287,7 @@ def delete_document(
     session: t.Annotated[dict, Depends(get_session)],
     doc_index: int,
 ):
-    DocumentRepository.delete(db, session.documents[doc_index])
+    DocumentRepository.delete(db, session.documents[doc_index].id)
     return BaseResponse()
 
 

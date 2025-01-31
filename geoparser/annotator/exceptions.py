@@ -20,6 +20,10 @@ class ToponymNotFoundException(Exception):
     pass
 
 
+class ToponymOverlapException(Exception):
+    pass
+
+
 def session_exception_handler(
     request: Request, exc: SessionNotFoundException
 ) -> JSONResponse:
@@ -63,4 +67,17 @@ def toponym_exception_handler(
             **BaseResponse(status="error", message="Toponym not found").model_dump()
         },
         status_code=status.HTTP_404_NOT_FOUND,
+    )
+
+
+def toponym_overlap_exception_handler(
+    request: Request, exc: ToponymOverlapException
+) -> JSONResponse:
+    return JSONResponse(
+        content={
+            **BaseResponse(
+                status="error", message="Overlap with existing toponym."
+            ).model_dump()
+        },
+        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
     )

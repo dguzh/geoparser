@@ -1,7 +1,6 @@
 import typing as t
 import uuid
 
-from pydantic_core import PydanticCustomError
 from pyproj import Transformer
 from sqlmodel import Session as DBSession
 from sqlmodel import select
@@ -14,7 +13,10 @@ from geoparser.annotator.db.models.toponym import (
     ToponymCreate,
     ToponymUpdate,
 )
-from geoparser.annotator.exceptions import ToponymNotFoundException
+from geoparser.annotator.exceptions import (
+    ToponymNotFoundException,
+    ToponymOverlapException,
+)
 from geoparser.annotator.models.api import CandidatesGet
 
 if t.TYPE_CHECKING:
@@ -39,8 +41,7 @@ class ToponymRepository(BaseRepository):
             filter_args.append(Toponym.id != toponym.id)
         overlapping = db.exec(select(Toponym).where(*filter_args)).all()
         if overlapping:
-            raise PydanticCustomError(
-                "overlapping_toponyms",
+            raise ToponymOverlapException(
                 f"Toponyms overlap: {overlapping} and {toponym}",
             )
         return True
@@ -56,7 +57,7 @@ class ToponymRepository(BaseRepository):
             # only add the new toponym if there is no existing one
             if not cls._get_toponym(old_toponyms, new_toponym.start, new_toponym.end):
                 toponyms.append(new_toponym)
-        return sorted(toponyms + old_toponyms, key=lambda x: x.start)
+        return sorted(toponyms, key=lambda x: x.start)
 
     @classmethod
     def get_candidate_descriptions(
