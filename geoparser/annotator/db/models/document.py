@@ -6,11 +6,7 @@ from sqlmodel import Field, Relationship, SQLModel
 
 if t.TYPE_CHECKING:
     from geoparser.annotator.db.models.session import Session
-    from geoparser.annotator.db.models.toponym import (
-        Toponym,
-        ToponymCreate,
-        ToponymDownload,
-    )
+    from geoparser.annotator.db.models.toponym import Toponym, ToponymCreate
 
 
 class DocumentBase(SQLModel):

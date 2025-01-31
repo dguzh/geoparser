@@ -7,15 +7,8 @@ from sqlmodel import Field, Relationship, SQLModel
 from geoparser.annotator.db.models.settings import SessionSettingsCreate
 
 if t.TYPE_CHECKING:
-    from geoparser.annotator.db.models.document import (
-        Document,
-        DocumentCreate,
-        DocumentDownload,
-    )
-    from geoparser.annotator.db.models.settings import (
-        SessionSettings,
-        SessionSettingsDownload,
-    )
+    from geoparser.annotator.db.models.document import Document, DocumentCreate
+    from geoparser.annotator.db.models.settings import SessionSettings
 
 
 class SessionBase(SQLModel):
@@ -50,6 +43,10 @@ class SessionCreate(SessionBase):
 
 class SessionDownload(SessionBase):
     documents: t.Optional[list["DocumentCreate"]] = []
+
+
+class SessionForTemplate(SessionBase):
+    num_documents: int
 
 
 class SessionUpdate(SQLModel):

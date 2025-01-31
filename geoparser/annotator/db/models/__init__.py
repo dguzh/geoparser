@@ -1,5 +1,12 @@
 from .document import Document, DocumentBase, DocumentCreate, DocumentUpdate
-from .session import Session, SessionBase, SessionCreate, SessionDownload, SessionUpdate
+from .session import (
+    Session,
+    SessionBase,
+    SessionCreate,
+    SessionDownload,
+    SessionForTemplate,
+    SessionUpdate,
+)
 from .settings import (
     SessionSettings,
     SessionSettingsBase,

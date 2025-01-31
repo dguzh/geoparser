@@ -24,6 +24,7 @@ from geoparser.annotator.db.crud import (
 from geoparser.annotator.db.db import create_db_and_tables, get_db
 from geoparser.annotator.db.models import (
     SessionCreate,
+    SessionForTemplate,
     SessionSettingsBase,
     SessionSettingsUpdate,
     SessionUpdate,
@@ -90,7 +91,10 @@ def start_new_session(request: Request):
 
 @app.get("/continue_session", tags=["pages"])
 def continue_session(db: t.Annotated[DBSession, Depends(get_db)], request: Request):
-    cached_sessions = SessionRepository.read_all(db)
+    cached_sessions = [
+        SessionForTemplate(**session.model_dump(), num_documents=len(session.documents))
+        for session in SessionRepository.read_all(db)
+    ]
     return templates.TemplateResponse(
         request=request,
         name="html/continue_session.html",
