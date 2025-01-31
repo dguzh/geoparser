@@ -12,7 +12,12 @@ from geoparser.annotator.db.crud.base import BaseRepository
 from geoparser.annotator.db.crud.document import DocumentRepository
 from geoparser.annotator.db.crud.settings import SessionSettingsRepository
 from geoparser.annotator.db.models.document import DocumentCreate
-from geoparser.annotator.db.models.session import Session, SessionCreate, SessionUpdate
+from geoparser.annotator.db.models.session import (
+    Session,
+    SessionCreate,
+    SessionDownload,
+    SessionUpdate,
+)
 from geoparser.annotator.db.models.settings import SessionSettingsCreate
 from geoparser.annotator.db.models.toponym import ToponymCreate
 
@@ -52,7 +57,6 @@ class SessionRepository(BaseRepository):
         session = SessionCreate.model_validate(
             {
                 **content,
-                "settings": SessionSettingsCreate.model_validate(content["settings"]),
                 "documents": [
                     DocumentCreate.model_validate(
                         {
@@ -76,9 +80,8 @@ class SessionRepository(BaseRepository):
     @classmethod
     def read_to_json(cls, db: DBSession, id: str) -> dict:
         item = cls.read(db, id)
-        result = SessionCreate(
+        result = SessionDownload(
             **item.model_dump(),
-            settings=item.settings,
             documents=[
                 DocumentCreate(**document.model_dump(), toponyms=document.toponyms)
                 for document in item.documents

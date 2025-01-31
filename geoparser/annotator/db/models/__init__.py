@@ -1,5 +1,5 @@
 from .document import Document, DocumentBase, DocumentCreate, DocumentUpdate
-from .session import Session, SessionBase, SessionCreate, SessionUpdate
+from .session import Session, SessionBase, SessionCreate, SessionDownload, SessionUpdate
 from .settings import (
     SessionSettings,
     SessionSettingsBase,
@@ -11,6 +11,7 @@ from .toponym import Toponym, ToponymBase, ToponymCreate, ToponymUpdate
 for rebuild in [
     Session,
     SessionCreate,
+    SessionDownload,
     Document,
     DocumentCreate,
 ]:
