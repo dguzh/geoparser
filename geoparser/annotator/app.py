@@ -72,7 +72,7 @@ templates = Jinja2Templates(
     directory=os.path.join(os.path.dirname(__file__), "templates")
 )
 
-annotator = Geoparser()
+geoparser = Geoparser()
 sessions_cache = SessionsCache()
 spacy_models = list(get_installed_models())
 
@@ -134,7 +134,7 @@ def annotate(
             "doc_index": doc_index,
             "pre_annotated_text": pre_annotated_text,
             "total_docs": len(session.documents),
-            "gazetteer": annotator.gazetteer,
+            "gazetteer": geoparser.gazetteer,
             "documents": documents,
             "session_id": session.id,
             "total_toponyms": total_toponyms,
@@ -152,10 +152,10 @@ def create_session(
     db: t.Annotated[DBSession, Depends(get_db)],
 ):
     # Re-initialize gazetteer with selected option
-    annotator.gazetteer = annotator.setup_gazetteer(gazetteer)
+    geoparser.gazetteer = geoparser.setup_gazetteer(gazetteer)
     session = SessionRepository.create(db, SessionCreate(gazetteer=gazetteer))
     DocumentRepository.create_from_text_files(
-        db, annotator, files, session.id, spacy_model, apply_spacy=False
+        db, geoparser, files, session.id, spacy_model, apply_spacy=False
     )
     return RedirectResponse(
         url=app.url_path_for("annotate", session_id=session.id, doc_index=0),
@@ -174,7 +174,7 @@ def continue_session_cached(
             app.url_path_for("continue_session"), status_code=status.HTTP_302_FOUND
         )
     # Re-initialize gazetteer
-    annotator.gazetteer = annotator.setup_gazetteer(session.gazetteer)
+    geoparser.gazetteer = geoparser.setup_gazetteer(session.gazetteer)
     # Redirect to annotate page
     return RedirectResponse(
         app.url_path_for("annotate", session_id=session.id, doc_index=0),
@@ -194,7 +194,7 @@ def continue_session_file(
             db, session_file.file.read().decode()
         )
         # Re-initialize gazetteer
-        annotator.gazetteer = annotator.setup_gazetteer(session.gazetteer)
+        geoparser.gazetteer = geoparser.setup_gazetteer(session.gazetteer)
         # Redirect to annotate page
         return RedirectResponse(
             app.url_path_for("annotate", session_id=session.id, doc_index=0),
@@ -228,7 +228,7 @@ def add_documents(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
         )
     DocumentRepository.create_from_text_files(
-        db, annotator, files, session.id, spacy_model, apply_spacy=False
+        db, geoparser, files, session.id, spacy_model, apply_spacy=False
     )
     return JSONResponse({"status": "success"})
 
@@ -245,7 +245,7 @@ def parse_document(
     doc: t.Annotated[dict, Depends(get_document)],
 ):
     if not doc.spacy_applied:
-        doc = DocumentRepository.parse(db, annotator, doc.id)
+        doc = DocumentRepository.parse(db, geoparser, doc.id)
         return JSONResponse({"status": "success", "parsed": True})
     return JSONResponse({"status": "success", "parsed": False})
 
@@ -303,7 +303,7 @@ def get_candidates(
     candidates_request: CandidatesGet,
 ):
     return JSONResponse(
-        ToponymRepository.get_candidates(doc, annotator, candidates_request)
+        ToponymRepository.get_candidates(doc, geoparser, candidates_request)
     )
 
 
