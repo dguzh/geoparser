@@ -2,7 +2,6 @@ import json
 import os
 import threading
 import typing as t
-import uuid
 import webbrowser
 from datetime import datetime
 from io import StringIO
@@ -47,33 +46,14 @@ from geoparser.annotator.models.api import (
 )
 from geoparser.annotator.sessions_cache import SessionsCache
 from geoparser.constants import GAZETTEERS
+from geoparser.annotator.metadata import tags_metadata
+from geoparser.annotator.dependencies import (
+    get_session,
+    _get_session,
+    get_document,
+    _get_document,
+)
 
-tags_metadata = [
-    {
-        "name": "pages",
-        "description": "Navigation for different pages. Returns HTML templates",
-    },
-    {
-        "name": "session",
-        "description": "Management of user sessions.",
-    },
-    {
-        "name": "document",
-        "description": "Management of documents (as in parts of a session or an uploaded files).",
-    },
-    {
-        "name": "candidates",
-        "description": "Candidates for a specific toponym.",
-    },
-    {
-        "name": "annotation",
-        "description": "Toponym annotations.",
-    },
-    {
-        "name": "settings",
-        "description": "Settings on a session level.",
-    },
-]
 
 app = FastAPI(
     title="Irchel Geoparser",
@@ -95,27 +75,6 @@ templates = Jinja2Templates(
 annotator = Geoparser()
 sessions_cache = SessionsCache()
 spacy_models = list(get_installed_models())
-
-
-def _get_session(db: t.Annotated[DBSession, Depends(get_db)], session_id: str):
-    return SessionRepository.read(db, uuid.UUID(session_id))
-
-
-def get_session(session: t.Annotated[dict, Depends(_get_session)]):
-    if not session:
-        raise SessionNotFoundException
-    return session
-
-
-def _get_document(session: t.Annotated[dict, Depends(_get_session)], doc_index: int):
-    if session is not None and doc_index < len(session.documents):
-        return session.documents[doc_index]
-
-
-def get_document(session: t.Annotated[dict, Depends(get_session)], doc_index: int):
-    if doc_index >= len(session.documents):
-        raise DocumentNotFoundException
-    return session.documents[doc_index]
 
 
 @app.get("/", tags=["pages"])
