@@ -9,8 +9,8 @@ T = t.TypeVar("T", bound=SQLModel)
 
 class BaseRepository(ABC):
     model: t.Type[T]
-    exception_factory: t.Callable = lambda x, y: ValueError(
-        f"{x} with ID {y} not found."
+    exception_factory: t.Callable[[str, uuid.UUID], Exception] = (
+        lambda x, y: ValueError(f"{x} with ID {y} not found.")
     )
 
     @classmethod

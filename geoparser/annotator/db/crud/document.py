@@ -22,8 +22,8 @@ from geoparser.annotator.exceptions import DocumentNotFoundException
 
 class DocumentRepository(BaseRepository):
     model = Document
-    exception_factory: t.Callable = lambda x, y: DocumentNotFoundException(
-        f"{x} with ID {y} not found."
+    exception_factory: t.Callable[[str, uuid.UUID], Exception] = (
+        lambda x, y: DocumentNotFoundException(f"{x} with ID {y} not found.")
     )
 
     @classmethod

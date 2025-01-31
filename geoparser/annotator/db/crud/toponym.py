@@ -25,8 +25,8 @@ if t.TYPE_CHECKING:
 
 class ToponymRepository(BaseRepository):
     model = Toponym
-    exception_factory: t.Callable = lambda x, y: ToponymNotFoundException(
-        f"{x} with ID {y} not found."
+    exception_factory: t.Callable[[str, uuid.UUID], Exception] = (
+        lambda x, y: ToponymNotFoundException(f"{x} with ID {y} not found.")
     )
 
     @classmethod
