@@ -7,7 +7,7 @@ from datetime import datetime
 from io import StringIO
 
 import uvicorn
-from fastapi import Depends, FastAPI, Form, Request, UploadFile, status
+from fastapi import Depends, FastAPI, Form, Request, Response, UploadFile, status
 from fastapi.responses import RedirectResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -221,12 +221,14 @@ def delete_session(
 
 @app.post("/session/{session_id}/documents", tags=["document"])
 def add_documents(
+    response: Response,
     db: t.Annotated[DBSession, Depends(get_db)],
     session: t.Annotated[dict, Depends(get_session)],
     spacy_model: t.Annotated[str, Form()],
     files: t.Optional[list[UploadFile]] = None,
 ):
     if not files:
+        response.status_code = status.HTTP_422_UNPROCESSABLE_ENTITY
         return BaseResponse(message="No files selected.", status="error")
     DocumentRepository.create_from_text_files(
         db, geoparser, files, session.id, spacy_model, apply_spacy=False
