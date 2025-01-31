@@ -1,7 +1,6 @@
 import json
 import typing as t
 
-from fastapi.encoders import jsonable_encoder
 from sqlmodel import Session as DBSession
 
 from geoparser.annotator.db.crud.base import BaseRepository
@@ -86,7 +85,7 @@ class SessionRepository(BaseRepository):
                 for document in item.documents
             ],
         )
-        return jsonable_encoder(result)
+        return result.model_dump_json()
 
     @classmethod
     def read_all(cls, db: DBSession, **filters) -> list[Session]:
