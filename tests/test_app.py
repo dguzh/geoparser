@@ -6,12 +6,10 @@ import uuid
 import pytest
 from fastapi.testclient import TestClient
 from sqlmodel import Session as DBSession
-from sqlmodel.pool import StaticPool
 from werkzeug.wrappers import Response
 
 from geoparser.annotator.app import app
 from geoparser.annotator.db.crud import SessionRepository, SessionSettingsRepository
-from geoparser.annotator.db.db import create_db_and_tables, create_engine
 from geoparser.annotator.db.models import (
     DocumentCreate,
     Session,
@@ -31,16 +29,6 @@ from tests.utils import get_static_test_file
 @pytest.fixture(scope="function")
 def client():
     return TestClient(app)
-
-
-@pytest.fixture(scope="function")
-def test_db():
-    engine = create_engine(
-        "sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool
-    )
-    create_db_and_tables()
-    with DBSession(engine) as session:
-        yield session
 
 
 def set_session(db: DBSession, *, settings: dict = None, **document_kwargs) -> Session:

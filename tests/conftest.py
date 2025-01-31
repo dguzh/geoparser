@@ -3,12 +3,26 @@ from pathlib import Path
 
 import py
 import pytest
+from sqlmodel import Session as DBSession
+from sqlmodel import SQLModel
+from sqlmodel.pool import StaticPool
 
+from geoparser.annotator.db.db import create_engine
 from geoparser.gazetteers import GeoNames, SwissNames3D
 from geoparser.geodoc import GeoDoc
 from geoparser.geoparser import Geoparser
 from geoparser.trainer import GeoparserTrainer
 from tests.utils import get_static_test_file
+
+
+@pytest.fixture(scope="function")
+def test_db():
+    engine = create_engine(
+        "sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool
+    )
+    SQLModel.metadata.create_all(engine)
+    with DBSession(engine) as session:
+        yield session
 
 
 @pytest.fixture(scope="session")
