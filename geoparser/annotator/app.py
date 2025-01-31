@@ -242,8 +242,7 @@ def add_documents(
 
 @app.get("/session/{session_id}/documents", tags=["document"])
 def get_documents(session: t.Annotated[dict, Depends(get_session)]):
-    docs = session.documents
-    return docs
+    return session.documents
 
 
 @app.post("/session/{session_id}/document/{doc_index}/parse", tags=["document"])
@@ -270,9 +269,9 @@ def get_document_text(
     db: t.Annotated[DBSession, Depends(get_db)],
     doc: t.Annotated[dict, Depends(get_document)],
 ):
-    # Prepare pre-annotated text
-    pre_annotated_text = DocumentRepository.get_pre_annotated_text(db, doc.id)
-    return PreAnnotatedTextResponse(pre_annotated_text=pre_annotated_text)
+    return PreAnnotatedTextResponse(
+        pre_annotated_text=DocumentRepository.get_pre_annotated_text(db, doc.id)
+    )
 
 
 @app.delete(
@@ -285,7 +284,6 @@ def delete_document(
     session: t.Annotated[dict, Depends(get_session)],
     doc_index: int,
 ):
-    # Remove the document
     DocumentRepository.delete(db, session.documents[doc_index])
     return BaseResponse()
 
@@ -412,7 +410,6 @@ def put_session_settings(
     session: t.Annotated[dict, Depends(get_session)],
     session_settings: SessionSettingsBase,
 ):
-    # Update settings
     SessionSettingsRepository.update(
         db,
         SessionSettingsUpdate(id=session.settings.id, **session_settings.model_dump()),

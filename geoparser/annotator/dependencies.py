@@ -7,10 +7,7 @@ from sqlmodel import Session as DBSession
 from geoparser.annotator.db.crud import SessionRepository
 from geoparser.annotator.db.db import get_db
 from geoparser.annotator.db.models import Document, Session
-from geoparser.annotator.exceptions import (
-    DocumentNotFoundException,
-    SessionNotFoundException,
-)
+from geoparser.annotator.exceptions import DocumentNotFoundException
 
 
 def get_session(
