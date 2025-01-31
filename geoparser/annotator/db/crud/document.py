@@ -17,10 +17,14 @@ from geoparser.annotator.db.models.document import (
     DocumentUpdate,
 )
 from geoparser.annotator.db.models.toponym import ToponymCreate
+from geoparser.annotator.exceptions import DocumentNotFoundException
 
 
 class DocumentRepository(BaseRepository):
     model = Document
+    exception_factory: t.Callable = lambda x, y: DocumentNotFoundException(
+        f"{x} with ID {y} not found."
+    )
 
     @classmethod
     def get_highest_index(cls, db: DBSession, session_id: str):

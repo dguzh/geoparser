@@ -8,6 +8,9 @@ T = t.TypeVar("T", bound=SQLModel)
 
 class BaseRepository(ABC):
     model: t.Type[T]
+    exception_factory: t.Callable = lambda x, y: ValueError(
+        f"{x} with ID {y} not found."
+    )
 
     @classmethod
     def get_mapped_class(
@@ -23,7 +26,7 @@ class BaseRepository(ABC):
     def get_db_item(cls, db: Session, id: str) -> T:
         db_item = db.get(cls.model, id)
         if not db_item:
-            raise ValueError(f"{cls.model.__name__} with ID {id} not found.")
+            raise cls.exception_factory(cls.model.__name__, id)
         return db_item
 
     @classmethod

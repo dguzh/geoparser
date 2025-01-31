@@ -15,10 +15,14 @@ from geoparser.annotator.db.models.session import (
     SessionUpdate,
 )
 from geoparser.annotator.db.models.toponym import ToponymCreate
+from geoparser.annotator.exceptions import SessionNotFoundException
 
 
 class SessionRepository(BaseRepository):
     model = Session
+    exception_factory: t.Callable = lambda x, y: SessionNotFoundException(
+        f"{x} with ID {y} not found."
+    )
 
     @classmethod
     def create(
@@ -80,7 +84,7 @@ class SessionRepository(BaseRepository):
             documents=[
                 DocumentCreate(**document.model_dump(), toponyms=document.toponyms)
                 for document in item.documents
-            ]
+            ],
         )
         return jsonable_encoder(result)
 

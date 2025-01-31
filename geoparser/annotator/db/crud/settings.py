@@ -8,10 +8,14 @@ from geoparser.annotator.db.models.settings import (
     SessionSettingsCreate,
     SessionSettingsUpdate,
 )
+from geoparser.annotator.exceptions import SessionSettingsNotFoundException
 
 
 class SessionSettingsRepository(BaseRepository):
     model = SessionSettings
+    exception_factory: t.Callable = lambda x, y: SessionSettingsNotFoundException(
+        f"{x} with ID {y} not found."
+    )
 
     @classmethod
     def create(

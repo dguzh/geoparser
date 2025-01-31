@@ -41,9 +41,11 @@ from geoparser.annotator.dependencies import (
 from geoparser.annotator.exceptions import (
     DocumentNotFoundException,
     SessionNotFoundException,
+    SessionSettingsNotFoundException,
     ToponymNotFoundException,
     document_exception_handler,
     session_exception_handler,
+    sessionsettings_exception_handler,
     toponym_exception_handler,
 )
 from geoparser.annotator.metadata import tags_metadata
@@ -67,8 +69,11 @@ app.mount(
     StaticFiles(directory=os.path.join(os.path.dirname(__file__), "static")),
     name="static",
 )
-app.add_exception_handler(DocumentNotFoundException, document_exception_handler)
 app.add_exception_handler(SessionNotFoundException, session_exception_handler)
+app.add_exception_handler(
+    SessionSettingsNotFoundException, sessionsettings_exception_handler
+)
+app.add_exception_handler(DocumentNotFoundException, document_exception_handler)
 app.add_exception_handler(ToponymNotFoundException, toponym_exception_handler)
 templates = Jinja2Templates(
     directory=os.path.join(os.path.dirname(__file__), "templates")
@@ -341,9 +346,6 @@ def overwrite_annotation(
     doc: t.Annotated[dict, Depends(get_document)],
     annotation: ToponymBase,
 ):
-    toponym = ToponymRepository.get_toponym(doc, annotation.start, annotation.end)
-    if not toponym:
-        raise ToponymNotFoundException
     ToponymRepository.annotate_many(db, doc, annotation)
     SessionRepository.update(
         db, SessionUpdate(id=session.id, last_updated=datetime.now())
@@ -362,8 +364,6 @@ def update_annotation(
     toponym = ToponymRepository.get_toponym(
         doc, annotation.old_start, annotation.old_end
     )
-    if not toponym:
-        raise ToponymNotFoundException
     # Update the toponym
     ToponymRepository.update(
         db,
@@ -394,8 +394,6 @@ def delete_annotation(
 ):
     # Find the toponym to delete
     toponym = ToponymRepository.get_toponym(doc, start, end)
-    if not toponym:
-        raise ToponymNotFoundException
     ToponymRepository.delete(db, toponym.id)
     # Update last_updated timestamp
     SessionRepository.update(
