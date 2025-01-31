@@ -1,13 +1,9 @@
 import json
 import typing as t
-import uuid
 
-from fastapi import UploadFile
 from fastapi.encoders import jsonable_encoder
 from sqlmodel import Session as DBSession
-from werkzeug.utils import secure_filename
 
-from geoparser import Geoparser
 from geoparser.annotator.db.crud.base import BaseRepository
 from geoparser.annotator.db.crud.document import DocumentRepository
 from geoparser.annotator.db.crud.settings import SessionSettingsRepository
@@ -18,7 +14,6 @@ from geoparser.annotator.db.models.session import (
     SessionDownload,
     SessionUpdate,
 )
-from geoparser.annotator.db.models.settings import SessionSettingsCreate
 from geoparser.annotator.db.models.toponym import ToponymCreate
 
 

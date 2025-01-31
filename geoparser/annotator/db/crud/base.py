@@ -1,5 +1,5 @@
 import typing as t
-from abc import ABC, abstractmethod
+from abc import ABC
 
 from sqlmodel import Session, SQLModel, select
 
