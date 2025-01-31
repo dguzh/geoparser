@@ -31,6 +31,12 @@ from geoparser.annotator.db.models import (
     ToponymCreate,
     ToponymUpdate,
 )
+from geoparser.annotator.dependencies import (
+    _get_document,
+    _get_session,
+    get_document,
+    get_session,
+)
 from geoparser.annotator.exceptions import (
     DocumentNotFoundException,
     SessionNotFoundException,
@@ -39,21 +45,13 @@ from geoparser.annotator.exceptions import (
     session_exception_handler,
     toponym_exception_handler,
 )
+from geoparser.annotator.metadata import tags_metadata
 from geoparser.annotator.models.api import (
     AnnotationEdit,
     CandidatesGet,
     ProgressResponse,
 )
-from geoparser.annotator.sessions_cache import SessionsCache
 from geoparser.constants import GAZETTEERS
-from geoparser.annotator.metadata import tags_metadata
-from geoparser.annotator.dependencies import (
-    get_session,
-    _get_session,
-    get_document,
-    _get_document,
-)
-
 
 app = FastAPI(
     title="Irchel Geoparser",
@@ -73,7 +71,6 @@ templates = Jinja2Templates(
 )
 
 geoparser = Geoparser()
-sessions_cache = SessionsCache()
 spacy_models = list(get_installed_models())
 
 
