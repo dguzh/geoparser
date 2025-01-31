@@ -34,6 +34,7 @@ class Geoparser:
         spacy_model: str = DEFAULT_SPACY_MODEL,
         transformer_model: str = DEFAULT_TRANSFORMER_MODEL,
         gazetteer: str = DEFAULT_GAZETTEER,
+        skip_init: bool = False,
     ):
         """
         Initialize the Geoparser with specified spaCy model, transformer model, and gazetteer.
@@ -42,10 +43,13 @@ class Geoparser:
             spacy_model (str): Name of the spaCy model to use for NER.
             transformer_model (str): Name or path of the SentenceTransformer model.
             gazetteer (str): Name of the gazetteer to use.
+            skip_init (bool): Set to True to skip the initializiation of Spacy, SentenceTransformer, and the gazetteer.
         """
-        self.gazetteer = self.setup_gazetteer(gazetteer)
-        self.nlp = self.setup_spacy(spacy_model)
-        self.transformer = self.setup_transformer(transformer_model)
+        self.gazetteer = self.setup_gazetteer(gazetteer) if not skip_init else None
+        self.nlp = self.setup_spacy(spacy_model) if not skip_init else None
+        self.transformer = (
+            self.setup_transformer(transformer_model) if not skip_init else None
+        )
 
     def setup_gazetteer(self, gazetteer: str) -> Gazetteer:
         """
