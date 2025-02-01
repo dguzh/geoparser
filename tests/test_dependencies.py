@@ -1,4 +1,5 @@
 import uuid
+from contextlib import nullcontext
 
 import pytest
 from sqlmodel import Session as DBSession
@@ -31,11 +32,8 @@ def test_get_session(test_db: DBSession, valid_session: bool):
             ),
         )
         session_id = str(session.id)
-    if valid_session:
+    with nullcontext() if valid_session else pytest.raises(SessionNotFoundException):
         assert get_session(test_db, session_id).model_dump() == session.model_dump()
-    else:
-        with pytest.raises(SessionNotFoundException):
-            get_session(test_db, session_id)
 
 
 @pytest.mark.parametrize("doc_index", [0, 1])  # doc_index 1 is invalid
@@ -54,11 +52,8 @@ def test_get_document(test_db: DBSession, doc_index: int):
             ],
         ),
     )
-    if doc_index == 0:
+    with nullcontext() if doc_index == 0 else pytest.raises(DocumentNotFoundException):
         assert (
             get_document(session, doc_index).model_dump()
             == session.documents[doc_index].model_dump()
         )
-    else:
-        with pytest.raises(DocumentNotFoundException):
-            get_document(session, doc_index)
