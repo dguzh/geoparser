@@ -175,9 +175,8 @@ def test_read_all(test_db: DBSession):
     first_db_session = SessionRepository.create(test_db, session_create)
     result_after_first = SessionRepository.read_all(test_db)
     assert len(result_after_first) == 1
-    for elem in result_after_first:
-        assert type(elem) is Session
-        assert elem.id == first_db_session.id
+    assert type(result_after_first[0]) is Session
+    assert result_after_first[0].id == first_db_session.id
     # with multiple items in the db, all are returned
     second_db_session = SessionRepository.create(test_db, session_create)
     result_after_second = SessionRepository.read_all(test_db)
@@ -186,11 +185,10 @@ def test_read_all(test_db: DBSession):
         assert type(elem) is Session
         assert elem.id == first_db_session.id if i == 0 else second_db_session.id
     # with filtering, only the correct item is returned
-    result_after_first = SessionRepository.read_all(test_db, id=first_db_session.id)
-    assert len(result_after_first) == 1
-    for elem in result_after_first:
-        assert type(elem) is Session
-        assert elem.id == first_db_session.id
+    result_filtered = SessionRepository.read_all(test_db, id=first_db_session.id)
+    assert len(result_filtered) == 1
+    assert type(result_filtered[0]) is Session
+    assert result_filtered[0].id == first_db_session.id
 
 
 @pytest.mark.parametrize("valid_id", [True, False])
