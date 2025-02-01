@@ -3,7 +3,6 @@ import uuid
 
 from fastapi import UploadFile
 from markupsafe import Markup
-from pydantic_core import PydanticCustomError
 from sqlmodel import Session as DBSession
 from sqlmodel import select
 from werkzeug.utils import secure_filename
@@ -47,17 +46,6 @@ class DocumentRepository(BaseRepository):
                 doc.doc_index = i
                 db.add(doc)
         db.commit()
-
-    @classmethod
-    def _validate_doc_index(cls, db: DBSession, document: DocumentCreate) -> bool:
-        highest_index = cls.get_highest_index(db, document.session.id)
-        if document.doc_index <= highest_index:
-            raise PydanticCustomError(
-                "existing_doc_index",
-                "there is already a document with doc_index {doc_index}. use doc_index {free_index} instead (next free index)",
-                {"doc_index": document.doc_index, "free_index": highest_index + 1},
-            )
-        return True
 
     @classmethod
     def create(
