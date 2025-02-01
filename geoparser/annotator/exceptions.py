@@ -64,7 +64,7 @@ def toponym_exception_handler(
 ) -> JSONResponse:
     return JSONResponse(
         content={
-            **BaseResponse(status="error", message="Toponym not found").model_dump()
+            **BaseResponse(status="error", message="Toponym not found.").model_dump()
         },
         status_code=status.HTTP_404_NOT_FOUND,
     )

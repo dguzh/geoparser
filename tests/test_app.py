@@ -34,7 +34,7 @@ from tests.utils import get_static_test_file
 
 
 @pytest.fixture()
-def client(test_db: Session) -> t.Iterator[TestClient]:
+def client(test_db: DBSession) -> t.Iterator[TestClient]:
     def get_db_override():
         return test_db
 
