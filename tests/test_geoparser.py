@@ -74,6 +74,17 @@ def test_setup_transformer(geoparser: Geoparser, transformer_model: str):
         assert isinstance(model, SentenceTransformer)
 
 
+def test_get_filter_attributes(geoparser_real_data: Geoparser):
+    geonames_filter_attributes = [
+        "name",
+        "feature_type",
+        "admin2_name",
+        "admin1_name",
+        "country_name",
+    ]
+    assert geoparser_real_data.get_filter_attributes() == geonames_filter_attributes
+
+
 @pytest.mark.parametrize("texts", [("tuple",), [str], ["str"], "str"])
 def test_parse(geoparser_real_data: Geoparser, texts):
     with (
