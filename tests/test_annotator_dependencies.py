@@ -15,7 +15,7 @@ from geoparser.annotator.exceptions import (
 
 @pytest.mark.parametrize("valid_session", [True, False])
 def test_get_session(test_db: DBSession, valid_session: bool):
-    session_id = str(uuid.uuid4())
+    session_id = uuid.uuid4()
     if valid_session:
         session = SessionRepository.create(
             test_db,
@@ -31,7 +31,7 @@ def test_get_session(test_db: DBSession, valid_session: bool):
                 ],
             ),
         )
-        session_id = str(session.id)
+        session_id = session.id
     with nullcontext() if valid_session else pytest.raises(SessionNotFoundException):
         assert get_session(test_db, session_id).model_dump() == session.model_dump()
 
