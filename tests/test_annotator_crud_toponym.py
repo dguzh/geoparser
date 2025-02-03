@@ -245,7 +245,6 @@ def test_read(test_db: DBSession, test_toponym: Toponym, valid_id: bool):
     fetch_id = test_toponym.id if valid_id else uuid.uuid4()
     with nullcontext() if valid_id else pytest.raises(ToponymNotFoundException):
         fetched_toponym = ToponymRepository.read(test_db, fetch_id)
-        print(fetched_toponym)
         assert fetched_toponym.model_dump() == test_toponym.model_dump()
 
 
