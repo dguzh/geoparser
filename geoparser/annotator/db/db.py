@@ -18,7 +18,7 @@ def enable_foreign_keys(dbapi_connection, connection_record):
     cursor.close()
 
 
-def create_db_and_tables():
+def create_db_and_tables(engine):
     SQLModel.metadata.create_all(engine)
 
 

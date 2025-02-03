@@ -21,7 +21,7 @@ from geoparser.annotator.db.crud import (
     SessionSettingsRepository,
     ToponymRepository,
 )
-from geoparser.annotator.db.db import create_db_and_tables, get_db
+from geoparser.annotator.db.db import create_db_and_tables, engine, get_db
 from geoparser.annotator.db.models import (
     SessionCreate,
     SessionForTemplate,
@@ -424,6 +424,6 @@ def run(use_reloader=False):  # pragma: no cover
     def open_browser():
         webbrowser.open_new("http://127.0.0.1:5000/")
 
-    create_db_and_tables()
+    create_db_and_tables(engine)
     threading.Timer(1.0, open_browser).start()
     uvicorn.run(app, host="0.0.0.0", port=5000, reload=use_reloader)
