@@ -48,6 +48,8 @@ class SessionRepository(BaseRepository):
                 DocumentRepository.create(
                     db, document, additional={"session_id": session.id}
                 )
+        # session object expired when creating settings and documents so we refresh it
+        db.refresh(session)
         return session
 
     @classmethod
