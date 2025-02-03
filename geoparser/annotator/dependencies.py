@@ -11,9 +11,9 @@ from geoparser.annotator.exceptions import DocumentNotFoundException
 
 
 def get_session(
-    db: t.Annotated[DBSession, Depends(get_db)], session_id: str
+    db: t.Annotated[DBSession, Depends(get_db)], session_id: uuid.UUID
 ) -> Session:
-    return SessionRepository.read(db, uuid.UUID(session_id))
+    return SessionRepository.read(db, session_id)
 
 
 def get_document(

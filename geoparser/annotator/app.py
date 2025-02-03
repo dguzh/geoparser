@@ -2,6 +2,7 @@ import json
 import os
 import threading
 import typing as t
+import uuid
 import webbrowser
 from datetime import datetime
 from io import StringIO
@@ -112,7 +113,7 @@ def continue_session(db: t.Annotated[DBSession, Depends(get_db)], request: Reque
 def annotate(
     request: Request,
     db: t.Annotated[DBSession, Depends(get_db)],
-    session_id: str,
+    session_id: uuid.UUID,
     doc_index: int = 0,
 ):
     try:
@@ -175,7 +176,8 @@ def create_session(
 
 @app.post("/session/continue/cached", tags=["session"])
 def continue_session_cached(
-    db: t.Annotated[DBSession, Depends(get_db)], session_id: t.Annotated[str, Form()]
+    db: t.Annotated[DBSession, Depends(get_db)],
+    session_id: t.Annotated[uuid.UUID, Form()],
 ):
     # Load selected session directly without creating a new session
     try:
