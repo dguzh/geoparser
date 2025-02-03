@@ -319,7 +319,6 @@ def test_parse(
     test_db: DBSession,
     geoparser_mocked_nlp: Geoparser,
     test_session: Session,
-    monkeypatch,
 ):
     # Create a document without toponyms
     document_create = DocumentCreate(

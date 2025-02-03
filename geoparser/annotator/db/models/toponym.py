@@ -31,7 +31,8 @@ class ToponymCreate(ToponymBase):
 
 class ToponymUpdate(SQLModel):
     id: uuid.UUID
+    document_id: t.Optional[uuid.UUID] = None
     text: t.Optional[str] = None
     start: t.Optional[int] = None
     end: t.Optional[int] = None
-    loc_id: t.Optional[str] = None
+    loc_id: t.Optional[str] = ""

@@ -35,7 +35,8 @@ class ToponymRepository(BaseRepository):
     ) -> bool:
         filter_args = [
             Toponym.document_id == document_id,
-            (Toponym.start <= toponym.end) & (Toponym.end >= toponym.start),
+            (Toponym.start <= toponym.end) & (Toponym.end >= toponym.start)
+            | (Toponym.start >= toponym.end) & (Toponym.end <= toponym.start),
         ]
         if hasattr(toponym, "id"):
             filter_args.append(Toponym.id != toponym.id)

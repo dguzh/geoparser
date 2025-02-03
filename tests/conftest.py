@@ -1,5 +1,6 @@
 import copy
 import tempfile
+import uuid
 from pathlib import Path
 
 import py
@@ -9,9 +10,9 @@ from sqlmodel import Session as DBSession
 from sqlmodel import SQLModel
 from sqlmodel.pool import StaticPool
 
-from geoparser.annotator.db.crud import SessionRepository
+from geoparser.annotator.db.crud import SessionRepository, ToponymRepository
 from geoparser.annotator.db.db import create_engine
-from geoparser.annotator.db.models import SessionCreate
+from geoparser.annotator.db.models import SessionCreate, ToponymCreate
 from geoparser.gazetteers import GeoNames, SwissNames3D
 from geoparser.geodoc import GeoDoc
 from geoparser.geoparser import Geoparser
@@ -133,6 +134,15 @@ def test_session(test_db: DBSession):
     """Fixture to create a session for testing CRUD operations."""
     session_create = SessionCreate(gazetteer="geonames")
     return SessionRepository.create(test_db, session_create)
+
+
+@pytest.fixture
+def test_toponym(test_db: DBSession):
+    """Fixture to create a toponym for testing CRUD operations."""
+    toponym_data = ToponymCreate(text="Berlin", start=10, end=15)
+    return ToponymRepository.create(
+        test_db, toponym_data, additional={"document_id": uuid.uuid4()}
+    )
 
 
 @pytest.fixture(scope="function")
