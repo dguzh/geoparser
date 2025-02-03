@@ -322,11 +322,13 @@ def test_read_all(test_db: DBSession):
 
 
 @pytest.mark.parametrize("loc_id", ["", "3039332"])
+@pytest.mark.parametrize("valid_toponym", [True, False])
 def test_get_candidates(
     test_db: DBSession,
     geoparser_real_data: Geoparser,
     geonames_filter_attributes: list[str],
     loc_id: str,
+    valid_toponym: bool,
 ):
     document = DocumentRepository.create(
         test_db,
@@ -341,25 +343,26 @@ def test_get_candidates(
     candidates_get = CandidatesGet(
         text="Andorra",
         query_text="Andorra",
-        start=0,
-        end=7,
+        start=0 if valid_toponym else 99,
+        end=7 if valid_toponym else 99,
     )
-    result = ToponymRepository.get_candidates(
-        document, geoparser_real_data, candidates_get
-    )
-    assert type(result) is dict
-    candidates = result["candidates"]
-    filter_attributes = result["filter_attributes"]
-    existing_loc_id = result["existing_loc_id"]
-    existing_candidate = result["existing_candidate"]
-    if loc_id != "":
-        assert len(candidates) == 2
-        assert existing_candidate == candidates[-1]
-    else:
-        assert len(candidates) == 1
-        assert existing_candidate is None
-    assert filter_attributes == geonames_filter_attributes
-    assert existing_loc_id == loc_id
+    with nullcontext() if valid_toponym else pytest.raises(ToponymNotFoundException):
+        result = ToponymRepository.get_candidates(
+            document, geoparser_real_data, candidates_get
+        )
+        assert type(result) is dict
+        candidates = result["candidates"]
+        filter_attributes = result["filter_attributes"]
+        existing_loc_id = result["existing_loc_id"]
+        existing_candidate = result["existing_candidate"]
+        if loc_id != "":
+            assert len(candidates) == 2
+            assert existing_candidate == candidates[-1]
+        else:
+            assert len(candidates) == 1
+            assert existing_candidate is None
+        assert filter_attributes == geonames_filter_attributes
+        assert existing_loc_id == loc_id
 
 
 def test_update(test_db: DBSession, test_toponym: Toponym):
