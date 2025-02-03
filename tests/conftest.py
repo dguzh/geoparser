@@ -1,18 +1,28 @@
+import copy
 import tempfile
 from pathlib import Path
 
 import py
 import pytest
+from pydantic import BaseModel
 from sqlmodel import Session as DBSession
 from sqlmodel import SQLModel
 from sqlmodel.pool import StaticPool
 
+from geoparser.annotator.db.crud import SessionRepository
 from geoparser.annotator.db.db import create_engine
+from geoparser.annotator.db.models import SessionCreate
 from geoparser.gazetteers import GeoNames, SwissNames3D
 from geoparser.geodoc import GeoDoc
 from geoparser.geoparser import Geoparser
 from geoparser.trainer import GeoparserTrainer
 from tests.utils import get_static_test_file
+
+
+class MockEntity(BaseModel):
+    text: str
+    start_char: int
+    end_char: int
 
 
 @pytest.fixture(scope="function")
@@ -116,3 +126,30 @@ def trainer_real_data(geonames_real_data: GeoNames) -> Geoparser:
     )
     trainer_real_data.gazetteer = geonames_real_data
     return trainer_real_data
+
+
+@pytest.fixture
+def test_session(test_db: DBSession):
+    """Fixture to create a session for testing CRUD operations."""
+    session_create = SessionCreate(gazetteer="geonames")
+    return SessionRepository.create(test_db, session_create)
+
+
+@pytest.fixture(scope="function")
+def geoparser_mocked_nlp(geoparser_real_data: Geoparser, monkeypatch):
+    """Mocks the geoparser's NLP processing to return predefined toponyms."""
+    mock_toponym = MockEntity(text="Andorra", start_char=0, end_char=6)
+
+    class MockDoc:
+        def __init__(self):
+            self.toponyms = [mock_toponym]
+
+    class MockNLP:
+        def __call__(self, text):
+            return MockDoc()
+
+    mock_nlp = MockNLP()
+    local_geoparser = copy.copy(geoparser_real_data)
+    monkeypatch.setattr(local_geoparser, "nlp", mock_nlp)
+    monkeypatch.setattr(local_geoparser, "setup_spacy", lambda model: mock_nlp)
+    return local_geoparser

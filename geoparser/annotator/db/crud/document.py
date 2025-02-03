@@ -99,7 +99,7 @@ class DocumentRepository(BaseRepository):
                     ToponymCreate(text=top.text, start=top.start_char, end=top.end_char)
                     for top in doc.toponyms
                 ]
-            cls.create(
+            document = cls.create(
                 db,
                 DocumentCreate(
                     filename=filename,
@@ -110,6 +110,7 @@ class DocumentRepository(BaseRepository):
                 ),
                 additional={"session_id": session_id},
             )
+            documents.append(document)
         return documents
 
     @classmethod
@@ -128,7 +129,6 @@ class DocumentRepository(BaseRepository):
             # Escape the text before the toponym
             before_toponym = Markup.escape(document.text[last_idx:start_char])
             html_parts.append(before_toponym)
-
             # Create the span for the toponym
             toponym_text = Markup.escape(document.text[start_char:end_char])
             span = Markup(

@@ -169,16 +169,17 @@ def test_read_to_json(test_db: DBSession, valid_id: bool):
         )
 
 
-def test_read_all(test_db: DBSession):
-    session_create = SessionCreate(gazetteer="geonames")
+def test_read_all(test_db: DBSession, test_session: Session):
     # with a single item in the db, only this item is returned
-    first_db_session = SessionRepository.create(test_db, session_create)
+    first_db_session = test_session
     result_after_first = SessionRepository.read_all(test_db)
     assert len(result_after_first) == 1
     assert type(result_after_first[0]) is Session
     assert result_after_first[0].id == first_db_session.id
     # with multiple items in the db, all are returned
-    second_db_session = SessionRepository.create(test_db, session_create)
+    second_db_session = SessionRepository.create(
+        test_db, SessionCreate(gazetteer="geonames")
+    )
     result_after_second = SessionRepository.read_all(test_db)
     assert len(result_after_second) == 2
     for i, elem in enumerate(result_after_second):
