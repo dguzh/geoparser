@@ -46,6 +46,7 @@ class SessionDownload(SessionBase):
 
 
 class SessionForTemplate(SessionBase):
+    id: uuid.UUID
     num_documents: int
 
 
