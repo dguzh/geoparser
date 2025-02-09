@@ -313,7 +313,7 @@ def create_annotation(
     session: t.Annotated[dict, Depends(get_session)],
     doc: t.Annotated[dict, Depends(get_document)],
     annotation: ToponymBase,
-) -> ProgressResponse:
+) -> BaseResponse:
     # Add new toponym
     ToponymRepository.create(
         db,
@@ -323,7 +323,7 @@ def create_annotation(
     SessionRepository.update(
         db, SessionUpdate(id=session.id, last_updated=datetime.now())
     )
-    return ProgressResponse(**DocumentRepository.get_document_progress(db, doc.id))
+    return BaseResponse()
 
 
 @app.get("/session/{session_id}/annotations/download", tags=["annotation"])
@@ -351,12 +351,12 @@ def overwrite_annotation(
     session: t.Annotated[dict, Depends(get_session)],
     doc: t.Annotated[dict, Depends(get_document)],
     annotation: ToponymBase,
-) -> ProgressResponse:
+) -> BaseResponse:
     ToponymRepository.annotate_many(db, doc, annotation)
     SessionRepository.update(
         db, SessionUpdate(id=session.id, last_updated=datetime.now())
     )
-    return ProgressResponse(**DocumentRepository.get_document_progress(db, doc.id))
+    return BaseResponse()
 
 
 @app.patch("/session/{session_id}/document/{doc_index}/annotation", tags=["annotation"])
@@ -365,7 +365,7 @@ def update_annotation(
     session: t.Annotated[dict, Depends(get_session)],
     doc: t.Annotated[dict, Depends(get_document)],
     annotation: AnnotationEdit,
-) -> ProgressResponse:
+) -> BaseResponse:
     # Find the toponym to edit
     toponym = ToponymRepository.get_toponym(
         doc, annotation.old_start, annotation.old_end
@@ -385,7 +385,7 @@ def update_annotation(
     SessionRepository.update(
         db, SessionUpdate(id=session.id, last_updated=datetime.now())
     )
-    return ProgressResponse(**DocumentRepository.get_document_progress(db, doc.id))
+    return BaseResponse()
 
 
 @app.delete(
@@ -397,7 +397,7 @@ def delete_annotation(
     doc: t.Annotated[dict, Depends(get_document)],
     start: int,
     end: int,
-) -> ProgressResponse:
+) -> BaseResponse:
     # Find the toponym to delete
     toponym = ToponymRepository.get_toponym(doc, start, end)
     ToponymRepository.delete(db, toponym.id)
@@ -405,7 +405,7 @@ def delete_annotation(
     SessionRepository.update(
         db, SessionUpdate(id=session.id, last_updated=datetime.now())
     )
-    return ProgressResponse(**DocumentRepository.get_document_progress(db, doc.id))
+    return BaseResponse()
 
 
 @app.get("/session/{session_id}/settings", tags=["settings"])

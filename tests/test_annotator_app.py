@@ -530,14 +530,7 @@ def test_create_annotation(
             ).model_dump(),
         )
     else:
-        expected = ProgressResponse(
-            filename="test.txt",
-            doc_index=0,
-            doc_id=session.documents[0].id,
-            annotated_toponyms=0,
-            total_toponyms=2,
-            progress_percentage=0.0,
-        ).model_dump()
+        expected = BaseResponse().model_dump()
         validate_json_response(response, 200, jsonable_encoder(expected))
 
 
@@ -605,14 +598,7 @@ def test_overwrite_annotation(
             BaseResponse(status="error", message="Session not found.").model_dump(),
         )
     else:
-        expected = ProgressResponse(
-            filename="test.txt",
-            doc_index=0,
-            doc_id=session.documents[0].id,
-            annotated_toponyms=1 if not one_sense_per_discourse else 2,
-            total_toponyms=2,
-            progress_percentage=50.0 if not one_sense_per_discourse else 100.0,
-        ).model_dump()
+        expected = BaseResponse().model_dump()
         validate_json_response(response, 200, jsonable_encoder(expected))
 
 
@@ -641,14 +627,7 @@ def test_update_annotation(test_db: DBSession, client: TestClient, valid_session
             BaseResponse(status="error", message="Session not found.").model_dump(),
         )
     else:
-        expected = ProgressResponse(
-            filename="test.txt",
-            doc_index=0,
-            doc_id=session.documents[0].id,
-            annotated_toponyms=1,
-            total_toponyms=1,
-            progress_percentage=100.0,
-        ).model_dump()
+        expected = BaseResponse().model_dump()
         validate_json_response(response, 200, jsonable_encoder(expected))
 
 
@@ -677,14 +656,7 @@ def test_delete_annotation(test_db: DBSession, client: TestClient, valid_session
             BaseResponse(status="error", message="Session not found.").model_dump(),
         )
     else:
-        expected = ProgressResponse(
-            filename="test.txt",
-            doc_index=0,
-            doc_id=session.documents[0].id,
-            annotated_toponyms=0,
-            total_toponyms=1,
-            progress_percentage=0.0,
-        ).model_dump()
+        expected = BaseResponse().model_dump()
         validate_json_response(response, 200, jsonable_encoder(expected))
 
 
