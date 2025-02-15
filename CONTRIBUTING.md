@@ -42,6 +42,8 @@ These resources can provide a good start:
 
 - [Official isort documentation](https://pycqa.github.io/isort/index.html)
 
+Additionally, the code is checked for unused imports. Please make sure there are no such cases.
+
 ### Tests
 
 This project uses `pytest` for unit testing. You can run the tests as follows:
@@ -50,7 +52,13 @@ This project uses `pytest` for unit testing. You can run the tests as follows:
 poetry run pytest
 ```
 
-Before submitting a pull request, make sure all tests pass or that they have been updated for any API changes. When introducing new functionality, make sure to also add tests so that is covered from the beginning.
+This also creates a directory `htmlcov`, where you can check current test coverage. Simply open the `htmlcov/index.html` file in your browser. There you can see the test coverage per file and any statements that you may have missed in your tests.
+
+Before submitting a pull request, make sure all tests pass and that they have been updated for any changes. When introducing new functionality, make sure to also add tests so that is covered from the beginning.
+
+### Python Version
+
+As of now, the project supports Python versions `>=3.9,<3.13` please keep your changes compatible. For example, specify optional paramaters in type hints using the typing library (``age: typing.Optional[int] = None`) instead of using the Python 3.10+ notation (`age: int | None = None`).
 
 ## Licensing
 
