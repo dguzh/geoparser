@@ -109,7 +109,9 @@ class Geoparser:
         Returns:
             SentenceTransformer: The loaded SentenceTransformer model.
         """
-        return SentenceTransformer(transformer_model)  # add local_files_only=True to run offline (needs cached model)
+        return SentenceTransformer(
+            transformer_model
+        )  # add local_files_only=True to run offline (needs cached model)
 
     def parse(
         self,
