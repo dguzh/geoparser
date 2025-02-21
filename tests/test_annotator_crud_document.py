@@ -362,3 +362,30 @@ def test_delete(test_db: DBSession, test_session: Session, valid_id: bool):
     # document is gone
     with pytest.raises(DocumentNotFoundException):
         DocumentRepository.read(test_db, document_id)
+
+
+def test_delete_with_reindexing(test_db: DBSession, test_session: Session):
+    # create three documents
+    docs = [
+        DocumentRepository.create(
+            test_db,
+            DocumentCreate(
+                filename=f"doc{i}.txt",
+                spacy_model="en_core_web_sm",
+                text=f"Document {i}",
+            ),
+            additional={"session_id": test_session.id},
+        )
+        for i in range(3)
+    ]
+
+    # delete the middle document
+    DocumentRepository.delete(test_db, docs[1].id)
+
+    # verify remaining documents are reindexed properly
+    remaining_docs = DocumentRepository.read_all(test_db, session_id=test_session.id)
+    assert len(remaining_docs) == 2
+    assert remaining_docs[0].doc_index == 0
+    assert remaining_docs[1].doc_index == 1
+    assert remaining_docs[0].id == docs[0].id
+    assert remaining_docs[1].id == docs[2].id
