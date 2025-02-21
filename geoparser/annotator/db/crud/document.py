@@ -200,6 +200,8 @@ class DocumentRepository(BaseRepository):
 
     @classmethod
     def delete(cls, db: DBSession, id: uuid.UUID) -> Document:
+        document = cls.read(db, id)
+        session_id = document.session_id
         deleted = super().delete(db, id)
-        cls._reindex_documents(db, id)
+        cls._reindex_documents(db, session_id)
         return deleted
