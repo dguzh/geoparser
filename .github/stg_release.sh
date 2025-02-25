@@ -22,7 +22,7 @@ testpypi_suffix_number=$(echo "$testpypi_suffix" | grep -Po "\d+$")
 if [[ "$latest_version_pypi" == "$package_version" ]]; then
     >&2 echo "pypi version same as local, building post-release"
 
-    # if the is a post-release for the same version already, we will increment from it
+    # if there is a post-release for the same version already, we will increment from it
     if [[ "$testpypi_suffix" == *"post"* && "$testpypi_version" == "$package_version" ]]; then
         >&2 echo "existing post-release, incrementing..."
         new_suffix_number=$((testpypi_suffix_number+1))
@@ -37,7 +37,7 @@ if [[ "$latest_version_pypi" == "$package_version" ]]; then
 else
     >&2 echo "pypi version differs from local, building an alpha version"
 
-    # if the is an alpha for the same version already, we will increment from it
+    # if there is an alpha for the same version already, we will increment from it
     if [[ "$testpypi_suffix" == *"a"* && "$testpypi_version" == "$package_version" ]]; then
         >&2 echo "existing alpha, incrementing..."
         new_suffix_number=$((testpypi_suffix_number+1))

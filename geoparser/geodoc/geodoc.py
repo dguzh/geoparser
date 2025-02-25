@@ -6,6 +6,10 @@ from spacy.tokens import Doc
 
 from geoparser.geospan import GeoSpan
 
+if t.TYPE_CHECKING:
+    from geoparser import Geoparser
+
+
 GeoSpan.set_extension("loc_id", default=None)
 GeoSpan.set_extension("loc_score", default=None)
 GeoSpan.set_extension("candidate_cache", default={})
@@ -14,7 +18,7 @@ GeoSpan.set_extension("candidate_cache", default={})
 class GeoDoc(Doc):
     """Custom spaCy Doc class extended for geoparsing."""
 
-    def __init__(self, geoparser: Geoparser, *args, **kwargs):
+    def __init__(self, geoparser: "Geoparser", *args, **kwargs):
         """
         Initialize GeoDoc with geoparser and standard Doc arguments.
 
