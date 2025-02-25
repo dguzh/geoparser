@@ -15,7 +15,6 @@ jobs:
   generate-licenses:
     name: licenses
     runs-on: ubuntu-latest
-
     steps:
       # Step 1: Check out the repository
       - name: Checkout Code
@@ -23,13 +22,11 @@ jobs:
         with:
           fetch-depth: 0
           ref: development
-
       # Step 2: Set up Python
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.10'
-
       # Step 3: Check if dependencies have changed
       - name: Check if dependencies have changed
         id: dependencies_changed
@@ -42,29 +39,24 @@ jobs:
             echo "Dependencies have changed."
             echo "changed=true" >> $GITHUB_OUTPUT
           fi
-
       # Step 4: Stop job if dependencies have not changed
       - name: Skip Job if No Dependency Changes
         if: steps.dependencies_changed.outputs.changed == 'false'
         run: |
           echo "No changes in dependencies. Exiting job."
           exit 0
-
       # Step 5: Install Poetry
       - name: Install Poetry
         uses: abatilo/actions-poetry@v3
-
       # Step 6: Install Dependencies
       - name: Install Dependencies
         run: poetry install
-
       # Step 7: Install pip-licenses and jq
       - name: Install Additional Tools
         run: |
           poetry run pip install pip-licenses
           sudo apt-get update
           sudo apt-get install -y jq
-
       # Step 8: Generate Licenses JSON
       - name: Generate Licenses JSON
         run: |
@@ -73,7 +65,6 @@ jobs:
             --with-license-file \
             --with-notice-file \
             --no-license-path > licenses.json
-
       # Step 9: Generate THIRD_PARTY_LICENSES Using Shell and jq
       - name: Generate THIRD_PARTY_LICENSES
         run: |
@@ -105,11 +96,9 @@ jobs:
             echo "================================================================================" >> THIRD_PARTY_LICENSES
             echo "" >> THIRD_PARTY_LICENSES
           done
-
       # Step 10: Cleanup Licenses JSON
       - name: Cleanup Temporary Files
         run: rm -f licenses.json
-
       # Step 11: Commit and Push THIRD_PARTY_LICENSES
       - name: Commit and Push THIRD_PARTY_LICENSES
         env:
