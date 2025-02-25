@@ -57,49 +57,10 @@ jobs:
           poetry run pip install pip-licenses
           sudo apt-get update
           sudo apt-get install -y jq
-      # Step 8: Generate Licenses JSON
-      - name: Generate Licenses JSON
-        run: |
-          poetry run pip-licenses \
-            --format=json \
-            --with-license-file \
-            --with-notice-file \
-            --no-license-path > licenses.json
-      # Step 9: Generate THIRD_PARTY_LICENSES Using Shell and jq
+      # Step 8: Generate THIRD_PARTY_LICENSES Using Shell and jq
       - name: Generate THIRD_PARTY_LICENSES
-        run: |
-          {
-            echo "Third-Party Licenses"
-            echo ""
-            echo "This file contains license information for third-party dependencies used in this project."
-            echo ""
-            echo "================================================================================"
-            echo ""
-          } > THIRD_PARTY_LICENSES
-          jq -c '.[]' licenses.json | while read -r pkg; do
-            NAME=$(echo "$pkg" | jq -r '.Name')
-            VERSION=$(echo "$pkg" | jq -r '.Version')
-            LICENSE=$(echo "$pkg" | jq -r '.License')
-            LICENSE_TEXT=$(echo "$pkg" | jq -r '.LicenseText')
-            NOTICE_TEXT=$(echo "$pkg" | jq -r '.NoticeText')
-
-            echo "Package: $NAME==$VERSION" >> THIRD_PARTY_LICENSES
-            echo "License: $LICENSE" >> THIRD_PARTY_LICENSES
-            echo "" >> THIRD_PARTY_LICENSES
-            echo "$LICENSE_TEXT" >> THIRD_PARTY_LICENSES
-            echo "" >> THIRD_PARTY_LICENSES
-            if [ "$NOTICE_TEXT" != "UNKNOWN" ] && [ -n "$NOTICE_TEXT" ]; then
-              echo "NOTICE:" >> THIRD_PARTY_LICENSES
-              echo "$NOTICE_TEXT" >> THIRD_PARTY_LICENSES
-              echo "" >> THIRD_PARTY_LICENSES
-            fi
-            echo "================================================================================" >> THIRD_PARTY_LICENSES
-            echo "" >> THIRD_PARTY_LICENSES
-          done
-      # Step 10: Cleanup Licenses JSON
-      - name: Cleanup Temporary Files
-        run: rm -f licenses.json
-      # Step 11: Commit and Push THIRD_PARTY_LICENSES
+        run: bash .github/licenses.sh
+      # Step 9: Commit and Push THIRD_PARTY_LICENSES
       - name: Commit and Push THIRD_PARTY_LICENSES
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
