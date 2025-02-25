@@ -119,7 +119,9 @@ class Geoparser:
         Returns:
             SentenceTransformer: The loaded SentenceTransformer model.
         """
-        return SentenceTransformer(transformer_model)
+        return SentenceTransformer(
+            transformer_model
+        )  # add local_files_only=True to run offline (needs cached model)
 
     def get_filter_attributes(self) -> list[str]:
         """
