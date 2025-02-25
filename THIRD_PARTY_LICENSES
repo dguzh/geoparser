@@ -15870,7 +15870,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 ================================================================================
 
-Package: sentence-transformers==3.3.0
+Package: sentence-transformers==3.4.1
 License: Apache Software License
 
                                 Apache License
