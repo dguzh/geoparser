@@ -58,7 +58,7 @@ Before submitting a pull request, make sure all tests pass and that they have be
 
 ### Python Version
 
-As of now, the project supports Python versions `>=3.9,<3.13` please keep your changes compatible. For example, specify optional paramaters in type hints using the typing library (``age: typing.Optional[int] = None`) instead of using the Python 3.10+ notation (`age: int | None = None`).
+As of now, the project supports Python versions `>=3.9,<3.13` please keep your changes compatible. For example, specify optional paramaters in type hints using the typing library (`age: typing.Optional[int] = None`) instead of using the Python 3.10+ notation (`age: int | None = None`).
 
 ## Licensing
 
