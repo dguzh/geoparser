@@ -57,11 +57,13 @@
                            style="text-decoration: none;">
                             {{ doc_item['filename'] }}
                         </a>
-                        <a id="tagged-{{ doc_item.doc_index }}" style="color:green;font-style:italic;display:none;">tagged &check;</a>
-                        <!-- Remove Document Button -->
-                        <button type="button" class="btn btn-sec btn-sm remove-document-btn" data-doc-index="{{ doc_item.doc_index }}" title="Remove Document">
-                            <i class="bi bi-trash"></i>
-                        </button>
+                        <div class="d-flex align-items-center">
+                            <span id="tagged-{{ doc_item.doc_index }}" style="color:green; background-color:transparent; border:1px solid green; border-radius:4px; padding:2px 6px; font-size:0.8rem; margin-right:8px; display:none; font-style:italic;">tagged</span>
+                            <!-- Remove Document Button -->
+                            <button type="button" class="btn btn-sec btn-sm remove-document-btn" data-doc-index="{{ doc_item.doc_index }}" title="Remove Document">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </div>
                     </div>
                     <div class="progress">
                         <div id="progress-bar-{{ doc_item.doc_index }}" class="progress-bar" role="progressbar"
