@@ -29,7 +29,7 @@ class BaseResponse(BaseModel):
 class LegacyFilesResponse(BaseResponse):
     files_found: int = 0
     files_loaded: int = 0
-    files_failed: list[str] = 0
+    files_failed: list[str] = []
 
 
 class ParsingResponse(BaseResponse):
