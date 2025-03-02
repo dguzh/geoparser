@@ -73,7 +73,10 @@ class SessionRepository(BaseRepository):
                 ],
             }
         )
-        return cls.create(db, session)
+        additional = {}
+        if session_id := content.get("session_id"):
+            additional["id"] = uuid.UUID(session_id)
+        return cls.create(db, session, additional=additional)
 
     @classmethod
     def read(cls, db: DBSession, id: uuid.UUID) -> Session:
