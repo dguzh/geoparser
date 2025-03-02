@@ -22,7 +22,7 @@ from geoparser.annotator.db.crud import (
     SessionSettingsRepository,
     ToponymRepository,
 )
-from geoparser.annotator.db.db import create_db_and_tables, engine, get_db
+from geoparser.annotator.db.db import create_db_and_tables, db_location, engine, get_db
 from geoparser.annotator.db.models import (
     Document,
     SessionCreate,
@@ -53,6 +53,7 @@ from geoparser.annotator.models.api import (
     AnnotationEdit,
     BaseResponse,
     CandidatesGet,
+    LegacyFilesResponse,
     ParsingResponse,
     PreAnnotatedTextResponse,
     ProgressResponse,
@@ -175,6 +176,31 @@ def create_session(
     return RedirectResponse(
         url=app.url_path_for("annotate", session_id=session.id, doc_index=0),
         status_code=status.HTTP_302_FOUND,
+    )
+
+
+@app.post("/session/read/legacy-files", tags=["session"])
+def create_from_legacy_files(
+    db: t.Annotated[DBSession, Depends(get_db)],
+):
+    legacy_cache_dir = db_location.parent
+    legacy_files = list(legacy_cache_dir.glob("*.json"))
+    if not legacy_files:
+        return LegacyFilesResponse()
+    files_loaded = 0
+    files_failed = []
+    for legacy_file in legacy_files:
+        try:
+            with open(legacy_file, "r") as infile:
+                SessionRepository.create_from_json(db, infile.read())
+                legacy_file.unlink()
+                files_loaded += 1
+        except:
+            files_failed.append(legacy_file.name)
+    return LegacyFilesResponse(
+        files_found=len(legacy_files),
+        files_loaded=files_loaded,
+        files_failed=files_failed,
     )
 
 
