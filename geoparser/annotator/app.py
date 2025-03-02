@@ -436,7 +436,7 @@ def delete_annotation(
 
 @app.get("/session/{session_id}/settings", tags=["settings"])
 def get_session_settings(
-    session: t.Annotated[dict, Depends(get_session)]
+    session: t.Annotated[dict, Depends(get_session)],
 ) -> SessionSettings:
     return session.settings
 

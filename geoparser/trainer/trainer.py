@@ -104,7 +104,7 @@ class GeoparserTrainer(Geoparser):
 
     @staticmethod
     def _load_json_file(
-        json_file_path: t.Union[str, Path]
+        json_file_path: t.Union[str, Path],
     ) -> t.List[t.Dict[str, t.Any]]:
         """
         Load a JSON annotation file and transform it into a list of dictionaries.
