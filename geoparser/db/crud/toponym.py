@@ -6,6 +6,11 @@ from sqlmodel import Session as DBSession
 from sqlmodel import select
 
 from geoparser import Geoparser
+from geoparser.annotator.exceptions import (
+    ToponymNotFoundException,
+    ToponymOverlapException,
+)
+from geoparser.annotator.models.api import CandidatesGet
 from geoparser.db.crud.base import BaseRepository
 from geoparser.db.models.toponym import (
     Toponym,
@@ -13,11 +18,6 @@ from geoparser.db.models.toponym import (
     ToponymCreate,
     ToponymUpdate,
 )
-from geoparser.annotator.exceptions import (
-    ToponymNotFoundException,
-    ToponymOverlapException,
-)
-from geoparser.annotator.models.api import CandidatesGet
 
 if t.TYPE_CHECKING:
     from geoparser.db.models.document import Document

@@ -8,6 +8,7 @@ from markupsafe import Markup
 from sqlmodel import Session as DBSession
 
 from geoparser import Geoparser
+from geoparser.annotator.exceptions import DocumentNotFoundException
 from geoparser.db.crud import DocumentRepository
 from geoparser.db.models import (
     Document,
@@ -17,7 +18,6 @@ from geoparser.db.models import (
     Toponym,
     ToponymCreate,
 )
-from geoparser.annotator.exceptions import DocumentNotFoundException
 
 
 def test_get_highest_index(test_db: DBSession, test_session: Session):

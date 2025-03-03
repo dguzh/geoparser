@@ -4,6 +4,7 @@ from contextlib import nullcontext
 import pytest
 from sqlmodel import Session as DBSession
 
+from geoparser.annotator.exceptions import SessionSettingsNotFoundException
 from geoparser.db.crud import SessionRepository, SessionSettingsRepository
 from geoparser.db.models import (
     Session,
@@ -12,7 +13,6 @@ from geoparser.db.models import (
     SessionSettingsCreate,
     SessionSettingsUpdate,
 )
-from geoparser.annotator.exceptions import SessionSettingsNotFoundException
 
 
 @pytest.mark.parametrize("valid_id", [True, False])

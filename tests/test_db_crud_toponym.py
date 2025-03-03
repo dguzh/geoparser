@@ -6,6 +6,11 @@ import pytest
 from sqlmodel import Session as DBSession
 
 from geoparser import Geoparser
+from geoparser.annotator.exceptions import (
+    ToponymNotFoundException,
+    ToponymOverlapException,
+)
+from geoparser.annotator.models.api import CandidatesGet
 from geoparser.db.crud import (
     DocumentRepository,
     SessionRepository,
@@ -22,11 +27,6 @@ from geoparser.db.models import (
     ToponymCreate,
     ToponymUpdate,
 )
-from geoparser.annotator.exceptions import (
-    ToponymNotFoundException,
-    ToponymOverlapException,
-)
-from geoparser.annotator.models.api import CandidatesGet
 from geoparser.gazetteers import GeoNames
 
 

@@ -9,13 +9,6 @@ from fastapi.testclient import TestClient
 from sqlmodel import Session as DBSession
 
 from geoparser.annotator.app import get_db
-from geoparser.db.crud import (
-    DocumentRepository,
-    SessionRepository,
-    SessionSettingsRepository,
-    ToponymRepository,
-)
-from geoparser.db.models import DocumentCreate, SessionCreate, ToponymCreate
 from geoparser.annotator.exceptions import (
     DocumentNotFoundException,
     SessionNotFoundException,
@@ -29,6 +22,13 @@ from geoparser.annotator.exceptions import (
     toponym_overlap_exception_handler,
 )
 from geoparser.annotator.models.api import BaseResponse
+from geoparser.db.crud import (
+    DocumentRepository,
+    SessionRepository,
+    SessionSettingsRepository,
+    ToponymRepository,
+)
+from geoparser.db.models import DocumentCreate, SessionCreate, ToponymCreate
 
 app = FastAPI()
 app.add_exception_handler(SessionNotFoundException, session_exception_handler)

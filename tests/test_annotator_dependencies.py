@@ -4,13 +4,13 @@ from contextlib import nullcontext
 import pytest
 from sqlmodel import Session as DBSession
 
-from geoparser.db.crud import SessionRepository
-from geoparser.db.models import DocumentCreate, SessionCreate, ToponymCreate
 from geoparser.annotator.dependencies import get_document, get_session
 from geoparser.annotator.exceptions import (
     DocumentNotFoundException,
     SessionNotFoundException,
 )
+from geoparser.db.crud import SessionRepository
+from geoparser.db.models import DocumentCreate, SessionCreate, ToponymCreate
 
 
 @pytest.mark.parametrize("valid_session", [True, False])

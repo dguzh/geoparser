@@ -6,6 +6,7 @@ import pytest
 from fastapi.encoders import jsonable_encoder
 from sqlmodel import Session as DBSession
 
+from geoparser.annotator.exceptions import SessionNotFoundException
 from geoparser.db.crud import SessionRepository
 from geoparser.db.models import (
     Document,
@@ -18,7 +19,6 @@ from geoparser.db.models import (
     Toponym,
     ToponymCreate,
 )
-from geoparser.annotator.exceptions import SessionNotFoundException
 
 
 @pytest.mark.parametrize("nested", [True, False])

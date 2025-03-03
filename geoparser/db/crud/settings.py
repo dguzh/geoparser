@@ -3,13 +3,13 @@ import uuid
 
 from sqlmodel import Session as DBSession
 
+from geoparser.annotator.exceptions import SessionSettingsNotFoundException
 from geoparser.db.crud.base import BaseRepository
 from geoparser.db.models.settings import (
     SessionSettings,
     SessionSettingsCreate,
     SessionSettingsUpdate,
 )
-from geoparser.annotator.exceptions import SessionSettingsNotFoundException
 
 
 class SessionSettingsRepository(BaseRepository):

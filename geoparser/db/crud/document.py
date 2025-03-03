@@ -8,15 +8,11 @@ from sqlmodel import select
 from werkzeug.utils import secure_filename
 
 from geoparser import Geoparser
+from geoparser.annotator.exceptions import DocumentNotFoundException
 from geoparser.db.crud.base import BaseRepository
 from geoparser.db.crud.toponym import ToponymRepository
-from geoparser.db.models.document import (
-    Document,
-    DocumentCreate,
-    DocumentUpdate,
-)
+from geoparser.db.models.document import Document, DocumentCreate, DocumentUpdate
 from geoparser.db.models.toponym import ToponymCreate
-from geoparser.annotator.exceptions import DocumentNotFoundException
 
 
 class DocumentRepository(BaseRepository):

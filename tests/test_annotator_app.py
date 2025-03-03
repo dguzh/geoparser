@@ -11,6 +11,13 @@ from sqlmodel import Session as DBSession
 from werkzeug.wrappers import Response
 
 from geoparser.annotator.app import app, get_db
+from geoparser.annotator.models.api import (
+    BaseResponse,
+    CandidatesGet,
+    ParsingResponse,
+    PreAnnotatedTextResponse,
+    ProgressResponse,
+)
 from geoparser.db.crud import (
     SessionRepository,
     SessionSettingsRepository,
@@ -22,13 +29,6 @@ from geoparser.db.models import (
     SessionCreate,
     SessionSettingsCreate,
     ToponymCreate,
-)
-from geoparser.annotator.models.api import (
-    BaseResponse,
-    CandidatesGet,
-    ParsingResponse,
-    PreAnnotatedTextResponse,
-    ProgressResponse,
 )
 from tests.utils import get_static_test_file
 
