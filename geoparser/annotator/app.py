@@ -192,10 +192,11 @@ def create_from_legacy_files(
     for legacy_file in legacy_files:
         try:
             with open(legacy_file, "r") as infile:
-                SessionRepository.create_from_json(db, infile.read())
-                legacy_file.unlink()
-                files_loaded += 1
-        except:
+                content = infile.read()
+            SessionRepository.create_from_json(db, content)
+            legacy_file.unlink()
+            files_loaded += 1
+        except (json.decoder.JSONDecodeError, KeyError):
             files_failed.append(legacy_file.name)
     return LegacyFilesResponse(
         files_found=len(legacy_files),
