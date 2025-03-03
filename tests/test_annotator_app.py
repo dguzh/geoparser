@@ -152,6 +152,11 @@ def test_create_session(client: TestClient):
 @pytest.mark.parametrize(
     "static_files,expected_loaded,expected_failed",
     [
+        (  # No file
+            [],
+            0,
+            0,
+        ),
         (  # Single valid file
             ["annotator/legacy_valid.json"],
             1,
