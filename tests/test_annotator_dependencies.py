@@ -4,8 +4,8 @@ from contextlib import nullcontext
 import pytest
 from sqlmodel import Session as DBSession
 
-from geoparser.annotator.db.crud import SessionRepository
-from geoparser.annotator.db.models import DocumentCreate, SessionCreate, ToponymCreate
+from geoparser.db.crud import SessionRepository
+from geoparser.db.models import DocumentCreate, SessionCreate, ToponymCreate
 from geoparser.annotator.dependencies import get_document, get_session
 from geoparser.annotator.exceptions import (
     DocumentNotFoundException,

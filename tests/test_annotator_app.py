@@ -11,12 +11,12 @@ from sqlmodel import Session as DBSession
 from werkzeug.wrappers import Response
 
 from geoparser.annotator.app import app, get_db
-from geoparser.annotator.db.crud import (
+from geoparser.db.crud import (
     SessionRepository,
     SessionSettingsRepository,
     ToponymRepository,
 )
-from geoparser.annotator.db.models import (
+from geoparser.db.models import (
     DocumentCreate,
     Session,
     SessionCreate,

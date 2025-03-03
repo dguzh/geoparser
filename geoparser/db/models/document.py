@@ -5,11 +5,11 @@ from pydantic import AfterValidator
 from sqlalchemy import UUID, Column, ForeignKey
 from sqlmodel import Field, Relationship, SQLModel
 
-from geoparser.annotator.db.models.validators import normalize_newlines
+from geoparser.db.models.validators import normalize_newlines
 
 if t.TYPE_CHECKING:
-    from geoparser.annotator.db.models.session import Session
-    from geoparser.annotator.db.models.toponym import Toponym, ToponymCreate
+    from geoparser.db.models.session import Session
+    from geoparser.db.models.toponym import Toponym, ToponymCreate
 
 
 class DocumentBase(SQLModel):

@@ -7,8 +7,8 @@ from sqlalchemy.engine import Engine
 from sqlalchemy.sql import text
 from sqlmodel import Session, create_engine, select
 
-from geoparser.annotator.db.db import create_db_and_tables, enable_foreign_keys, get_db
-from geoparser.annotator.db.models import Document
+from geoparser.db.db import create_db_and_tables, enable_foreign_keys, get_db
+from geoparser.db.models import Document
 
 TEST_SQLITE_URL = "sqlite:///:memory:"
 
@@ -36,7 +36,7 @@ def mock_get_db(monkeypatch):
         finally:
             session.close()
 
-    monkeypatch.setattr("geoparser.annotator.db.db.get_db", mock_get_db_func)
+    monkeypatch.setattr("geoparser.db.db.get_db", mock_get_db_func)
     return mock_get_db_func
 
 

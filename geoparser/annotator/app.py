@@ -16,14 +16,14 @@ from spacy.util import get_installed_models
 from sqlmodel import Session as DBSession
 
 from geoparser import Geoparser
-from geoparser.annotator.db.crud import (
+from geoparser.db.crud import (
     DocumentRepository,
     SessionRepository,
     SessionSettingsRepository,
     ToponymRepository,
 )
-from geoparser.annotator.db.db import create_db_and_tables, engine, get_db
-from geoparser.annotator.db.models import (
+from geoparser.db.db import create_db_and_tables, engine, get_db
+from geoparser.db.models import (
     Document,
     SessionCreate,
     SessionForTemplate,

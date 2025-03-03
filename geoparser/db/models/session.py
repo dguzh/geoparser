@@ -4,11 +4,11 @@ from datetime import datetime
 
 from sqlmodel import Field, Relationship, SQLModel
 
-from geoparser.annotator.db.models.settings import SessionSettingsCreate
+from geoparser.db.models.settings import SessionSettingsCreate
 
 if t.TYPE_CHECKING:
-    from geoparser.annotator.db.models.document import Document, DocumentCreate
-    from geoparser.annotator.db.models.settings import SessionSettings
+    from geoparser.db.models.document import Document, DocumentCreate
+    from geoparser.db.models.settings import SessionSettings
 
 
 class SessionBase(SQLModel):

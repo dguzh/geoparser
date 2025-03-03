@@ -6,8 +6,8 @@ from sqlmodel import Session as DBSession
 from sqlmodel import select
 
 from geoparser import Geoparser
-from geoparser.annotator.db.crud.base import BaseRepository
-from geoparser.annotator.db.models.toponym import (
+from geoparser.db.crud.base import BaseRepository
+from geoparser.db.models.toponym import (
     Toponym,
     ToponymBase,
     ToponymCreate,
@@ -20,7 +20,7 @@ from geoparser.annotator.exceptions import (
 from geoparser.annotator.models.api import CandidatesGet
 
 if t.TYPE_CHECKING:
-    from geoparser.annotator.db.models.document import Document
+    from geoparser.db.models.document import Document
 
 
 class ToponymRepository(BaseRepository):

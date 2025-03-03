@@ -6,13 +6,13 @@ import pytest
 from sqlmodel import Session as DBSession
 
 from geoparser import Geoparser
-from geoparser.annotator.db.crud import (
+from geoparser.db.crud import (
     DocumentRepository,
     SessionRepository,
     SessionSettingsRepository,
     ToponymRepository,
 )
-from geoparser.annotator.db.models import (
+from geoparser.db.models import (
     Document,
     DocumentCreate,
     SessionCreate,

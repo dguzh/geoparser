@@ -3,8 +3,8 @@ import uuid
 
 from sqlmodel import Session as DBSession
 
-from geoparser.annotator.db.crud.base import BaseRepository
-from geoparser.annotator.db.models.settings import (
+from geoparser.db.crud.base import BaseRepository
+from geoparser.db.models.settings import (
     SessionSettings,
     SessionSettingsCreate,
     SessionSettingsUpdate,

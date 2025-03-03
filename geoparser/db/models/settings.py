@@ -7,7 +7,7 @@ from sqlmodel import Field, Relationship, SQLModel
 from geoparser.constants import DEFAULT_SESSION_SETTINGS
 
 if t.TYPE_CHECKING:
-    from geoparser.annotator.db.models.session import Session
+    from geoparser.db.models.session import Session
 
 
 class SessionSettingsBase(SQLModel):

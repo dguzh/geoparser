@@ -6,8 +6,8 @@ import pytest
 from fastapi.encoders import jsonable_encoder
 from sqlmodel import Session as DBSession
 
-from geoparser.annotator.db.crud import SessionRepository
-from geoparser.annotator.db.models import (
+from geoparser.db.crud import SessionRepository
+from geoparser.db.models import (
     Document,
     DocumentCreate,
     Session,

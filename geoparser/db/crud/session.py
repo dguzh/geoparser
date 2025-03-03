@@ -5,17 +5,17 @@ import uuid
 from fastapi.encoders import jsonable_encoder
 from sqlmodel import Session as DBSession
 
-from geoparser.annotator.db.crud.base import BaseRepository
-from geoparser.annotator.db.crud.document import DocumentRepository
-from geoparser.annotator.db.crud.settings import SessionSettingsRepository
-from geoparser.annotator.db.models.document import DocumentCreate
-from geoparser.annotator.db.models.session import (
+from geoparser.db.crud.base import BaseRepository
+from geoparser.db.crud.document import DocumentRepository
+from geoparser.db.crud.settings import SessionSettingsRepository
+from geoparser.db.models.document import DocumentCreate
+from geoparser.db.models.session import (
     Session,
     SessionCreate,
     SessionDownload,
     SessionUpdate,
 )
-from geoparser.annotator.db.models.toponym import ToponymCreate
+from geoparser.db.models.toponym import ToponymCreate
 from geoparser.annotator.exceptions import SessionNotFoundException
 
 

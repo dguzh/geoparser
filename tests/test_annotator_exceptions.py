@@ -9,13 +9,13 @@ from fastapi.testclient import TestClient
 from sqlmodel import Session as DBSession
 
 from geoparser.annotator.app import get_db
-from geoparser.annotator.db.crud import (
+from geoparser.db.crud import (
     DocumentRepository,
     SessionRepository,
     SessionSettingsRepository,
     ToponymRepository,
 )
-from geoparser.annotator.db.models import DocumentCreate, SessionCreate, ToponymCreate
+from geoparser.db.models import DocumentCreate, SessionCreate, ToponymCreate
 from geoparser.annotator.exceptions import (
     DocumentNotFoundException,
     SessionNotFoundException,

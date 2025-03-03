@@ -4,8 +4,8 @@ from contextlib import nullcontext
 import pytest
 from sqlmodel import Session as DBSession
 
-from geoparser.annotator.db.crud import SessionRepository, SessionSettingsRepository
-from geoparser.annotator.db.models import (
+from geoparser.db.crud import SessionRepository, SessionSettingsRepository
+from geoparser.db.models import (
     Session,
     SessionCreate,
     SessionSettings,

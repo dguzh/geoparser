@@ -1,6 +1,6 @@
 import pytest
 
-from geoparser.annotator.db.models.validators import normalize_newlines
+from geoparser.db.models.validators import normalize_newlines
 
 
 @pytest.mark.parametrize(

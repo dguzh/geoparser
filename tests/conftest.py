@@ -10,9 +10,9 @@ from sqlmodel import Session as DBSession
 from sqlmodel import SQLModel
 from sqlmodel.pool import StaticPool
 
-from geoparser.annotator.db.crud import SessionRepository, ToponymRepository
-from geoparser.annotator.db.db import create_engine
-from geoparser.annotator.db.models import SessionCreate, ToponymCreate
+from geoparser.db.crud import SessionRepository, ToponymRepository
+from geoparser.db.db import create_engine
+from geoparser.db.models import SessionCreate, ToponymCreate
 from geoparser.gazetteers import GeoNames, SwissNames3D
 from geoparser.geodoc import GeoDoc
 from geoparser.geoparser import Geoparser

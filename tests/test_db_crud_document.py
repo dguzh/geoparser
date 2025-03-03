@@ -8,8 +8,8 @@ from markupsafe import Markup
 from sqlmodel import Session as DBSession
 
 from geoparser import Geoparser
-from geoparser.annotator.db.crud import DocumentRepository
-from geoparser.annotator.db.models import (
+from geoparser.db.crud import DocumentRepository
+from geoparser.db.models import (
     Document,
     DocumentCreate,
     DocumentUpdate,
