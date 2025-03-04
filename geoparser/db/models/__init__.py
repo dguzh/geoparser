@@ -1,4 +1,5 @@
 from .document import Document, DocumentBase, DocumentCreate, DocumentUpdate
+from .run import Run, RunBase, RunCreate, RunUpdate
 from .session import (
     Session,
     SessionBase,
@@ -21,5 +22,7 @@ for rebuild in [
     SessionDownload,
     Document,
     DocumentCreate,
+    Run,
+    RunCreate,
 ]:
     rebuild.model_rebuild()

@@ -8,6 +8,7 @@ from geoparser.db.models.settings import SessionSettingsCreate
 
 if t.TYPE_CHECKING:
     from geoparser.db.models.document import Document, DocumentCreate
+    from geoparser.db.models.run import Run
     from geoparser.db.models.settings import SessionSettings
 
 
@@ -30,6 +31,13 @@ class Session(SessionBase, table=True):
         back_populates="session",
         sa_relationship_kwargs={
             "order_by": "Document.doc_index",
+            "cascade": "all, delete-orphan",
+            "passive_deletes": True,
+        },
+    )
+    runs: list["Run"] = Relationship(
+        back_populates="session",
+        sa_relationship_kwargs={
             "cascade": "all, delete-orphan",
             "passive_deletes": True,
         },
