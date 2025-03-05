@@ -13,15 +13,11 @@ if t.TYPE_CHECKING:
 
 
 class DocumentBase(SQLModel):
-    filename: str
-    spacy_model: str
-    spacy_applied: t.Optional[bool] = False
     text: t.Annotated[str, AfterValidator(normalize_newlines)]
 
 
 class Document(DocumentBase, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-    doc_index: int
     session_id: uuid.UUID = Field(
         sa_column=Column(
             UUID, ForeignKey("session.id", ondelete="CASCADE"), nullable=False
@@ -44,7 +40,4 @@ class DocumentCreate(DocumentBase):
 
 class DocumentUpdate(SQLModel):
     id: uuid.UUID
-    filename: t.Optional[str] = None
-    spacy_model: t.Optional[str] = None
-    spacy_applied: t.Optional[bool] = None
     text: t.Optional[str] = None

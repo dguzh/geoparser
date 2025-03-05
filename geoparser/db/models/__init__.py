@@ -1,19 +1,19 @@
-from .document import Document, DocumentBase, DocumentCreate, DocumentUpdate
-from .session import (
+from geoparser.db.models.document import Document, DocumentCreate, DocumentUpdate
+from geoparser.db.models.location import Location, LocationCreate, LocationUpdate
+from geoparser.db.models.session import (
     Session,
-    SessionBase,
     SessionCreate,
     SessionDownload,
     SessionForTemplate,
     SessionUpdate,
 )
-from .settings import (
+from geoparser.db.models.settings import (
     SessionSettings,
     SessionSettingsBase,
     SessionSettingsCreate,
     SessionSettingsUpdate,
 )
-from .toponym import Toponym, ToponymBase, ToponymCreate, ToponymUpdate
+from geoparser.db.models.toponym import Toponym, ToponymCreate, ToponymUpdate
 
 for rebuild in [
     Session,

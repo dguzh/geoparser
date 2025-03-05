@@ -2,7 +2,10 @@ import typing as t
 from abc import ABC, abstractmethod
 from uuid import UUID
 
-from sqlmodel import Session
+from sqlmodel import Session, select
+
+from geoparser.db.db import get_db
+from geoparser.db.models import Module, ModuleType, Toponym, Location
 
 
 class BaseModule(ABC):
@@ -13,17 +16,15 @@ class BaseModule(ABC):
     with the PipelineOrchestrator.
     """
 
-    def __init__(self, name: str, description: str = ""):
+    def __init__(self, name: str):
         """
         Initialize a pipeline module.
 
         Args:
             name: A unique name for this module
-            description: An optional description of the module's functionality
         """
         self.name = name
-        self.description = description
-
+        
     @abstractmethod
     def run(self, session_id: UUID) -> None:
         """
@@ -43,7 +44,7 @@ class ToponymRecognitionModule(BaseModule):
 
     These modules identify potential toponyms in text and save them to the database.
     """
-
+    
     @abstractmethod
     def run(self, session_id: UUID) -> None:
         """
@@ -61,7 +62,7 @@ class ToponymResolutionModule(BaseModule):
 
     These modules link recognized toponyms to specific locations in a gazetteer.
     """
-
+    
     @abstractmethod
     def run(self, session_id: UUID) -> None:
         """
