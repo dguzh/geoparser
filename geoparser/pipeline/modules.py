@@ -5,7 +5,7 @@ from uuid import UUID
 from sqlmodel import Session, select
 
 from geoparser.db.db import get_db
-from geoparser.db.models import Module, ModuleType, Toponym, Location
+from geoparser.db.models import Location, Module, ModuleType, Toponym
 
 
 class BaseModule(ABC):
@@ -24,7 +24,7 @@ class BaseModule(ABC):
             name: A unique name for this module
         """
         self.name = name
-        
+
     @abstractmethod
     def run(self, session_id: UUID) -> None:
         """
@@ -44,7 +44,7 @@ class ToponymRecognitionModule(BaseModule):
 
     These modules identify potential toponyms in text and save them to the database.
     """
-    
+
     @abstractmethod
     def run(self, session_id: UUID) -> None:
         """
@@ -62,7 +62,7 @@ class ToponymResolutionModule(BaseModule):
 
     These modules link recognized toponyms to specific locations in a gazetteer.
     """
-    
+
     @abstractmethod
     def run(self, session_id: UUID) -> None:
         """

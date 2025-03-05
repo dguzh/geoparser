@@ -10,7 +10,9 @@ if t.TYPE_CHECKING:
 
 class LocationBase(SQLModel):
     location_id: str  # ID of the location in the gazetteer
-    resolution_module: str  # Name of the resolution module that identified this location
+    resolution_module: (
+        str  # Name of the resolution module that identified this location
+    )
     confidence: t.Optional[float] = None  # Optional confidence score
 
 
@@ -33,4 +35,4 @@ class LocationUpdate(SQLModel):
     toponym_id: t.Optional[uuid.UUID] = None
     resolution_module: t.Optional[str] = None
     location_id: t.Optional[str] = None
-    confidence: t.Optional[float] = None 
+    confidence: t.Optional[float] = None

@@ -12,7 +12,9 @@ if t.TYPE_CHECKING:
 class ToponymBase(SQLModel):
     start: int
     end: int
-    recognition_module: str  # Name of the recognition module that identified this toponym
+    recognition_module: (
+        str  # Name of the recognition module that identified this toponym
+    )
 
 
 class Toponym(ToponymBase, table=True):
