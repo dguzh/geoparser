@@ -5,20 +5,19 @@ from uuid import UUID
 from sqlmodel import Session, select
 
 from geoparser.db.db import get_db
-from geoparser.db.models import Location, Module, ModuleType, Toponym
 
 
 class BaseModule(ABC):
     """
-    Abstract base class for any pipeline module.
+    Abstract base class for any GeoparserV2 module.
 
-    All pipeline modules must implement this interface to be compatible
-    with the PipelineOrchestrator.
+    All modules must implement this interface to be compatible
+    with the GeoparserV2 architecture.
     """
 
     def __init__(self, name: str):
         """
-        Initialize a pipeline module.
+        Initialize a module.
 
         Args:
             name: A unique name for this module
@@ -38,11 +37,12 @@ class BaseModule(ABC):
         pass
 
 
-class ToponymRecognitionModule(BaseModule):
+class RecognitionModule(BaseModule):
     """
     Abstract class for modules that perform toponym recognition.
 
     These modules identify potential toponyms in text and save them to the database.
+    Recognition modules process documents and create toponym entries.
     """
 
     @abstractmethod
@@ -50,23 +50,31 @@ class ToponymRecognitionModule(BaseModule):
         """
         Execute toponym recognition on documents in the specified session.
 
+        This implementation should scan documents that haven't been processed
+        by this recognition module yet and add new toponyms to the database.
+
         Args:
             session_id: UUID of the session to process
         """
         pass
 
 
-class ToponymResolutionModule(BaseModule):
+class ResolutionModule(BaseModule):
     """
     Abstract class for modules that perform toponym resolution.
 
     These modules link recognized toponyms to specific locations in a gazetteer.
+    Resolution modules process toponyms (regardless of which recognition module
+    created them) and create location entries.
     """
 
     @abstractmethod
     def run(self, session_id: UUID) -> None:
         """
         Execute toponym resolution on toponyms in the specified session.
+
+        This implementation should find toponyms that haven't been processed
+        by this resolution module yet and resolve them to locations.
 
         Args:
             session_id: UUID of the session to process

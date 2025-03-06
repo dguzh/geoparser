@@ -7,14 +7,12 @@ from sqlmodel import Field, Relationship, SQLModel
 if t.TYPE_CHECKING:
     from geoparser.db.models.document import Document
     from geoparser.db.models.location import Location
+    from geoparser.db.models.recognition_module import RecognitionModule
 
 
 class ToponymBase(SQLModel):
     start: int
     end: int
-    recognition_module: (
-        str  # Name of the recognition module that identified this toponym
-    )
 
 
 class Toponym(ToponymBase, table=True):
@@ -32,6 +30,13 @@ class Toponym(ToponymBase, table=True):
             "passive_deletes": True,
         },
     )
+    recognitions: list["RecognitionModule"] = Relationship(
+        back_populates="toponym",
+        sa_relationship_kwargs={
+            "cascade": "all, delete-orphan",
+            "passive_deletes": True,
+        },
+    )
 
 
 class ToponymCreate(ToponymBase):
@@ -41,6 +46,5 @@ class ToponymCreate(ToponymBase):
 class ToponymUpdate(SQLModel):
     id: uuid.UUID
     document_id: t.Optional[uuid.UUID] = None
-    recognition_module: t.Optional[str] = None
     start: t.Optional[int] = None
     end: t.Optional[int] = None

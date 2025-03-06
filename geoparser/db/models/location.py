@@ -5,14 +5,12 @@ from sqlalchemy import UUID, Column, ForeignKey
 from sqlmodel import Field, Relationship, SQLModel
 
 if t.TYPE_CHECKING:
+    from geoparser.db.models.resolution_module import ResolutionModule
     from geoparser.db.models.toponym import Toponym
 
 
 class LocationBase(SQLModel):
     location_id: str  # ID of the location in the gazetteer
-    resolution_module: (
-        str  # Name of the resolution module that identified this location
-    )
     confidence: t.Optional[float] = None  # Optional confidence score
 
 
@@ -24,6 +22,13 @@ class Location(LocationBase, table=True):
         )
     )
     toponym: "Toponym" = Relationship(back_populates="locations")
+    resolutions: list["ResolutionModule"] = Relationship(
+        back_populates="location",
+        sa_relationship_kwargs={
+            "cascade": "all, delete-orphan",
+            "passive_deletes": True,
+        },
+    )
 
 
 class LocationCreate(LocationBase):
@@ -33,6 +38,5 @@ class LocationCreate(LocationBase):
 class LocationUpdate(SQLModel):
     id: uuid.UUID
     toponym_id: t.Optional[uuid.UUID] = None
-    resolution_module: t.Optional[str] = None
     location_id: t.Optional[str] = None
     confidence: t.Optional[float] = None

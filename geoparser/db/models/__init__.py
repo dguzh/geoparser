@@ -1,5 +1,15 @@
 from geoparser.db.models.document import Document, DocumentCreate, DocumentUpdate
 from geoparser.db.models.location import Location, LocationCreate, LocationUpdate
+from geoparser.db.models.recognition_module import (
+    RecognitionModule,
+    RecognitionModuleCreate,
+    RecognitionModuleUpdate,
+)
+from geoparser.db.models.resolution_module import (
+    ResolutionModule,
+    ResolutionModuleCreate,
+    ResolutionModuleUpdate,
+)
 from geoparser.db.models.session import (
     Session,
     SessionCreate,
@@ -21,5 +31,13 @@ for rebuild in [
     SessionDownload,
     Document,
     DocumentCreate,
+    Toponym,
+    ToponymCreate,
+    Location,
+    LocationCreate,
+    RecognitionModule,
+    RecognitionModuleCreate,
+    ResolutionModule,
+    ResolutionModuleCreate,
 ]:
     rebuild.model_rebuild()
