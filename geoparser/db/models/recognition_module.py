@@ -1,36 +1,34 @@
 import typing as t
 import uuid
 
-from sqlalchemy import UUID, Column, ForeignKey
 from sqlmodel import Field, Relationship, SQLModel
 
 if t.TYPE_CHECKING:
-    from geoparser.db.models.toponym import Toponym
+    from geoparser.db.models.recognition import Recognition
 
 
 class RecognitionModuleBase(SQLModel):
-    """Base model for the recognition module bridging table."""
+    """Base model for recognition module metadata."""
 
-    recognition_module: (
-        str  # Name of the recognition module that identified this toponym
-    )
+    name: str  # Name of the recognition module
 
 
 class RecognitionModule(RecognitionModuleBase, table=True):
     """
-    Bridging table that tracks which recognition modules identified each toponym.
+    Stores metadata about recognition modules.
 
-    This allows a single toponym to be recognized by multiple modules without
-    creating duplicate toponym entries.
+    This includes configuration information and other details about specific
+    recognition module instances.
     """
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-    toponym_id: uuid.UUID = Field(
-        sa_column=Column(
-            UUID, ForeignKey("toponym.id", ondelete="CASCADE"), nullable=False
-        )
+    recognitions: list["Recognition"] = Relationship(
+        back_populates="module",
+        sa_relationship_kwargs={
+            "cascade": "all, delete-orphan",
+            "passive_deletes": True,
+        },
     )
-    toponym: "Toponym" = Relationship(back_populates="recognitions")
 
 
 class RecognitionModuleCreate(RecognitionModuleBase):
@@ -43,5 +41,4 @@ class RecognitionModuleUpdate(SQLModel):
     """Model for updating a recognition module record."""
 
     id: uuid.UUID
-    toponym_id: t.Optional[uuid.UUID] = None
-    recognition_module: t.Optional[str] = None
+    name: t.Optional[str] = None

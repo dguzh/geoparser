@@ -5,7 +5,7 @@ from sqlalchemy import UUID, Column, ForeignKey
 from sqlmodel import Field, Relationship, SQLModel
 
 if t.TYPE_CHECKING:
-    from geoparser.db.models.resolution_module import ResolutionModule
+    from geoparser.db.models.resolution import Resolution
     from geoparser.db.models.toponym import Toponym
 
 
@@ -22,7 +22,7 @@ class Location(LocationBase, table=True):
         )
     )
     toponym: "Toponym" = Relationship(back_populates="locations")
-    resolutions: list["ResolutionModule"] = Relationship(
+    resolutions: list["Resolution"] = Relationship(
         back_populates="location",
         sa_relationship_kwargs={
             "cascade": "all, delete-orphan",

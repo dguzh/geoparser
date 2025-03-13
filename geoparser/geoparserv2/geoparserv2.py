@@ -67,12 +67,12 @@ class GeoparserV2:
         # Implementation for retrieving documents
         pass
 
-    def get_toponyms(self, recognition_module: str) -> list[dict]:
+    def get_toponyms(self, recognition_module_name: str) -> list[dict]:
         """
         Get toponyms recognized by a specific recognition module.
 
         Args:
-            recognition_module: Name of the recognition module.
+            recognition_module_name: Name of the recognition module.
 
         Returns:
             List of toponym dictionaries with relevant information.
@@ -81,14 +81,14 @@ class GeoparserV2:
         pass
 
     def get_locations(
-        self, recognition_module: str, resolution_module: str
+        self, recognition_module_name: str, resolution_module_name: str
     ) -> list[dict]:
         """
         Get locations resolved by a specific combination of recognition and resolution modules.
 
         Args:
-            recognition_module: Name of the recognition module that produced the toponyms.
-            resolution_module: Name of the resolution module that resolved the locations.
+            recognition_module_name: Name of the recognition module that produced the toponyms.
+            resolution_module_name: Name of the resolution module that resolved the locations.
 
         Returns:
             List of location dictionaries with relevant information.

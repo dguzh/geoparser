@@ -1,35 +1,34 @@
 import typing as t
 import uuid
 
-from sqlalchemy import UUID, Column, ForeignKey
 from sqlmodel import Field, Relationship, SQLModel
 
 if t.TYPE_CHECKING:
-    from geoparser.db.models.location import Location
+    from geoparser.db.models.resolution import Resolution
 
 
 class ResolutionModuleBase(SQLModel):
-    """Base model for the resolution module bridging table."""
+    """Base model for resolution module metadata."""
 
-    resolution_module: (
-        str  # Name of the resolution module that identified this location
-    )
+    name: str  # Name of the resolution module
 
 
 class ResolutionModule(ResolutionModuleBase, table=True):
     """
-    Bridging table that tracks which resolution modules identified each location.
+    Stores metadata about resolution modules.
 
-    This allows tracking of which module resolved a toponym to a specific location.
+    This includes configuration information and other details about specific
+    resolution module instances.
     """
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-    location_id: uuid.UUID = Field(
-        sa_column=Column(
-            UUID, ForeignKey("location.id", ondelete="CASCADE"), nullable=False
-        )
+    resolutions: list["Resolution"] = Relationship(
+        back_populates="module",
+        sa_relationship_kwargs={
+            "cascade": "all, delete-orphan",
+            "passive_deletes": True,
+        },
     )
-    location: "Location" = Relationship(back_populates="resolutions")
 
 
 class ResolutionModuleCreate(ResolutionModuleBase):
@@ -42,5 +41,4 @@ class ResolutionModuleUpdate(SQLModel):
     """Model for updating a resolution module record."""
 
     id: uuid.UUID
-    location_id: t.Optional[uuid.UUID] = None
-    resolution_module: t.Optional[str] = None
+    name: t.Optional[str] = None
