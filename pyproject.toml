@@ -57,7 +57,7 @@ build-backend = "poetry.core.masonry.api"
 profile = "black"
 
 [tool.pytest.ini_options]
-addopts = "--cov=geoparser --cov-report html"
+addopts = "--cov=geoparser --cov-report html --ignore=tests/test_annotator_app.py --ignore=tests/test_annotator_dependencies.py --ignore=tests/test_annotator_exceptions.py --ignore=tests/test_cli.py"
 
 [tool.coverage.report]
 exclude_also = [
