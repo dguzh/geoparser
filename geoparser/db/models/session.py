@@ -1,23 +1,25 @@
 import typing as t
 import uuid
-from datetime import datetime
 
 from sqlmodel import Field, Relationship, SQLModel
 
-from geoparser.db.models.settings import SessionSettingsCreate
-
 if t.TYPE_CHECKING:
     from geoparser.db.models.document import Document, DocumentCreate
-    from geoparser.db.models.settings import SessionSettings
 
 
 class SessionBase(SQLModel):
+    """Base model for session data."""
+
     name: str = Field(index=True)
-    created_at: datetime = Field(default_factory=datetime.now)
-    last_updated: datetime = Field(default_factory=datetime.now)
 
 
 class Session(SessionBase, table=True):
+    """
+    Represents a processing session.
+
+    A session groups together related documents for processing.
+    """
+
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     documents: list["Document"] = Relationship(
         back_populates="session",
@@ -29,20 +31,13 @@ class Session(SessionBase, table=True):
 
 
 class SessionCreate(SessionBase):
-    documents: t.Optional[list["DocumentCreate"]] = []
+    """Model for creating a new session."""
 
-
-class SessionDownload(SessionBase):
-    documents: t.Optional[list["DocumentCreate"]] = []
-
-
-class SessionForTemplate(SessionBase):
-    id: uuid.UUID
-    num_documents: int
+    pass
 
 
 class SessionUpdate(SQLModel):
+    """Model for updating an existing session."""
+
     id: uuid.UUID
     name: t.Optional[str] = None
-    created_at: t.Optional[datetime] = None
-    last_updated: t.Optional[datetime] = None

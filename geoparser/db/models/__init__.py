@@ -20,15 +20,8 @@ from geoparser.db.models.resolution_module import (
     ResolutionModuleCreate,
     ResolutionModuleUpdate,
 )
-from geoparser.db.models.session import (
-    Session,
-    SessionCreate,
-    SessionDownload,
-    SessionForTemplate,
-    SessionUpdate,
-)
-from geoparser.db.models.settings import (
-    SessionSettings,
+from geoparser.db.models.session import Session, SessionCreate, SessionUpdate
+from geoparser.db.models.settings import (  # SessionSettings,  # Commented out to disable the SessionSettings model
     SessionSettingsBase,
     SessionSettingsCreate,
     SessionSettingsUpdate,
@@ -38,7 +31,6 @@ from geoparser.db.models.toponym import Toponym, ToponymCreate, ToponymUpdate
 for rebuild in [
     Session,
     SessionCreate,
-    SessionDownload,
     Document,
     DocumentCreate,
     Toponym,

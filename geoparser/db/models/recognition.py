@@ -10,7 +10,11 @@ if t.TYPE_CHECKING:
 
 
 class RecognitionBase(SQLModel):
-    """Base model for the recognition process."""
+    """
+    Base model for the recognition process.
+
+    Contains the module_id to identify which recognition module was used.
+    """
 
     module_id: uuid.UUID = Field(
         sa_column=Column(
@@ -38,13 +42,18 @@ class Recognition(RecognitionBase, table=True):
 
 
 class RecognitionCreate(RecognitionBase):
-    """Model for creating a new recognition record."""
+    """
+    Model for creating a new recognition record.
 
-    pass
+    Includes both the module_id (from RecognitionBase) and the toponym_id
+    to create the association between a toponym and a recognition module.
+    """
+
+    toponym_id: uuid.UUID = Field()
 
 
 class RecognitionUpdate(SQLModel):
-    """Model for updating a recognition record."""
+    """Model for updating an existing recognition record."""
 
     id: uuid.UUID
     toponym_id: t.Optional[uuid.UUID] = None

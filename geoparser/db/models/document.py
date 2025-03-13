@@ -13,10 +13,22 @@ if t.TYPE_CHECKING:
 
 
 class DocumentBase(SQLModel):
+    """
+    Base model for document data.
+
+    Contains the core text content of a document.
+    """
+
     text: t.Annotated[str, AfterValidator(normalize_newlines)]
 
 
 class Document(DocumentBase, table=True):
+    """
+    Represents a document to be processed for toponym recognition and resolution.
+
+    A document belongs to a session and can contain multiple toponyms.
+    """
+
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     session_id: uuid.UUID = Field(
         sa_column=Column(
@@ -35,9 +47,17 @@ class Document(DocumentBase, table=True):
 
 
 class DocumentCreate(DocumentBase):
-    toponyms: t.Optional[list["ToponymCreate"]] = []
+    """
+    Model for creating a new document.
+
+    Includes the session_id to associate the document with a session.
+    """
+
+    session_id: uuid.UUID
 
 
 class DocumentUpdate(SQLModel):
+    """Model for updating an existing document."""
+
     id: uuid.UUID
     text: t.Optional[str] = None

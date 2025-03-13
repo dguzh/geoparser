@@ -10,11 +10,24 @@ if t.TYPE_CHECKING:
 
 
 class LocationBase(SQLModel):
+    """
+    Base model for location data.
+
+    Contains the core fields that identify a location in a gazetteer.
+    """
+
     location_id: str  # ID of the location in the gazetteer
     confidence: t.Optional[float] = None  # Optional confidence score
 
 
 class Location(LocationBase, table=True):
+    """
+    Represents a resolved location for a toponym.
+
+    A location is a specific place that a toponym might refer to.
+    Each toponym can have multiple potential locations with different confidence scores.
+    """
+
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     toponym_id: uuid.UUID = Field(
         sa_column=Column(
@@ -32,10 +45,18 @@ class Location(LocationBase, table=True):
 
 
 class LocationCreate(LocationBase):
-    pass
+    """
+    Model for creating a new location.
+
+    Includes the toponym_id to associate the location with a toponym.
+    """
+
+    toponym_id: uuid.UUID
 
 
 class LocationUpdate(SQLModel):
+    """Model for updating an existing location."""
+
     id: uuid.UUID
     toponym_id: t.Optional[uuid.UUID] = None
     location_id: t.Optional[str] = None

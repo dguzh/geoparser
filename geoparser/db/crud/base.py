@@ -26,7 +26,15 @@ class BaseRepository(Generic[T]):
         Returns:
             Created object
         """
-        db_obj = cls.model.from_orm(obj_in)
+        # If obj_in is already an instance of the model, use it directly
+        if isinstance(obj_in, cls.model):
+            db_obj = obj_in
+        else:
+            # Convert input to model instance by creating a new instance with the data
+            # This is more reliable than using model_validate
+            data = obj_in.model_dump()
+            db_obj = cls.model(**data)
+
         db.add(db_obj)
         db.commit()
         db.refresh(db_obj)
@@ -73,7 +81,7 @@ class BaseRepository(Generic[T]):
         Returns:
             Updated object
         """
-        update_data = obj_in.dict(exclude_unset=True)
+        update_data = obj_in.model_dump(exclude_unset=True)
         for field in update_data:
             if hasattr(db_obj, field):
                 setattr(db_obj, field, update_data[field])

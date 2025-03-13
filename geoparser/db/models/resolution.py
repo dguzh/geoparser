@@ -10,7 +10,11 @@ if t.TYPE_CHECKING:
 
 
 class ResolutionBase(SQLModel):
-    """Base model for the resolution process."""
+    """
+    Base model for the resolution process.
+
+    Contains the module_id to identify which resolution module was used.
+    """
 
     module_id: uuid.UUID = Field(
         sa_column=Column(
@@ -37,13 +41,18 @@ class Resolution(ResolutionBase, table=True):
 
 
 class ResolutionCreate(ResolutionBase):
-    """Model for creating a new resolution record."""
+    """
+    Model for creating a new resolution record.
 
-    pass
+    Includes both the module_id (from ResolutionBase) and the location_id
+    to create the association between a location and a resolution module.
+    """
+
+    location_id: uuid.UUID = Field()
 
 
 class ResolutionUpdate(SQLModel):
-    """Model for updating a resolution record."""
+    """Model for updating an existing resolution record."""
 
     id: uuid.UUID
     location_id: t.Optional[uuid.UUID] = None
