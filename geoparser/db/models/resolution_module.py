@@ -10,7 +10,9 @@ if t.TYPE_CHECKING:
 class ResolutionModuleBase(SQLModel):
     """Base model for resolution module metadata."""
 
-    name: str  # Name of the resolution module
+    name: str = Field(
+        index=True
+    )  # Name of the resolution module with index for faster lookups
 
 
 class ResolutionModule(ResolutionModuleBase, table=True):

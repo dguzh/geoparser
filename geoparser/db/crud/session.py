@@ -1,104 +1,34 @@
-import json
 import typing as t
 import uuid
 
-from fastapi.encoders import jsonable_encoder
 from sqlmodel import Session as DBSession
+from sqlmodel import select
 
-from geoparser.annotator.exceptions import SessionNotFoundException
 from geoparser.db.crud.base import BaseRepository
-from geoparser.db.crud.document import DocumentRepository
-from geoparser.db.crud.settings import SessionSettingsRepository
-from geoparser.db.models.document import DocumentCreate
-from geoparser.db.models.session import (
-    Session,
-    SessionCreate,
-    SessionDownload,
-    SessionUpdate,
-)
-from geoparser.db.models.toponym import ToponymCreate
+from geoparser.db.models import Session, SessionCreate, SessionUpdate
 
 
-class SessionRepository(BaseRepository):
-    model = Session
-    exception_factory: t.Callable = lambda x, y: SessionNotFoundException(
-        f"{x} with ID {y} not found."
-    )
+class SessionRepository(BaseRepository[Session]):
+    """
+    Repository for Session model operations.
+    """
 
-    @classmethod
-    def create(
-        cls,
-        db: DBSession,
-        item: SessionCreate,
-        exclude: t.Optional[list[str]] = [],
-        additional: t.Optional[dict[str, t.Any]] = {},
-    ) -> Session:
-        # Create the main session object
-        session = super().create(
-            db, item, exclude=["settings", "documents", *exclude], additional=additional
-        )
-        # Create settings if provided
-        if item.settings:
-            SessionSettingsRepository.create(
-                db, item.settings, additional={"session_id": session.id}
-            )
-        # Create documents if provided
-        if item.documents:
-            for document in item.documents:
-                DocumentRepository.create(
-                    db, document, additional={"session_id": session.id}
-                )
-        # session object expired when creating settings and documents so we refresh it
-        db.refresh(session)
-        return session
+    def __init__(self):
+        super().__init__(Session)
 
-    @classmethod
-    def create_from_json(cls, db: DBSession, json_str: str) -> Session:
-        # Parse the JSON input
-        content = json.loads(json_str)
-        session = SessionCreate.model_validate(
-            {
-                **content,
-                "documents": [
-                    DocumentCreate.model_validate(
-                        {
-                            **document_dict,
-                            "toponyms": [
-                                ToponymCreate.model_validate(toponym_dict)
-                                for toponym_dict in document_dict["toponyms"]
-                            ],
-                        }
-                    )
-                    for document_dict in content["documents"]
-                ],
-            }
-        )
-        return cls.create(db, session)
+    def get_by_name(self, db: DBSession, name: str) -> t.Optional[Session]:
+        """
+        Get a session by name.
 
-    @classmethod
-    def read(cls, db: DBSession, id: uuid.UUID) -> Session:
-        return super().read(db, id)
+        Args:
+            db: Database session
+            name: Session name
 
-    @classmethod
-    def read_to_json(cls, db: DBSession, id: uuid.UUID) -> dict:
-        item = cls.read(db, id)
-        result = SessionDownload(
-            **item.model_dump(),
-            documents=[
-                DocumentCreate(**document.model_dump(), toponyms=document.toponyms)
-                for document in item.documents
-            ],
-        )
-        return jsonable_encoder(result)
+        Returns:
+            Session if found, None otherwise
+        """
+        statement = select(Session).where(Session.name == name)
+        return db.exec(statement).first()
 
-    @classmethod
-    def read_all(cls, db: DBSession, **filters) -> list[Session]:
-        return super().read_all(db, **filters)
 
-    @classmethod
-    def update(cls, db: DBSession, item: SessionUpdate) -> Session:
-        return super().update(db, item)
-
-    @classmethod
-    def delete(cls, db: DBSession, id: uuid.UUID) -> Session:
-        return super().delete(db, id)
+session_repository = SessionRepository()

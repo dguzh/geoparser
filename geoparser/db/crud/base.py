@@ -1,74 +1,97 @@
 import typing as t
 import uuid
-from abc import ABC
+from typing import Generic, Type, TypeVar
 
 from sqlmodel import Session, SQLModel, select
 
-T = t.TypeVar("T", bound=SQLModel)
+T = TypeVar("T", bound=SQLModel)
 
 
-class BaseRepository(ABC):
-    model: t.Type[T]
-    exception_factory: t.Callable[[str, uuid.UUID], Exception] = (
-        lambda x, y: ValueError(f"{x} with ID {y} not found.")
-    )
+class BaseRepository(Generic[T]):
+    """
+    Base repository with common CRUD operations for all models.
+    """
 
-    @classmethod
-    def get_mapped_class(
-        cls,
-        item: T,
-        exclude: t.Optional[list[str]] = [],
-        additional: t.Optional[dict[str, t.Any]] = {},
-    ) -> T:
-        item_data = item.model_dump(exclude=exclude, exclude_unset=True)
-        return cls.model(**item_data, **additional)
+    def __init__(self, model: Type[T]):
+        self.model = model
 
-    @classmethod
-    def get_db_item(cls, db: Session, id: uuid.UUID) -> T:
-        db_item = db.get(cls.model, id)
-        if not db_item:
-            raise cls.exception_factory(cls.model.__name__, id)
-        return db_item
+    def create(self, db: Session, obj_in: SQLModel) -> T:
+        """
+        Create a new record.
 
-    @classmethod
-    def create(
-        cls,
-        db: Session,
-        item: T,
-        exclude: t.Optional[list[str]] = [],
-        additional: t.Optional[dict[str, t.Any]] = {},
-    ) -> T:
-        item = cls.get_mapped_class(item, exclude, additional)
-        db.add(item)
+        Args:
+            db: Database session
+            obj_in: Object to create
+
+        Returns:
+            Created object
+        """
+        db_obj = self.model.from_orm(obj_in)
+        db.add(db_obj)
         db.commit()
-        db.refresh(item)
-        return item
+        db.refresh(db_obj)
+        return db_obj
 
-    @classmethod
-    def read(cls, db: Session, id: uuid.UUID) -> t.Optional[T]:
-        return cls.get_db_item(db, id)
+    def get(self, db: Session, id: uuid.UUID) -> t.Optional[T]:
+        """
+        Get a record by ID.
 
-    @classmethod
-    def read_all(cls, db: Session, **filters) -> t.List[T]:
-        filter_args = [
-            getattr(cls.model, key) == value for key, value in filters.items()
-        ]
-        return db.exec(select(cls.model).where(*filter_args)).all()
+        Args:
+            db: Database session
+            id: Record ID
 
-    @classmethod
-    def update(cls, db: Session, item: T) -> T:
-        db_item = cls.get_db_item(db, item.id)
-        item_data = item.model_dump(exclude_unset=True)
-        for key, value in item_data.items():
-            setattr(db_item, key, value)
-        db.add(db_item)
+        Returns:
+            Record if found, None otherwise
+        """
+        return db.get(self.model, id)
+
+    def get_all(self, db: Session) -> t.List[T]:
+        """
+        Get all records.
+
+        Args:
+            db: Database session
+
+        Returns:
+            List of all records
+        """
+        statement = select(self.model)
+        return db.exec(statement).all()
+
+    def update(self, db: Session, *, db_obj: T, obj_in: SQLModel) -> T:
+        """
+        Update a record.
+
+        Args:
+            db: Database session
+            db_obj: Existing database object
+            obj_in: New data to update with
+
+        Returns:
+            Updated object
+        """
+        update_data = obj_in.dict(exclude_unset=True)
+        for field in update_data:
+            if hasattr(db_obj, field):
+                setattr(db_obj, field, update_data[field])
+        db.add(db_obj)
         db.commit()
-        db.refresh(db_item)
-        return db_item
+        db.refresh(db_obj)
+        return db_obj
 
-    @classmethod
-    def delete(cls, db: Session, id: uuid.UUID) -> t.Optional[T]:
-        item = cls.get_db_item(db, id)
-        db.delete(item)
-        db.commit()
-        return item
+    def delete(self, db: Session, *, id: uuid.UUID) -> t.Optional[T]:
+        """
+        Delete a record.
+
+        Args:
+            db: Database session
+            id: Record ID
+
+        Returns:
+            Deleted object if found, None otherwise
+        """
+        obj = db.get(self.model, id)
+        if obj:
+            db.delete(obj)
+            db.commit()
+        return obj

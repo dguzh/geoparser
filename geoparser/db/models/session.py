@@ -12,6 +12,7 @@ if t.TYPE_CHECKING:
 
 
 class SessionBase(SQLModel):
+    name: str = Field(index=True)
     created_at: datetime = Field(default_factory=datetime.now)
     last_updated: datetime = Field(default_factory=datetime.now)
 
@@ -42,5 +43,6 @@ class SessionForTemplate(SessionBase):
 
 class SessionUpdate(SQLModel):
     id: uuid.UUID
+    name: t.Optional[str] = None
     created_at: t.Optional[datetime] = None
     last_updated: t.Optional[datetime] = None

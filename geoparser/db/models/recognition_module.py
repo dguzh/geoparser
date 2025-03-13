@@ -10,7 +10,9 @@ if t.TYPE_CHECKING:
 class RecognitionModuleBase(SQLModel):
     """Base model for recognition module metadata."""
 
-    name: str  # Name of the recognition module
+    name: str = Field(
+        index=True
+    )  # Name of the recognition module with index for faster lookups
 
 
 class RecognitionModule(RecognitionModuleBase, table=True):
