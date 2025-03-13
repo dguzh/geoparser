@@ -1,10 +1,5 @@
-import typing as t
 from abc import ABC, abstractmethod
 from uuid import UUID
-
-from sqlmodel import Session, select
-
-from geoparser.db.db import get_db
 
 
 class BaseModule(ABC):
@@ -34,7 +29,6 @@ class BaseModule(ABC):
         Args:
             session_id: UUID of the session to process
         """
-        pass
 
 
 class RecognitionModule(BaseModule):
@@ -56,7 +50,6 @@ class RecognitionModule(BaseModule):
         Args:
             session_id: UUID of the session to process
         """
-        pass
 
 
 class ResolutionModule(BaseModule):
@@ -79,4 +72,3 @@ class ResolutionModule(BaseModule):
         Args:
             session_id: UUID of the session to process
         """
-        pass

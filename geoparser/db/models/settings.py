@@ -1,8 +1,7 @@
 import typing as t
 import uuid
 
-from sqlalchemy import UUID, Column, ForeignKey
-from sqlmodel import Field, Relationship, SQLModel
+from sqlmodel import SQLModel
 
 from geoparser.constants import DEFAULT_SESSION_SETTINGS
 

@@ -36,8 +36,6 @@ class RecognitionModule(RecognitionModuleBase, table=True):
 class RecognitionModuleCreate(RecognitionModuleBase):
     """Model for creating a new recognition module record."""
 
-    pass
-
 
 class RecognitionModuleUpdate(SQLModel):
     """Model for updating a recognition module record."""

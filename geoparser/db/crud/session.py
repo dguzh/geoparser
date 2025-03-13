@@ -1,11 +1,10 @@
 import typing as t
-import uuid
 
 from sqlmodel import Session as DBSession
 from sqlmodel import select
 
 from geoparser.db.crud.base import BaseRepository
-from geoparser.db.models import Session, SessionCreate, SessionUpdate
+from geoparser.db.models import Session
 
 
 class SessionRepository(BaseRepository[Session]):

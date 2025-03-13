@@ -9,7 +9,7 @@ from geoparser.db.models.validators import normalize_newlines
 
 if t.TYPE_CHECKING:
     from geoparser.db.models.session import Session
-    from geoparser.db.models.toponym import Toponym, ToponymCreate
+    from geoparser.db.models.toponym import Toponym
 
 
 class DocumentBase(SQLModel):

@@ -1,5 +1,3 @@
-import uuid
-
 import pytest
 from sqlmodel import Session as DBSession
 from sqlmodel import SQLModel

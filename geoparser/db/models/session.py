@@ -4,7 +4,7 @@ import uuid
 from sqlmodel import Field, Relationship, SQLModel
 
 if t.TYPE_CHECKING:
-    from geoparser.db.models.document import Document, DocumentCreate
+    from geoparser.db.models.document import Document
 
 
 class SessionBase(SQLModel):
@@ -32,8 +32,6 @@ class Session(SessionBase, table=True):
 
 class SessionCreate(SessionBase):
     """Model for creating a new session."""
-
-    pass
 
 
 class SessionUpdate(SQLModel):

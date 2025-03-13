@@ -4,7 +4,7 @@ import uuid
 from sqlmodel import Session, select
 
 from geoparser.db.crud.base import BaseRepository
-from geoparser.db.models import Document, DocumentCreate, DocumentUpdate
+from geoparser.db.models import Document
 
 
 class DocumentRepository(BaseRepository[Document]):

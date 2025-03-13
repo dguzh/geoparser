@@ -4,7 +4,7 @@ import uuid
 from sqlmodel import Session, select
 
 from geoparser.db.crud.base import BaseRepository
-from geoparser.db.models import Recognition, RecognitionCreate, RecognitionUpdate
+from geoparser.db.models import Recognition
 
 
 class RecognitionRepository(BaseRepository[Recognition]):

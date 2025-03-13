@@ -1,14 +1,9 @@
 import typing as t
-import uuid
 
 from sqlmodel import Session, select
 
 from geoparser.db.crud.base import BaseRepository
-from geoparser.db.models import (
-    RecognitionModule,
-    RecognitionModuleCreate,
-    RecognitionModuleUpdate,
-)
+from geoparser.db.models import RecognitionModule
 
 
 class RecognitionModuleRepository(BaseRepository[RecognitionModule]):

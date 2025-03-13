@@ -1,14 +1,9 @@
 import typing as t
-import uuid
 
 from sqlmodel import Session, select
 
 from geoparser.db.crud.base import BaseRepository
-from geoparser.db.models import (
-    ResolutionModule,
-    ResolutionModuleCreate,
-    ResolutionModuleUpdate,
-)
+from geoparser.db.models import ResolutionModule
 
 
 class ResolutionModuleRepository(BaseRepository[ResolutionModule]):

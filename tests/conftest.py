@@ -1,6 +1,5 @@
 import copy
 import tempfile
-import uuid
 from pathlib import Path
 
 import py

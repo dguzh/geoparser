@@ -36,8 +36,6 @@ class ResolutionModule(ResolutionModuleBase, table=True):
 class ResolutionModuleCreate(ResolutionModuleBase):
     """Model for creating a new resolution module record."""
 
-    pass
-
 
 class ResolutionModuleUpdate(SQLModel):
     """Model for updating a resolution module record."""

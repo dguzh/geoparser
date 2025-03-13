@@ -1,10 +1,5 @@
-import typing as t
 import uuid
 
-from sqlmodel import Session, select
-
-from geoparser.db.db import get_db
-from geoparser.db.models import Document, DocumentCreate, SessionCreate
 from geoparser.geoparserv2.modules import BaseModule
 
 
@@ -29,7 +24,6 @@ class GeoparserV2:
     def _load_or_create_session(self, session_name: str):
         """Load an existing session or create a new one if it doesn't exist."""
         # Implementation for loading or creating a session
-        pass
 
     def add_document(self, text: str) -> uuid.UUID:
         """
@@ -42,7 +36,6 @@ class GeoparserV2:
             UUID of the created document.
         """
         # Implementation for adding a document
-        pass
 
     def run(self, module: BaseModule) -> None:
         """
@@ -65,7 +58,6 @@ class GeoparserV2:
             List of document dictionaries with id and text.
         """
         # Implementation for retrieving documents
-        pass
 
     def get_toponyms(self, recognition_module_name: str) -> list[dict]:
         """
@@ -78,7 +70,6 @@ class GeoparserV2:
             List of toponym dictionaries with relevant information.
         """
         # Implementation for retrieving toponyms
-        pass
 
     def get_locations(
         self, recognition_module_name: str, resolution_module_name: str
@@ -94,4 +85,3 @@ class GeoparserV2:
             List of location dictionaries with relevant information.
         """
         # Implementation for retrieving locations
-        pass

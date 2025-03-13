@@ -1,6 +1,5 @@
 import uuid
 
-import pytest
 from sqlmodel import Session as DBSession
 
 from geoparser.db.crud import ToponymRepository

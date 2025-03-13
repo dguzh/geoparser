@@ -4,7 +4,7 @@ import uuid
 from sqlmodel import Session, select
 
 from geoparser.db.crud.base import BaseRepository
-from geoparser.db.models import Toponym, ToponymCreate, ToponymUpdate
+from geoparser.db.models import Toponym
 
 
 class ToponymRepository(BaseRepository[Toponym]):

@@ -6,7 +6,7 @@ from sqlmodel import Field, Relationship, SQLModel
 
 if t.TYPE_CHECKING:
     from geoparser.db.models.document import Document
-    from geoparser.db.models.location import Location, LocationCreate
+    from geoparser.db.models.location import Location
     from geoparser.db.models.recognition import Recognition
 
 
