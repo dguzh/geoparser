@@ -12,10 +12,10 @@ class LocationRepository(BaseRepository[Location]):
     Repository for Location model operations.
     """
 
-    def __init__(self):
-        super().__init__(Location)
+    model = Location
 
-    def get_by_toponym(self, db: Session, toponym_id: uuid.UUID) -> t.List[Location]:
+    @classmethod
+    def get_by_toponym(cls, db: Session, toponym_id: uuid.UUID) -> t.List[Location]:
         """
         Get all locations for a toponym.
 

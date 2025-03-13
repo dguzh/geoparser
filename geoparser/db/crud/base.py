@@ -12,10 +12,10 @@ class BaseRepository(Generic[T]):
     Base repository with common CRUD operations for all models.
     """
 
-    def __init__(self, model: Type[T]):
-        self.model = model
+    model: Type[T] = None
 
-    def create(self, db: Session, obj_in: SQLModel) -> T:
+    @classmethod
+    def create(cls, db: Session, obj_in: SQLModel) -> T:
         """
         Create a new record.
 
@@ -26,13 +26,14 @@ class BaseRepository(Generic[T]):
         Returns:
             Created object
         """
-        db_obj = self.model.from_orm(obj_in)
+        db_obj = cls.model.from_orm(obj_in)
         db.add(db_obj)
         db.commit()
         db.refresh(db_obj)
         return db_obj
 
-    def get(self, db: Session, id: uuid.UUID) -> t.Optional[T]:
+    @classmethod
+    def get(cls, db: Session, id: uuid.UUID) -> t.Optional[T]:
         """
         Get a record by ID.
 
@@ -43,9 +44,10 @@ class BaseRepository(Generic[T]):
         Returns:
             Record if found, None otherwise
         """
-        return db.get(self.model, id)
+        return db.get(cls.model, id)
 
-    def get_all(self, db: Session) -> t.List[T]:
+    @classmethod
+    def get_all(cls, db: Session) -> t.List[T]:
         """
         Get all records.
 
@@ -55,10 +57,11 @@ class BaseRepository(Generic[T]):
         Returns:
             List of all records
         """
-        statement = select(self.model)
+        statement = select(cls.model)
         return db.exec(statement).all()
 
-    def update(self, db: Session, *, db_obj: T, obj_in: SQLModel) -> T:
+    @classmethod
+    def update(cls, db: Session, *, db_obj: T, obj_in: SQLModel) -> T:
         """
         Update a record.
 
@@ -79,7 +82,8 @@ class BaseRepository(Generic[T]):
         db.refresh(db_obj)
         return db_obj
 
-    def delete(self, db: Session, *, id: uuid.UUID) -> t.Optional[T]:
+    @classmethod
+    def delete(cls, db: Session, *, id: uuid.UUID) -> t.Optional[T]:
         """
         Delete a record.
 
@@ -90,7 +94,7 @@ class BaseRepository(Generic[T]):
         Returns:
             Deleted object if found, None otherwise
         """
-        obj = db.get(self.model, id)
+        obj = db.get(cls.model, id)
         if obj:
             db.delete(obj)
             db.commit()

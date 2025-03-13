@@ -12,10 +12,10 @@ class RecognitionRepository(BaseRepository[Recognition]):
     Repository for Recognition model operations.
     """
 
-    def __init__(self):
-        super().__init__(Recognition)
+    model = Recognition
 
-    def get_by_toponym(self, db: Session, toponym_id: uuid.UUID) -> t.List[Recognition]:
+    @classmethod
+    def get_by_toponym(cls, db: Session, toponym_id: uuid.UUID) -> t.List[Recognition]:
         """
         Get all recognitions for a toponym.
 
@@ -29,7 +29,8 @@ class RecognitionRepository(BaseRepository[Recognition]):
         statement = select(Recognition).where(Recognition.toponym_id == toponym_id)
         return db.exec(statement).all()
 
-    def get_by_module(self, db: Session, module_id: uuid.UUID) -> t.List[Recognition]:
+    @classmethod
+    def get_by_module(cls, db: Session, module_id: uuid.UUID) -> t.List[Recognition]:
         """
         Get all recognitions for a module.
 

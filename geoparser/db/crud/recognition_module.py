@@ -16,10 +16,10 @@ class RecognitionModuleRepository(BaseRepository[RecognitionModule]):
     Repository for RecognitionModule model operations.
     """
 
-    def __init__(self):
-        super().__init__(RecognitionModule)
+    model = RecognitionModule
 
-    def get_by_name(self, db: Session, name: str) -> t.Optional[RecognitionModule]:
+    @classmethod
+    def get_by_name(cls, db: Session, name: str) -> t.Optional[RecognitionModule]:
         """
         Get a recognition module by name.
 

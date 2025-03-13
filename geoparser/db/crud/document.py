@@ -12,10 +12,10 @@ class DocumentRepository(BaseRepository[Document]):
     Repository for Document model operations.
     """
 
-    def __init__(self):
-        super().__init__(Document)
+    model = Document
 
-    def get_by_session(self, db: Session, session_id: uuid.UUID) -> t.List[Document]:
+    @classmethod
+    def get_by_session(cls, db: Session, session_id: uuid.UUID) -> t.List[Document]:
         """
         Get all documents for a session.
 

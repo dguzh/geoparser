@@ -12,10 +12,10 @@ class ToponymRepository(BaseRepository[Toponym]):
     Repository for Toponym model operations.
     """
 
-    def __init__(self):
-        super().__init__(Toponym)
+    model = Toponym
 
-    def get_by_document(self, db: Session, document_id: uuid.UUID) -> t.List[Toponym]:
+    @classmethod
+    def get_by_document(cls, db: Session, document_id: uuid.UUID) -> t.List[Toponym]:
         """
         Get all toponyms for a document.
 

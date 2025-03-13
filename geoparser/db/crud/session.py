@@ -13,10 +13,10 @@ class SessionRepository(BaseRepository[Session]):
     Repository for Session model operations.
     """
 
-    def __init__(self):
-        super().__init__(Session)
+    model = Session
 
-    def get_by_name(self, db: DBSession, name: str) -> t.Optional[Session]:
+    @classmethod
+    def get_by_name(cls, db: DBSession, name: str) -> t.Optional[Session]:
         """
         Get a session by name.
 

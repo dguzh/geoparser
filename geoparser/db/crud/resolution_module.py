@@ -16,10 +16,10 @@ class ResolutionModuleRepository(BaseRepository[ResolutionModule]):
     Repository for ResolutionModule model operations.
     """
 
-    def __init__(self):
-        super().__init__(ResolutionModule)
+    model = ResolutionModule
 
-    def get_by_name(self, db: Session, name: str) -> t.Optional[ResolutionModule]:
+    @classmethod
+    def get_by_name(cls, db: Session, name: str) -> t.Optional[ResolutionModule]:
         """
         Get a resolution module by name.
 

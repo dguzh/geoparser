@@ -12,12 +12,10 @@ class ResolutionRepository(BaseRepository[Resolution]):
     Repository for Resolution model operations.
     """
 
-    def __init__(self):
-        super().__init__(Resolution)
+    model = Resolution
 
-    def get_by_location(
-        self, db: Session, location_id: uuid.UUID
-    ) -> t.List[Resolution]:
+    @classmethod
+    def get_by_location(cls, db: Session, location_id: uuid.UUID) -> t.List[Resolution]:
         """
         Get all resolutions for a location.
 
@@ -31,7 +29,8 @@ class ResolutionRepository(BaseRepository[Resolution]):
         statement = select(Resolution).where(Resolution.location_id == location_id)
         return db.exec(statement).all()
 
-    def get_by_module(self, db: Session, module_id: uuid.UUID) -> t.List[Resolution]:
+    @classmethod
+    def get_by_module(cls, db: Session, module_id: uuid.UUID) -> t.List[Resolution]:
         """
         Get all resolutions for a module.
 
