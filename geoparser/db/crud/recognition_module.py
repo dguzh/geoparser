@@ -32,6 +32,3 @@ class RecognitionModuleRepository(BaseRepository[RecognitionModule]):
         """
         statement = select(RecognitionModule).where(RecognitionModule.name == name)
         return db.exec(statement).first()
-
-
-recognition_module_repository = RecognitionModuleRepository()

@@ -28,6 +28,3 @@ class DocumentRepository(BaseRepository[Document]):
         """
         statement = select(Document).where(Document.session_id == session_id)
         return db.exec(statement).all()
-
-
-document_repository = DocumentRepository()

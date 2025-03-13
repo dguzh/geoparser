@@ -44,6 +44,3 @@ class ResolutionRepository(BaseRepository[Resolution]):
         """
         statement = select(Resolution).where(Resolution.module_id == module_id)
         return db.exec(statement).all()
-
-
-resolution_repository = ResolutionRepository()

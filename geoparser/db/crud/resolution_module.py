@@ -32,6 +32,3 @@ class ResolutionModuleRepository(BaseRepository[ResolutionModule]):
         """
         statement = select(ResolutionModule).where(ResolutionModule.name == name)
         return db.exec(statement).first()
-
-
-resolution_module_repository = ResolutionModuleRepository()

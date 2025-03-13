@@ -28,6 +28,3 @@ class LocationRepository(BaseRepository[Location]):
         """
         statement = select(Location).where(Location.toponym_id == toponym_id)
         return db.exec(statement).all()
-
-
-location_repository = LocationRepository()

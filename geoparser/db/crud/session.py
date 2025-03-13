@@ -29,6 +29,3 @@ class SessionRepository(BaseRepository[Session]):
         """
         statement = select(Session).where(Session.name == name)
         return db.exec(statement).first()
-
-
-session_repository = SessionRepository()

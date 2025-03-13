@@ -28,6 +28,3 @@ class ToponymRepository(BaseRepository[Toponym]):
         """
         statement = select(Toponym).where(Toponym.document_id == document_id)
         return db.exec(statement).all()
-
-
-toponym_repository = ToponymRepository()
