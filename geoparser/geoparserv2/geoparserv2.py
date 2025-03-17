@@ -1,5 +1,12 @@
 import uuid
+import typing as t
+import logging
 
+from sqlmodel import Session as DBSession
+
+from geoparser.db.crud import SessionRepository
+from geoparser.db.db import get_db
+from geoparser.db.models import Session, SessionCreate
 from geoparser.geoparserv2.modules import BaseModule
 
 
@@ -11,19 +18,61 @@ class GeoparserV2:
     including document management, toponym recognition, and resolution.
     """
 
-    def __init__(self, session: str):
+    def __init__(self, session_name: str):
         """
         Initialize a GeoparserV2 instance.
 
         Args:
             session: Session name. Will load or create a session with this name.
         """
-        self.session_name = session
-        self._load_or_create_session(session)
+        self.session = self._load_or_create_session(session_name)
 
-    def _load_or_create_session(self, session_name: str):
-        """Load an existing session or create a new one if it doesn't exist."""
-        # Implementation for loading or creating a session
+    def _load_or_create_session(self, session_name: str) -> Session:
+        """
+        Load an existing session or create a new one if it doesn't exist.
+        
+        Args:
+            session_name: Name of the session to load or create
+            
+        Returns:
+            Session object that was loaded or created
+        """
+        db = next(get_db())
+        session = self.load_session(db, session_name)
+        
+        if session is None:
+            logging.info(f"No session found with name '{session_name}'; creating a new one.")
+            session = self.create_session(db, session_name)
+            
+        return session
+        
+    def load_session(self, db: DBSession, session_name: str) -> t.Optional[Session]:
+        """
+        Load a session by name from the database.
+        
+        Args:
+            db: Database session
+            session_name: Name of the session to load
+            
+        Returns:
+            Session if found, None otherwise
+        """
+        return SessionRepository.get_by_name(db, session_name)
+        
+    def create_session(self, db: DBSession, session_name: str) -> Session:
+        """
+        Create a new session with the given name.
+        
+        Args:
+            db: Database session
+            session_name: Name for the new session
+            
+        Returns:
+            Newly created Session object
+        """
+        session_create = SessionCreate(name=session_name)
+        session = Session(name=session_create.name)
+        return SessionRepository.create(db, session)
 
     def add_document(self, text: str) -> uuid.UUID:
         """
