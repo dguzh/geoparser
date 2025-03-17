@@ -1,12 +1,13 @@
 import uuid
 import typing as t
 import logging
+from typing import Union, List
 
 from sqlmodel import Session as DBSession
 
-from geoparser.db.crud import SessionRepository
+from geoparser.db.crud import SessionRepository, DocumentRepository
 from geoparser.db.db import get_db
-from geoparser.db.models import Session, SessionCreate
+from geoparser.db.models import Session, SessionCreate, Document, DocumentCreate
 from geoparser.geoparserv2.modules import BaseModule
 
 
@@ -23,7 +24,7 @@ class GeoparserV2:
         Initialize a GeoparserV2 instance.
 
         Args:
-            session: Session name. Will load or create a session with this name.
+            session_name: Session name. Will load or create a session with this name.
         """
         self.session = self._load_or_create_session(session_name)
 
@@ -74,17 +75,29 @@ class GeoparserV2:
         session = Session(name=session_create.name)
         return SessionRepository.create(db, session)
 
-    def add_document(self, text: str) -> uuid.UUID:
+    def add_documents(self, texts: Union[str, List[str]]) -> List[uuid.UUID]:
         """
-        Add a new document to the session.
+        Add one or more documents to the session.
 
         Args:
-            text: The text content of the document.
+            texts: Either a single document text (str) or a list of document texts (List[str])
 
         Returns:
-            UUID of the created document.
+            List of UUIDs of the created documents
         """
-        # Implementation for adding a document
+        db = next(get_db())
+        
+        # Convert single string to list for uniform processing
+        if isinstance(texts, str):
+            texts = [texts]
+            
+        document_ids = []
+        for text in texts:
+            document_create = DocumentCreate(text=text, session_id=self.session.id)
+            document = DocumentRepository.create(db, document_create)
+            document_ids.append(document.id)
+            
+        return document_ids
 
     def run(self, module: BaseModule) -> None:
         """
