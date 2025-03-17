@@ -1,5 +1,6 @@
+from unittest.mock import patch
+
 import pytest
-from unittest.mock import patch, MagicMock
 from sqlmodel import Session as DBSession
 from sqlmodel import SQLModel
 from sqlmodel.pool import StaticPool
@@ -48,4 +49,4 @@ def geoparserv2_with_existing_session(mock_get_db, test_session):
 @pytest.fixture
 def geoparserv2_with_new_session(mock_get_db):
     """Create a GeoparserV2 instance with a new session."""
-    return GeoparserV2(session_name="new-test-session") 
+    return GeoparserV2(session_name="new-test-session")

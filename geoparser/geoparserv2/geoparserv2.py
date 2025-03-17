@@ -1,13 +1,13 @@
-import uuid
-import typing as t
 import logging
-from typing import Union, List
+import typing as t
+import uuid
+from typing import List, Union
 
 from sqlmodel import Session as DBSession
 
-from geoparser.db.crud import SessionRepository, DocumentRepository
+from geoparser.db.crud import DocumentRepository, SessionRepository
 from geoparser.db.db import get_db
-from geoparser.db.models import Session, SessionCreate, Document, DocumentCreate
+from geoparser.db.models import DocumentCreate, Session, SessionCreate
 from geoparser.geoparserv2.modules import BaseModule
 
 
@@ -31,43 +31,45 @@ class GeoparserV2:
     def _load_or_create_session(self, session_name: str) -> Session:
         """
         Load an existing session or create a new one if it doesn't exist.
-        
+
         Args:
             session_name: Name of the session to load or create
-            
+
         Returns:
             Session object that was loaded or created
         """
         db = next(get_db())
         session = self.load_session(db, session_name)
-        
+
         if session is None:
-            logging.info(f"No session found with name '{session_name}'; creating a new one.")
+            logging.info(
+                f"No session found with name '{session_name}'; creating a new one."
+            )
             session = self.create_session(db, session_name)
-            
+
         return session
-        
+
     def load_session(self, db: DBSession, session_name: str) -> t.Optional[Session]:
         """
         Load a session by name from the database.
-        
+
         Args:
             db: Database session
             session_name: Name of the session to load
-            
+
         Returns:
             Session if found, None otherwise
         """
         return SessionRepository.get_by_name(db, session_name)
-        
+
     def create_session(self, db: DBSession, session_name: str) -> Session:
         """
         Create a new session with the given name.
-        
+
         Args:
             db: Database session
             session_name: Name for the new session
-            
+
         Returns:
             Newly created Session object
         """
@@ -86,17 +88,17 @@ class GeoparserV2:
             List of UUIDs of the created documents
         """
         db = next(get_db())
-        
+
         # Convert single string to list for uniform processing
         if isinstance(texts, str):
             texts = [texts]
-            
+
         document_ids = []
         for text in texts:
             document_create = DocumentCreate(text=text, session_id=self.session.id)
             document = DocumentRepository.create(db, document_create)
             document_ids.append(document.id)
-            
+
         return document_ids
 
     def run(self, module: BaseModule) -> None:
