@@ -1,10 +1,11 @@
 import typing as t
 import uuid
 
-from sqlmodel import Session, select
+from sqlmodel import Session as DBSession, select
+from sqlalchemy import not_
 
 from geoparser.db.crud.base import BaseRepository
-from geoparser.db.models import ResolutionSubject
+from geoparser.db.models import ResolutionSubject, Toponym, Document
 
 
 class ResolutionSubjectRepository(BaseRepository[ResolutionSubject]):
@@ -16,7 +17,7 @@ class ResolutionSubjectRepository(BaseRepository[ResolutionSubject]):
 
     @classmethod
     def get_by_toponym(
-        cls, db: Session, toponym_id: uuid.UUID
+        cls, db: DBSession, toponym_id: uuid.UUID
     ) -> t.List[ResolutionSubject]:
         """
         Get all resolution subjects for a toponym.
@@ -35,7 +36,7 @@ class ResolutionSubjectRepository(BaseRepository[ResolutionSubject]):
 
     @classmethod
     def get_by_module(
-        cls, db: Session, module_id: uuid.UUID
+        cls, db: DBSession, module_id: uuid.UUID
     ) -> t.List[ResolutionSubject]:
         """
         Get all resolution subjects for a module.
@@ -54,7 +55,7 @@ class ResolutionSubjectRepository(BaseRepository[ResolutionSubject]):
 
     @classmethod
     def get_by_toponym_and_module(
-        cls, db: Session, toponym_id: uuid.UUID, module_id: uuid.UUID
+        cls, db: DBSession, toponym_id: uuid.UUID, module_id: uuid.UUID
     ) -> t.Optional[ResolutionSubject]:
         """
         Get a resolution subject for a specific toponym and module.
@@ -71,4 +72,61 @@ class ResolutionSubjectRepository(BaseRepository[ResolutionSubject]):
             ResolutionSubject.toponym_id == toponym_id,
             ResolutionSubject.module_id == module_id,
         )
-        return db.exec(statement).first() 
+        return db.exec(statement).first()
+        
+    @classmethod
+    def get_unprocessed_toponyms_with_documents(
+        cls, db: DBSession, session_id: uuid.UUID, module_id: uuid.UUID
+    ) -> t.List[t.Tuple[Document, Toponym]]:
+        """
+        Get all toponyms from a session that have not been processed by a specific module,
+        together with their corresponding documents.
+        
+        This is done by retrieving all toponyms for the session and excluding those
+        that have a corresponding resolution subject record for the given module.
+        
+        Args:
+            db: Database session
+            session_id: ID of the session containing the documents with toponyms
+            module_id: ID of the resolution module
+            
+        Returns:
+            List of (Document, Toponym) tuples for unprocessed toponyms
+        """
+        # Get all documents for the session
+        statement = select(Document, Toponym).where(
+            Document.session_id == session_id,
+            Toponym.document_id == Document.id,
+            not_(
+                Toponym.id.in_(
+                    select(ResolutionSubject.toponym_id).where(
+                        ResolutionSubject.module_id == module_id
+                    )
+                )
+            )
+        )
+        return db.exec(statement).all()
+        
+    @classmethod
+    def create_many(
+        cls, db: DBSession, toponym_ids: t.List[uuid.UUID], module_id: uuid.UUID
+    ) -> t.List[ResolutionSubject]:
+        """
+        Create multiple resolution subject records at once.
+        
+        Args:
+            db: Database session
+            toponym_ids: List of toponym IDs
+            module_id: ID of the resolution module
+            
+        Returns:
+            List of created ResolutionSubject objects
+        """
+        subjects = []
+        for toponym_id in toponym_ids:
+            subject = ResolutionSubject(toponym_id=toponym_id, module_id=module_id)
+            db.add(subject)
+            subjects.append(subject)
+        
+        db.flush()  # Flush to assign IDs but don't commit yet
+        return subjects 

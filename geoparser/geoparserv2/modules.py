@@ -86,7 +86,7 @@ class BaseModule(ABC):
             # Rollback in case of error
             db.rollback()
             logging.error(
-                f"Error executing module '{self.name}' on session {session_id}: {str(e)}"
+                f"Error executing module '{self.name}' on session {session.id}: {str(e)}"
             )
             raise
         finally:
@@ -171,54 +171,6 @@ class RecognitionModule(BaseModule):
         module_create = RecognitionModuleCreate(name=self.name)
         return RecognitionModuleRepository.create(db, module_create)
 
-    def _get_documents(self, db: DBSession, session: Session) -> t.List[Document]:
-        """
-        Get all documents for a session.
-
-        Args:
-            db: Database session
-            session: Session object
-
-        Returns:
-            List of documents
-        """
-        return DocumentRepository.get_by_session(db, session.id)
-
-    def _document_has_been_processed(self, db: DBSession, document: Document) -> bool:
-        """
-        Check if a document has already been processed by this module.
-
-        Args:
-            db: Database session
-            document: Document object
-
-        Returns:
-            True if the document has been processed, False otherwise
-        """
-        # Check if there's a record in RecognitionSubject
-        subject = RecognitionSubjectRepository.get_by_document_and_module(
-            db, document.id, self.module.id
-        )
-        return subject is not None
-
-    def _mark_document_as_processed(self, db: DBSession, document: Document) -> RecognitionSubject:
-        """
-        Mark a document as processed by this module.
-
-        Args:
-            db: Database session
-            document: Document object
-
-        Returns:
-            Created RecognitionSubject object
-        """
-        # Create a recognition subject record
-        recognition_subject_create = RecognitionSubjectCreate(
-            document_id=document.id,
-            module_id=self.module.id
-        )
-        return RecognitionSubjectRepository.create(db, recognition_subject_create)
-
     def _create_toponym(
         self, db: DBSession, document: Document, start: int, end: int
     ) -> Toponym:
@@ -257,17 +209,26 @@ class RecognitionModule(BaseModule):
             db: Database session
             session: Session object to process
         """
-        # Get all documents for the session
-        documents = self._get_documents(db, session)
-
-        for document in documents:
-            # Skip documents that have already been processed by this module
-            if self._document_has_been_processed(db, document):
-                logging.info(
-                    f"Document {document.id} already processed by module '{self.name}', skipping."
-                )
-                continue
-
+        # Get all unprocessed documents for the session
+        unprocessed_documents = RecognitionSubjectRepository.get_unprocessed_documents(
+            db, session.id, self.module.id
+        )
+        
+        if not unprocessed_documents:
+            logging.info(
+                f"No unprocessed documents found for module '{self.name}' in session {session.name}."
+            )
+            return
+            
+        logging.info(
+            f"Processing {len(unprocessed_documents)} unprocessed documents with module '{self.name}'."
+        )
+        
+        # Process each unprocessed document
+        processed_document_ids = []
+        total_toponyms_created = 0
+        
+        for document in unprocessed_documents:
             # Get toponyms predicted by child class
             predicted_toponyms = self.predict_toponyms(document.text)
 
@@ -278,13 +239,25 @@ class RecognitionModule(BaseModule):
                     db=db, document=document, start=start, end=end
                 )
                 created_toponyms.append(toponym)
-
-            # Mark the document as processed, regardless of whether toponyms were found
-            self._mark_document_as_processed(db, document)
-
+            
+            # Add document to the list of processed documents
+            processed_document_ids.append(document.id)
+            total_toponyms_created += len(created_toponyms)
+            
             logging.info(
-                f"Document {document.id} processed by module '{self.name}', {len(created_toponyms)} toponyms found."
+                f"Document {document.id} processed, {len(created_toponyms)} toponyms found."
             )
+        
+        # Mark all documents as processed in a batch operation
+        if processed_document_ids:
+            RecognitionSubjectRepository.create_many(
+                db, processed_document_ids, self.module.id
+            )
+            
+        logging.info(
+            f"Module '{self.name}' completed processing {len(processed_document_ids)} documents, "
+            f"creating {total_toponyms_created} toponyms in total."
+        )
 
     @abstractmethod
     def predict_toponyms(self, text: str) -> t.List[t.Tuple[int, int]]:
@@ -366,66 +339,6 @@ class ResolutionModule(BaseModule):
         module_create = ResolutionModuleCreate(name=self.name)
         return ResolutionModuleRepository.create(db, module_create)
 
-    def _get_toponyms(
-        self, db: DBSession, session: Session
-    ) -> t.List[t.Tuple[Document, Toponym]]:
-        """
-        Get all toponyms for a session, together with their documents.
-
-        Args:
-            db: Database session
-            session: Session object
-
-        Returns:
-            List of (document, toponym) tuples
-        """
-        # Get all documents for the session
-        documents = DocumentRepository.get_by_session(db, session.id)
-
-        doc_toponym_pairs = []
-        for document in documents:
-            # Get all toponyms for the document
-            toponyms = ToponymRepository.get_by_document(db, document.id)
-            for toponym in toponyms:
-                doc_toponym_pairs.append((document, toponym))
-
-        return doc_toponym_pairs
-
-    def _toponym_has_been_processed(self, db: DBSession, toponym: Toponym) -> bool:
-        """
-        Check if a toponym has already been processed by this module.
-
-        Args:
-            db: Database session
-            toponym: Toponym object
-
-        Returns:
-            True if the toponym has been processed, False otherwise
-        """
-        # Check if there's a record in ResolutionSubject
-        subject = ResolutionSubjectRepository.get_by_toponym_and_module(
-            db, toponym.id, self.module.id
-        )
-        return subject is not None
-
-    def _mark_toponym_as_processed(self, db: DBSession, toponym: Toponym) -> ResolutionSubject:
-        """
-        Mark a toponym as processed by this module.
-
-        Args:
-            db: Database session
-            toponym: Toponym object
-
-        Returns:
-            Created ResolutionSubject object
-        """
-        # Create a resolution subject record
-        resolution_subject_create = ResolutionSubjectCreate(
-            toponym_id=toponym.id,
-            module_id=self.module.id
-        )
-        return ResolutionSubjectRepository.create(db, resolution_subject_create)
-
     def _create_location(
         self,
         db: DBSession,
@@ -470,17 +383,26 @@ class ResolutionModule(BaseModule):
             db: Database session
             session: Session object to process
         """
-        # Get all toponyms for the session
-        doc_toponym_pairs = self._get_toponyms(db, session)
-
-        for document, toponym in doc_toponym_pairs:
-            # Skip toponyms that have already been processed by this module
-            if self._toponym_has_been_processed(db, toponym):
-                logging.info(
-                    f"Toponym {toponym.id} already processed by module '{self.name}', skipping."
-                )
-                continue
-
+        # Get all unprocessed toponyms with their documents for the session
+        unprocessed_items = ResolutionSubjectRepository.get_unprocessed_toponyms_with_documents(
+            db, session.id, self.module.id
+        )
+        
+        if not unprocessed_items:
+            logging.info(
+                f"No unprocessed toponyms found for module '{self.name}' in session {session.name}."
+            )
+            return
+            
+        logging.info(
+            f"Processing {len(unprocessed_items)} unprocessed toponyms with module '{self.name}'."
+        )
+        
+        # Process each unprocessed toponym
+        processed_toponym_ids = []
+        total_locations_created = 0
+        
+        for document, toponym in unprocessed_items:
             # Extract toponym text from document
             toponym_text = document.text[toponym.start : toponym.end]
 
@@ -499,13 +421,25 @@ class ResolutionModule(BaseModule):
                     confidence=confidence,
                 )
                 created_locations.append(location)
-
-            # Mark the toponym as processed, regardless of whether locations were found
-            self._mark_toponym_as_processed(db, toponym)
-
+            
+            # Add toponym to the list of processed toponyms
+            processed_toponym_ids.append(toponym.id)
+            total_locations_created += len(created_locations)
+            
             logging.info(
-                f"Toponym {toponym.id} ('{toponym_text}') processed by module '{self.name}', {len(created_locations)} locations found."
+                f"Toponym {toponym.id} ('{toponym_text}') processed, {len(created_locations)} locations found."
             )
+        
+        # Mark all toponyms as processed in a batch operation
+        if processed_toponym_ids:
+            ResolutionSubjectRepository.create_many(
+                db, processed_toponym_ids, self.module.id
+            )
+            
+        logging.info(
+            f"Module '{self.name}' completed processing {len(processed_toponym_ids)} toponyms, "
+            f"creating {total_locations_created} locations in total."
+        )
 
     @abstractmethod
     def predict_locations(
