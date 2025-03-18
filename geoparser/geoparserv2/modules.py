@@ -53,7 +53,7 @@ class BaseModule(ABC):
         self.name = name
         self.module = None
 
-    def run(self, session_id: UUID) -> None:
+    def run(self, session: Session) -> None:
         """
         Execute the module's functionality on the specified session.
 
@@ -61,17 +61,12 @@ class BaseModule(ABC):
         and delegates the actual execution to the _execute method.
 
         Args:
-            session_id: UUID of the session to process
+            session: Session object to process
         """
         # Get a database session
         db = next(get_db())
 
         try:
-            # Get the session object
-            session = SessionRepository.get(db, session_id)
-            if session is None:
-                raise ValueError(f"Session with ID {session_id} not found")
-
             # Call the abstract _execute method that child classes implement
             self._execute(db, session)
 

@@ -112,7 +112,7 @@ class GeoparserV2:
             module: The module instance to run.
         """
         # Implementation for running a module
-        module.run(self.session_id)
+        module.run(self.session)
 
     def get_documents(self) -> list[dict]:
         """
