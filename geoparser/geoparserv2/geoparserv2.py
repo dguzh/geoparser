@@ -28,7 +28,7 @@ class GeoparserV2:
         """
         self.session = self._load_or_create_session(session_name)
 
-    def _load_or_create_session(self, session_name: str) -> Session:
+    def _initialize_session(self, session_name: str) -> Session:
         """
         Load an existing session or create a new one if it doesn't exist.
 
