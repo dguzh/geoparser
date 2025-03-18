@@ -4,50 +4,71 @@ import uuid
 from sqlmodel import Session, select
 
 from geoparser.db.crud.base import BaseRepository
-from geoparser.db.models import ResolutionProcess
+from geoparser.db.models import ResolutionSubject
 
 
-class ResolutionProcessRepository(BaseRepository[ResolutionProcess]):
+class ResolutionSubjectRepository(BaseRepository[ResolutionSubject]):
     """
-    Repository for ResolutionProcess model operations.
+    Repository for ResolutionSubject model operations.
     """
 
-    model = ResolutionProcess
+    model = ResolutionSubject
 
     @classmethod
     def get_by_toponym(
         cls, db: Session, toponym_id: uuid.UUID
-    ) -> t.List[ResolutionProcess]:
+    ) -> t.List[ResolutionSubject]:
         """
-        Get all resolution processes for a toponym.
+        Get all resolution subjects for a toponym.
 
         Args:
             db: Database session
-            toponym_id: Toponym ID
+            toponym_id: ID of the toponym
 
         Returns:
-            List of resolution processes
+            List of resolution subjects
         """
-        statement = select(ResolutionProcess).where(
-            ResolutionProcess.toponym_id == toponym_id
+        statement = select(ResolutionSubject).where(
+            ResolutionSubject.toponym_id == toponym_id
         )
         return db.exec(statement).all()
 
     @classmethod
     def get_by_module(
         cls, db: Session, module_id: uuid.UUID
-    ) -> t.List[ResolutionProcess]:
+    ) -> t.List[ResolutionSubject]:
         """
-        Get all resolution processes for a module.
+        Get all resolution subjects for a module.
 
         Args:
             db: Database session
-            module_id: Resolution module ID
+            module_id: ID of the resolution module
 
         Returns:
-            List of resolution processes
+            List of resolution subjects
         """
-        statement = select(ResolutionProcess).where(
-            ResolutionProcess.module_id == module_id
+        statement = select(ResolutionSubject).where(
+            ResolutionSubject.module_id == module_id
         )
-        return db.exec(statement).all() 
+        return db.exec(statement).all()
+
+    @classmethod
+    def get_by_toponym_and_module(
+        cls, db: Session, toponym_id: uuid.UUID, module_id: uuid.UUID
+    ) -> t.Optional[ResolutionSubject]:
+        """
+        Get a resolution subject for a specific toponym and module.
+
+        Args:
+            db: Database session
+            toponym_id: ID of the toponym
+            module_id: ID of the resolution module
+
+        Returns:
+            ResolutionSubject if found, None otherwise
+        """
+        statement = select(ResolutionSubject).where(
+            ResolutionSubject.toponym_id == toponym_id,
+            ResolutionSubject.module_id == module_id,
+        )
+        return db.exec(statement).first() 

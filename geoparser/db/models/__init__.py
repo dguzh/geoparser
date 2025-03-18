@@ -1,9 +1,9 @@
 from geoparser.db.models.document import Document, DocumentCreate, DocumentUpdate
 from geoparser.db.models.location import Location, LocationCreate, LocationUpdate
 from geoparser.db.models.recognition import (
-    Recognition,
-    RecognitionCreate,
-    RecognitionUpdate,
+    RecognitionObject,
+    RecognitionObjectCreate,
+    RecognitionObjectUpdate,
 )
 from geoparser.db.models.recognition_module import (
     RecognitionModule,
@@ -11,14 +11,14 @@ from geoparser.db.models.recognition_module import (
     RecognitionModuleUpdate,
 )
 from geoparser.db.models.recognition_process import (
-    RecognitionProcess,
-    RecognitionProcessCreate,
-    RecognitionProcessUpdate,
+    RecognitionSubject,
+    RecognitionSubjectCreate,
+    RecognitionSubjectUpdate,
 )
 from geoparser.db.models.resolution import (
-    Resolution,
-    ResolutionCreate,
-    ResolutionUpdate,
+    ResolutionObject,
+    ResolutionObjectCreate,
+    ResolutionObjectUpdate,
 )
 from geoparser.db.models.resolution_module import (
     ResolutionModule,
@@ -26,9 +26,9 @@ from geoparser.db.models.resolution_module import (
     ResolutionModuleUpdate,
 )
 from geoparser.db.models.resolution_process import (
-    ResolutionProcess,
-    ResolutionProcessCreate,
-    ResolutionProcessUpdate,
+    ResolutionSubject,
+    ResolutionSubjectCreate,
+    ResolutionSubjectUpdate,
 )
 from geoparser.db.models.session import Session, SessionCreate, SessionUpdate
 from geoparser.db.models.settings import (  # SessionSettings,  # Commented out to disable the SessionSettings model
@@ -47,17 +47,17 @@ for rebuild in [
     ToponymCreate,
     Location,
     LocationCreate,
-    Recognition,
-    RecognitionCreate,
-    Resolution,
-    ResolutionCreate,
+    RecognitionObject,
+    RecognitionObjectCreate,
+    ResolutionObject,
+    ResolutionObjectCreate,
     RecognitionModule,
     RecognitionModuleCreate,
     ResolutionModule,
     ResolutionModuleCreate,
-    RecognitionProcess,
-    RecognitionProcessCreate,
-    ResolutionProcess,
-    ResolutionProcessCreate,
+    RecognitionSubject,
+    RecognitionSubjectCreate,
+    ResolutionSubject,
+    ResolutionSubjectCreate,
 ]:
     rebuild.model_rebuild()

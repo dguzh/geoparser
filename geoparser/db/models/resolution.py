@@ -9,13 +9,14 @@ if t.TYPE_CHECKING:
     from geoparser.db.models.resolution_module import ResolutionModule
 
 
-class ResolutionBase(SQLModel):
-    """
-    Base model for the resolution process.
-
-    Contains the module_id to identify which resolution module was used.
-    """
-
+class ResolutionObjectBase(SQLModel):
+    """Base model for resolution object data."""
+    
+    location_id: uuid.UUID = Field(
+        sa_column=Column(
+            UUID, ForeignKey("location.id", ondelete="CASCADE"), nullable=False
+        )
+    )
     module_id: uuid.UUID = Field(
         sa_column=Column(
             UUID, ForeignKey("resolutionmodule.id", ondelete="CASCADE"), nullable=False
@@ -23,36 +24,24 @@ class ResolutionBase(SQLModel):
     )
 
 
-class Resolution(ResolutionBase, table=True):
+class ResolutionObject(ResolutionObjectBase, table=True):
     """
-    Records which resolution processes identified each location.
+    Represents a resolution object.
 
-    This allows tracking of which module resolved a toponym to a specific location.
+    Tracks which resolution module identified a specific location for a toponym.
     """
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-    location_id: uuid.UUID = Field(
-        sa_column=Column(
-            UUID, ForeignKey("location.id", ondelete="CASCADE"), nullable=False
-        )
-    )
-    location: "Location" = Relationship(back_populates="resolutions")
-    module: "ResolutionModule" = Relationship(back_populates="resolutions")
+    location: "Location" = Relationship(back_populates="resolution_objects")
+    module: "ResolutionModule" = Relationship(back_populates="resolution_objects")
 
 
-class ResolutionCreate(ResolutionBase):
-    """
-    Model for creating a new resolution record.
-
-    Includes both the module_id (from ResolutionBase) and the location_id
-    to create the association between a location and a resolution module.
-    """
-
-    location_id: uuid.UUID = Field()
+class ResolutionObjectCreate(ResolutionObjectBase):
+    """Model for creating a new resolution object."""
 
 
-class ResolutionUpdate(SQLModel):
-    """Model for updating an existing resolution record."""
+class ResolutionObjectUpdate(SQLModel):
+    """Model for updating an existing resolution object."""
 
     id: uuid.UUID
     location_id: t.Optional[uuid.UUID] = None

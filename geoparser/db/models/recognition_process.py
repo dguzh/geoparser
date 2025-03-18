@@ -9,13 +9,8 @@ if t.TYPE_CHECKING:
     from geoparser.db.models.recognition_module import RecognitionModule
 
 
-class RecognitionProcessBase(SQLModel):
-    """
-    Base model for recognition process data.
-
-    Records that a document was processed by a specific recognition module,
-    regardless of whether any toponyms were found.
-    """
+class RecognitionSubjectBase(SQLModel):
+    """Base model for recognition subject data."""
 
     document_id: uuid.UUID = Field(
         sa_column=Column(
@@ -29,25 +24,25 @@ class RecognitionProcessBase(SQLModel):
     )
 
 
-class RecognitionProcess(RecognitionProcessBase, table=True):
+class RecognitionSubject(RecognitionSubjectBase, table=True):
     """
-    Represents a recognition process.
+    Tracks which documents have been processed by which recognition modules.
 
-    Tracks that a document was processed by a specific recognition module,
+    This allows tracking of which modules have already processed a document,
     even if no toponyms were found.
     """
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-    document: "Document" = Relationship(back_populates="recognition_processes")
-    module: "RecognitionModule" = Relationship(back_populates="recognition_processes")
+    document: "Document" = Relationship(back_populates="recognition_subjects")
+    module: "RecognitionModule" = Relationship(back_populates="recognition_subjects")
 
 
-class RecognitionProcessCreate(RecognitionProcessBase):
-    """Model for creating a new recognition process record."""
+class RecognitionSubjectCreate(RecognitionSubjectBase):
+    """Model for creating a new recognition subject record."""
 
 
-class RecognitionProcessUpdate(SQLModel):
-    """Model for updating an existing recognition process record."""
+class RecognitionSubjectUpdate(SQLModel):
+    """Model for updating an existing recognition subject record."""
 
     id: uuid.UUID
     document_id: t.Optional[uuid.UUID] = None

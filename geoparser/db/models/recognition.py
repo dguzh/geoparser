@@ -5,17 +5,18 @@ from sqlalchemy import UUID, Column, ForeignKey
 from sqlmodel import Field, Relationship, SQLModel
 
 if t.TYPE_CHECKING:
-    from geoparser.db.models.recognition_module import RecognitionModule
     from geoparser.db.models.toponym import Toponym
+    from geoparser.db.models.recognition_module import RecognitionModule
 
 
-class RecognitionBase(SQLModel):
-    """
-    Base model for the recognition process.
-
-    Contains the module_id to identify which recognition module was used.
-    """
-
+class RecognitionObjectBase(SQLModel):
+    """Base model for recognition object data."""
+    
+    toponym_id: uuid.UUID = Field(
+        sa_column=Column(
+            UUID, ForeignKey("toponym.id", ondelete="CASCADE"), nullable=False
+        )
+    )
     module_id: uuid.UUID = Field(
         sa_column=Column(
             UUID, ForeignKey("recognitionmodule.id", ondelete="CASCADE"), nullable=False
@@ -23,37 +24,24 @@ class RecognitionBase(SQLModel):
     )
 
 
-class Recognition(RecognitionBase, table=True):
+class RecognitionObject(RecognitionObjectBase, table=True):
     """
-    Records which recognition processes identified each toponym.
+    Represents a recognition object.
 
-    This allows a single toponym to be recognized by multiple modules without
-    creating duplicate toponym entries.
+    Tracks which recognition module identified a specific toponym.
     """
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-    toponym_id: uuid.UUID = Field(
-        sa_column=Column(
-            UUID, ForeignKey("toponym.id", ondelete="CASCADE"), nullable=False
-        )
-    )
-    toponym: "Toponym" = Relationship(back_populates="recognitions")
-    module: "RecognitionModule" = Relationship(back_populates="recognitions")
+    toponym: "Toponym" = Relationship(back_populates="recognition_objects")
+    module: "RecognitionModule" = Relationship(back_populates="recognition_objects")
 
 
-class RecognitionCreate(RecognitionBase):
-    """
-    Model for creating a new recognition record.
-
-    Includes both the module_id (from RecognitionBase) and the toponym_id
-    to create the association between a toponym and a recognition module.
-    """
-
-    toponym_id: uuid.UUID = Field()
+class RecognitionObjectCreate(RecognitionObjectBase):
+    """Model for creating a new recognition object."""
 
 
-class RecognitionUpdate(SQLModel):
-    """Model for updating an existing recognition record."""
+class RecognitionObjectUpdate(SQLModel):
+    """Model for updating an existing recognition object."""
 
     id: uuid.UUID
     toponym_id: t.Optional[uuid.UUID] = None

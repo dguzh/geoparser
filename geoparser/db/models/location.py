@@ -5,27 +5,28 @@ from sqlalchemy import UUID, Column, ForeignKey
 from sqlmodel import Field, Relationship, SQLModel
 
 if t.TYPE_CHECKING:
-    from geoparser.db.models.resolution import Resolution
     from geoparser.db.models.toponym import Toponym
+    from geoparser.db.models.resolution import ResolutionObject
 
 
 class LocationBase(SQLModel):
     """
     Base model for location data.
 
-    Contains the core fields that identify a location in a gazetteer.
+    Contains the location_id which references a gazetteer entry,
+    as well as an optional confidence score.
     """
 
-    location_id: str  # ID of the location in the gazetteer
-    confidence: t.Optional[float] = None  # Optional confidence score
+    location_id: str
+    confidence: t.Optional[float] = None
 
 
 class Location(LocationBase, table=True):
     """
     Represents a resolved location for a toponym.
 
-    A location is a specific place that a toponym might refer to.
-    Each toponym can have multiple potential locations with different confidence scores.
+    A location is a specific place in a gazetteer that a toponym refers to.
+    Each toponym can have multiple potential locations, reflecting ambiguity in the text.
     """
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
@@ -35,7 +36,7 @@ class Location(LocationBase, table=True):
         )
     )
     toponym: "Toponym" = Relationship(back_populates="locations")
-    resolutions: list["Resolution"] = Relationship(
+    resolution_objects: list["ResolutionObject"] = Relationship(
         back_populates="location",
         sa_relationship_kwargs={
             "cascade": "all, delete-orphan",
@@ -58,6 +59,5 @@ class LocationUpdate(SQLModel):
     """Model for updating an existing location."""
 
     id: uuid.UUID
-    toponym_id: t.Optional[uuid.UUID] = None
     location_id: t.Optional[str] = None
     confidence: t.Optional[float] = None

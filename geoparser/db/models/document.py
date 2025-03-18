@@ -10,7 +10,7 @@ from geoparser.db.models.validators import normalize_newlines
 if t.TYPE_CHECKING:
     from geoparser.db.models.session import Session
     from geoparser.db.models.toponym import Toponym
-    from geoparser.db.models.recognition_process import RecognitionProcess
+    from geoparser.db.models.recognition_process import RecognitionSubject
 
 
 class DocumentBase(SQLModel):
@@ -45,7 +45,7 @@ class Document(DocumentBase, table=True):
             "passive_deletes": True,
         },
     )
-    recognition_processes: list["RecognitionProcess"] = Relationship(
+    recognition_subjects: list["RecognitionSubject"] = Relationship(
         back_populates="document",
         sa_relationship_kwargs={
             "cascade": "all, delete-orphan",
@@ -68,4 +68,5 @@ class DocumentUpdate(SQLModel):
     """Model for updating an existing document."""
 
     id: uuid.UUID
+    session_id: t.Optional[uuid.UUID] = None
     text: t.Optional[str] = None

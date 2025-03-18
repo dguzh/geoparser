@@ -9,11 +9,11 @@ from geoparser.db.crud import (
     DocumentRepository,
     LocationRepository,
     RecognitionModuleRepository,
-    RecognitionProcessRepository,
-    RecognitionRepository,
+    RecognitionSubjectRepository,
+    RecognitionObjectRepository,
     ResolutionModuleRepository,
-    ResolutionProcessRepository,
-    ResolutionRepository,
+    ResolutionSubjectRepository,
+    ResolutionObjectRepository,
     SessionRepository,
     ToponymRepository,
 )
@@ -22,16 +22,16 @@ from geoparser.db.models import (
     Document,
     Location,
     LocationCreate,
-    RecognitionCreate,
+    RecognitionObjectCreate,
     RecognitionModule,
     RecognitionModuleCreate,
-    RecognitionProcess,
-    RecognitionProcessCreate,
-    ResolutionCreate,
+    RecognitionSubject,
+    RecognitionSubjectCreate,
+    ResolutionObjectCreate,
     ResolutionModule,
     ResolutionModuleCreate,
-    ResolutionProcess,
-    ResolutionProcessCreate,
+    ResolutionSubject,
+    ResolutionSubjectCreate,
     Session,
     Toponym,
     ToponymCreate,
@@ -195,13 +195,13 @@ class RecognitionModule(BaseModule):
         Returns:
             True if the document has been processed, False otherwise
         """
-        # Check if there's a record in RecognitionProcess
-        process = RecognitionProcessRepository.get_by_document_and_module(
+        # Check if there's a record in RecognitionSubject
+        subject = RecognitionSubjectRepository.get_by_document_and_module(
             db, document.id, self.module.id
         )
-        return process is not None
+        return subject is not None
 
-    def _mark_document_as_processed(self, db: DBSession, document: Document) -> RecognitionProcess:
+    def _mark_document_as_processed(self, db: DBSession, document: Document) -> RecognitionSubject:
         """
         Mark a document as processed by this module.
 
@@ -210,14 +210,14 @@ class RecognitionModule(BaseModule):
             document: Document object
 
         Returns:
-            Created RecognitionProcess object
+            Created RecognitionSubject object
         """
-        # Create a recognition process record
-        recognition_process_create = RecognitionProcessCreate(
+        # Create a recognition subject record
+        recognition_subject_create = RecognitionSubjectCreate(
             document_id=document.id,
             module_id=self.module.id
         )
-        return RecognitionProcessRepository.create(db, recognition_process_create)
+        return RecognitionSubjectRepository.create(db, recognition_subject_create)
 
     def _create_toponym(
         self, db: DBSession, document: Document, start: int, end: int
@@ -238,11 +238,11 @@ class RecognitionModule(BaseModule):
         toponym_create = ToponymCreate(start=start, end=end, document_id=document.id)
         toponym = ToponymRepository.create(db, toponym_create)
 
-        # Create the recognition
-        recognition_create = RecognitionCreate(
+        # Create the recognition object
+        recognition_object_create = RecognitionObjectCreate(
             toponym_id=toponym.id, module_id=self.module.id
         )
-        RecognitionRepository.create(db, recognition_create)
+        RecognitionObjectRepository.create(db, recognition_object_create)
 
         return toponym
 
@@ -402,13 +402,13 @@ class ResolutionModule(BaseModule):
         Returns:
             True if the toponym has been processed, False otherwise
         """
-        # Check if there's a record in ResolutionProcess
-        process = ResolutionProcessRepository.get_by_toponym_and_module(
+        # Check if there's a record in ResolutionSubject
+        subject = ResolutionSubjectRepository.get_by_toponym_and_module(
             db, toponym.id, self.module.id
         )
-        return process is not None
+        return subject is not None
 
-    def _mark_toponym_as_processed(self, db: DBSession, toponym: Toponym) -> ResolutionProcess:
+    def _mark_toponym_as_processed(self, db: DBSession, toponym: Toponym) -> ResolutionSubject:
         """
         Mark a toponym as processed by this module.
 
@@ -417,14 +417,14 @@ class ResolutionModule(BaseModule):
             toponym: Toponym object
 
         Returns:
-            Created ResolutionProcess object
+            Created ResolutionSubject object
         """
-        # Create a resolution process record
-        resolution_process_create = ResolutionProcessCreate(
+        # Create a resolution subject record
+        resolution_subject_create = ResolutionSubjectCreate(
             toponym_id=toponym.id,
             module_id=self.module.id
         )
-        return ResolutionProcessRepository.create(db, resolution_process_create)
+        return ResolutionSubjectRepository.create(db, resolution_subject_create)
 
     def _create_location(
         self,
@@ -451,11 +451,11 @@ class ResolutionModule(BaseModule):
         )
         location = LocationRepository.create(db, location_create)
 
-        # Create the resolution
-        resolution_create = ResolutionCreate(
+        # Create the resolution object
+        resolution_object_create = ResolutionObjectCreate(
             location_id=location.id, module_id=self.module.id
         )
-        ResolutionRepository.create(db, resolution_create)
+        ResolutionObjectRepository.create(db, resolution_object_create)
 
         return location
 

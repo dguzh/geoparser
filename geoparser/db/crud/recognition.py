@@ -4,42 +4,71 @@ import uuid
 from sqlmodel import Session, select
 
 from geoparser.db.crud.base import BaseRepository
-from geoparser.db.models import Recognition
+from geoparser.db.models import RecognitionObject
 
 
-class RecognitionRepository(BaseRepository[Recognition]):
+class RecognitionObjectRepository(BaseRepository[RecognitionObject]):
     """
-    Repository for Recognition model operations.
+    Repository for RecognitionObject model operations.
     """
 
-    model = Recognition
+    model = RecognitionObject
 
     @classmethod
-    def get_by_toponym(cls, db: Session, toponym_id: uuid.UUID) -> t.List[Recognition]:
+    def get_by_toponym(
+        cls, db: Session, toponym_id: uuid.UUID
+    ) -> t.List[RecognitionObject]:
         """
-        Get all recognitions for a toponym.
+        Get all recognition objects for a toponym.
 
         Args:
             db: Database session
-            toponym_id: Toponym ID
+            toponym_id: ID of the toponym
 
         Returns:
-            List of recognitions
+            List of recognition objects
         """
-        statement = select(Recognition).where(Recognition.toponym_id == toponym_id)
+        statement = select(RecognitionObject).where(
+            RecognitionObject.toponym_id == toponym_id
+        )
         return db.exec(statement).all()
 
     @classmethod
-    def get_by_module(cls, db: Session, module_id: uuid.UUID) -> t.List[Recognition]:
+    def get_by_module(
+        cls, db: Session, module_id: uuid.UUID
+    ) -> t.List[RecognitionObject]:
         """
-        Get all recognitions for a module.
+        Get all recognition objects for a module.
 
         Args:
             db: Database session
-            module_id: Module ID
+            module_id: ID of the recognition module
 
         Returns:
-            List of recognitions
+            List of recognition objects
         """
-        statement = select(Recognition).where(Recognition.module_id == module_id)
+        statement = select(RecognitionObject).where(
+            RecognitionObject.module_id == module_id
+        )
         return db.exec(statement).all()
+
+    @classmethod
+    def get_by_toponym_and_module(
+        cls, db: Session, toponym_id: uuid.UUID, module_id: uuid.UUID
+    ) -> t.Optional[RecognitionObject]:
+        """
+        Get a recognition object for a specific toponym and module.
+
+        Args:
+            db: Database session
+            toponym_id: ID of the toponym
+            module_id: ID of the recognition module
+
+        Returns:
+            Recognition object if found, None otherwise
+        """
+        statement = select(RecognitionObject).where(
+            RecognitionObject.toponym_id == toponym_id,
+            RecognitionObject.module_id == module_id,
+        )
+        return db.exec(statement).first()
