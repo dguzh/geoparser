@@ -271,26 +271,27 @@ def test_get_unprocessed_documents(
 def test_create_many(
     test_db: DBSession,
     test_recognition_module: RecognitionModule,
+    test_document: Document,
 ):
     """Test creating multiple recognition subject records at once."""
     # Create a few documents
-    session_create = test_db.query(Document).first().session
+    session_id = test_document.session_id
     
     doc_create1 = DocumentCreate(
         text="First batch document.", 
-        session_id=session_create.id
+        session_id=session_id
     )
     doc1 = DocumentRepository.create(test_db, doc_create1)
     
     doc_create2 = DocumentCreate(
         text="Second batch document.", 
-        session_id=session_create.id
+        session_id=session_id
     )
     doc2 = DocumentRepository.create(test_db, doc_create2)
     
     doc_create3 = DocumentCreate(
         text="Third batch document.", 
-        session_id=session_create.id
+        session_id=session_id
     )
     doc3 = DocumentRepository.create(test_db, doc_create3)
     
