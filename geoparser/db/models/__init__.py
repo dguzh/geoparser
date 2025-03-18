@@ -1,29 +1,29 @@
 from geoparser.db.models.document import Document, DocumentCreate, DocumentUpdate
 from geoparser.db.models.location import Location, LocationCreate, LocationUpdate
-from geoparser.db.models.recognition_object import (
-    RecognitionObject,
-    RecognitionObjectCreate,
-    RecognitionObjectUpdate,
-)
 from geoparser.db.models.recognition_module import (
     RecognitionModule,
     RecognitionModuleCreate,
     RecognitionModuleUpdate,
+)
+from geoparser.db.models.recognition_object import (
+    RecognitionObject,
+    RecognitionObjectCreate,
+    RecognitionObjectUpdate,
 )
 from geoparser.db.models.recognition_subject import (
     RecognitionSubject,
     RecognitionSubjectCreate,
     RecognitionSubjectUpdate,
 )
-from geoparser.db.models.resolution_object import (
-    ResolutionObject,
-    ResolutionObjectCreate,
-    ResolutionObjectUpdate,
-)
 from geoparser.db.models.resolution_module import (
     ResolutionModule,
     ResolutionModuleCreate,
     ResolutionModuleUpdate,
+)
+from geoparser.db.models.resolution_object import (
+    ResolutionObject,
+    ResolutionObjectCreate,
+    ResolutionObjectUpdate,
 )
 from geoparser.db.models.resolution_subject import (
     ResolutionSubject,

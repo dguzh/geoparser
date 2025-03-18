@@ -11,7 +11,7 @@ if t.TYPE_CHECKING:
 
 class ResolutionObjectBase(SQLModel):
     """Base model for resolution object data."""
-    
+
     location_id: uuid.UUID = Field(
         sa_column=Column(
             UUID, ForeignKey("location.id", ondelete="CASCADE"), nullable=False

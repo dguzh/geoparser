@@ -9,16 +9,16 @@ from geoparser.db.models import (
     DocumentCreate,
     Location,
     LocationCreate,
-    RecognitionObject,
-    RecognitionObjectCreate,
     RecognitionModule,
     RecognitionModuleCreate,
+    RecognitionObject,
+    RecognitionObjectCreate,
     RecognitionSubject,
     RecognitionSubjectCreate,
-    ResolutionObject,
-    ResolutionObjectCreate,
     ResolutionModule,
     ResolutionModuleCreate,
+    ResolutionObject,
+    ResolutionObjectCreate,
     ResolutionSubject,
     ResolutionSubjectCreate,
     Session,
@@ -164,8 +164,8 @@ def test_recognition_subject(
         document_id=test_document.id, module_id=test_recognition_module.id
     )
     recognition_subject = RecognitionSubject(
-        document_id=recognition_subject_create.document_id, 
-        module_id=recognition_subject_create.module_id
+        document_id=recognition_subject_create.document_id,
+        module_id=recognition_subject_create.module_id,
     )
     test_db.add(recognition_subject)
     test_db.commit()
@@ -184,8 +184,8 @@ def test_resolution_subject(
         toponym_id=test_toponym.id, module_id=test_resolution_module.id
     )
     resolution_subject = ResolutionSubject(
-        toponym_id=resolution_subject_create.toponym_id, 
-        module_id=resolution_subject_create.module_id
+        toponym_id=resolution_subject_create.toponym_id,
+        module_id=resolution_subject_create.module_id,
     )
     test_db.add(resolution_subject)
     test_db.commit()

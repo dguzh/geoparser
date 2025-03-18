@@ -2,15 +2,15 @@ import uuid
 
 from sqlmodel import Session as DBSession
 
-from geoparser.db.crud import RecognitionSubjectRepository, DocumentRepository
+from geoparser.db.crud import DocumentRepository, RecognitionSubjectRepository
 from geoparser.db.models import (
-    RecognitionSubject,
-    RecognitionSubjectCreate,
-    RecognitionModule,
-    RecognitionModuleCreate,
-    RecognitionSubjectUpdate,
     Document,
     DocumentCreate,
+    RecognitionModule,
+    RecognitionModuleCreate,
+    RecognitionSubject,
+    RecognitionSubjectCreate,
+    RecognitionSubjectUpdate,
 )
 
 
@@ -96,8 +96,8 @@ def test_get_by_module(
     """Test getting recognition subjects by module ID."""
     # Create another document
     doc_create = DocumentCreate(
-        text="Another test document.", 
-        session_id=test_recognition_subject.document.session_id
+        text="Another test document.",
+        session_id=test_recognition_subject.document.session_id,
     )
 
     # Create the document
@@ -127,8 +127,8 @@ def test_get_all(test_db: DBSession, test_recognition_subject: RecognitionSubjec
     """Test getting all recognition subjects."""
     # Create another recognition subject
     subject_create = RecognitionSubjectCreate(
-        module_id=test_recognition_subject.module_id, 
-        document_id=test_recognition_subject.document_id
+        module_id=test_recognition_subject.module_id,
+        document_id=test_recognition_subject.document_id,
     )
 
     # Create the recognition subject
@@ -149,7 +149,9 @@ def test_update(test_db: DBSession, test_recognition_subject: RecognitionSubject
     test_db.refresh(module)
 
     # Update the recognition subject
-    subject_update = RecognitionSubjectUpdate(id=test_recognition_subject.id, module_id=module.id)
+    subject_update = RecognitionSubjectUpdate(
+        id=test_recognition_subject.id, module_id=module.id
+    )
     updated_subject = RecognitionSubjectRepository.update(
         test_db, db_obj=test_recognition_subject, obj_in=subject_update
     )
@@ -166,7 +168,9 @@ def test_update(test_db: DBSession, test_recognition_subject: RecognitionSubject
 def test_delete(test_db: DBSession, test_recognition_subject: RecognitionSubject):
     """Test deleting a recognition subject."""
     # Delete the recognition subject
-    deleted_subject = RecognitionSubjectRepository.delete(test_db, id=test_recognition_subject.id)
+    deleted_subject = RecognitionSubjectRepository.delete(
+        test_db, id=test_recognition_subject.id
+    )
 
     assert deleted_subject is not None
     assert deleted_subject.id == test_recognition_subject.id
@@ -213,54 +217,54 @@ def test_get_unprocessed_documents(
     """Test getting unprocessed documents from a session."""
     # Create another document in the same session
     doc_create = DocumentCreate(
-        text="Another test document.", 
-        session_id=test_document.session_id
+        text="Another test document.", session_id=test_document.session_id
     )
     another_document = DocumentRepository.create(test_db, doc_create)
-    
+
     # Create a third document in the same session
     doc_create = DocumentCreate(
-        text="Yet another test document.", 
-        session_id=test_document.session_id
+        text="Yet another test document.", session_id=test_document.session_id
     )
     third_document = DocumentRepository.create(test_db, doc_create)
-    
+
     # Process the third document with a different module
     new_module_create = RecognitionModuleCreate(name="different-recognition-module")
     new_module = RecognitionModule(name=new_module_create.name)
     test_db.add(new_module)
     test_db.commit()
     test_db.refresh(new_module)
-    
+
     subject_create = RecognitionSubjectCreate(
         module_id=new_module.id, document_id=third_document.id
     )
     RecognitionSubjectRepository.create(test_db, subject_create)
-    
+
     # Get unprocessed documents for test_recognition_module
     unprocessed_docs = RecognitionSubjectRepository.get_unprocessed_documents(
         test_db, test_document.session_id, test_recognition_module.id
     )
-    
+
     # Should return another_document and third_document (not processed by test_recognition_module)
     assert len(unprocessed_docs) == 2
     doc_ids = [doc.id for doc in unprocessed_docs]
     assert another_document.id in doc_ids
     assert third_document.id in doc_ids
-    assert test_document.id not in doc_ids  # Already processed by test_recognition_module
-    
+    assert (
+        test_document.id not in doc_ids
+    )  # Already processed by test_recognition_module
+
     # Get unprocessed documents for new_module
     unprocessed_docs = RecognitionSubjectRepository.get_unprocessed_documents(
         test_db, test_document.session_id, new_module.id
     )
-    
+
     # Should return test_document and another_document (not processed by new_module)
     assert len(unprocessed_docs) == 2
     doc_ids = [doc.id for doc in unprocessed_docs]
     assert test_document.id in doc_ids
     assert another_document.id in doc_ids
     assert third_document.id not in doc_ids  # Already processed by new_module
-    
+
     # Test with non-existent session ID
     unprocessed_docs = RecognitionSubjectRepository.get_unprocessed_documents(
         test_db, uuid.uuid4(), test_recognition_module.id
@@ -276,34 +280,25 @@ def test_create_many(
     """Test creating multiple recognition subject records at once."""
     # Create a few documents
     session_id = test_document.session_id
-    
-    doc_create1 = DocumentCreate(
-        text="First batch document.", 
-        session_id=session_id
-    )
+
+    doc_create1 = DocumentCreate(text="First batch document.", session_id=session_id)
     doc1 = DocumentRepository.create(test_db, doc_create1)
-    
-    doc_create2 = DocumentCreate(
-        text="Second batch document.", 
-        session_id=session_id
-    )
+
+    doc_create2 = DocumentCreate(text="Second batch document.", session_id=session_id)
     doc2 = DocumentRepository.create(test_db, doc_create2)
-    
-    doc_create3 = DocumentCreate(
-        text="Third batch document.", 
-        session_id=session_id
-    )
+
+    doc_create3 = DocumentCreate(text="Third batch document.", session_id=session_id)
     doc3 = DocumentRepository.create(test_db, doc_create3)
-    
+
     # Create subject records for all documents in one operation
     document_ids = [doc1.id, doc2.id, doc3.id]
     created_subjects = RecognitionSubjectRepository.create_many(
         test_db, document_ids, test_recognition_module.id
     )
-    
+
     # Check that all subjects were created
     assert len(created_subjects) == 3
-    
+
     # Verify they were saved to the database
     for doc_id in document_ids:
         subject = RecognitionSubjectRepository.get_by_document_and_module(
@@ -311,4 +306,4 @@ def test_create_many(
         )
         assert subject is not None
         assert subject.document_id == doc_id
-        assert subject.module_id == test_recognition_module.id 
+        assert subject.module_id == test_recognition_module.id

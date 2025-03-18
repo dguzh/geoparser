@@ -5,13 +5,13 @@ from sqlalchemy import UUID, Column, ForeignKey
 from sqlmodel import Field, Relationship, SQLModel
 
 if t.TYPE_CHECKING:
-    from geoparser.db.models.toponym import Toponym
     from geoparser.db.models.recognition_module import RecognitionModule
+    from geoparser.db.models.toponym import Toponym
 
 
 class RecognitionObjectBase(SQLModel):
     """Base model for recognition object data."""
-    
+
     toponym_id: uuid.UUID = Field(
         sa_column=Column(
             UUID, ForeignKey("toponym.id", ondelete="CASCADE"), nullable=False

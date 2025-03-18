@@ -1,20 +1,17 @@
 import logging
 import typing as t
 from abc import ABC, abstractmethod
-from uuid import UUID
 
 from sqlmodel import Session as DBSession
 
 from geoparser.db.crud import (
-    DocumentRepository,
     LocationRepository,
     RecognitionModuleRepository,
-    RecognitionSubjectRepository,
     RecognitionObjectRepository,
+    RecognitionSubjectRepository,
     ResolutionModuleRepository,
-    ResolutionSubjectRepository,
     ResolutionObjectRepository,
-    SessionRepository,
+    ResolutionSubjectRepository,
     ToponymRepository,
 )
 from geoparser.db.db import get_db
@@ -22,16 +19,12 @@ from geoparser.db.models import (
     Document,
     Location,
     LocationCreate,
-    RecognitionObjectCreate,
     RecognitionModule,
     RecognitionModuleCreate,
-    RecognitionSubject,
-    RecognitionSubjectCreate,
-    ResolutionObjectCreate,
+    RecognitionObjectCreate,
     ResolutionModule,
     ResolutionModuleCreate,
-    ResolutionSubject,
-    ResolutionSubjectCreate,
+    ResolutionObjectCreate,
     Session,
     Toponym,
     ToponymCreate,
@@ -213,21 +206,21 @@ class RecognitionModule(BaseModule):
         unprocessed_documents = RecognitionSubjectRepository.get_unprocessed_documents(
             db, session.id, self.module.id
         )
-        
+
         if not unprocessed_documents:
             logging.info(
                 f"No unprocessed documents found for module '{self.name}' in session {session.name}."
             )
             return
-            
+
         logging.info(
             f"Processing {len(unprocessed_documents)} unprocessed documents with module '{self.name}'."
         )
-        
+
         # Process each unprocessed document
         processed_document_ids = []
         total_toponyms_created = 0
-        
+
         for document in unprocessed_documents:
             # Get toponyms predicted by child class
             predicted_toponyms = self.predict_toponyms(document.text)
@@ -239,21 +232,21 @@ class RecognitionModule(BaseModule):
                     db=db, document=document, start=start, end=end
                 )
                 created_toponyms.append(toponym)
-            
+
             # Add document to the list of processed documents
             processed_document_ids.append(document.id)
             total_toponyms_created += len(created_toponyms)
-            
+
             logging.info(
                 f"Document {document.id} processed, {len(created_toponyms)} toponyms found."
             )
-        
+
         # Mark all documents as processed in a batch operation
         if processed_document_ids:
             RecognitionSubjectRepository.create_many(
                 db, processed_document_ids, self.module.id
             )
-            
+
         logging.info(
             f"Module '{self.name}' completed processing {len(processed_document_ids)} documents, "
             f"creating {total_toponyms_created} toponyms in total."
@@ -384,24 +377,26 @@ class ResolutionModule(BaseModule):
             session: Session object to process
         """
         # Get all unprocessed toponyms with their documents for the session
-        unprocessed_items = ResolutionSubjectRepository.get_unprocessed_toponyms_with_documents(
-            db, session.id, self.module.id
+        unprocessed_items = (
+            ResolutionSubjectRepository.get_unprocessed_toponyms_with_documents(
+                db, session.id, self.module.id
+            )
         )
-        
+
         if not unprocessed_items:
             logging.info(
                 f"No unprocessed toponyms found for module '{self.name}' in session {session.name}."
             )
             return
-            
+
         logging.info(
             f"Processing {len(unprocessed_items)} unprocessed toponyms with module '{self.name}'."
         )
-        
+
         # Process each unprocessed toponym
         processed_toponym_ids = []
         total_locations_created = 0
-        
+
         for document, toponym in unprocessed_items:
             # Extract toponym text from document
             toponym_text = document.text[toponym.start : toponym.end]
@@ -421,21 +416,21 @@ class ResolutionModule(BaseModule):
                     confidence=confidence,
                 )
                 created_locations.append(location)
-            
+
             # Add toponym to the list of processed toponyms
             processed_toponym_ids.append(toponym.id)
             total_locations_created += len(created_locations)
-            
+
             logging.info(
                 f"Toponym {toponym.id} ('{toponym_text}') processed, {len(created_locations)} locations found."
             )
-        
+
         # Mark all toponyms as processed in a batch operation
         if processed_toponym_ids:
             ResolutionSubjectRepository.create_many(
                 db, processed_toponym_ids, self.module.id
             )
-            
+
         logging.info(
             f"Module '{self.name}' completed processing {len(processed_toponym_ids)} toponyms, "
             f"creating {total_locations_created} locations in total."

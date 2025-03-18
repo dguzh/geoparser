@@ -4,10 +4,10 @@ from sqlmodel import Session as DBSession
 
 from geoparser.db.crud import RecognitionObjectRepository, ToponymRepository
 from geoparser.db.models import (
-    RecognitionObject,
-    RecognitionObjectCreate,
     RecognitionModule,
     RecognitionModuleCreate,
+    RecognitionObject,
+    RecognitionObjectCreate,
     RecognitionObjectUpdate,
     Toponym,
     ToponymCreate,
@@ -26,7 +26,9 @@ def test_create(
     )
 
     # Create the recognition object
-    created_recognition = RecognitionObjectRepository.create(test_db, recognition_create)
+    created_recognition = RecognitionObjectRepository.create(
+        test_db, recognition_create
+    )
 
     assert created_recognition.id is not None
     assert created_recognition.toponym_id == test_toponym.id
@@ -126,7 +128,8 @@ def test_get_all(test_db: DBSession, test_recognition_object: RecognitionObject)
     """Test getting all recognition objects."""
     # Create another recognition object
     recognition_create = RecognitionObjectCreate(
-        module_id=test_recognition_object.module_id, toponym_id=test_recognition_object.toponym_id
+        module_id=test_recognition_object.module_id,
+        toponym_id=test_recognition_object.toponym_id,
     )
 
     # Create the recognition object
@@ -147,7 +150,9 @@ def test_update(test_db: DBSession, test_recognition_object: RecognitionObject):
     test_db.refresh(module)
 
     # Update the recognition object
-    recognition_update = RecognitionObjectUpdate(id=test_recognition_object.id, module_id=module.id)
+    recognition_update = RecognitionObjectUpdate(
+        id=test_recognition_object.id, module_id=module.id
+    )
     updated_recognition = RecognitionObjectRepository.update(
         test_db, db_obj=test_recognition_object, obj_in=recognition_update
     )
@@ -164,7 +169,9 @@ def test_update(test_db: DBSession, test_recognition_object: RecognitionObject):
 def test_delete(test_db: DBSession, test_recognition_object: RecognitionObject):
     """Test deleting a recognition object."""
     # Delete the recognition object
-    deleted_recognition = RecognitionObjectRepository.delete(test_db, id=test_recognition_object.id)
+    deleted_recognition = RecognitionObjectRepository.delete(
+        test_db, id=test_recognition_object.id
+    )
 
     assert deleted_recognition is not None
     assert deleted_recognition.id == test_recognition_object.id

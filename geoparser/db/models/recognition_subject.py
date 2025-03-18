@@ -46,4 +46,4 @@ class RecognitionSubjectUpdate(SQLModel):
 
     id: uuid.UUID
     document_id: t.Optional[uuid.UUID] = None
-    module_id: t.Optional[uuid.UUID] = None 
+    module_id: t.Optional[uuid.UUID] = None

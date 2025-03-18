@@ -6,10 +6,10 @@ from geoparser.db.crud import LocationRepository, ResolutionObjectRepository
 from geoparser.db.models import (
     Location,
     LocationCreate,
-    ResolutionObject,
-    ResolutionObjectCreate,
     ResolutionModule,
     ResolutionModuleCreate,
+    ResolutionObject,
+    ResolutionObjectCreate,
     ResolutionObjectUpdate,
 )
 
@@ -113,7 +113,9 @@ def test_get_by_module(
     ResolutionObjectRepository.create(test_db, resolution_create)
 
     # Get resolution objects by module
-    resolutions = ResolutionObjectRepository.get_by_module(test_db, test_resolution_module.id)
+    resolutions = ResolutionObjectRepository.get_by_module(
+        test_db, test_resolution_module.id
+    )
     assert len(resolutions) == 2
 
     # Test with invalid module ID
@@ -126,7 +128,8 @@ def test_get_all(test_db: DBSession, test_resolution_object: ResolutionObject):
     """Test getting all resolution objects."""
     # Create another resolution object
     resolution_create = ResolutionObjectCreate(
-        module_id=test_resolution_object.module_id, location_id=test_resolution_object.location_id
+        module_id=test_resolution_object.module_id,
+        location_id=test_resolution_object.location_id,
     )
 
     # Create the resolution object
@@ -147,7 +150,9 @@ def test_update(test_db: DBSession, test_resolution_object: ResolutionObject):
     test_db.refresh(module)
 
     # Update the resolution object
-    resolution_update = ResolutionObjectUpdate(id=test_resolution_object.id, module_id=module.id)
+    resolution_update = ResolutionObjectUpdate(
+        id=test_resolution_object.id, module_id=module.id
+    )
     updated_resolution = ResolutionObjectRepository.update(
         test_db, db_obj=test_resolution_object, obj_in=resolution_update
     )
@@ -164,7 +169,9 @@ def test_update(test_db: DBSession, test_resolution_object: ResolutionObject):
 def test_delete(test_db: DBSession, test_resolution_object: ResolutionObject):
     """Test deleting a resolution object."""
     # Delete the resolution object
-    deleted_resolution = ResolutionObjectRepository.delete(test_db, id=test_resolution_object.id)
+    deleted_resolution = ResolutionObjectRepository.delete(
+        test_db, id=test_resolution_object.id
+    )
 
     assert deleted_resolution is not None
     assert deleted_resolution.id == test_resolution_object.id
