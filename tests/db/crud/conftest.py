@@ -66,8 +66,11 @@ def test_document(test_db: DBSession, test_session: Session):
 @pytest.fixture
 def test_recognition_module(test_db: DBSession):
     """Create a test recognition module."""
-    module_create = RecognitionModuleCreate(name="test-recognition-module")
-    module = RecognitionModule(name=module_create.name)
+    module_create = RecognitionModuleCreate(
+        name="test-recognition-module",
+        config={"model": "test-model", "threshold": 0.75},
+    )
+    module = RecognitionModule(name=module_create.name, config=module_create.config)
     test_db.add(module)
     test_db.commit()
     test_db.refresh(module)
@@ -77,8 +80,11 @@ def test_recognition_module(test_db: DBSession):
 @pytest.fixture
 def test_resolution_module(test_db: DBSession):
     """Create a test resolution module."""
-    module_create = ResolutionModuleCreate(name="test-resolution-module")
-    module = ResolutionModule(name=module_create.name)
+    module_create = ResolutionModuleCreate(
+        name="test-resolution-module",
+        config={"gazetteer": "test-gazetteer", "max_results": 5},
+    )
+    module = ResolutionModule(name=module_create.name, config=module_create.config)
     test_db.add(module)
     test_db.commit()
     test_db.refresh(module)

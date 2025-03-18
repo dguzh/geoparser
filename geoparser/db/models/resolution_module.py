@@ -1,7 +1,7 @@
 import typing as t
 import uuid
 
-from sqlmodel import Field, Relationship, SQLModel
+from sqlmodel import JSON, Field, Relationship, SQLModel
 
 if t.TYPE_CHECKING:
     from geoparser.db.models.resolution import ResolutionObject
@@ -14,6 +14,9 @@ class ResolutionModuleBase(SQLModel):
     name: str = Field(
         index=True
     )  # Name of the resolution module with index for faster lookups
+    config: t.Optional[dict] = Field(
+        default=None, sa_type=JSON
+    )  # Configuration as JSON
 
 
 class ResolutionModule(ResolutionModuleBase, table=True):
@@ -50,3 +53,4 @@ class ResolutionModuleUpdate(SQLModel):
 
     id: uuid.UUID
     name: t.Optional[str] = None
+    config: t.Optional[dict] = None
