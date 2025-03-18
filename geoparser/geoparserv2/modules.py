@@ -207,14 +207,8 @@ class RecognitionModule(BaseModule):
             db, session.id, self.module.id
         )
 
-        if not unprocessed_documents:
-            logging.info(
-                f"No unprocessed documents found for module '{self.name}' in session {session.name}."
-            )
-            return
-
         logging.info(
-            f"Processing {len(unprocessed_documents)} unprocessed documents with module '{self.name}'."
+            f"Processing {len(unprocessed_documents)} documents with module '{self.name}' in session {session.name}."
         )
 
         # Process each unprocessed document
@@ -376,28 +370,23 @@ class ResolutionModule(BaseModule):
             db: Database session
             session: Session object to process
         """
-        # Get all unprocessed toponyms with their documents for the session
-        unprocessed_items = (
-            ResolutionSubjectRepository.get_unprocessed_toponyms_with_documents(
-                db, session.id, self.module.id
-            )
+        # Get all unprocessed toponyms for the session
+        unprocessed_toponyms = ResolutionSubjectRepository.get_unprocessed_toponyms(
+            db, session.id, self.module.id
         )
 
-        if not unprocessed_items:
-            logging.info(
-                f"No unprocessed toponyms found for module '{self.name}' in session {session.name}."
-            )
-            return
-
         logging.info(
-            f"Processing {len(unprocessed_items)} unprocessed toponyms with module '{self.name}'."
+            f"Processing {len(unprocessed_toponyms)} toponyms with module '{self.name}' in session {session.name}."
         )
 
         # Process each unprocessed toponym
         processed_toponym_ids = []
         total_locations_created = 0
 
-        for document, toponym in unprocessed_items:
+        for toponym in unprocessed_toponyms:
+            # Get the document for this toponym
+            document = toponym.document
+
             # Extract toponym text from document
             toponym_text = document.text[toponym.start : toponym.end]
 

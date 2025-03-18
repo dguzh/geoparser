@@ -76,12 +76,11 @@ class ResolutionSubjectRepository(BaseRepository[ResolutionSubject]):
         return db.exec(statement).first()
 
     @classmethod
-    def get_unprocessed_toponyms_with_documents(
+    def get_unprocessed_toponyms(
         cls, db: DBSession, session_id: uuid.UUID, module_id: uuid.UUID
-    ) -> t.List[t.Tuple[Document, Toponym]]:
+    ) -> t.List[Toponym]:
         """
-        Get all toponyms from a session that have not been processed by a specific module,
-        together with their corresponding documents.
+        Get all toponyms from a session that have not been processed by a specific module.
 
         This is done by retrieving all toponyms for the session and excluding those
         that have a corresponding resolution subject record for the given module.
@@ -92,19 +91,22 @@ class ResolutionSubjectRepository(BaseRepository[ResolutionSubject]):
             module_id: ID of the resolution module
 
         Returns:
-            List of (Document, Toponym) tuples for unprocessed toponyms
+            List of unprocessed Toponym objects
         """
-        # Get all documents for the session
-        statement = select(Document, Toponym).where(
-            Document.session_id == session_id,
-            Toponym.document_id == Document.id,
-            not_(
-                Toponym.id.in_(
-                    select(ResolutionSubject.toponym_id).where(
-                        ResolutionSubject.module_id == module_id
+        # Get all toponyms for documents in the session that haven't been processed
+        statement = (
+            select(Toponym)
+            .join(Document, Toponym.document_id == Document.id)
+            .where(
+                Document.session_id == session_id,
+                not_(
+                    Toponym.id.in_(
+                        select(ResolutionSubject.toponym_id).where(
+                            ResolutionSubject.module_id == module_id
+                        )
                     )
-                )
-            ),
+                ),
+            )
         )
         return db.exec(statement).all()
 

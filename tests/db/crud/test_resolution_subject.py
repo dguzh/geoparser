@@ -213,14 +213,14 @@ def test_get_by_toponym_and_module(
     assert subject is None
 
 
-def test_get_unprocessed_toponyms_with_documents(
+def test_get_unprocessed_toponyms(
     test_db: DBSession,
     test_document: Document,
     test_toponym: Toponym,
     test_resolution_module: ResolutionModule,
     test_resolution_subject: ResolutionSubject,
 ):
-    """Test getting unprocessed toponyms with their documents from a session."""
+    """Test getting unprocessed toponyms from a session."""
     # Create another document in the same session
     doc_create = DocumentCreate(
         text="Another test document with Berlin and Paris.",
@@ -252,48 +252,36 @@ def test_get_unprocessed_toponyms_with_documents(
     ResolutionSubjectRepository.create(test_db, subject_create)
 
     # Get unprocessed toponyms for test_resolution_module
-    unprocessed_items = (
-        ResolutionSubjectRepository.get_unprocessed_toponyms_with_documents(
-            test_db, test_document.session_id, test_resolution_module.id
-        )
+    unprocessed_toponyms = ResolutionSubjectRepository.get_unprocessed_toponyms(
+        test_db, test_document.session_id, test_resolution_module.id
     )
 
-    # Should return both new toponyms (not processed by test_resolution_module)
-    assert len(unprocessed_items) == 2
-
-    # Extract document and toponym IDs for easier checking
-    doc_toponym_pairs = [(doc.id, topo.id) for doc, topo in unprocessed_items]
-    assert (another_document.id, new_toponym1.id) in doc_toponym_pairs
-    assert (another_document.id, new_toponym2.id) in doc_toponym_pairs
+    # Should return new_toponym1 and new_toponym2 (not processed by test_resolution_module)
+    assert len(unprocessed_toponyms) == 2
+    toponym_ids = [toponym.id for toponym in unprocessed_toponyms]
+    assert new_toponym1.id in toponym_ids
+    assert new_toponym2.id in toponym_ids
     assert (
-        test_document.id,
-        test_toponym.id,
-    ) not in doc_toponym_pairs  # Already processed
+        test_toponym.id not in toponym_ids
+    )  # Already processed by test_resolution_module
 
     # Get unprocessed toponyms for new_module
-    unprocessed_items = (
-        ResolutionSubjectRepository.get_unprocessed_toponyms_with_documents(
-            test_db, test_document.session_id, new_module.id
-        )
+    unprocessed_toponyms = ResolutionSubjectRepository.get_unprocessed_toponyms(
+        test_db, test_document.session_id, new_module.id
     )
 
     # Should return test_toponym and new_toponym2 (not processed by new_module)
-    assert len(unprocessed_items) == 2
-    doc_toponym_pairs = [(doc.id, topo.id) for doc, topo in unprocessed_items]
-    assert (test_document.id, test_toponym.id) in doc_toponym_pairs
-    assert (another_document.id, new_toponym2.id) in doc_toponym_pairs
-    assert (
-        another_document.id,
-        new_toponym1.id,
-    ) not in doc_toponym_pairs  # Already processed by new_module
+    assert len(unprocessed_toponyms) == 2
+    toponym_ids = [toponym.id for toponym in unprocessed_toponyms]
+    assert test_toponym.id in toponym_ids
+    assert new_toponym2.id in toponym_ids
+    assert new_toponym1.id not in toponym_ids  # Already processed by new_module
 
     # Test with non-existent session ID
-    unprocessed_items = (
-        ResolutionSubjectRepository.get_unprocessed_toponyms_with_documents(
-            test_db, uuid.uuid4(), test_resolution_module.id
-        )
+    unprocessed_toponyms = ResolutionSubjectRepository.get_unprocessed_toponyms(
+        test_db, uuid.uuid4(), test_resolution_module.id
     )
-    assert len(unprocessed_items) == 0
+    assert len(unprocessed_toponyms) == 0
 
 
 def test_create_many(
