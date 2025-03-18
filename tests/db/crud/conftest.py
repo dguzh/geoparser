@@ -9,14 +9,18 @@ from geoparser.db.models import (
     DocumentCreate,
     Location,
     LocationCreate,
-    Recognition,
-    RecognitionCreate,
+    RecognitionObject,
+    RecognitionObjectCreate,
     RecognitionModule,
     RecognitionModuleCreate,
-    Resolution,
-    ResolutionCreate,
+    RecognitionSubject,
+    RecognitionSubjectCreate,
+    ResolutionObject,
+    ResolutionObjectCreate,
     ResolutionModule,
     ResolutionModuleCreate,
+    ResolutionSubject,
+    ResolutionSubjectCreate,
     Session,
     SessionCreate,
     Toponym,
@@ -95,16 +99,16 @@ def test_toponym(test_db: DBSession, test_document: Document):
 
 
 @pytest.fixture
-def test_recognition(
+def test_recognition_object(
     test_db: DBSession,
     test_toponym: Toponym,
     test_recognition_module: RecognitionModule,
 ):
-    """Create a test recognition."""
-    recognition_create = RecognitionCreate(
+    """Create a test recognition object."""
+    recognition_create = RecognitionObjectCreate(
         toponym_id=test_toponym.id, module_id=test_recognition_module.id
     )
-    recognition = Recognition(
+    recognition = RecognitionObject(
         toponym_id=recognition_create.toponym_id, module_id=recognition_create.module_id
     )
     test_db.add(recognition)
@@ -131,19 +135,59 @@ def test_location(test_db: DBSession, test_toponym: Toponym):
 
 
 @pytest.fixture
-def test_resolution(
+def test_resolution_object(
     test_db: DBSession,
     test_location: Location,
     test_resolution_module: ResolutionModule,
 ):
-    """Create a test resolution."""
-    resolution_create = ResolutionCreate(
+    """Create a test resolution object."""
+    resolution_create = ResolutionObjectCreate(
         location_id=test_location.id, module_id=test_resolution_module.id
     )
-    resolution = Resolution(
+    resolution = ResolutionObject(
         location_id=resolution_create.location_id, module_id=resolution_create.module_id
     )
     test_db.add(resolution)
     test_db.commit()
     test_db.refresh(resolution)
     return resolution
+
+
+@pytest.fixture
+def test_recognition_subject(
+    test_db: DBSession,
+    test_document: Document,
+    test_recognition_module: RecognitionModule,
+):
+    """Create a test recognition subject."""
+    recognition_subject_create = RecognitionSubjectCreate(
+        document_id=test_document.id, module_id=test_recognition_module.id
+    )
+    recognition_subject = RecognitionSubject(
+        document_id=recognition_subject_create.document_id, 
+        module_id=recognition_subject_create.module_id
+    )
+    test_db.add(recognition_subject)
+    test_db.commit()
+    test_db.refresh(recognition_subject)
+    return recognition_subject
+
+
+@pytest.fixture
+def test_resolution_subject(
+    test_db: DBSession,
+    test_toponym: Toponym,
+    test_resolution_module: ResolutionModule,
+):
+    """Create a test resolution subject."""
+    resolution_subject_create = ResolutionSubjectCreate(
+        toponym_id=test_toponym.id, module_id=test_resolution_module.id
+    )
+    resolution_subject = ResolutionSubject(
+        toponym_id=resolution_subject_create.toponym_id, 
+        module_id=resolution_subject_create.module_id
+    )
+    test_db.add(resolution_subject)
+    test_db.commit()
+    test_db.refresh(resolution_subject)
+    return resolution_subject
