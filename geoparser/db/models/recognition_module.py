@@ -5,6 +5,7 @@ from sqlmodel import Field, Relationship, SQLModel
 
 if t.TYPE_CHECKING:
     from geoparser.db.models.recognition import Recognition
+    from geoparser.db.models.recognition_process import RecognitionProcess
 
 
 class RecognitionModuleBase(SQLModel):
@@ -25,6 +26,13 @@ class RecognitionModule(RecognitionModuleBase, table=True):
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     recognitions: list["Recognition"] = Relationship(
+        back_populates="module",
+        sa_relationship_kwargs={
+            "cascade": "all, delete-orphan",
+            "passive_deletes": True,
+        },
+    )
+    recognition_processes: list["RecognitionProcess"] = Relationship(
         back_populates="module",
         sa_relationship_kwargs={
             "cascade": "all, delete-orphan",

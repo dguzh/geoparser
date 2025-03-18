@@ -2,7 +2,9 @@ from .document import DocumentRepository
 from .location import LocationRepository
 from .recognition import RecognitionRepository
 from .recognition_module import RecognitionModuleRepository
+from .recognition_process import RecognitionProcessRepository
 from .resolution import ResolutionRepository
 from .resolution_module import ResolutionModuleRepository
+from .resolution_process import ResolutionProcessRepository
 from .session import SessionRepository
 from .toponym import ToponymRepository

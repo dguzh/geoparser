@@ -10,6 +10,7 @@ from geoparser.db.models.validators import normalize_newlines
 if t.TYPE_CHECKING:
     from geoparser.db.models.session import Session
     from geoparser.db.models.toponym import Toponym
+    from geoparser.db.models.recognition_process import RecognitionProcess
 
 
 class DocumentBase(SQLModel):
@@ -40,6 +41,13 @@ class Document(DocumentBase, table=True):
         back_populates="document",
         sa_relationship_kwargs={
             "order_by": "Toponym.start",
+            "cascade": "all, delete-orphan",
+            "passive_deletes": True,
+        },
+    )
+    recognition_processes: list["RecognitionProcess"] = Relationship(
+        back_populates="document",
+        sa_relationship_kwargs={
             "cascade": "all, delete-orphan",
             "passive_deletes": True,
         },

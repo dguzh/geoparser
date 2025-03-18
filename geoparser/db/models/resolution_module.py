@@ -5,6 +5,7 @@ from sqlmodel import Field, Relationship, SQLModel
 
 if t.TYPE_CHECKING:
     from geoparser.db.models.resolution import Resolution
+    from geoparser.db.models.resolution_process import ResolutionProcess
 
 
 class ResolutionModuleBase(SQLModel):
@@ -25,6 +26,13 @@ class ResolutionModule(ResolutionModuleBase, table=True):
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     resolutions: list["Resolution"] = Relationship(
+        back_populates="module",
+        sa_relationship_kwargs={
+            "cascade": "all, delete-orphan",
+            "passive_deletes": True,
+        },
+    )
+    resolution_processes: list["ResolutionProcess"] = Relationship(
         back_populates="module",
         sa_relationship_kwargs={
             "cascade": "all, delete-orphan",

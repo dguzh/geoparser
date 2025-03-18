@@ -10,6 +10,11 @@ from geoparser.db.models.recognition_module import (
     RecognitionModuleCreate,
     RecognitionModuleUpdate,
 )
+from geoparser.db.models.recognition_process import (
+    RecognitionProcess,
+    RecognitionProcessCreate,
+    RecognitionProcessUpdate,
+)
 from geoparser.db.models.resolution import (
     Resolution,
     ResolutionCreate,
@@ -19,6 +24,11 @@ from geoparser.db.models.resolution_module import (
     ResolutionModule,
     ResolutionModuleCreate,
     ResolutionModuleUpdate,
+)
+from geoparser.db.models.resolution_process import (
+    ResolutionProcess,
+    ResolutionProcessCreate,
+    ResolutionProcessUpdate,
 )
 from geoparser.db.models.session import Session, SessionCreate, SessionUpdate
 from geoparser.db.models.settings import (  # SessionSettings,  # Commented out to disable the SessionSettings model
@@ -45,5 +55,9 @@ for rebuild in [
     RecognitionModuleCreate,
     ResolutionModule,
     ResolutionModuleCreate,
+    RecognitionProcess,
+    RecognitionProcessCreate,
+    ResolutionProcess,
+    ResolutionProcessCreate,
 ]:
     rebuild.model_rebuild()

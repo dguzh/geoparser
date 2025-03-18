@@ -9,8 +9,10 @@ from geoparser.db.crud import (
     DocumentRepository,
     LocationRepository,
     RecognitionModuleRepository,
+    RecognitionProcessRepository,
     RecognitionRepository,
     ResolutionModuleRepository,
+    ResolutionProcessRepository,
     ResolutionRepository,
     SessionRepository,
     ToponymRepository,
@@ -23,9 +25,13 @@ from geoparser.db.models import (
     RecognitionCreate,
     RecognitionModule,
     RecognitionModuleCreate,
+    RecognitionProcess,
+    RecognitionProcessCreate,
     ResolutionCreate,
     ResolutionModule,
     ResolutionModuleCreate,
+    ResolutionProcess,
+    ResolutionProcessCreate,
     Session,
     Toponym,
     ToponymCreate,
@@ -189,22 +195,29 @@ class RecognitionModule(BaseModule):
         Returns:
             True if the document has been processed, False otherwise
         """
-        # Get all toponyms for the document
-        toponyms = ToponymRepository.get_by_document(db, document.id)
+        # Check if there's a record in RecognitionProcess
+        process = RecognitionProcessRepository.get_by_document_and_module(
+            db, document.id, self.module.id
+        )
+        return process is not None
 
-        # If there are no toponyms, the document hasn't been processed
-        if not toponyms:
-            return False
+    def _mark_document_as_processed(self, db: DBSession, document: Document) -> RecognitionProcess:
+        """
+        Mark a document as processed by this module.
 
-        # Check if any of the toponyms have a recognition by this module
-        for toponym in toponyms:
-            recognitions = RecognitionRepository.get_by_toponym(db, toponym.id)
-            if any(
-                recognition.module_id == self.module.id for recognition in recognitions
-            ):
-                return True
+        Args:
+            db: Database session
+            document: Document object
 
-        return False
+        Returns:
+            Created RecognitionProcess object
+        """
+        # Create a recognition process record
+        recognition_process_create = RecognitionProcessCreate(
+            document_id=document.id,
+            module_id=self.module.id
+        )
+        return RecognitionProcessRepository.create(db, recognition_process_create)
 
     def _create_toponym(
         self, db: DBSession, document: Document, start: int, end: int
@@ -265,6 +278,9 @@ class RecognitionModule(BaseModule):
                     db=db, document=document, start=start, end=end
                 )
                 created_toponyms.append(toponym)
+
+            # Mark the document as processed, regardless of whether toponyms were found
+            self._mark_document_as_processed(db, document)
 
             logging.info(
                 f"Document {document.id} processed by module '{self.name}', {len(created_toponyms)} toponyms found."
@@ -386,22 +402,29 @@ class ResolutionModule(BaseModule):
         Returns:
             True if the toponym has been processed, False otherwise
         """
-        # Get all locations for the toponym
-        locations = LocationRepository.get_by_toponym(db, toponym.id)
+        # Check if there's a record in ResolutionProcess
+        process = ResolutionProcessRepository.get_by_toponym_and_module(
+            db, toponym.id, self.module.id
+        )
+        return process is not None
 
-        # If there are no locations, the toponym hasn't been processed
-        if not locations:
-            return False
+    def _mark_toponym_as_processed(self, db: DBSession, toponym: Toponym) -> ResolutionProcess:
+        """
+        Mark a toponym as processed by this module.
 
-        # Check if any of the locations have a resolution by this module
-        for location in locations:
-            resolutions = ResolutionRepository.get_by_location(db, location.id)
-            if any(
-                resolution.module_id == self.module.id for resolution in resolutions
-            ):
-                return True
+        Args:
+            db: Database session
+            toponym: Toponym object
 
-        return False
+        Returns:
+            Created ResolutionProcess object
+        """
+        # Create a resolution process record
+        resolution_process_create = ResolutionProcessCreate(
+            toponym_id=toponym.id,
+            module_id=self.module.id
+        )
+        return ResolutionProcessRepository.create(db, resolution_process_create)
 
     def _create_location(
         self,
@@ -476,6 +499,9 @@ class ResolutionModule(BaseModule):
                     confidence=confidence,
                 )
                 created_locations.append(location)
+
+            # Mark the toponym as processed, regardless of whether locations were found
+            self._mark_toponym_as_processed(db, toponym)
 
             logging.info(
                 f"Toponym {toponym.id} ('{toponym_text}') processed by module '{self.name}', {len(created_locations)} locations found."

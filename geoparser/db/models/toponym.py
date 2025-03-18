@@ -8,6 +8,7 @@ if t.TYPE_CHECKING:
     from geoparser.db.models.document import Document
     from geoparser.db.models.location import Location
     from geoparser.db.models.recognition import Recognition
+    from geoparser.db.models.resolution_process import ResolutionProcess
 
 
 class ToponymBase(SQLModel):
@@ -40,6 +41,13 @@ class Toponym(ToponymBase, table=True):
         },
     )
     recognitions: list["Recognition"] = Relationship(
+        back_populates="toponym",
+        sa_relationship_kwargs={
+            "cascade": "all, delete-orphan",
+            "passive_deletes": True,
+        },
+    )
+    resolution_processes: list["ResolutionProcess"] = Relationship(
         back_populates="toponym",
         sa_relationship_kwargs={
             "cascade": "all, delete-orphan",
