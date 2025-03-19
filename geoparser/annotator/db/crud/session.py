@@ -67,6 +67,7 @@ class SessionRepository(BaseRepository):
                                 ToponymCreate.model_validate(toponym_dict)
                                 for toponym_dict in document_dict["toponyms"]
                             ],
+                            "spacy_applied": True,
                         }
                     )
                     for document_dict in content["documents"]
