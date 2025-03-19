@@ -68,8 +68,10 @@ def test_get_by_toponym(
 ):
     """Test getting resolution subjects by toponym ID."""
     # Create another resolution module
-    module_create = ResolutionModuleCreate(name="another-resolution-module")
-    module = ResolutionModule(name=module_create.name)
+    config = {"module_name": "another-resolution-module", "gazetteer": "test-gazetteer"}
+
+    module_create = ResolutionModuleCreate(config=config)
+    module = ResolutionModule(config=module_create.config)
     test_db.add(module)
     test_db.commit()
     test_db.refresh(module)
@@ -147,8 +149,10 @@ def test_get_all(test_db: DBSession, test_resolution_subject: ResolutionSubject)
 def test_update(test_db: DBSession, test_resolution_subject: ResolutionSubject):
     """Test updating a resolution subject."""
     # Create a new module
-    module_create = ResolutionModuleCreate(name="updated-module")
-    module = ResolutionModule(name=module_create.name)
+    config = {"module_name": "updated-module", "gazetteer": "updated-gazetteer"}
+
+    module_create = ResolutionModuleCreate(config=config)
+    module = ResolutionModule(config=module_create.config)
     test_db.add(module)
     test_db.commit()
     test_db.refresh(module)
@@ -240,8 +244,13 @@ def test_get_unprocessed_toponyms(
     new_toponym2 = ToponymRepository.create(test_db, toponym_create2)
 
     # Process one of the new toponyms with a different module
-    new_module_create = ResolutionModuleCreate(name="different-resolution-module")
-    new_module = ResolutionModule(name=new_module_create.name)
+    config = {
+        "module_name": "different-resolution-module",
+        "gazetteer": "different-gazetteer",
+    }
+
+    new_module_create = ResolutionModuleCreate(config=config)
+    new_module = ResolutionModule(config=new_module_create.config)
     test_db.add(new_module)
     test_db.commit()
     test_db.refresh(new_module)

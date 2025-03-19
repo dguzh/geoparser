@@ -62,8 +62,9 @@ def test_get_by_document(
 ):
     """Test getting recognition subjects by document ID."""
     # Create another recognition module
-    module_create = RecognitionModuleCreate(name="another-recognition-module")
-    module = RecognitionModule(name=module_create.name)
+    config = {"module_name": "another-recognition-module", "model": "another-model"}
+    module_create = RecognitionModuleCreate(config=config)
+    module = RecognitionModule(config=module_create.config)
     test_db.add(module)
     test_db.commit()
     test_db.refresh(module)
@@ -142,8 +143,9 @@ def test_get_all(test_db: DBSession, test_recognition_subject: RecognitionSubjec
 def test_update(test_db: DBSession, test_recognition_subject: RecognitionSubject):
     """Test updating a recognition subject."""
     # Create a new module
-    module_create = RecognitionModuleCreate(name="updated-module")
-    module = RecognitionModule(name=module_create.name)
+    config = {"module_name": "updated-module", "model": "updated-model"}
+    module_create = RecognitionModuleCreate(config=config)
+    module = RecognitionModule(config=module_create.config)
     test_db.add(module)
     test_db.commit()
     test_db.refresh(module)
@@ -228,8 +230,9 @@ def test_get_unprocessed_documents(
     third_document = DocumentRepository.create(test_db, doc_create)
 
     # Process the third document with a different module
-    new_module_create = RecognitionModuleCreate(name="different-recognition-module")
-    new_module = RecognitionModule(name=new_module_create.name)
+    config = {"module_name": "different-recognition-module", "model": "different-model"}
+    new_module_create = RecognitionModuleCreate(config=config)
+    new_module = RecognitionModule(config=new_module_create.config)
     test_db.add(new_module)
     test_db.commit()
     test_db.refresh(new_module)

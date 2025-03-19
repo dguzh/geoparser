@@ -42,16 +42,24 @@ class BaseModule(ABC):
     implement only the pure logic.
     """
 
-    def __init__(self, name: str, config: t.Optional[dict] = None):
+    # Module name should be defined by subclasses
+    NAME: str = None
+
+    def __init__(self, config: t.Optional[dict] = None):
         """
         Initialize a module.
 
         Args:
-            name: A unique name for this module
             config: Optional configuration parameters for this module
         """
-        self.name = name
+        if self.NAME is None:
+            raise ValueError("Module must define a NAME class attribute")
+
         self.config = config or {}
+
+        # Include the module name in the config to ensure uniqueness
+        self.config["module_name"] = self.NAME
+
         self.module = None
 
     def run(self, session: Session) -> None:
@@ -75,13 +83,13 @@ class BaseModule(ABC):
             db.commit()
 
             logging.info(
-                f"Module '{self.name}' completed successfully on session {session.name} ({session.id})"
+                f"Module '{self.NAME}' completed successfully on session {session.name} ({session.id})"
             )
         except Exception as e:
             # Rollback in case of error
             db.rollback()
             logging.error(
-                f"Error executing module '{self.name}' on session {session.id}: {str(e)}"
+                f"Error executing module '{self.NAME}' on session {session.id}: {str(e)}"
             )
             raise
         finally:
@@ -97,11 +105,14 @@ class BaseModule(ABC):
         Returns:
             String representation of the config
         """
-        if not self.config:
+        if not self.config or len(self.config) <= 1:  # Only module_name key
             return "no config"
 
         config_items = []
         for key, value in self.config.items():
+            if key == "module_name":
+                continue  # Skip the module name in the string representation
+
             if isinstance(value, str) and len(value) > 20:
                 # Truncate long string values
                 value_str = f"{value[:17]}..."
@@ -135,15 +146,17 @@ class RecognitionModule(BaseModule):
     implement only the toponym recognition logic.
     """
 
-    def __init__(self, name: str, config: t.Optional[dict] = None):
+    # This base class should have NAME set to None since it should not be instantiated directly
+    NAME = None
+
+    def __init__(self, config: t.Optional[dict] = None):
         """
         Initialize a recognition module.
 
         Args:
-            name: A unique name for this module
             config: Optional configuration parameters for this module
         """
-        super().__init__(name, config)
+        super().__init__(config)
 
         # Initialize module record in database
         self.module = self._initialize_module()
@@ -162,11 +175,11 @@ class RecognitionModule(BaseModule):
                 module = self._create_module(db)
                 db.commit()
                 logging.info(
-                    f"Created new recognition module '{self.name}' with config: {self.get_config_string()}"
+                    f"Created new recognition module '{self.NAME}' with config: {self.get_config_string()}"
                 )
             else:
                 logging.info(
-                    f"Using existing recognition module '{self.name}' with config: {self.get_config_string()}"
+                    f"Using existing recognition module '{self.NAME}' with config: {self.get_config_string()}"
                 )
             return module
         finally:
@@ -174,7 +187,7 @@ class RecognitionModule(BaseModule):
 
     def _get_module(self, db: DBSession) -> t.Optional[RecognitionModule]:
         """
-        Get the module record from the database based on name and configuration.
+        Get the module record from the database based on configuration.
 
         Args:
             db: Database session
@@ -182,9 +195,7 @@ class RecognitionModule(BaseModule):
         Returns:
             RecognitionModule object if found, None otherwise
         """
-        return RecognitionModuleRepository.get_by_name_and_config(
-            db, self.name, self.config
-        )
+        return RecognitionModuleRepository.get_by_config(db, self.config)
 
     def _create_module(self, db: DBSession) -> RecognitionModule:
         """
@@ -196,7 +207,7 @@ class RecognitionModule(BaseModule):
         Returns:
             Created RecognitionModule object
         """
-        module_create = RecognitionModuleCreate(name=self.name, config=self.config)
+        module_create = RecognitionModuleCreate(config=self.config)
         return RecognitionModuleRepository.create(db, module_create)
 
     def _create_toponym(
@@ -243,7 +254,7 @@ class RecognitionModule(BaseModule):
         )
 
         logging.info(
-            f"Processing {len(unprocessed_documents)} documents with module '{self.name}' (config: {self.get_config_string()}) in session {session.name}."
+            f"Processing {len(unprocessed_documents)} documents with module '{self.NAME}' (config: {self.get_config_string()}) in session {session.name}."
         )
 
         # Process each unprocessed document
@@ -277,7 +288,7 @@ class RecognitionModule(BaseModule):
             )
 
         logging.info(
-            f"Module '{self.name}' (config: {self.get_config_string()}) completed processing {len(processed_document_ids)} documents, "
+            f"Module '{self.NAME}' (config: {self.get_config_string()}) completed processing {len(processed_document_ids)} documents, "
             f"creating {total_toponyms_created} toponyms in total."
         )
 
@@ -307,15 +318,17 @@ class ResolutionModule(BaseModule):
     implement only the location resolution logic.
     """
 
-    def __init__(self, name: str, config: t.Optional[dict] = None):
+    # This base class should have NAME set to None since it should not be instantiated directly
+    NAME = None
+
+    def __init__(self, config: t.Optional[dict] = None):
         """
         Initialize a resolution module.
 
         Args:
-            name: A unique name for this module
             config: Optional configuration parameters for this module
         """
-        super().__init__(name, config)
+        super().__init__(config)
 
         # Initialize module record in database
         self.module = self._initialize_module()
@@ -334,11 +347,11 @@ class ResolutionModule(BaseModule):
                 module = self._create_module(db)
                 db.commit()
                 logging.info(
-                    f"Created new resolution module '{self.name}' with config: {self.get_config_string()}"
+                    f"Created new resolution module '{self.NAME}' with config: {self.get_config_string()}"
                 )
             else:
                 logging.info(
-                    f"Using existing resolution module '{self.name}' with config: {self.get_config_string()}"
+                    f"Using existing resolution module '{self.NAME}' with config: {self.get_config_string()}"
                 )
             return module
         finally:
@@ -346,7 +359,7 @@ class ResolutionModule(BaseModule):
 
     def _get_module(self, db: DBSession) -> t.Optional[ResolutionModule]:
         """
-        Get the module record from the database based on name and configuration.
+        Get the module record from the database based on configuration.
 
         Args:
             db: Database session
@@ -354,9 +367,7 @@ class ResolutionModule(BaseModule):
         Returns:
             ResolutionModule object if found, None otherwise
         """
-        return ResolutionModuleRepository.get_by_name_and_config(
-            db, self.name, self.config
-        )
+        return ResolutionModuleRepository.get_by_config(db, self.config)
 
     def _create_module(self, db: DBSession) -> ResolutionModule:
         """
@@ -368,7 +379,7 @@ class ResolutionModule(BaseModule):
         Returns:
             Created ResolutionModule object
         """
-        module_create = ResolutionModuleCreate(name=self.name, config=self.config)
+        module_create = ResolutionModuleCreate(config=self.config)
         return ResolutionModuleRepository.create(db, module_create)
 
     def _create_location(
@@ -421,7 +432,7 @@ class ResolutionModule(BaseModule):
         )
 
         logging.info(
-            f"Processing {len(unprocessed_toponyms)} toponyms with module '{self.name}' (config: {self.get_config_string()}) in session {session.name}."
+            f"Processing {len(unprocessed_toponyms)} toponyms with module '{self.NAME}' (config: {self.get_config_string()}) in session {session.name}."
         )
 
         # Process each unprocessed toponym
@@ -466,7 +477,7 @@ class ResolutionModule(BaseModule):
             )
 
         logging.info(
-            f"Module '{self.name}' (config: {self.get_config_string()}) completed processing {len(processed_toponym_ids)} toponyms, "
+            f"Module '{self.NAME}' (config: {self.get_config_string()}) completed processing {len(processed_toponym_ids)} toponyms, "
             f"creating {total_locations_created} locations in total."
         )
 

@@ -14,42 +14,22 @@ class RecognitionModuleRepository(BaseRepository[RecognitionModule]):
     model = RecognitionModule
 
     @classmethod
-    def get_by_name(cls, db: Session, name: str) -> t.Optional[RecognitionModule]:
+    def get_by_config(cls, db: Session, config: dict) -> t.Optional[RecognitionModule]:
         """
-        Get a recognition module by name.
+        Get a recognition module by configuration.
 
-        Note: This method returns the first module with the given name,
-        regardless of configuration. Consider using get_by_name_and_config instead.
+        This method allows finding a specific module instance by its configuration,
+        which must include the module_name to uniquely identify the module type.
 
         Args:
             db: Database session
-            name: Module name
+            config: Module configuration dict (must include module_name)
 
         Returns:
             RecognitionModule if found, None otherwise
         """
-        statement = select(RecognitionModule).where(RecognitionModule.name == name)
-        return db.exec(statement).first()
+        if "module_name" not in config:
+            raise ValueError("Config must include module_name")
 
-    @classmethod
-    def get_by_name_and_config(
-        cls, db: Session, name: str, config: t.Optional[dict] = None
-    ) -> t.Optional[RecognitionModule]:
-        """
-        Get a recognition module by name and configuration.
-
-        This method allows finding a specific module instance by both its name and
-        configuration, ensuring the exact module instance is retrieved.
-
-        Args:
-            db: Database session
-            name: Module name
-            config: Module configuration dict
-
-        Returns:
-            RecognitionModule if found, None otherwise
-        """
-        statement = select(RecognitionModule).where(
-            RecognitionModule.name == name, RecognitionModule.config == config
-        )
+        statement = select(RecognitionModule).where(RecognitionModule.config == config)
         return db.exec(statement).first()

@@ -11,12 +11,9 @@ if t.TYPE_CHECKING:
 class ResolutionModuleBase(SQLModel):
     """Base model for resolution module metadata."""
 
-    name: str = Field(
-        index=True
-    )  # Name of the resolution module with index for faster lookups
     config: t.Optional[dict] = Field(
         default=None, sa_type=JSON
-    )  # Configuration as JSON
+    )  # Configuration as JSON which includes module_name
 
 
 class ResolutionModule(ResolutionModuleBase, table=True):
@@ -24,7 +21,7 @@ class ResolutionModule(ResolutionModuleBase, table=True):
     Stores metadata about resolution modules.
 
     This includes configuration information and other details about specific
-    resolution module instances.
+    resolution module instances. The module_name is stored in the config dictionary.
     """
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
@@ -52,5 +49,4 @@ class ResolutionModuleUpdate(SQLModel):
     """Model for updating a resolution module record."""
 
     id: uuid.UUID
-    name: t.Optional[str] = None
     config: t.Optional[dict] = None

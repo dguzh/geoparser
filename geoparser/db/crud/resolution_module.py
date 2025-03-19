@@ -14,42 +14,22 @@ class ResolutionModuleRepository(BaseRepository[ResolutionModule]):
     model = ResolutionModule
 
     @classmethod
-    def get_by_name(cls, db: Session, name: str) -> t.Optional[ResolutionModule]:
+    def get_by_config(cls, db: Session, config: dict) -> t.Optional[ResolutionModule]:
         """
-        Get a resolution module by name.
+        Get a resolution module by configuration.
 
-        Note: This method returns the first module with the given name,
-        regardless of configuration. Consider using get_by_name_and_config instead.
+        This method allows finding a specific module instance by its configuration,
+        which must include the module_name to uniquely identify the module type.
 
         Args:
             db: Database session
-            name: Module name
+            config: Module configuration dict (must include module_name)
 
         Returns:
             ResolutionModule if found, None otherwise
         """
-        statement = select(ResolutionModule).where(ResolutionModule.name == name)
-        return db.exec(statement).first()
+        if "module_name" not in config:
+            raise ValueError("Config must include module_name")
 
-    @classmethod
-    def get_by_name_and_config(
-        cls, db: Session, name: str, config: t.Optional[dict] = None
-    ) -> t.Optional[ResolutionModule]:
-        """
-        Get a resolution module by name and configuration.
-
-        This method allows finding a specific module instance by both its name and
-        configuration, ensuring the exact module instance is retrieved.
-
-        Args:
-            db: Database session
-            name: Module name
-            config: Module configuration dict
-
-        Returns:
-            ResolutionModule if found, None otherwise
-        """
-        statement = select(ResolutionModule).where(
-            ResolutionModule.name == name, ResolutionModule.config == config
-        )
+        statement = select(ResolutionModule).where(ResolutionModule.config == config)
         return db.exec(statement).first()

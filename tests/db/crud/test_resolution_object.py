@@ -62,8 +62,10 @@ def test_get_by_location(
 ):
     """Test getting resolution objects by location ID."""
     # Create another resolution module
-    module_create = ResolutionModuleCreate(name="another-resolution-module")
-    module = ResolutionModule(name=module_create.name)
+    config = {"module_name": "another-resolution-module", "gazetteer": "test-gazetteer"}
+
+    module_create = ResolutionModuleCreate(config=config)
+    module = ResolutionModule(config=module_create.config)
     test_db.add(module)
     test_db.commit()
     test_db.refresh(module)
@@ -143,8 +145,10 @@ def test_get_all(test_db: DBSession, test_resolution_object: ResolutionObject):
 def test_update(test_db: DBSession, test_resolution_object: ResolutionObject):
     """Test updating a resolution object."""
     # Create a new module
-    module_create = ResolutionModuleCreate(name="updated-module")
-    module = ResolutionModule(name=module_create.name)
+    config = {"module_name": "updated-module", "gazetteer": "updated-gazetteer"}
+
+    module_create = ResolutionModuleCreate(config=config)
+    module = ResolutionModule(config=module_create.config)
     test_db.add(module)
     test_db.commit()
     test_db.refresh(module)
