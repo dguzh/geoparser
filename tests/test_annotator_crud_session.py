@@ -1,4 +1,5 @@
 import json
+import typing as t
 import uuid
 from contextlib import nullcontext
 
@@ -57,7 +58,10 @@ def test_create(test_db: DBSession, nested: bool):
 
 
 @pytest.mark.parametrize("session_id", [None, str(uuid.uuid4())])
-def test_create_from_json(test_db: DBSession, session_id):
+@pytest.mark.parametrize("keep_id", [True, False])
+def test_create_from_json(
+    test_db: DBSession, session_id: t.Optional[str], keep_id: bool
+):
     session_create_dict = {
         "gazetteer": "geonames",
         "documents": [
@@ -72,13 +76,13 @@ def test_create_from_json(test_db: DBSession, session_id):
     if session_id:
         session_create_dict["session_id"] = session_id
     session = SessionRepository.create_from_json(
-        test_db, json.dumps(jsonable_encoder(session_create_dict))
+        test_db, json.dumps(jsonable_encoder(session_create_dict)), keep_id=keep_id
     )
     db_session = SessionRepository.read(test_db, session.id)
     assert type(session) is Session
     assert type(db_session) is Session
     assert db_session.gazetteer == session_create_dict["gazetteer"]
-    if session_id:
+    if session_id and keep_id:
         assert str(session.id) == session_id
     else:
         assert isinstance(session.id, uuid.UUID)
