@@ -26,7 +26,7 @@ class GeoparserV2:
         Args:
             session_name: Session name. Will load or create a session with this name.
         """
-        self.session = self._load_or_create_session(session_name)
+        self.session = self._initialize_session(session_name)
 
     def _initialize_session(self, session_name: str) -> Session:
         """

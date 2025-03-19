@@ -75,8 +75,8 @@ def test_init_with_new_session(geoparserv2_with_new_session, test_db):
     assert db_session.name == "new-test-session"
 
 
-def test_load_or_create_session_existing(mock_get_db, test_db, test_session):
-    """Test _load_or_create_session with an existing session."""
+def test_initialize_session_existing(mock_get_db, test_db, test_session):
+    """Test _initialize_session with an existing session."""
     geoparserv2 = GeoparserV2.__new__(
         GeoparserV2
     )  # Create instance without calling __init__
@@ -86,7 +86,7 @@ def test_load_or_create_session_existing(mock_get_db, test_db, test_session):
         geoparserv2, "load_session", return_value=test_session
     ) as mock_load:
         with patch.object(geoparserv2, "create_session") as mock_create:
-            session = geoparserv2._load_or_create_session(test_session.name)
+            session = geoparserv2._initialize_session(test_session.name)
 
             # Verify load_session was called with the correct arguments
             mock_load.assert_called_once_with(test_db, test_session.name)
@@ -98,8 +98,8 @@ def test_load_or_create_session_existing(mock_get_db, test_db, test_session):
             assert session == test_session
 
 
-def test_load_or_create_session_new(mock_get_db, test_db):
-    """Test _load_or_create_session with a new session."""
+def test_initialize_session_new(mock_get_db, test_db):
+    """Test _initialize_session with a new session."""
     geoparserv2 = GeoparserV2.__new__(
         GeoparserV2
     )  # Create instance without calling __init__
@@ -112,7 +112,7 @@ def test_load_or_create_session_new(mock_get_db, test_db):
             geoparserv2, "create_session", return_value=new_session
         ) as mock_create:
             with patch("geoparser.geoparserv2.geoparserv2.logging.info") as mock_log:
-                session = geoparserv2._load_or_create_session("new-session")
+                session = geoparserv2._initialize_session("new-session")
 
                 # Verify load_session was called with the correct arguments
                 mock_load.assert_called_once_with(test_db, "new-session")
