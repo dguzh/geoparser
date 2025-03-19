@@ -193,7 +193,7 @@ def create_from_legacy_files(
         try:
             with open(legacy_file, "r") as infile:
                 content = infile.read()
-            SessionRepository.create_from_json(db, content)
+            SessionRepository.create_from_json(db, content, keep_id=True)
             legacy_file.unlink()
             files_loaded += 1
         except (json.decoder.JSONDecodeError, KeyError):
@@ -235,7 +235,7 @@ def continue_session_file(
     if session_file and session_file.filename:
         # Save session to cache
         session = SessionRepository.create_from_json(
-            db, session_file.file.read().decode()
+            db, session_file.file.read().decode(), keep_id=False
         )
         # Re-initialize gazetteer
         geoparser.gazetteer = geoparser.setup_gazetteer(session.gazetteer)

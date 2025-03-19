@@ -53,7 +53,9 @@ class SessionRepository(BaseRepository):
         return session
 
     @classmethod
-    def create_from_json(cls, db: DBSession, json_str: str) -> Session:
+    def create_from_json(
+        cls, db: DBSession, json_str: str, keep_id: bool = False
+    ) -> Session:
         # Parse the JSON input
         content = json.loads(json_str)
         session = SessionCreate.model_validate(
@@ -75,7 +77,7 @@ class SessionRepository(BaseRepository):
             }
         )
         additional = {}
-        if session_id := content.get("session_id"):
+        if keep_id and (session_id := content.get("session_id")):
             additional["id"] = uuid.UUID(session_id)
         return cls.create(db, session, additional=additional)
 
