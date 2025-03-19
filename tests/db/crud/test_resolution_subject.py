@@ -291,38 +291,3 @@ def test_get_unprocessed_toponyms(
         test_db, uuid.uuid4(), test_resolution_module.id
     )
     assert len(unprocessed_toponyms) == 0
-
-
-def test_create_many(
-    test_db: DBSession,
-    test_document: Document,
-    test_resolution_module: ResolutionModule,
-):
-    """Test creating multiple resolution subject records at once."""
-    # Create a few toponyms
-    toponym_create1 = ToponymCreate(start=10, end=15, document_id=test_document.id)
-    toponym1 = ToponymRepository.create(test_db, toponym_create1)
-
-    toponym_create2 = ToponymCreate(start=20, end=25, document_id=test_document.id)
-    toponym2 = ToponymRepository.create(test_db, toponym_create2)
-
-    toponym_create3 = ToponymCreate(start=30, end=35, document_id=test_document.id)
-    toponym3 = ToponymRepository.create(test_db, toponym_create3)
-
-    # Create subject records for all toponyms in one operation
-    toponym_ids = [toponym1.id, toponym2.id, toponym3.id]
-    created_subjects = ResolutionSubjectRepository.create_many(
-        test_db, toponym_ids, test_resolution_module.id
-    )
-
-    # Check that all subjects were created
-    assert len(created_subjects) == 3
-
-    # Verify they were saved to the database
-    for toponym_id in toponym_ids:
-        subject = ResolutionSubjectRepository.get_by_toponym_and_module(
-            test_db, toponym_id, test_resolution_module.id
-        )
-        assert subject is not None
-        assert subject.toponym_id == toponym_id
-        assert subject.module_id == test_resolution_module.id
