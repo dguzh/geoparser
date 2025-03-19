@@ -109,27 +109,3 @@ class ResolutionSubjectRepository(BaseRepository[ResolutionSubject]):
             )
         )
         return db.exec(statement).all()
-
-    @classmethod
-    def create_many(
-        cls, db: DBSession, toponym_ids: t.List[uuid.UUID], module_id: uuid.UUID
-    ) -> t.List[ResolutionSubject]:
-        """
-        Create multiple resolution subject records at once.
-
-        Args:
-            db: Database session
-            toponym_ids: List of toponym IDs
-            module_id: ID of the resolution module
-
-        Returns:
-            List of created ResolutionSubject objects
-        """
-        subjects = []
-        for toponym_id in toponym_ids:
-            subject = ResolutionSubject(toponym_id=toponym_id, module_id=module_id)
-            db.add(subject)
-            subjects.append(subject)
-
-        db.flush()  # Flush to assign IDs but don't commit yet
-        return subjects

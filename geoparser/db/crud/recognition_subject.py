@@ -106,27 +106,3 @@ class RecognitionSubjectRepository(BaseRepository[RecognitionSubject]):
             ),
         )
         return db.exec(statement).all()
-
-    @classmethod
-    def create_many(
-        cls, db: DBSession, document_ids: t.List[uuid.UUID], module_id: uuid.UUID
-    ) -> t.List[RecognitionSubject]:
-        """
-        Create multiple recognition subject records at once.
-
-        Args:
-            db: Database session
-            document_ids: List of document IDs
-            module_id: ID of the recognition module
-
-        Returns:
-            List of created RecognitionSubject objects
-        """
-        subjects = []
-        for document_id in document_ids:
-            subject = RecognitionSubject(document_id=document_id, module_id=module_id)
-            db.add(subject)
-            subjects.append(subject)
-
-        db.flush()  # Flush to assign IDs but don't commit yet
-        return subjects

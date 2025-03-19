@@ -22,9 +22,11 @@ from geoparser.db.models import (
     RecognitionModule,
     RecognitionModuleCreate,
     RecognitionObjectCreate,
+    RecognitionSubjectCreate,
     ResolutionModule,
     ResolutionModuleCreate,
     ResolutionObjectCreate,
+    ResolutionSubjectCreate,
     Session,
     Toponym,
     ToponymCreate,
@@ -258,7 +260,6 @@ class RecognitionModule(BaseModule):
         )
 
         # Process each unprocessed document
-        processed_document_ids = []
         total_toponyms_created = 0
 
         for document in unprocessed_documents:
@@ -273,22 +274,20 @@ class RecognitionModule(BaseModule):
                 )
                 created_toponyms.append(toponym)
 
-            # Add document to the list of processed documents
-            processed_document_ids.append(document.id)
             total_toponyms_created += len(created_toponyms)
 
             logging.info(
                 f"Document {document.id} processed, {len(created_toponyms)} toponyms found."
             )
 
-        # Mark all documents as processed in a batch operation
-        if processed_document_ids:
-            RecognitionSubjectRepository.create_many(
-                db, processed_document_ids, self.module.id
+            # Create recognition subject for this document immediately
+            subject_create = RecognitionSubjectCreate(
+                document_id=document.id, module_id=self.module.id
             )
+            RecognitionSubjectRepository.create(db, subject_create)
 
         logging.info(
-            f"Module '{self.NAME}' (config: {self.get_config_string()}) completed processing {len(processed_document_ids)} documents, "
+            f"Module '{self.NAME}' (config: {self.get_config_string()}) completed processing {len(unprocessed_documents)} documents, "
             f"creating {total_toponyms_created} toponyms in total."
         )
 
@@ -435,8 +434,6 @@ class ResolutionModule(BaseModule):
             f"Processing {len(unprocessed_toponyms)} toponyms with module '{self.NAME}' (config: {self.get_config_string()}) in session {session.name}."
         )
 
-        # Process each unprocessed toponym
-        processed_toponym_ids = []
         total_locations_created = 0
 
         for toponym in unprocessed_toponyms:
@@ -462,22 +459,19 @@ class ResolutionModule(BaseModule):
                 )
                 created_locations.append(location)
 
-            # Add toponym to the list of processed toponyms
-            processed_toponym_ids.append(toponym.id)
-            total_locations_created += len(created_locations)
-
             logging.info(
                 f"Toponym {toponym.id} ('{toponym_text}') processed, {len(created_locations)} locations found."
             )
-
-        # Mark all toponyms as processed in a batch operation
-        if processed_toponym_ids:
-            ResolutionSubjectRepository.create_many(
-                db, processed_toponym_ids, self.module.id
+            # Mark the current toponym as processed directly
+            subject_create = ResolutionSubjectCreate(
+                toponym_id=toponym.id, module_id=self.module.id
             )
+            ResolutionSubjectRepository.create(db, subject_create)
+
+            total_locations_created += len(created_locations)
 
         logging.info(
-            f"Module '{self.NAME}' (config: {self.get_config_string()}) completed processing {len(processed_toponym_ids)} toponyms, "
+            f"Module '{self.NAME}' (config: {self.get_config_string()}) completed processing {len(unprocessed_toponyms)} toponyms, "
             f"creating {total_locations_created} locations in total."
         )
 
