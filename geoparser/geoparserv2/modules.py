@@ -1,5 +1,6 @@
 import logging
 import typing as t
+import uuid
 from abc import ABC, abstractmethod
 
 from sqlmodel import Session as DBSession
@@ -213,14 +214,14 @@ class RecognitionModule(BaseModule):
         return RecognitionModuleRepository.create(db, module_create)
 
     def _create_toponym(
-        self, db: DBSession, document: Document, start: int, end: int
+        self, db: DBSession, document_id: uuid.UUID, start: int, end: int
     ) -> Toponym:
         """
         Create a toponym and associate it with this recognition module.
 
         Args:
             db: Database session
-            document: Document object
+            document_id: ID of the document
             start: Start position of the toponym in the document
             end: End position of the toponym in the document
 
@@ -228,7 +229,7 @@ class RecognitionModule(BaseModule):
             Created Toponym object
         """
         # Create the toponym
-        toponym_create = ToponymCreate(start=start, end=end, document_id=document.id)
+        toponym_create = ToponymCreate(start=start, end=end, document_id=document_id)
         toponym = ToponymRepository.create(db, toponym_create)
 
         # Create the recognition object
@@ -238,6 +239,23 @@ class RecognitionModule(BaseModule):
         RecognitionObjectRepository.create(db, recognition_object_create)
 
         return toponym
+
+    def _create_recognition_subject(
+        self, db: DBSession, document_id: uuid.UUID
+    ) -> None:
+        """
+        Create a recognition subject for a document.
+
+        This marks the document as processed by this module.
+
+        Args:
+            db: Database session
+            document_id: ID of the document to mark as processed
+        """
+        subject_create = RecognitionSubjectCreate(
+            document_id=document_id, module_id=self.module.id
+        )
+        RecognitionSubjectRepository.create(db, subject_create)
 
     def _execute(self, db: DBSession, session: Session) -> None:
         """
@@ -259,50 +277,39 @@ class RecognitionModule(BaseModule):
             f"Processing {len(unprocessed_documents)} documents with module '{self.NAME}' (config: {self.get_config_string()}) in session {session.name}."
         )
 
-        # Process each unprocessed document
-        total_toponyms_created = 0
+        # Get toponyms predicted by child class in bulk
+        predicted_toponyms = self.predict_toponyms(unprocessed_documents)
 
-        for document in unprocessed_documents:
-            # Get toponyms predicted by child class
-            predicted_toponyms = self.predict_toponyms(document.text)
-
+        # Process each document with its predicted toponyms
+        for document, toponyms in zip(unprocessed_documents, predicted_toponyms):
             # Create toponyms and recognition records
-            created_toponyms = []
-            for start, end in predicted_toponyms:
+            for start, end in toponyms:
                 toponym = self._create_toponym(
-                    db=db, document=document, start=start, end=end
+                    db=db, document_id=document.id, start=start, end=end
                 )
-                created_toponyms.append(toponym)
 
-            total_toponyms_created += len(created_toponyms)
-
-            logging.info(
-                f"Document {document.id} processed, {len(created_toponyms)} toponyms found."
-            )
-
-            # Create recognition subject for this document immediately
-            subject_create = RecognitionSubjectCreate(
-                document_id=document.id, module_id=self.module.id
-            )
-            RecognitionSubjectRepository.create(db, subject_create)
+            # Create recognition subject for this document
+            self._create_recognition_subject(db, document.id)
 
         logging.info(
-            f"Module '{self.NAME}' (config: {self.get_config_string()}) completed processing {len(unprocessed_documents)} documents, "
-            f"creating {total_toponyms_created} toponyms in total."
+            f"Module '{self.NAME}' (config: {self.get_config_string()}) completed processing {len(unprocessed_documents)} documents."
         )
 
     @abstractmethod
-    def predict_toponyms(self, text: str) -> t.List[t.Tuple[int, int]]:
+    def predict_toponyms(
+        self, documents: t.List[Document]
+    ) -> t.List[t.List[t.Tuple[int, int]]]:
         """
-        Predict toponyms in a text.
+        Predict toponyms in multiple documents.
 
         This abstract method must be implemented by child classes.
 
         Args:
-            text: Text to process
+            documents: List of Document objects to process
 
         Returns:
-            List of tuples containing (start, end) positions of toponyms
+            List of lists of tuples containing (start, end) positions of toponyms.
+            Each inner list corresponds to toponyms found in one document at the same index in the input list.
         """
 
 
@@ -384,7 +391,7 @@ class ResolutionModule(BaseModule):
     def _create_location(
         self,
         db: DBSession,
-        toponym: Toponym,
+        toponym_id: uuid.UUID,
         location_id: str,
         confidence: t.Optional[float] = None,
     ) -> Location:
@@ -393,7 +400,7 @@ class ResolutionModule(BaseModule):
 
         Args:
             db: Database session
-            toponym: Toponym object
+            toponym_id: ID of the toponym
             location_id: ID of the location in the gazetteer
             confidence: Optional confidence score
 
@@ -402,7 +409,7 @@ class ResolutionModule(BaseModule):
         """
         # Create the location
         location_create = LocationCreate(
-            location_id=location_id, confidence=confidence, toponym_id=toponym.id
+            location_id=location_id, confidence=confidence, toponym_id=toponym_id
         )
         location = LocationRepository.create(db, location_create)
 
@@ -413,6 +420,21 @@ class ResolutionModule(BaseModule):
         ResolutionObjectRepository.create(db, resolution_object_create)
 
         return location
+
+    def _create_resolution_subject(self, db: DBSession, toponym_id: uuid.UUID) -> None:
+        """
+        Create a resolution subject for a toponym.
+
+        This marks the toponym as processed by this module.
+
+        Args:
+            db: Database session
+            toponym_id: ID of the toponym to mark as processed
+        """
+        subject_create = ResolutionSubjectCreate(
+            toponym_id=toponym_id, module_id=self.module.id
+        )
+        ResolutionSubjectRepository.create(db, subject_create)
 
     def _execute(self, db: DBSession, session: Session) -> None:
         """
@@ -434,66 +456,43 @@ class ResolutionModule(BaseModule):
             f"Processing {len(unprocessed_toponyms)} toponyms with module '{self.NAME}' (config: {self.get_config_string()}) in session {session.name}."
         )
 
-        total_locations_created = 0
+        # Get locations predicted by child class in bulk
+        predicted_locations = self.predict_locations(unprocessed_toponyms)
 
-        for toponym in unprocessed_toponyms:
-            # Get the document for this toponym
-            document = toponym.document
-
-            # Extract toponym text from document
-            toponym_text = document.text[toponym.start : toponym.end]
-
-            # Get locations predicted by child class
-            predicted_locations = self.predict_locations(
-                document.text, toponym_text, toponym.start, toponym.end
-            )
+        # Process each toponym with its predicted locations
+        for toponym, locations in zip(unprocessed_toponyms, predicted_locations):
+            # Extract toponym text for logging
+            toponym_text = toponym.document.text[toponym.start : toponym.end]
 
             # Create location and resolution records
-            created_locations = []
-            for location_id, confidence in predicted_locations:
+            for location_id, confidence in locations:
                 location = self._create_location(
                     db=db,
-                    toponym=toponym,
+                    toponym_id=toponym.id,
                     location_id=location_id,
                     confidence=confidence,
                 )
-                created_locations.append(location)
 
-            logging.info(
-                f"Toponym {toponym.id} ('{toponym_text}') processed, {len(created_locations)} locations found."
-            )
-            # Mark the current toponym as processed directly
-            subject_create = ResolutionSubjectCreate(
-                toponym_id=toponym.id, module_id=self.module.id
-            )
-            ResolutionSubjectRepository.create(db, subject_create)
-
-            total_locations_created += len(created_locations)
+            # Mark the current toponym as processed
+            self._create_resolution_subject(db, toponym_id=toponym.id)
 
         logging.info(
-            f"Module '{self.NAME}' (config: {self.get_config_string()}) completed processing {len(unprocessed_toponyms)} toponyms, "
-            f"creating {total_locations_created} locations in total."
+            f"Module '{self.NAME}' (config: {self.get_config_string()}) completed processing {len(unprocessed_toponyms)} toponyms."
         )
 
     @abstractmethod
     def predict_locations(
-        self,
-        document_text: str,
-        toponym_text: str,
-        toponym_start: int,
-        toponym_end: int,
-    ) -> t.List[t.Tuple[str, t.Optional[float]]]:
+        self, toponyms: t.List[Toponym]
+    ) -> t.List[t.List[t.Tuple[str, t.Optional[float]]]]:
         """
-        Predict locations for a toponym.
+        Predict locations for multiple toponyms.
 
         This abstract method must be implemented by child classes.
 
         Args:
-            document_text: Full text of the document
-            toponym_text: Text of the toponym
-            toponym_start: Start position of the toponym in the document
-            toponym_end: End position of the toponym in the document
+            toponyms: List of Toponym objects to process
 
         Returns:
-            List of tuples containing (location_id, confidence)
+            List of lists of tuples containing (location_id, confidence).
+            Each inner list corresponds to locations found for one toponym at the same index in the input list.
         """
