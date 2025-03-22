@@ -2,7 +2,6 @@ import pytest
 from typer.testing import CliRunner
 
 from geoparser.__main__ import app
-from geoparser.annotator import GeoparserAnnotator
 from geoparser.constants import GAZETTEERS_CHOICES
 from geoparser.gazetteers.gazetteer import LocalDBGazetteer
 
@@ -25,7 +24,7 @@ def test_download(gazetteer: str, monkeypatch):
 
 
 def test_annotator(monkeypatch):
-    monkeypatch.setattr(GeoparserAnnotator, "run", lambda *args, **kwargs: None)
+    monkeypatch.setattr("geoparser.cli.annotator.run", lambda *args, **kwargs: None)
     result = runner.invoke(app, ["annotator"])
     # cli will always return OK code
     assert result.exit_code == 0

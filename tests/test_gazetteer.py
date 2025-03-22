@@ -1,7 +1,6 @@
 import sqlite3
 import tempfile
 import typing as t
-from difflib import get_close_matches
 from pathlib import Path
 
 import py
@@ -67,7 +66,7 @@ def check_table_population(
 def localdb_gazetteer(monkeypatch) -> LocalDBGazetteer:
     monkeypatch.setattr(
         "geoparser.config.config.get_config_file",
-        lambda _: get_static_test_file("gazetteers_config_valid.yaml"),
+        lambda _: get_static_test_file("config/gazetteers_config_valid.yaml"),
     )
     localdb_gazetteer = make_concrete(LocalDBGazetteer)(gazetteer_name="test-full")
     tmpdir = py.path.local(tempfile.mkdtemp())
@@ -125,7 +124,7 @@ def test_download_file(
     requests_mock: Mocker,
 ):
     raw_file = dataset.url.split("/")[-1]
-    with open(get_static_test_file(raw_file), "rb") as file:
+    with open(get_static_test_file(f"gazetteers/misc/{raw_file}"), "rb") as file:
         requests_mock.get(dataset.url, body=file)
         localdb_gazetteer._download_file(dataset=dataset)
     dir_content = Path(localdb_gazetteer.db_path).parent.glob("**/*")
@@ -133,6 +132,32 @@ def test_download_file(
     # a.txt downloaded as is, b.zip has been extracted and is still around
     zipfile = [raw_file] if raw_file.endswith(".zip") else []
     assert sorted(files) == sorted(dataset.extracted_files + zipfile)
+
+
+@pytest.mark.parametrize("is_directory", [True, False])
+def test_delete_file(localdb_gazetteer: LocalDBGazetteer, is_directory: bool):
+    dataset = GazetteerData(
+        name="a",
+        url="https://my.url.org/path/to/a.txt",
+        extracted_files=["a.txt"],
+        columns=[Column(name="", type="")],
+    )
+    raw_element = Path(localdb_gazetteer.data_dir) / dataset.url.split("/")[-1]
+    if is_directory:
+        # create directory to delete
+        raw_element.mkdir(parents=True, exist_ok=True)
+        test_function = lambda x: x.is_dir()
+    else:
+        # create file to delete
+        with open(get_static_test_file(raw_element), "w") as _:
+            pass
+        test_function = lambda x: x.is_file()
+    # element exists before deletion
+    assert test_function(raw_element)
+    # delete element
+    localdb_gazetteer._delete_file(dataset)
+    # element has been deleted
+    assert not test_function(raw_element)
 
 
 def test_create_data_table(geonames_patched: GeoNames):
@@ -293,7 +318,6 @@ def test_query_candidates(geonames_real_data: GeoNames, radio_andorra_id: int):
 
 
 def test_query_locations(geonames_real_data: GeoNames, radio_andorra_id: int):
-    print(geonames_real_data.query_locations([radio_andorra_id]))
     expected_info = {
         "geonameid": "3039328",
         "name": "Radio Andorra",
