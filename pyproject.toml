@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "geoparser"
-version = "0.2.0"
+version = "0.2.1"
 description = "A customizable geoparsing library for unstructured text"
 authors = ["Diego Gomes <diego.gomes@uzh.ch>"]
 readme = "README.md"
