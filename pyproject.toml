@@ -37,7 +37,7 @@ sqlmodel = "^0.0.22"
 
 
 [tool.poetry.group.dev.dependencies]
-black = "24.4.2"
+black = "25.1.0"
 isort = "5.13.2"
 pytest = "^8.2.2"
 jupyter = "^1.0.0"

@@ -46,6 +46,7 @@ def geonames_filter_attributes() -> list[str]:
     [
         (0, 4, 5, 10, False),  # No overlap (existing before new)
         (11, 15, 5, 10, False),  # No overlap (existing after new)
+        (0, 4, 4, 7, False),  # Same start and end chars, but no overlap
         (5, 10, 5, 10, True),  # Exact overlap
         (
             5,

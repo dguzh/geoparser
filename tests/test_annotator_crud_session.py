@@ -1,4 +1,5 @@
 import json
+import typing as t
 import uuid
 from contextlib import nullcontext
 
@@ -56,35 +57,41 @@ def test_create(test_db: DBSession, nested: bool):
                 assert type(toponym) is Toponym
 
 
-def test_create_from_json(test_db: DBSession):
-    session_create = SessionCreate(
-        gazetteer="geonames",
-        documents=[
-            DocumentCreate(
-                filename="test.txt",
-                spacy_model="en_core_web_sm",
-                text="Andorra is nice.",
-                toponyms=[ToponymCreate(text="Andorra", start=0, end=6)],
-            )
+@pytest.mark.parametrize("session_id", [None, str(uuid.uuid4())])
+@pytest.mark.parametrize("keep_id", [True, False])
+def test_create_from_json(
+    test_db: DBSession, session_id: t.Optional[str], keep_id: bool
+):
+    session_create_dict = {
+        "gazetteer": "geonames",
+        "documents": [
+            {
+                "filename": "test.txt",
+                "spacy_model": "en_core_web_sm",
+                "text": "Andorra is nice.",
+                "toponyms": [{"text": "Andorra", "start": 0, "end": 6}],
+            }
         ],
-    )
+    }
+    if session_id:
+        session_create_dict["session_id"] = session_id
     session = SessionRepository.create_from_json(
-        test_db, json.dumps(jsonable_encoder(session_create))
+        test_db, json.dumps(jsonable_encoder(session_create_dict)), keep_id=keep_id
     )
     db_session = SessionRepository.read(test_db, session.id)
     assert type(session) is Session
     assert type(db_session) is Session
-    assert db_session.model_dump(
-        exclude=["id", "created_at", "last_updated"]
-    ) == session_create.model_dump(
-        exclude=["created_at", "last_updated", "documents", "settings"]
-    )
+    assert db_session.gazetteer == session_create_dict["gazetteer"]
+    if session_id and keep_id:
+        assert str(session.id) == session_id
+    else:
+        assert isinstance(session.id, uuid.UUID)
     assert type(db_session.settings) is SessionSettings
     assert (
         db_session.settings.model_dump(exclude=["id", "session_id"])
         == SessionSettingsCreate().model_dump()
     )
-    assert len(db_session.documents) == len(session_create.documents)
+    assert len(db_session.documents) == len(session_create_dict["documents"])
     for document in db_session.documents:
         assert type(document) is Document
         assert len(document.toponyms) == 1

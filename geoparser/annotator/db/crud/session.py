@@ -53,7 +53,9 @@ class SessionRepository(BaseRepository):
         return session
 
     @classmethod
-    def create_from_json(cls, db: DBSession, json_str: str) -> Session:
+    def create_from_json(
+        cls, db: DBSession, json_str: str, keep_id: bool = False
+    ) -> Session:
         # Parse the JSON input
         content = json.loads(json_str)
         session = SessionCreate.model_validate(
@@ -67,13 +69,17 @@ class SessionRepository(BaseRepository):
                                 ToponymCreate.model_validate(toponym_dict)
                                 for toponym_dict in document_dict["toponyms"]
                             ],
+                            "spacy_applied": True,
                         }
                     )
                     for document_dict in content["documents"]
                 ],
             }
         )
-        return cls.create(db, session)
+        additional = {}
+        if keep_id and (session_id := content.get("session_id")):
+            additional["id"] = uuid.UUID(session_id)
+        return cls.create(db, session, additional=additional)
 
     @classmethod
     def read(cls, db: DBSession, id: uuid.UUID) -> Session:

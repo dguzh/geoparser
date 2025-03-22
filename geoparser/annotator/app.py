@@ -22,7 +22,7 @@ from geoparser.annotator.db.crud import (
     SessionSettingsRepository,
     ToponymRepository,
 )
-from geoparser.annotator.db.db import create_db_and_tables, engine, get_db
+from geoparser.annotator.db.db import create_db_and_tables, db_location, engine, get_db
 from geoparser.annotator.db.models import (
     Document,
     SessionCreate,
@@ -53,6 +53,7 @@ from geoparser.annotator.models.api import (
     AnnotationEdit,
     BaseResponse,
     CandidatesGet,
+    LegacyFilesResponse,
     ParsingResponse,
     PreAnnotatedTextResponse,
     ProgressResponse,
@@ -178,6 +179,32 @@ def create_session(
     )
 
 
+@app.post("/session/read/legacy-files", tags=["session"])
+def create_from_legacy_files(
+    db: t.Annotated[DBSession, Depends(get_db)],
+):
+    legacy_cache_dir = db_location.parent
+    legacy_files = list(legacy_cache_dir.glob("*.json"))
+    if not legacy_files:
+        return LegacyFilesResponse()
+    files_loaded = 0
+    files_failed = []
+    for legacy_file in legacy_files:
+        try:
+            with open(legacy_file, "r") as infile:
+                content = infile.read()
+            SessionRepository.create_from_json(db, content, keep_id=True)
+            legacy_file.unlink()
+            files_loaded += 1
+        except (json.decoder.JSONDecodeError, KeyError):
+            files_failed.append(legacy_file.name)
+    return LegacyFilesResponse(
+        files_found=len(legacy_files),
+        files_loaded=files_loaded,
+        files_failed=files_failed,
+    )
+
+
 @app.post("/session/continue/cached", tags=["session"])
 def continue_session_cached(
     db: t.Annotated[DBSession, Depends(get_db)],
@@ -208,7 +235,7 @@ def continue_session_file(
     if session_file and session_file.filename:
         # Save session to cache
         session = SessionRepository.create_from_json(
-            db, session_file.file.read().decode()
+            db, session_file.file.read().decode(), keep_id=False
         )
         # Re-initialize gazetteer
         geoparser.gazetteer = geoparser.setup_gazetteer(session.gazetteer)
@@ -410,7 +437,7 @@ def delete_annotation(
 
 @app.get("/session/{session_id}/settings", tags=["settings"])
 def get_session_settings(
-    session: t.Annotated[dict, Depends(get_session)]
+    session: t.Annotated[dict, Depends(get_session)],
 ) -> SessionSettings:
     return session.settings
 
