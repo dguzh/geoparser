@@ -15,7 +15,7 @@ from tests.utils import get_static_test_file
 def test_get_gazetteer_configs_valid(monkeypatch):
     monkeypatch.setattr(
         "geoparser.config.config.get_config_file",
-        lambda _: get_static_test_file("gazetteers_config_valid.yaml"),
+        lambda _: get_static_test_file("config/gazetteers_config_valid.yaml"),
     )
     expected = {
         "test-full": GazetteerConfig(
@@ -78,7 +78,7 @@ def test_get_gazetteer_configs_valid(monkeypatch):
 def test_get_gazetteer_configs_invalid(monkeypatch):
     monkeypatch.setattr(
         "geoparser.config.config.get_config_file",
-        lambda _: get_static_test_file("gazetteers_config_invalid.yaml"),
+        lambda _: get_static_test_file("config/gazetteers_config_invalid.yaml"),
     )
     with pytest.raises(pydantic.ValidationError):
         _ = get_gazetteer_configs()

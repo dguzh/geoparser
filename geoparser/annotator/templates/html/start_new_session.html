@@ -19,11 +19,11 @@
 <div class="container mt-5">
     <h1 class="mb-4">Start New Session</h1>
     <hr class="my-4">
-    <form id="start-session-form" action="{{ url_for('start_new_session') }}" method="post" enctype="multipart/form-data">
+    <form id="start-session-form" action="{{ url_for('create_session') }}" method="post" enctype="multipart/form-data">
         <!-- Document Upload -->
         <div class="mb-3">
             <label for="files" class="form-label">Select Documents:</label>
-            <input type="file" class="form-control" name="files[]" multiple required>
+            <input type="file" class="form-control" name="files" multiple required>
         </div>
 
         <!-- Gazetteer Selection -->

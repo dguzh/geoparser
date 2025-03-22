@@ -1,0 +1,172 @@
+/* Toponym styles */
+.toponym {
+    background-color: #ffc107;
+    cursor: pointer;
+    border-radius: 8px;
+    color: white;
+    position: relative;
+    display: inline;
+    white-space: pre-wrap;
+}
+/* Highlighted Toponym */
+.toponym.annotated {
+    background-color: #0d6efd;
+    cursor: pointer;
+    border-radius: 8px;
+    color: white;
+}
+/* Progress bar styles */
+.progress {
+    height: 10px;
+    margin-top: 5px;
+}
+/* Candidate list */
+.candidate {
+    margin-bottom: 5px;
+    cursor: pointer;
+}
+.candidate:hover {
+    background-color: #f0f0f0;
+}
+/* Ensure the parent container takes the full available height */
+#main-content, #sidebar {
+    display: flex;
+    flex-direction: column;
+    height: calc(100vh - 56px); /* Adjusted to match the navbar height */
+    padding: 0;
+}
+/* Scrollable document list */
+#document-list, #document-text {
+    overflow-y: auto;
+    flex-grow: 1;
+    padding: 1rem;
+    margin: 0;
+}
+#document-list {
+    visibility: hidden;
+}
+#document-text {
+    white-space: pre-wrap;
+}
+
+/* Adjust margins for the document title */
+h2 {
+    font-size: 1.5em;
+    padding-left: 1rem;
+    padding-right: 1rem;
+}
+/* Fix for modal overflow */
+.modal-lg {
+    max-width: 90%;
+}
+/* Context Menu */
+#context-menu {
+    position: absolute;
+    z-index: 10000;
+    display: none;
+    background-color: white;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+}
+#context-menu ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+#context-menu ul li {
+    padding: 8px 12px;
+    cursor: pointer;
+}
+#context-menu ul li:hover {
+    background-color: #f0f0f0;
+}
+/* Drag Handles */
+.drag-handle {
+    position: absolute;
+    top: 0;
+    width: 10px;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.2);
+    cursor: col-resize;
+    z-index: 100;
+}
+.drag-handle.left {
+    left: -5px;
+}
+.drag-handle.right {
+    right: -5px;
+}
+.deselect-btn {
+    cursor: pointer;
+    color: white;  /* White color to match the highlighted background */
+    padding-left: 10px;
+}
+.deselect-btn:hover {
+    color: #dc3545;  /* Hover effect to change the icon to red */
+}
+.candidate {
+    position: relative;
+    padding-right: 1rem;  /* Add space for the deselect button */
+}
+.deselect-btn {
+    position: absolute;
+    right: 1rem;  /* Align the button to the right edge of the candidate */
+    top: 50%;      /* Vertically center the button */
+    transform: translateY(-50%);
+}
+#modal-map {
+    display: none;
+}
+.modal-header {
+    align-items: center;
+}
+/* Style for None Option */
+#none-option {
+    cursor: pointer;
+}
+#none-option:hover {
+    background-color: #f0f0f0;
+}
+#none-option.active {
+    background-color: #0d6efd;
+    color: white;
+}
+.btn-group .btn.active {
+    background-color: #0d6efd;
+    color: white;
+    border-color: #0d6efd;
+}
+.btn-group .btn {
+    background-color: #f8f9fa;
+    color: #212529;
+}
+.modal-header {
+    position: relative;
+}
+.modal-header .btn-group {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    top: 50%;
+    transform: translate(-50%, -50%);
+}
+.loader {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    border: 16px solid #f3f3f3; /* Light grey */
+    border-top: 16px solid #3498db; /* Blue */
+    border-radius: 50%;
+    width: 120px;
+    height: 120px;
+    animation: spin 2s linear infinite;
+    transform: translate(-50%, -50%); /* Center the loader properly */
+    z-index: 100; /* Ensure it's above other content */
+}
+@keyframes spin {
+    0% { transform: translate(-50%, -50%) rotate(0deg); }
+    100% { transform: translate(-50%, -50%) rotate(360deg); }
+}
+#main-content {
+    position: relative; /* Make this the positioning context for the loader */
+}

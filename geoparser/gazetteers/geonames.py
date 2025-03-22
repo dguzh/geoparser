@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import math
-import re
 import typing as t
 
 import pandas as pd

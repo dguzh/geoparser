@@ -135,7 +135,9 @@ def test_read_file(
 ):
     test_chunk_tsv["col1"] = test_chunk_tsv["col1"].astype(str)
     file_content, n_chunks = geonames_patched._read_file(
-        get_static_test_file("test.tsv"), ["col1", "col2"], chunksize=chunksize
+        get_static_test_file("gazetteers/misc/test.tsv"),
+        ["col1", "col2"],
+        chunksize=chunksize,
     )
     file_content = list(file_content)
     assert len(file_content) == n_chunks == math.ceil(len(test_chunk_tsv) / chunksize)

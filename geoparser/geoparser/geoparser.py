@@ -34,6 +34,7 @@ class Geoparser:
         spacy_model: str = DEFAULT_SPACY_MODEL,
         transformer_model: str = DEFAULT_TRANSFORMER_MODEL,
         gazetteer: str = DEFAULT_GAZETTEER,
+        skip_init: bool = False,
     ):
         """
         Initialize the Geoparser with specified spaCy model, transformer model, and gazetteer.
@@ -42,10 +43,13 @@ class Geoparser:
             spacy_model (str): Name of the spaCy model to use for NER.
             transformer_model (str): Name or path of the SentenceTransformer model.
             gazetteer (str): Name of the gazetteer to use.
+            skip_init (bool): Set to True to skip the initializiation of Spacy, SentenceTransformer, and the gazetteer.
         """
-        self.gazetteer = self.setup_gazetteer(gazetteer)
-        self.nlp = self.setup_spacy(spacy_model)
-        self.transformer = self.setup_transformer(transformer_model)
+        self.gazetteer = self.setup_gazetteer(gazetteer) if not skip_init else None
+        self.nlp = self.setup_spacy(spacy_model) if not skip_init else None
+        self.transformer = (
+            self.setup_transformer(transformer_model) if not skip_init else None
+        )
 
     def setup_gazetteer(self, gazetteer: str) -> Gazetteer:
         """
@@ -90,7 +94,13 @@ class Geoparser:
 
         spacy.prefer_gpu()
 
-        nlp = spacy.load(spacy_model)
+        # only load spacy model if needed
+        if (
+            not (nlp := getattr(self, "nlp", None))
+            or not isinstance(nlp, spacy.language.Language)
+            or f"{nlp.meta['lang']}_{nlp.meta['name']}" != spacy_model
+        ):
+            nlp = spacy.load(spacy_model)
         nlp.make_doc = lambda text: GeoDoc(
             self,
             nlp.vocab,
@@ -109,7 +119,27 @@ class Geoparser:
         Returns:
             SentenceTransformer: The loaded SentenceTransformer model.
         """
-        return SentenceTransformer(transformer_model)
+        return SentenceTransformer(
+            transformer_model
+        )  # add local_files_only=True to run offline (needs cached model)
+
+    def get_filter_attributes(self) -> list[str]:
+        """
+        Get filter attributes for a specific gazetteer
+
+        Returns:
+            List[str]: List of filter attributes
+        """
+        location_identifier = self.gazetteer.config.location_identifier
+        location_columns = self.gazetteer.config.location_columns
+        filter_attributes = [
+            col.name
+            for col in location_columns
+            if col.type == "TEXT"
+            and col.name != location_identifier
+            and not col.name.endswith(location_identifier)
+        ]
+        return filter_attributes
 
     def parse(
         self,
