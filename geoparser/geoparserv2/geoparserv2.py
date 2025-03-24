@@ -26,9 +26,10 @@ class GeoparserV2:
         Args:
             session_name: Session name. Will load or create a session with this name.
         """
-        self.session = self._initialize_session(session_name)
+        self.session_id = self._initialize_session(session_name)
+        self.session_name = session_name
 
-    def _initialize_session(self, session_name: str) -> Session:
+    def _initialize_session(self, session_name: str) -> uuid.UUID:
         """
         Load an existing session or create a new one if it doesn't exist.
 
@@ -36,7 +37,7 @@ class GeoparserV2:
             session_name: Name of the session to load or create
 
         Returns:
-            Session object that was loaded or created
+            Session ID that was loaded or created
         """
         db = next(get_db())
         session = self.load_session(db, session_name)
@@ -47,7 +48,7 @@ class GeoparserV2:
             )
             session = self.create_session(db, session_name)
 
-        return session
+        return session.id
 
     def load_session(self, db: DBSession, session_name: str) -> t.Optional[Session]:
         """
@@ -95,7 +96,7 @@ class GeoparserV2:
 
         document_ids = []
         for text in texts:
-            document_create = DocumentCreate(text=text, session_id=self.session.id)
+            document_create = DocumentCreate(text=text, session_id=self.session_id)
             document = DocumentRepository.create(db, document_create)
             document_ids.append(document.id)
 
@@ -111,8 +112,8 @@ class GeoparserV2:
         Args:
             module: The module instance to run.
         """
-        # Implementation for running a module
-        module.run(self.session)
+        # Run the module on the session ID
+        module.run(self.session_id)
 
     def get_documents(self) -> list[dict]:
         """

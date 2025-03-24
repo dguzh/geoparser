@@ -17,8 +17,6 @@ from geoparser.db.crud import (
 )
 from geoparser.db.db import get_db
 from geoparser.db.models import (
-    Document,
-    Location,
     LocationCreate,
     RecognitionModule,
     RecognitionModuleCreate,
@@ -28,8 +26,6 @@ from geoparser.db.models import (
     ResolutionModuleCreate,
     ResolutionObjectCreate,
     ResolutionSubjectCreate,
-    Session,
-    Toponym,
     ToponymCreate,
 )
 
@@ -64,14 +60,14 @@ class BaseModule(ABC):
         self.config["module_name"] = self.NAME
 
         # Initialize module record in database
-        self.module = self._initialize_module()
+        self.module_id = self._initialize_module()
 
     def _initialize_module(self):
         """
         Initialize the module record in the database.
 
         Returns:
-            The initialized module object
+            The initialized module ID
         """
         db = next(get_db())
         try:
@@ -86,7 +82,7 @@ class BaseModule(ABC):
                 logging.info(
                     f"Using existing {self.__class__.__name__.lower()} '{self.NAME}' with config: {self.get_config_string()}"
                 )
-            return module
+            return module.id
         finally:
             db.close()
 
@@ -114,7 +110,7 @@ class BaseModule(ABC):
             Created Module object
         """
 
-    def run(self, session: Session) -> None:
+    def run(self, session_id: uuid.UUID) -> None:
         """
         Execute the module's functionality on the specified session.
 
@@ -122,26 +118,26 @@ class BaseModule(ABC):
         and delegates the actual execution to the _execute method.
 
         Args:
-            session: Session object to process
+            session_id: Session ID to process
         """
         # Get a database session
         db = next(get_db())
 
         try:
             # Call the abstract _execute method that child classes implement
-            self._execute(db, session)
+            self._execute(db, session_id)
 
             # Commit changes to the database
             db.commit()
 
             logging.info(
-                f"Module '{self.NAME}' completed successfully on session {session.name} ({session.id})"
+                f"Module '{self.NAME}' completed successfully on session {session_id}"
             )
         except Exception as e:
             # Rollback in case of error
             db.rollback()
             logging.error(
-                f"Error executing module '{self.NAME}' on session {session.id}: {str(e)}"
+                f"Error executing module '{self.NAME}' on session {session_id}: {str(e)}"
             )
             raise
         finally:
@@ -175,7 +171,7 @@ class BaseModule(ABC):
         return ", ".join(config_items)
 
     @abstractmethod
-    def _execute(self, db: DBSession, session: Session) -> None:
+    def _execute(self, db: DBSession, session_id: uuid.UUID) -> None:
         """
         Execute the module's functionality with the provided database session.
 
@@ -183,7 +179,7 @@ class BaseModule(ABC):
 
         Args:
             db: Database session
-            session: Session object to process
+            session_id: Session ID to process
         """
 
 
@@ -237,7 +233,7 @@ class RecognitionModule(BaseModule):
 
     def _create_toponym(
         self, db: DBSession, document_id: uuid.UUID, start: int, end: int
-    ) -> Toponym:
+    ) -> uuid.UUID:
         """
         Create a toponym and associate it with this recognition module.
 
@@ -248,7 +244,7 @@ class RecognitionModule(BaseModule):
             end: End position of the toponym in the document
 
         Returns:
-            Created Toponym object
+            Created Toponym ID
         """
         # Create the toponym
         toponym_create = ToponymCreate(start=start, end=end, document_id=document_id)
@@ -256,11 +252,11 @@ class RecognitionModule(BaseModule):
 
         # Create the recognition object
         recognition_object_create = RecognitionObjectCreate(
-            toponym_id=toponym.id, module_id=self.module.id
+            toponym_id=toponym.id, module_id=self.module_id
         )
         RecognitionObjectRepository.create(db, recognition_object_create)
 
-        return toponym
+        return toponym.id
 
     def _create_recognition_subject(
         self, db: DBSession, document_id: uuid.UUID
@@ -275,11 +271,11 @@ class RecognitionModule(BaseModule):
             document_id: ID of the document to mark as processed
         """
         subject_create = RecognitionSubjectCreate(
-            document_id=document_id, module_id=self.module.id
+            document_id=document_id, module_id=self.module_id
         )
         RecognitionSubjectRepository.create(db, subject_create)
 
-    def _execute(self, db: DBSession, session: Session) -> None:
+    def _execute(self, db: DBSession, session_id: uuid.UUID) -> None:
         """
         Execute toponym recognition on documents in the specified session.
 
@@ -288,30 +284,34 @@ class RecognitionModule(BaseModule):
 
         Args:
             db: Database session
-            session: Session object to process
+            session_id: Session ID to process
         """
         # Get all unprocessed documents for the session
         unprocessed_documents = RecognitionSubjectRepository.get_unprocessed_documents(
-            db, session.id, self.module.id
+            db, session_id, self.module_id
         )
 
         logging.info(
-            f"Processing {len(unprocessed_documents)} documents with module '{self.NAME}' (config: {self.get_config_string()}) in session {session.name}."
+            f"Processing {len(unprocessed_documents)} documents with module '{self.NAME}' (config: {self.get_config_string()}) in session {session_id}."
         )
 
+        # Get document texts and IDs for prediction
+        document_texts = [doc.text for doc in unprocessed_documents]
+        document_ids = [doc.id for doc in unprocessed_documents]
+
         # Get toponyms predicted by child class in bulk
-        predicted_toponyms = self.predict_toponyms(unprocessed_documents)
+        predicted_toponyms = self.predict_toponyms(document_texts)
 
         # Process each document with its predicted toponyms
-        for document, toponyms in zip(unprocessed_documents, predicted_toponyms):
+        for doc_id, toponyms in zip(document_ids, predicted_toponyms):
             # Create toponyms and recognition records
             for start, end in toponyms:
-                toponym = self._create_toponym(
-                    db=db, document_id=document.id, start=start, end=end
+                toponym_id = self._create_toponym(
+                    db=db, document_id=doc_id, start=start, end=end
                 )
 
             # Create recognition subject for this document
-            self._create_recognition_subject(db, document.id)
+            self._create_recognition_subject(db, doc_id)
 
         logging.info(
             f"Module '{self.NAME}' (config: {self.get_config_string()}) completed processing {len(unprocessed_documents)} documents."
@@ -319,7 +319,7 @@ class RecognitionModule(BaseModule):
 
     @abstractmethod
     def predict_toponyms(
-        self, documents: t.List[Document]
+        self, document_texts: t.List[str]
     ) -> t.List[t.List[t.Tuple[int, int]]]:
         """
         Predict toponyms in multiple documents.
@@ -327,7 +327,7 @@ class RecognitionModule(BaseModule):
         This abstract method must be implemented by child classes.
 
         Args:
-            documents: List of Document objects to process
+            document_texts: List of document texts to process
 
         Returns:
             List of lists of tuples containing (start, end) positions of toponyms.
@@ -389,7 +389,7 @@ class ResolutionModule(BaseModule):
         toponym_id: uuid.UUID,
         location_id: str,
         confidence: t.Optional[float] = None,
-    ) -> Location:
+    ) -> uuid.UUID:
         """
         Create a location and associate it with this resolution module.
 
@@ -400,7 +400,7 @@ class ResolutionModule(BaseModule):
             confidence: Optional confidence score
 
         Returns:
-            Created Location object
+            Created Location ID
         """
         # Create the location
         location_create = LocationCreate(
@@ -410,11 +410,11 @@ class ResolutionModule(BaseModule):
 
         # Create the resolution object
         resolution_object_create = ResolutionObjectCreate(
-            location_id=location.id, module_id=self.module.id
+            location_id=location.id, module_id=self.module_id
         )
         ResolutionObjectRepository.create(db, resolution_object_create)
 
-        return location
+        return location.id
 
     def _create_resolution_subject(self, db: DBSession, toponym_id: uuid.UUID) -> None:
         """
@@ -427,11 +427,11 @@ class ResolutionModule(BaseModule):
             toponym_id: ID of the toponym to mark as processed
         """
         subject_create = ResolutionSubjectCreate(
-            toponym_id=toponym_id, module_id=self.module.id
+            toponym_id=toponym_id, module_id=self.module_id
         )
         ResolutionSubjectRepository.create(db, subject_create)
 
-    def _execute(self, db: DBSession, session: Session) -> None:
+    def _execute(self, db: DBSession, session_id: uuid.UUID) -> None:
         """
         Execute toponym resolution on toponyms in the specified session.
 
@@ -440,36 +440,45 @@ class ResolutionModule(BaseModule):
 
         Args:
             db: Database session
-            session: Session object to process
+            session_id: Session ID to process
         """
         # Get all unprocessed toponyms for the session
         unprocessed_toponyms = ResolutionSubjectRepository.get_unprocessed_toponyms(
-            db, session.id, self.module.id
+            db, session_id, self.module_id
         )
 
         logging.info(
-            f"Processing {len(unprocessed_toponyms)} toponyms with module '{self.NAME}' (config: {self.get_config_string()}) in session {session.name}."
+            f"Processing {len(unprocessed_toponyms)} toponyms with module '{self.NAME}' (config: {self.get_config_string()}) in session {session_id}."
         )
 
+        # Prepare input data for prediction
+        toponym_data = [
+            {
+                "start": toponym.start,
+                "end": toponym.end,
+                "document_text": toponym.document.text,
+            }
+            for toponym in unprocessed_toponyms
+        ]
+
+        toponym_ids = [toponym.id for toponym in unprocessed_toponyms]
+
         # Get locations predicted by child class in bulk
-        predicted_locations = self.predict_locations(unprocessed_toponyms)
+        predicted_locations = self.predict_locations(toponym_data)
 
         # Process each toponym with its predicted locations
-        for toponym, locations in zip(unprocessed_toponyms, predicted_locations):
-            # Extract toponym text for logging
-            toponym_text = toponym.document.text[toponym.start : toponym.end]
-
+        for toponym_id, locations in zip(toponym_ids, predicted_locations):
             # Create location and resolution records
             for location_id, confidence in locations:
-                location = self._create_location(
+                location_id = self._create_location(
                     db=db,
-                    toponym_id=toponym.id,
+                    toponym_id=toponym_id,
                     location_id=location_id,
                     confidence=confidence,
                 )
 
             # Mark the current toponym as processed
-            self._create_resolution_subject(db, toponym_id=toponym.id)
+            self._create_resolution_subject(db, toponym_id=toponym_id)
 
         logging.info(
             f"Module '{self.NAME}' (config: {self.get_config_string()}) completed processing {len(unprocessed_toponyms)} toponyms."
@@ -477,7 +486,7 @@ class ResolutionModule(BaseModule):
 
     @abstractmethod
     def predict_locations(
-        self, toponyms: t.List[Toponym]
+        self, toponym_data: t.List[dict]
     ) -> t.List[t.List[t.Tuple[str, t.Optional[float]]]]:
         """
         Predict locations for multiple toponyms.
@@ -485,7 +494,10 @@ class ResolutionModule(BaseModule):
         This abstract method must be implemented by child classes.
 
         Args:
-            toponyms: List of Toponym objects to process
+            toponym_data: List of dictionaries containing toponym information:
+                          - start: start position in document
+                          - end: end position in document
+                          - document_text: full document text
 
         Returns:
             List of lists of tuples containing (location_id, confidence).
