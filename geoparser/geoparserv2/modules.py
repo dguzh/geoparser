@@ -63,7 +63,56 @@ class BaseModule(ABC):
         # Include the module name in the config to ensure uniqueness
         self.config["module_name"] = self.NAME
 
-        self.module = None
+        # Initialize module record in database
+        self.module = self._initialize_module()
+
+    def _initialize_module(self):
+        """
+        Initialize the module record in the database.
+
+        Returns:
+            The initialized module object
+        """
+        db = next(get_db())
+        try:
+            module = self._get_module(db)
+            if module is None:
+                module = self._create_module(db)
+                db.commit()
+                logging.info(
+                    f"Created new {self.__class__.__name__.lower()} '{self.NAME}' with config: {self.get_config_string()}"
+                )
+            else:
+                logging.info(
+                    f"Using existing {self.__class__.__name__.lower()} '{self.NAME}' with config: {self.get_config_string()}"
+                )
+            return module
+        finally:
+            db.close()
+
+    @abstractmethod
+    def _get_module(self, db: DBSession):
+        """
+        Get the module record from the database based on configuration.
+
+        Args:
+            db: Database session
+
+        Returns:
+            Module object if found, None otherwise
+        """
+
+    @abstractmethod
+    def _create_module(self, db: DBSession):
+        """
+        Create a new module record in the database.
+
+        Args:
+            db: Database session
+
+        Returns:
+            Created Module object
+        """
 
     def run(self, session: Session) -> None:
         """
@@ -160,33 +209,6 @@ class RecognitionModule(BaseModule):
             config: Optional configuration parameters for this module
         """
         super().__init__(config)
-
-        # Initialize module record in database
-        self.module = self._initialize_module()
-
-    def _initialize_module(self) -> RecognitionModule:
-        """
-        Initialize the module record in the database.
-
-        Returns:
-            The initialized RecognitionModule object
-        """
-        db = next(get_db())
-        try:
-            module = self._get_module(db)
-            if module is None:
-                module = self._create_module(db)
-                db.commit()
-                logging.info(
-                    f"Created new recognition module '{self.NAME}' with config: {self.get_config_string()}"
-                )
-            else:
-                logging.info(
-                    f"Using existing recognition module '{self.NAME}' with config: {self.get_config_string()}"
-                )
-            return module
-        finally:
-            db.close()
 
     def _get_module(self, db: DBSession) -> t.Optional[RecognitionModule]:
         """
@@ -335,33 +357,6 @@ class ResolutionModule(BaseModule):
             config: Optional configuration parameters for this module
         """
         super().__init__(config)
-
-        # Initialize module record in database
-        self.module = self._initialize_module()
-
-    def _initialize_module(self) -> ResolutionModule:
-        """
-        Initialize the module record in the database.
-
-        Returns:
-            The initialized ResolutionModule object
-        """
-        db = next(get_db())
-        try:
-            module = self._get_module(db)
-            if module is None:
-                module = self._create_module(db)
-                db.commit()
-                logging.info(
-                    f"Created new resolution module '{self.NAME}' with config: {self.get_config_string()}"
-                )
-            else:
-                logging.info(
-                    f"Using existing resolution module '{self.NAME}' with config: {self.get_config_string()}"
-                )
-            return module
-        finally:
-            db.close()
 
     def _get_module(self, db: DBSession) -> t.Optional[ResolutionModule]:
         """
