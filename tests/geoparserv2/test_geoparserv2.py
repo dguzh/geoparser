@@ -57,17 +57,17 @@ def test_init_with_existing_session(geoparserv2_with_existing_session, test_sess
     """Test initializing GeoparserV2 with an existing session."""
     geoparserv2 = geoparserv2_with_existing_session
 
-    assert geoparserv2.session is not None
-    assert geoparserv2.session.id == test_session.id
-    assert geoparserv2.session.name == test_session.name
+    assert geoparserv2.session_id is not None
+    assert geoparserv2.session_id == test_session.id
+    assert geoparserv2.session_name == test_session.name
 
 
 def test_init_with_new_session(geoparserv2_with_new_session, test_db):
     """Test initializing GeoparserV2 with a new session name."""
     geoparserv2 = geoparserv2_with_new_session
 
-    assert geoparserv2.session is not None
-    assert geoparserv2.session.name == "new-test-session"
+    assert geoparserv2.session_id is not None
+    assert geoparserv2.session_name == "new-test-session"
 
     # Verify it was saved to the database
     db_session = SessionRepository.get_by_name(test_db, "new-test-session")
@@ -86,7 +86,7 @@ def test_initialize_session_existing(mock_get_db, test_db, test_session):
         geoparserv2, "load_session", return_value=test_session
     ) as mock_load:
         with patch.object(geoparserv2, "create_session") as mock_create:
-            session = geoparserv2._initialize_session(test_session.name)
+            session_id = geoparserv2._initialize_session(test_session.name)
 
             # Verify load_session was called with the correct arguments
             mock_load.assert_called_once_with(test_db, test_session.name)
@@ -94,8 +94,8 @@ def test_initialize_session_existing(mock_get_db, test_db, test_session):
             # Verify create_session was not called
             mock_create.assert_not_called()
 
-            # Verify the correct session was returned
-            assert session == test_session
+            # Verify the correct session id was returned
+            assert session_id == test_session.id
 
 
 def test_initialize_session_new(mock_get_db, test_db):
@@ -112,7 +112,7 @@ def test_initialize_session_new(mock_get_db, test_db):
             geoparserv2, "create_session", return_value=new_session
         ) as mock_create:
             with patch("geoparser.geoparserv2.geoparserv2.logging.info") as mock_log:
-                session = geoparserv2._initialize_session("new-session")
+                session_id = geoparserv2._initialize_session("new-session")
 
                 # Verify load_session was called with the correct arguments
                 mock_load.assert_called_once_with(test_db, "new-session")
@@ -127,8 +127,8 @@ def test_initialize_session_new(mock_get_db, test_db):
                     in mock_log.call_args[0][0]
                 )
 
-                # Verify the correct session was returned
-                assert session == new_session
+                # Verify the correct session id was returned
+                assert session_id == new_session.id
 
 
 def test_add_documents_single(test_db, geoparserv2_with_existing_session):
@@ -149,7 +149,7 @@ def test_add_documents_single(test_db, geoparserv2_with_existing_session):
         document = test_db.get(Document, document_ids[0])
         assert document is not None
         assert document.text == "This is a test document."
-        assert document.session_id == geoparserv2.session.id
+        assert document.session_id == geoparserv2.session_id
 
 
 def test_add_documents_multiple(test_db, geoparserv2_with_existing_session):
@@ -176,8 +176,8 @@ def test_add_documents_multiple(test_db, geoparserv2_with_existing_session):
             document = test_db.get(Document, doc_id)
             assert document is not None
             assert document.text == texts[i]
-            assert document.session_id == geoparserv2.session.id
+            assert document.session_id == geoparserv2.session_id
 
         # Verify we can retrieve all documents for the session
-        documents = DocumentRepository.get_by_session(test_db, geoparserv2.session.id)
+        documents = DocumentRepository.get_by_session(test_db, geoparserv2.session_id)
         assert len(documents) == 3
