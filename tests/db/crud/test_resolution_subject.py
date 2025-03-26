@@ -224,11 +224,11 @@ def test_get_unprocessed_toponyms(
     test_resolution_module: ResolutionModule,
     test_resolution_subject: ResolutionSubject,
 ):
-    """Test getting unprocessed toponyms from a session."""
-    # Create another document in the same session
+    """Test getting unprocessed toponyms from a project."""
+    # Create another document in the same project
     doc_create = DocumentCreate(
         text="Another test document with Berlin and Paris.",
-        session_id=test_document.session_id,
+        project_id=test_document.project_id,
     )
     another_document = DocumentRepository.create(test_db, doc_create)
 
@@ -262,7 +262,7 @@ def test_get_unprocessed_toponyms(
 
     # Get unprocessed toponyms for test_resolution_module
     unprocessed_toponyms = ResolutionSubjectRepository.get_unprocessed_toponyms(
-        test_db, test_document.session_id, test_resolution_module.id
+        test_db, test_document.project_id, test_resolution_module.id
     )
 
     # Should return new_toponym1 and new_toponym2 (not processed by test_resolution_module)
@@ -276,7 +276,7 @@ def test_get_unprocessed_toponyms(
 
     # Get unprocessed toponyms for new_module
     unprocessed_toponyms = ResolutionSubjectRepository.get_unprocessed_toponyms(
-        test_db, test_document.session_id, new_module.id
+        test_db, test_document.project_id, new_module.id
     )
 
     # Should return test_toponym and new_toponym2 (not processed by new_module)
@@ -286,7 +286,7 @@ def test_get_unprocessed_toponyms(
     assert new_toponym2.id in toponym_ids
     assert new_toponym1.id not in toponym_ids  # Already processed by new_module
 
-    # Test with non-existent session ID
+    # Test with non-existent project ID
     unprocessed_toponyms = ResolutionSubjectRepository.get_unprocessed_toponyms(
         test_db, uuid.uuid4(), test_resolution_module.id
     )

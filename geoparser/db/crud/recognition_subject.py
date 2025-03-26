@@ -77,26 +77,26 @@ class RecognitionSubjectRepository(BaseRepository[RecognitionSubject]):
 
     @classmethod
     def get_unprocessed_documents(
-        cls, db: DBSession, session_id: uuid.UUID, module_id: uuid.UUID
+        cls, db: DBSession, project_id: uuid.UUID, module_id: uuid.UUID
     ) -> t.List[Document]:
         """
-        Get all documents from a session that have not been processed by a specific module.
+        Get all documents from a project that have not been processed by a specific module.
 
-        This is done by retrieving all documents for the session and excluding those
+        This is done by retrieving all documents for the project and excluding those
         that have a corresponding recognition subject record for the given module.
 
         Args:
             db: Database session
-            session_id: ID of the session containing the documents
+            project_id: ID of the project containing the documents
             module_id: ID of the recognition module
 
         Returns:
             List of unprocessed Document objects
         """
-        # This query selects all documents from the session where there is no
+        # This query selects all documents from the project where there is no
         # corresponding entry in the recognition_subject table for the given module
         statement = select(Document).where(
-            Document.session_id == session_id,
+            Document.project_id == project_id,
             not_(
                 Document.id.in_(
                     select(RecognitionSubject.document_id).where(

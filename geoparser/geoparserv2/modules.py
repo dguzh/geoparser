@@ -110,34 +110,34 @@ class BaseModule(ABC):
             Created Module object
         """
 
-    def run(self, session_id: uuid.UUID) -> None:
+    def run(self, project_id: uuid.UUID) -> None:
         """
-        Execute the module's functionality on the specified session.
+        Execute the module's functionality on the specified project.
 
         This method handles database session creation and cleanup,
         and delegates the actual execution to the _execute method.
 
         Args:
-            session_id: Session ID to process
+            project_id: Project ID to process
         """
         # Get a database session
         db = next(get_db())
 
         try:
             # Call the abstract _execute method that child classes implement
-            self._execute(db, session_id)
+            self._execute(db, project_id)
 
             # Commit changes to the database
             db.commit()
 
             logging.info(
-                f"Module '{self.NAME}' completed successfully on session {session_id}"
+                f"Module '{self.NAME}' completed successfully on project {project_id}"
             )
         except Exception as e:
             # Rollback in case of error
             db.rollback()
             logging.error(
-                f"Error executing module '{self.NAME}' on session {session_id}: {str(e)}"
+                f"Error executing module '{self.NAME}' on project {project_id}: {str(e)}"
             )
             raise
         finally:
@@ -171,7 +171,7 @@ class BaseModule(ABC):
         return ", ".join(config_items)
 
     @abstractmethod
-    def _execute(self, db: DBSession, session_id: uuid.UUID) -> None:
+    def _execute(self, db: DBSession, project_id: uuid.UUID) -> None:
         """
         Execute the module's functionality with the provided database session.
 
@@ -179,7 +179,7 @@ class BaseModule(ABC):
 
         Args:
             db: Database session
-            session_id: Session ID to process
+            project_id: Project ID to process
         """
 
 
@@ -275,24 +275,24 @@ class RecognitionModule(BaseModule):
         )
         RecognitionSubjectRepository.create(db, subject_create)
 
-    def _execute(self, db: DBSession, session_id: uuid.UUID) -> None:
+    def _execute(self, db: DBSession, project_id: uuid.UUID) -> None:
         """
-        Execute toponym recognition on documents in the specified session.
+        Execute toponym recognition on documents in the specified project.
 
         This method handles the database operations around the toponym recognition,
         calling the predict_toponyms method to get the actual toponyms.
 
         Args:
             db: Database session
-            session_id: Session ID to process
+            project_id: Project ID to process
         """
-        # Get all unprocessed documents for the session
+        # Get all unprocessed documents for the project
         unprocessed_documents = RecognitionSubjectRepository.get_unprocessed_documents(
-            db, session_id, self.module_id
+            db, project_id, self.module_id
         )
 
         logging.info(
-            f"Processing {len(unprocessed_documents)} documents with module '{self.NAME}' (config: {self.get_config_string()}) in session {session_id}."
+            f"Processing {len(unprocessed_documents)} documents with module '{self.NAME}' (config: {self.get_config_string()}) in project {project_id}."
         )
 
         # Get document texts and IDs for prediction
@@ -431,24 +431,24 @@ class ResolutionModule(BaseModule):
         )
         ResolutionSubjectRepository.create(db, subject_create)
 
-    def _execute(self, db: DBSession, session_id: uuid.UUID) -> None:
+    def _execute(self, db: DBSession, project_id: uuid.UUID) -> None:
         """
-        Execute toponym resolution on toponyms in the specified session.
+        Execute toponym resolution on toponyms in the specified project.
 
         This method handles the database operations around the location resolution,
         calling the predict_locations method to get the actual locations.
 
         Args:
             db: Database session
-            session_id: Session ID to process
+            project_id: Project ID to process
         """
-        # Get all unprocessed toponyms for the session
+        # Get all unprocessed toponyms for the project
         unprocessed_toponyms = ResolutionSubjectRepository.get_unprocessed_toponyms(
-            db, session_id, self.module_id
+            db, project_id, self.module_id
         )
 
         logging.info(
-            f"Processing {len(unprocessed_toponyms)} toponyms with module '{self.NAME}' (config: {self.get_config_string()}) in session {session_id}."
+            f"Processing {len(unprocessed_toponyms)} toponyms with module '{self.NAME}' (config: {self.get_config_string()}) in project {project_id}."
         )
 
         # Prepare input data for prediction

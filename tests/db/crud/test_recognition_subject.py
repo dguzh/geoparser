@@ -98,7 +98,7 @@ def test_get_by_module(
     # Create another document
     doc_create = DocumentCreate(
         text="Another test document.",
-        session_id=test_recognition_subject.document.session_id,
+        project_id=test_recognition_subject.document.project_id,
     )
 
     # Create the document
@@ -216,16 +216,16 @@ def test_get_unprocessed_documents(
     test_recognition_module: RecognitionModule,
     test_recognition_subject: RecognitionSubject,
 ):
-    """Test getting unprocessed documents from a session."""
-    # Create another document in the same session
+    """Test getting unprocessed documents from a project."""
+    # Create another document in the same project
     doc_create = DocumentCreate(
-        text="Another test document.", session_id=test_document.session_id
+        text="Another test document.", project_id=test_document.project_id
     )
     another_document = DocumentRepository.create(test_db, doc_create)
 
-    # Create a third document in the same session
+    # Create a third document in the same project
     doc_create = DocumentCreate(
-        text="Yet another test document.", session_id=test_document.session_id
+        text="Yet another test document.", project_id=test_document.project_id
     )
     third_document = DocumentRepository.create(test_db, doc_create)
 
@@ -244,7 +244,7 @@ def test_get_unprocessed_documents(
 
     # Get unprocessed documents for test_recognition_module
     unprocessed_docs = RecognitionSubjectRepository.get_unprocessed_documents(
-        test_db, test_document.session_id, test_recognition_module.id
+        test_db, test_document.project_id, test_recognition_module.id
     )
 
     # Should return another_document and third_document (not processed by test_recognition_module)
@@ -258,7 +258,7 @@ def test_get_unprocessed_documents(
 
     # Get unprocessed documents for new_module
     unprocessed_docs = RecognitionSubjectRepository.get_unprocessed_documents(
-        test_db, test_document.session_id, new_module.id
+        test_db, test_document.project_id, new_module.id
     )
 
     # Should return test_document and another_document (not processed by new_module)
@@ -268,7 +268,7 @@ def test_get_unprocessed_documents(
     assert another_document.id in doc_ids
     assert third_document.id not in doc_ids  # Already processed by new_module
 
-    # Test with non-existent session ID
+    # Test with non-existent project ID
     unprocessed_docs = RecognitionSubjectRepository.get_unprocessed_documents(
         test_db, uuid.uuid4(), test_recognition_module.id
     )

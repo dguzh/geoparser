@@ -6,7 +6,7 @@ from sqlmodel import SQLModel
 from sqlmodel.pool import StaticPool
 
 from geoparser.db.db import create_engine
-from geoparser.db.models import Session, SessionCreate
+from geoparser.db.models import Project, ProjectCreate
 from geoparser.geoparserv2.geoparserv2 import GeoparserV2
 
 
@@ -22,14 +22,14 @@ def test_db():
 
 
 @pytest.fixture
-def test_session(test_db: DBSession):
-    """Create a test session."""
-    session_create = SessionCreate(name="test-session")
-    session = Session(name=session_create.name)
-    test_db.add(session)
+def test_project(test_db: DBSession):
+    """Create a test project."""
+    project_create = ProjectCreate(name="test-project")
+    project = Project(name=project_create.name)
+    test_db.add(project)
     test_db.commit()
-    test_db.refresh(session)
-    return session
+    test_db.refresh(project)
+    return project
 
 
 @pytest.fixture
@@ -41,12 +41,12 @@ def mock_get_db(test_db):
 
 
 @pytest.fixture
-def geoparserv2_with_existing_session(mock_get_db, test_session):
-    """Create a GeoparserV2 instance with an existing session."""
-    return GeoparserV2(session_name=test_session.name)
+def geoparserv2_with_existing_project(mock_get_db, test_project):
+    """Create a GeoparserV2 instance with an existing project."""
+    return GeoparserV2(project_name=test_project.name)
 
 
 @pytest.fixture
-def geoparserv2_with_new_session(mock_get_db):
-    """Create a GeoparserV2 instance with a new session."""
-    return GeoparserV2(session_name="new-test-session")
+def geoparserv2_with_new_project(mock_get_db):
+    """Create a GeoparserV2 instance with a new project."""
+    return GeoparserV2(project_name="new-test-project")

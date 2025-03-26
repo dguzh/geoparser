@@ -77,28 +77,28 @@ class ResolutionSubjectRepository(BaseRepository[ResolutionSubject]):
 
     @classmethod
     def get_unprocessed_toponyms(
-        cls, db: DBSession, session_id: uuid.UUID, module_id: uuid.UUID
+        cls, db: DBSession, project_id: uuid.UUID, module_id: uuid.UUID
     ) -> t.List[Toponym]:
         """
-        Get all toponyms from a session that have not been processed by a specific module.
+        Get all toponyms from a project that have not been processed by a specific module.
 
-        This is done by retrieving all toponyms for the session and excluding those
+        This is done by retrieving all toponyms for the project and excluding those
         that have a corresponding resolution subject record for the given module.
 
         Args:
             db: Database session
-            session_id: ID of the session containing the documents with toponyms
+            project_id: ID of the project containing the documents with toponyms
             module_id: ID of the resolution module
 
         Returns:
             List of unprocessed Toponym objects
         """
-        # Get all toponyms for documents in the session that haven't been processed
+        # Get all toponyms for documents in the project that haven't been processed
         statement = (
             select(Toponym)
             .join(Document, Toponym.document_id == Document.id)
             .where(
-                Document.session_id == session_id,
+                Document.project_id == project_id,
                 not_(
                     Toponym.id.in_(
                         select(ResolutionSubject.toponym_id).where(

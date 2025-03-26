@@ -5,9 +5,9 @@ from typing import List, Union
 
 from sqlmodel import Session as DBSession
 
-from geoparser.db.crud import DocumentRepository, SessionRepository
+from geoparser.db.crud import DocumentRepository, ProjectRepository
 from geoparser.db.db import get_db
-from geoparser.db.models import DocumentCreate, Session, SessionCreate
+from geoparser.db.models import DocumentCreate, Project, ProjectCreate
 from geoparser.geoparserv2.modules import BaseModule
 
 
@@ -19,68 +19,68 @@ class GeoparserV2:
     including document management, toponym recognition, and resolution.
     """
 
-    def __init__(self, session_name: str):
+    def __init__(self, project_name: str):
         """
         Initialize a GeoparserV2 instance.
 
         Args:
-            session_name: Session name. Will load or create a session with this name.
+            project_name: Project name. Will load or create a project with this name.
         """
-        self.session_id = self._initialize_session(session_name)
-        self.session_name = session_name
+        self.project_id = self._initialize_project(project_name)
+        self.project_name = project_name
 
-    def _initialize_session(self, session_name: str) -> uuid.UUID:
+    def _initialize_project(self, project_name: str) -> uuid.UUID:
         """
-        Load an existing session or create a new one if it doesn't exist.
+        Load an existing project or create a new one if it doesn't exist.
 
         Args:
-            session_name: Name of the session to load or create
+            project_name: Name of the project to load or create
 
         Returns:
-            Session ID that was loaded or created
+            Project ID that was loaded or created
         """
         db = next(get_db())
-        session = self.load_session(db, session_name)
+        project = self.load_project(db, project_name)
 
-        if session is None:
+        if project is None:
             logging.info(
-                f"No session found with name '{session_name}'; creating a new one."
+                f"No project found with name '{project_name}'; creating a new one."
             )
-            session = self.create_session(db, session_name)
+            project = self.create_project(db, project_name)
 
-        return session.id
+        return project.id
 
-    def load_session(self, db: DBSession, session_name: str) -> t.Optional[Session]:
+    def load_project(self, db: DBSession, project_name: str) -> t.Optional[Project]:
         """
-        Load a session by name from the database.
+        Load a project by name from the database.
 
         Args:
             db: Database session
-            session_name: Name of the session to load
+            project_name: Name of the project to load
 
         Returns:
-            Session if found, None otherwise
+            Project if found, None otherwise
         """
-        return SessionRepository.get_by_name(db, session_name)
+        return ProjectRepository.get_by_name(db, project_name)
 
-    def create_session(self, db: DBSession, session_name: str) -> Session:
+    def create_project(self, db: DBSession, project_name: str) -> Project:
         """
-        Create a new session with the given name.
+        Create a new project with the given name.
 
         Args:
             db: Database session
-            session_name: Name for the new session
+            project_name: Name for the new project
 
         Returns:
-            Newly created Session object
+            Newly created Project object
         """
-        session_create = SessionCreate(name=session_name)
-        session = Session(name=session_create.name)
-        return SessionRepository.create(db, session)
+        project_create = ProjectCreate(name=project_name)
+        project = Project(name=project_create.name)
+        return ProjectRepository.create(db, project)
 
     def add_documents(self, texts: Union[str, List[str]]) -> List[uuid.UUID]:
         """
-        Add one or more documents to the session.
+        Add one or more documents to the project.
 
         Args:
             texts: Either a single document text (str) or a list of document texts (List[str])
@@ -96,7 +96,7 @@ class GeoparserV2:
 
         document_ids = []
         for text in texts:
-            document_create = DocumentCreate(text=text, session_id=self.session_id)
+            document_create = DocumentCreate(text=text, project_id=self.project_id)
             document = DocumentRepository.create(db, document_create)
             document_ids.append(document.id)
 
@@ -104,7 +104,7 @@ class GeoparserV2:
 
     def run(self, module: BaseModule) -> None:
         """
-        Run a processing module on the current session.
+        Run a processing module on the current project.
 
         This method will execute the specified module, which can be either
         a recognition module or a resolution module.
@@ -112,12 +112,12 @@ class GeoparserV2:
         Args:
             module: The module instance to run.
         """
-        # Run the module on the session ID
-        module.run(self.session_id)
+        # Run the module on the project ID
+        module.run(self.project_id)
 
     def get_documents(self) -> list[dict]:
         """
-        Retrieve all documents in the current session.
+        Retrieve all documents in the current project.
 
         Returns:
             List of document dictionaries with id and text.

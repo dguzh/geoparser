@@ -3,137 +3,137 @@ from unittest.mock import patch
 
 from sqlmodel import Session as DBSession
 
-from geoparser.db.crud import DocumentRepository, SessionRepository
-from geoparser.db.models import Document, Session
+from geoparser.db.crud import DocumentRepository, ProjectRepository
+from geoparser.db.models import Document, Project
 from geoparser.geoparserv2.geoparserv2 import GeoparserV2
 
 
-def test_load_session_existing(test_db: DBSession, test_session: Session):
-    """Test loading an existing session."""
+def test_load_project_existing(test_db: DBSession, test_project: Project):
+    """Test loading an existing project."""
     geoparserv2 = GeoparserV2.__new__(
         GeoparserV2
     )  # Create instance without calling __init__
 
-    # Call load_session directly
-    session = geoparserv2.load_session(test_db, test_session.name)
+    # Call load_project directly
+    project = geoparserv2.load_project(test_db, test_project.name)
 
-    assert session is not None
-    assert session.id == test_session.id
-    assert session.name == test_session.name
+    assert project is not None
+    assert project.id == test_project.id
+    assert project.name == test_project.name
 
 
-def test_load_session_nonexistent(test_db: DBSession):
-    """Test loading a non-existent session."""
+def test_load_project_nonexistent(test_db: DBSession):
+    """Test loading a non-existent project."""
     geoparserv2 = GeoparserV2.__new__(
         GeoparserV2
     )  # Create instance without calling __init__
 
-    # Call load_session directly with a non-existent session name
-    session = geoparserv2.load_session(test_db, "non-existent-session")
+    # Call load_project directly with a non-existent project name
+    project = geoparserv2.load_project(test_db, "non-existent-project")
 
-    assert session is None
+    assert project is None
 
 
-def test_create_session(test_db: DBSession):
-    """Test creating a new session."""
+def test_create_project(test_db: DBSession):
+    """Test creating a new project."""
     geoparserv2 = GeoparserV2.__new__(
         GeoparserV2
     )  # Create instance without calling __init__
 
-    # Call create_session directly
-    session_name = "new-test-session"
-    session = geoparserv2.create_session(test_db, session_name)
+    # Call create_project directly
+    project_name = "new-test-project"
+    project = geoparserv2.create_project(test_db, project_name)
 
-    assert session is not None
-    assert session.name == session_name
+    assert project is not None
+    assert project.name == project_name
 
     # Verify it was saved to the database
-    db_session = SessionRepository.get_by_name(test_db, session_name)
-    assert db_session is not None
-    assert db_session.name == session_name
+    db_project = ProjectRepository.get_by_name(test_db, project_name)
+    assert db_project is not None
+    assert db_project.name == project_name
 
 
-def test_init_with_existing_session(geoparserv2_with_existing_session, test_session):
-    """Test initializing GeoparserV2 with an existing session."""
-    geoparserv2 = geoparserv2_with_existing_session
+def test_init_with_existing_project(geoparserv2_with_existing_project, test_project):
+    """Test initializing GeoparserV2 with an existing project."""
+    geoparserv2 = geoparserv2_with_existing_project
 
-    assert geoparserv2.session_id is not None
-    assert geoparserv2.session_id == test_session.id
-    assert geoparserv2.session_name == test_session.name
+    assert geoparserv2.project_id is not None
+    assert geoparserv2.project_id == test_project.id
+    assert geoparserv2.project_name == test_project.name
 
 
-def test_init_with_new_session(geoparserv2_with_new_session, test_db):
-    """Test initializing GeoparserV2 with a new session name."""
-    geoparserv2 = geoparserv2_with_new_session
+def test_init_with_new_project(geoparserv2_with_new_project, test_db):
+    """Test initializing GeoparserV2 with a new project name."""
+    geoparserv2 = geoparserv2_with_new_project
 
-    assert geoparserv2.session_id is not None
-    assert geoparserv2.session_name == "new-test-session"
+    assert geoparserv2.project_id is not None
+    assert geoparserv2.project_name == "new-test-project"
 
     # Verify it was saved to the database
-    db_session = SessionRepository.get_by_name(test_db, "new-test-session")
-    assert db_session is not None
-    assert db_session.name == "new-test-session"
+    db_project = ProjectRepository.get_by_name(test_db, "new-test-project")
+    assert db_project is not None
+    assert db_project.name == "new-test-project"
 
 
-def test_initialize_session_existing(mock_get_db, test_db, test_session):
-    """Test _initialize_session with an existing session."""
+def test_initialize_project_existing(mock_get_db, test_db, test_project):
+    """Test _initialize_project with an existing project."""
     geoparserv2 = GeoparserV2.__new__(
         GeoparserV2
     )  # Create instance without calling __init__
 
-    # Mock the load_session and create_session methods
+    # Mock the load_project and create_project methods
     with patch.object(
-        geoparserv2, "load_session", return_value=test_session
+        geoparserv2, "load_project", return_value=test_project
     ) as mock_load:
-        with patch.object(geoparserv2, "create_session") as mock_create:
-            session_id = geoparserv2._initialize_session(test_session.name)
+        with patch.object(geoparserv2, "create_project") as mock_create:
+            project_id = geoparserv2._initialize_project(test_project.name)
 
-            # Verify load_session was called with the correct arguments
-            mock_load.assert_called_once_with(test_db, test_session.name)
+            # Verify load_project was called with the correct arguments
+            mock_load.assert_called_once_with(test_db, test_project.name)
 
-            # Verify create_session was not called
+            # Verify create_project was not called
             mock_create.assert_not_called()
 
-            # Verify the correct session id was returned
-            assert session_id == test_session.id
+            # Verify the correct project id was returned
+            assert project_id == test_project.id
 
 
-def test_initialize_session_new(mock_get_db, test_db):
-    """Test _initialize_session with a new session."""
+def test_initialize_project_new(mock_get_db, test_db):
+    """Test _initialize_project with a new project."""
     geoparserv2 = GeoparserV2.__new__(
         GeoparserV2
     )  # Create instance without calling __init__
 
-    new_session = Session(name="new-session", id=uuid.uuid4())
+    new_project = Project(name="new-project", id=uuid.uuid4())
 
-    # Mock the load_session and create_session methods
-    with patch.object(geoparserv2, "load_session", return_value=None) as mock_load:
+    # Mock the load_project and create_project methods
+    with patch.object(geoparserv2, "load_project", return_value=None) as mock_load:
         with patch.object(
-            geoparserv2, "create_session", return_value=new_session
+            geoparserv2, "create_project", return_value=new_project
         ) as mock_create:
             with patch("geoparser.geoparserv2.geoparserv2.logging.info") as mock_log:
-                session_id = geoparserv2._initialize_session("new-session")
+                project_id = geoparserv2._initialize_project("new-project")
 
-                # Verify load_session was called with the correct arguments
-                mock_load.assert_called_once_with(test_db, "new-session")
+                # Verify load_project was called with the correct arguments
+                mock_load.assert_called_once_with(test_db, "new-project")
 
-                # Verify create_session was called with the correct arguments
-                mock_create.assert_called_once_with(test_db, "new-session")
+                # Verify create_project was called with the correct arguments
+                mock_create.assert_called_once_with(test_db, "new-project")
 
                 # Verify logging was called
                 mock_log.assert_called_once()
                 assert (
-                    "No session found with name 'new-session'"
+                    "No project found with name 'new-project'"
                     in mock_log.call_args[0][0]
                 )
 
-                # Verify the correct session id was returned
-                assert session_id == new_session.id
+                # Verify the correct project id was returned
+                assert project_id == new_project.id
 
 
-def test_add_documents_single(test_db, geoparserv2_with_existing_session):
+def test_add_documents_single(test_db, geoparserv2_with_existing_project):
     """Test adding a single document."""
-    geoparserv2 = geoparserv2_with_existing_session
+    geoparserv2 = geoparserv2_with_existing_project
 
     # Patch the get_db function to return a fresh iterator each time
     with patch(
@@ -149,12 +149,12 @@ def test_add_documents_single(test_db, geoparserv2_with_existing_session):
         document = test_db.get(Document, document_ids[0])
         assert document is not None
         assert document.text == "This is a test document."
-        assert document.session_id == geoparserv2.session_id
+        assert document.project_id == geoparserv2.project_id
 
 
-def test_add_documents_multiple(test_db, geoparserv2_with_existing_session):
+def test_add_documents_multiple(test_db, geoparserv2_with_existing_project):
     """Test adding multiple documents."""
-    geoparserv2 = geoparserv2_with_existing_session
+    geoparserv2 = geoparserv2_with_existing_project
 
     # Patch the get_db function to return a fresh iterator each time
     with patch(
@@ -176,8 +176,8 @@ def test_add_documents_multiple(test_db, geoparserv2_with_existing_session):
             document = test_db.get(Document, doc_id)
             assert document is not None
             assert document.text == texts[i]
-            assert document.session_id == geoparserv2.session_id
+            assert document.project_id == geoparserv2.project_id
 
-        # Verify we can retrieve all documents for the session
-        documents = DocumentRepository.get_by_session(test_db, geoparserv2.session_id)
+        # Verify we can retrieve all documents for the project
+        documents = DocumentRepository.get_by_project(test_db, geoparserv2.project_id)
         assert len(documents) == 3
