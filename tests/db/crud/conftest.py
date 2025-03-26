@@ -21,8 +21,8 @@ from geoparser.db.models import (
     ResolutionObjectCreate,
     ResolutionSubject,
     ResolutionSubjectCreate,
-    Session,
-    SessionCreate,
+    Project,
+    ProjectCreate,
     Toponym,
     ToponymCreate,
 )
@@ -40,23 +40,23 @@ def test_db():
 
 
 @pytest.fixture
-def test_session(test_db: DBSession):
-    """Create a test session."""
-    session_create = SessionCreate(name="test-session")
-    session = Session(name=session_create.name)
-    test_db.add(session)
+def test_project(test_db: DBSession):
+    """Create a test project."""
+    project_create = ProjectCreate(name="test-project")
+    project = Project(name=project_create.name)
+    test_db.add(project)
     test_db.commit()
-    test_db.refresh(session)
-    return session
+    test_db.refresh(project)
+    return project
 
 
 @pytest.fixture
-def test_document(test_db: DBSession, test_session: Session):
+def test_document(test_db: DBSession, test_project: Project):
     """Create a test document."""
     document_create = DocumentCreate(
-        text="This is a test document with Berlin.", session_id=test_session.id
+        text="This is a test document with Berlin.", project_id=test_project.id
     )
-    document = Document(text=document_create.text, session_id=test_session.id)
+    document = Document(text=document_create.text, project_id=test_project.id)
     test_db.add(document)
     test_db.commit()
     test_db.refresh(document)
