@@ -181,3 +181,68 @@ def test_add_documents_multiple(test_db, geoparserproject_with_existing_project)
             test_db, geoparserproject.project_id
         )
         assert len(documents) == 3
+
+
+def test_get_documents_all(test_db, geoparserproject_with_existing_project):
+    """Test retrieving all documents for a project."""
+    geoparserproject = geoparserproject_with_existing_project
+
+    # Add multiple documents with one mock
+    with patch("geoparser.geoparserv2.project.get_db", return_value=iter([test_db])):
+        texts = [
+            "This is the first test document.",
+            "This is the second test document.",
+        ]
+        geoparserproject.add_documents(texts)
+
+    # Create a new mock for the get_documents call
+    with patch("geoparser.geoparserv2.project.get_db", return_value=iter([test_db])):
+        # Retrieve all documents
+        documents = geoparserproject.get_documents()
+
+        # Verify we got the expected documents
+        assert len(documents) == 2
+        assert documents[0].text == texts[0]
+        assert documents[1].text == texts[1]
+        assert all(doc.project_id == geoparserproject.project_id for doc in documents)
+
+
+def test_get_documents_by_id(test_db, geoparserproject_with_existing_project):
+    """Test retrieving specific documents by ID."""
+    geoparserproject = geoparserproject_with_existing_project
+
+    # Add documents with one mock
+    with patch("geoparser.geoparserv2.project.get_db", return_value=iter([test_db])):
+        texts = [
+            "This is the first test document.",
+            "This is the second test document.",
+            "This is the third test document.",
+        ]
+        document_ids = geoparserproject.add_documents(texts)
+
+    # Create a new mock for the get_documents call
+    with patch("geoparser.geoparserv2.project.get_db", return_value=iter([test_db])):
+        # Retrieve only specific documents by IDs
+        selected_ids = [document_ids[0], document_ids[2]]  # First and third documents
+        documents = geoparserproject.get_documents(selected_ids)
+
+        # Verify we got only the requested documents
+        assert len(documents) == 2
+        assert documents[0].id == document_ids[0]
+        assert documents[0].text == texts[0]
+        assert documents[1].id == document_ids[2]
+        assert documents[1].text == texts[2]
+
+
+def test_get_documents_empty_project(test_db, geoparserproject_with_existing_project):
+    """Test retrieving documents for an empty project."""
+    geoparserproject = geoparserproject_with_existing_project
+
+    # Patch the get_db function with a fresh iterator
+    with patch("geoparser.geoparserv2.project.get_db", return_value=iter([test_db])):
+        # Retrieve documents from empty project
+        documents = geoparserproject.get_documents()
+
+        # Verify we got an empty list
+        assert len(documents) == 0
+        assert documents == []

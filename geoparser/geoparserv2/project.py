@@ -7,7 +7,7 @@ from sqlmodel import Session
 
 from geoparser.db.crud import DocumentRepository, ProjectRepository
 from geoparser.db.db import get_db
-from geoparser.db.models import DocumentCreate, Project, ProjectCreate
+from geoparser.db.models import Document, DocumentCreate, Project, ProjectCreate
 from geoparser.geoparserv2.modules import BaseModule
 
 
@@ -116,38 +116,30 @@ class GeoparserProject:
         # Run the module on the project ID
         module.run(self.project_id)
 
-    def get_documents(self) -> list[dict]:
+    def get_documents(
+        self, document_ids: t.Optional[List[uuid.UUID]] = None
+    ) -> List[Document]:
         """
-        Retrieve all documents in the current project.
+        Retrieve documents with their associated toponyms and locations.
 
-        Returns:
-            List of document dictionaries with id and text.
-        """
-        # Implementation for retrieving documents
-
-    def get_toponyms(self, recognition_module_name: str) -> list[dict]:
-        """
-        Get toponyms recognized by a specific recognition module.
+        This method fetches document objects from the database along with their
+        related toponyms and locations, enabling traversal like:
+        documents[0].toponyms[0].locations[0]
 
         Args:
-            recognition_module_name: Name of the recognition module.
+            document_ids: Optional list of document IDs to retrieve.
+                          If None, retrieves all documents in the project.
 
         Returns:
-            List of toponym dictionaries with relevant information.
+            List of Document objects with related toponyms and locations.
         """
-        # Implementation for retrieving toponyms
+        db = next(get_db())
 
-    def get_locations(
-        self, recognition_module_name: str, resolution_module_name: str
-    ) -> list[dict]:
-        """
-        Get locations resolved by a specific combination of recognition and resolution modules.
+        if document_ids:
+            # Retrieve specific documents by their IDs
+            documents = [DocumentRepository.get(db, doc_id) for doc_id in document_ids]
+        else:
+            # Retrieve all documents for the project
+            documents = DocumentRepository.get_by_project(db, self.project_id)
 
-        Args:
-            recognition_module_name: Name of the recognition module that produced the toponyms.
-            resolution_module_name: Name of the resolution module that resolved the locations.
-
-        Returns:
-            List of location dictionaries with relevant information.
-        """
-        # Implementation for retrieving locations
+        return documents
