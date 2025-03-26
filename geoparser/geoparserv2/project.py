@@ -11,17 +11,18 @@ from geoparser.db.models import DocumentCreate, Project, ProjectCreate
 from geoparser.geoparserv2.modules import BaseModule
 
 
-class GeoparserV2:
+class GeoparserProject:
     """
-    Main entry point for the GeoparserV2 module.
+    Main entry point for the project-level geoparser orchestration.
 
-    This class provides a unified interface for geoparsing operations
+    This class provides a unified interface for project-level geoparsing operations
     including document management, toponym recognition, and resolution.
+    It serves as the orchestrator for all project-related tasks.
     """
 
     def __init__(self, project_name: str):
         """
-        Initialize a GeoparserV2 instance.
+        Initialize a GeoparserProject instance.
 
         Args:
             project_name: Project name. Will load or create a project with this name.

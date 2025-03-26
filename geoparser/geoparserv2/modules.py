@@ -32,10 +32,10 @@ from geoparser.db.models import (
 
 class BaseModule(ABC):
     """
-    Abstract base class for any GeoparserV2 module.
+    Abstract base class for any GeoparserProject module.
 
     All modules must implement this interface to be compatible
-    with the GeoparserV2 architecture.
+    with the GeoparserProject architecture.
 
     The BaseModule handles database interactions, while child classes
     implement only the pure logic.
