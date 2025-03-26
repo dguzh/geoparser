@@ -8,49 +8,62 @@ from geoparser.db.models import Document, Project
 from geoparser.geoparserv2.geoparser_project import GeoparserProject
 
 
-def test_load_project_existing(test_db: Session, test_project: Project):
-    """Test loading an existing project."""
+def test_initialize_project_existing(test_db: Session, test_project: Project):
+    """Test _initialize_project with an existing project."""
     geoparserproject = GeoparserProject.__new__(
         GeoparserProject
     )  # Create instance without calling __init__
 
-    # Call load_project directly
-    project = geoparserproject.load_project(test_db, test_project.name)
+    # Mock ProjectRepository.get_by_name to return the test project
+    with patch(
+        "geoparser.geoparserv2.geoparser_project.ProjectRepository.get_by_name",
+        return_value=test_project,
+    ):
+        with patch(
+            "geoparser.geoparserv2.geoparser_project.get_db",
+            return_value=iter([test_db]),
+        ):
+            project_id = geoparserproject._initialize_project(test_project.name)
 
-    assert project is not None
-    assert project.id == test_project.id
-    assert project.name == test_project.name
+            # Verify the correct project id was returned
+            assert project_id == test_project.id
 
 
-def test_load_project_nonexistent(test_db: Session):
-    """Test loading a non-existent project."""
+def test_initialize_project_new(test_db: Session):
+    """Test _initialize_project with a new project."""
     geoparserproject = GeoparserProject.__new__(
         GeoparserProject
     )  # Create instance without calling __init__
 
-    # Call load_project directly with a non-existent project name
-    project = geoparserproject.load_project(test_db, "non-existent-project")
+    # Mock ProjectRepository.get_by_name to return None (project doesn't exist)
+    with patch(
+        "geoparser.geoparserv2.geoparser_project.ProjectRepository.get_by_name",
+        return_value=None,
+    ):
+        # Mock ProjectRepository.create to return a new project
+        new_project = Project(name="new-project", id=uuid.uuid4())
+        with patch(
+            "geoparser.geoparserv2.geoparser_project.ProjectRepository.create",
+            return_value=new_project,
+        ):
+            with patch(
+                "geoparser.geoparserv2.geoparser_project.get_db",
+                return_value=iter([test_db]),
+            ):
+                with patch(
+                    "geoparser.geoparserv2.geoparser_project.logging.info"
+                ) as mock_log:
+                    project_id = geoparserproject._initialize_project("new-project")
 
-    assert project is None
+                    # Verify logging was called
+                    mock_log.assert_called_once()
+                    assert (
+                        "No project found with name 'new-project'"
+                        in mock_log.call_args[0][0]
+                    )
 
-
-def test_create_project(test_db: Session):
-    """Test creating a new project."""
-    geoparserproject = GeoparserProject.__new__(
-        GeoparserProject
-    )  # Create instance without calling __init__
-
-    # Call create_project directly
-    project_name = "new-test-project"
-    project = geoparserproject.create_project(test_db, project_name)
-
-    assert project is not None
-    assert project.name == project_name
-
-    # Verify it was saved to the database
-    db_project = ProjectRepository.get_by_name(test_db, project_name)
-    assert db_project is not None
-    assert db_project.name == project_name
+                    # Verify the correct project id was returned
+                    assert project_id == new_project.id
 
 
 def test_init_with_existing_project(
@@ -75,64 +88,6 @@ def test_init_with_new_project(geoparserproject_with_new_project, test_db):
     db_project = ProjectRepository.get_by_name(test_db, "new-test-project")
     assert db_project is not None
     assert db_project.name == "new-test-project"
-
-
-def test_initialize_project_existing(mock_get_db, test_db, test_project):
-    """Test _initialize_project with an existing project."""
-    geoparserproject = GeoparserProject.__new__(
-        GeoparserProject
-    )  # Create instance without calling __init__
-
-    # Mock the load_project and create_project methods
-    with patch.object(
-        geoparserproject, "load_project", return_value=test_project
-    ) as mock_load:
-        with patch.object(geoparserproject, "create_project") as mock_create:
-            project_id = geoparserproject._initialize_project(test_project.name)
-
-            # Verify load_project was called with the correct arguments
-            mock_load.assert_called_once_with(test_db, test_project.name)
-
-            # Verify create_project was not called
-            mock_create.assert_not_called()
-
-            # Verify the correct project id was returned
-            assert project_id == test_project.id
-
-
-def test_initialize_project_new(mock_get_db, test_db):
-    """Test _initialize_project with a new project."""
-    geoparserproject = GeoparserProject.__new__(
-        GeoparserProject
-    )  # Create instance without calling __init__
-
-    new_project = Project(name="new-project", id=uuid.uuid4())
-
-    # Mock the load_project and create_project methods
-    with patch.object(geoparserproject, "load_project", return_value=None) as mock_load:
-        with patch.object(
-            geoparserproject, "create_project", return_value=new_project
-        ) as mock_create:
-            with patch(
-                "geoparser.geoparserv2.geoparser_project.logging.info"
-            ) as mock_log:
-                project_id = geoparserproject._initialize_project("new-project")
-
-                # Verify load_project was called with the correct arguments
-                mock_load.assert_called_once_with(test_db, "new-project")
-
-                # Verify create_project was called with the correct arguments
-                mock_create.assert_called_once_with(test_db, "new-project")
-
-                # Verify logging was called
-                mock_log.assert_called_once()
-                assert (
-                    "No project found with name 'new-project'"
-                    in mock_log.call_args[0][0]
-                )
-
-                # Verify the correct project id was returned
-                assert project_id == new_project.id
 
 
 def test_add_documents_single(test_db, geoparserproject_with_existing_project):

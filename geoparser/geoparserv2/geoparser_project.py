@@ -3,8 +3,6 @@ import typing as t
 import uuid
 from typing import List, Union
 
-from sqlmodel import Session
-
 from geoparser.db.crud import DocumentRepository, ProjectRepository
 from geoparser.db.db import get_db
 from geoparser.db.models import Document, DocumentCreate, Project, ProjectCreate
@@ -45,43 +43,20 @@ class GeoparserProject:
             Project ID that was loaded or created
         """
         db = next(get_db())
-        project = self.load_project(db, project_name)
 
+        # Try to load existing project
+        project = ProjectRepository.get_by_name(db, project_name)
+
+        # Create new project if it doesn't exist
         if project is None:
             logging.info(
                 f"No project found with name '{project_name}'; creating a new one."
             )
-            project = self.create_project(db, project_name)
+            project_create = ProjectCreate(name=project_name)
+            project = Project(name=project_create.name)
+            project = ProjectRepository.create(db, project)
 
         return project.id
-
-    def load_project(self, db: Session, project_name: str) -> t.Optional[Project]:
-        """
-        Load a project by name from the database.
-
-        Args:
-            db: Database session
-            project_name: Name of the project to load
-
-        Returns:
-            Project if found, None otherwise
-        """
-        return ProjectRepository.get_by_name(db, project_name)
-
-    def create_project(self, db: Session, project_name: str) -> Project:
-        """
-        Create a new project with the given name.
-
-        Args:
-            db: Database session
-            project_name: Name for the new project
-
-        Returns:
-            Newly created Project object
-        """
-        project_create = ProjectCreate(name=project_name)
-        project = Project(name=project_create.name)
-        return ProjectRepository.create(db, project)
 
     def add_documents(self, texts: Union[str, List[str]]) -> List[uuid.UUID]:
         """
@@ -106,19 +81,6 @@ class GeoparserProject:
             document_ids.append(document.id)
 
         return document_ids
-
-    def run(self, module: BaseModule) -> None:
-        """
-        Run a processing module on the current project.
-
-        This method delegates the execution to the ModuleOrchestrator,
-        which handles all module-specific database interactions.
-
-        Args:
-            module: The module instance to run.
-        """
-        # Delegate to module orchestrator
-        self.module_orchestrator.run_module(module)
 
     def get_documents(
         self, document_ids: t.Optional[List[uuid.UUID]] = None
@@ -147,3 +109,16 @@ class GeoparserProject:
             documents = DocumentRepository.get_by_project(db, self.project_id)
 
         return documents
+
+    def run(self, module: BaseModule) -> None:
+        """
+        Run a processing module on the current project.
+
+        This method delegates the execution to the ModuleOrchestrator,
+        which handles all module-specific database interactions.
+
+        Args:
+            module: The module instance to run.
+        """
+        # Delegate to module orchestrator
+        self.module_orchestrator.run_module(module)
