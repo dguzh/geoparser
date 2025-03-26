@@ -6,5 +6,5 @@ from .recognition_subject import RecognitionSubjectRepository
 from .resolution_module import ResolutionModuleRepository
 from .resolution_object import ResolutionObjectRepository
 from .resolution_subject import ResolutionSubjectRepository
-from .session import SessionRepository
+from .project import ProjectRepository
 from .toponym import ToponymRepository

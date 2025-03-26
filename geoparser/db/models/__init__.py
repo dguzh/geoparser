@@ -30,17 +30,17 @@ from geoparser.db.models.resolution_subject import (
     ResolutionSubjectCreate,
     ResolutionSubjectUpdate,
 )
-from geoparser.db.models.session import Session, SessionCreate, SessionUpdate
-from geoparser.db.models.settings import (  # SessionSettings,  # Commented out to disable the SessionSettings model
-    SessionSettingsBase,
-    SessionSettingsCreate,
-    SessionSettingsUpdate,
+from geoparser.db.models.project import Project, ProjectCreate, ProjectUpdate
+from geoparser.db.models.settings import (  # ProjectSettings,  # Commented out to disable the ProjectSettings model
+    ProjectSettingsBase,
+    ProjectSettingsCreate,
+    ProjectSettingsUpdate,
 )
 from geoparser.db.models.toponym import Toponym, ToponymCreate, ToponymUpdate
 
 for rebuild in [
-    Session,
-    SessionCreate,
+    Project,
+    ProjectCreate,
     Document,
     DocumentCreate,
     Toponym,

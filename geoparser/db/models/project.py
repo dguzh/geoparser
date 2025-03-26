@@ -7,22 +7,22 @@ if t.TYPE_CHECKING:
     from geoparser.db.models.document import Document
 
 
-class SessionBase(SQLModel):
-    """Base model for session data."""
+class ProjectBase(SQLModel):
+    """Base model for project data."""
 
     name: str = Field(index=True)
 
 
-class Session(SessionBase, table=True):
+class Project(ProjectBase, table=True):
     """
-    Represents a processing session.
+    Represents a processing project.
 
-    A session groups together related documents for processing.
+    A project groups together related documents for processing.
     """
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     documents: list["Document"] = Relationship(
-        back_populates="session",
+        back_populates="project",
         sa_relationship_kwargs={
             "cascade": "all, delete-orphan",
             "passive_deletes": True,
@@ -30,12 +30,12 @@ class Session(SessionBase, table=True):
     )
 
 
-class SessionCreate(SessionBase):
-    """Model for creating a new session."""
+class ProjectCreate(ProjectBase):
+    """Model for creating a new project."""
 
 
-class SessionUpdate(SQLModel):
-    """Model for updating an existing session."""
+class ProjectUpdate(SQLModel):
+    """Model for updating an existing project."""
 
     id: uuid.UUID
     name: t.Optional[str] = None

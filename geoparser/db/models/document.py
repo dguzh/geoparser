@@ -9,7 +9,7 @@ from geoparser.db.models.validators import normalize_newlines
 
 if t.TYPE_CHECKING:
     from geoparser.db.models.recognition_process import RecognitionSubject
-    from geoparser.db.models.session import Session
+    from geoparser.db.models.project import Project
     from geoparser.db.models.toponym import Toponym
 
 
@@ -27,16 +27,16 @@ class Document(DocumentBase, table=True):
     """
     Represents a document to be processed for toponym recognition and resolution.
 
-    A document belongs to a session and can contain multiple toponyms.
+    A document belongs to a project and can contain multiple toponyms.
     """
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-    session_id: uuid.UUID = Field(
+    project_id: uuid.UUID = Field(
         sa_column=Column(
-            UUID, ForeignKey("session.id", ondelete="CASCADE"), nullable=False
+            UUID, ForeignKey("project.id", ondelete="CASCADE"), nullable=False
         )
     )
-    session: "Session" = Relationship(back_populates="documents")
+    project: "Project" = Relationship(back_populates="documents")
     toponyms: list["Toponym"] = Relationship(
         back_populates="document",
         sa_relationship_kwargs={
@@ -58,15 +58,15 @@ class DocumentCreate(DocumentBase):
     """
     Model for creating a new document.
 
-    Includes the session_id to associate the document with a session.
+    Includes the project_id to associate the document with a project.
     """
 
-    session_id: uuid.UUID
+    project_id: uuid.UUID
 
 
 class DocumentUpdate(SQLModel):
     """Model for updating an existing document."""
 
     id: uuid.UUID
-    session_id: t.Optional[uuid.UUID] = None
+    project_id: t.Optional[uuid.UUID] = None
     text: t.Optional[str] = None
