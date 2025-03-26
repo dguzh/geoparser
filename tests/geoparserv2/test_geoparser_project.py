@@ -5,7 +5,7 @@ from sqlmodel import Session
 
 from geoparser.db.crud import DocumentRepository, ProjectRepository
 from geoparser.db.models import Document, Project
-from geoparser.geoparserv2.project import GeoparserProject
+from geoparser.geoparserv2.geoparser_project import GeoparserProject
 
 
 def test_load_project_existing(test_db: Session, test_project: Project):
@@ -113,7 +113,9 @@ def test_initialize_project_new(mock_get_db, test_db):
         with patch.object(
             geoparserproject, "create_project", return_value=new_project
         ) as mock_create:
-            with patch("geoparser.geoparserv2.project.logging.info") as mock_log:
+            with patch(
+                "geoparser.geoparserv2.geoparser_project.logging.info"
+            ) as mock_log:
                 project_id = geoparserproject._initialize_project("new-project")
 
                 # Verify load_project was called with the correct arguments
@@ -138,7 +140,9 @@ def test_add_documents_single(test_db, geoparserproject_with_existing_project):
     geoparserproject = geoparserproject_with_existing_project
 
     # Patch the get_db function to return a fresh iterator each time
-    with patch("geoparser.geoparserv2.project.get_db", return_value=iter([test_db])):
+    with patch(
+        "geoparser.geoparserv2.geoparser_project.get_db", return_value=iter([test_db])
+    ):
         # Add a single document
         document_ids = geoparserproject.add_documents("This is a test document.")
 
@@ -157,7 +161,9 @@ def test_add_documents_multiple(test_db, geoparserproject_with_existing_project)
     geoparserproject = geoparserproject_with_existing_project
 
     # Patch the get_db function to return a fresh iterator each time
-    with patch("geoparser.geoparserv2.project.get_db", return_value=iter([test_db])):
+    with patch(
+        "geoparser.geoparserv2.geoparser_project.get_db", return_value=iter([test_db])
+    ):
         # Add multiple documents
         texts = [
             "This is the first test document.",
@@ -188,7 +194,9 @@ def test_get_documents_all(test_db, geoparserproject_with_existing_project):
     geoparserproject = geoparserproject_with_existing_project
 
     # Add multiple documents with one mock
-    with patch("geoparser.geoparserv2.project.get_db", return_value=iter([test_db])):
+    with patch(
+        "geoparser.geoparserv2.geoparser_project.get_db", return_value=iter([test_db])
+    ):
         texts = [
             "This is the first test document.",
             "This is the second test document.",
@@ -196,7 +204,9 @@ def test_get_documents_all(test_db, geoparserproject_with_existing_project):
         geoparserproject.add_documents(texts)
 
     # Create a new mock for the get_documents call
-    with patch("geoparser.geoparserv2.project.get_db", return_value=iter([test_db])):
+    with patch(
+        "geoparser.geoparserv2.geoparser_project.get_db", return_value=iter([test_db])
+    ):
         # Retrieve all documents
         documents = geoparserproject.get_documents()
 
@@ -212,7 +222,9 @@ def test_get_documents_by_id(test_db, geoparserproject_with_existing_project):
     geoparserproject = geoparserproject_with_existing_project
 
     # Add documents with one mock
-    with patch("geoparser.geoparserv2.project.get_db", return_value=iter([test_db])):
+    with patch(
+        "geoparser.geoparserv2.geoparser_project.get_db", return_value=iter([test_db])
+    ):
         texts = [
             "This is the first test document.",
             "This is the second test document.",
@@ -221,7 +233,9 @@ def test_get_documents_by_id(test_db, geoparserproject_with_existing_project):
         document_ids = geoparserproject.add_documents(texts)
 
     # Create a new mock for the get_documents call
-    with patch("geoparser.geoparserv2.project.get_db", return_value=iter([test_db])):
+    with patch(
+        "geoparser.geoparserv2.geoparser_project.get_db", return_value=iter([test_db])
+    ):
         # Retrieve only specific documents by IDs
         selected_ids = [document_ids[0], document_ids[2]]  # First and third documents
         documents = geoparserproject.get_documents(selected_ids)
@@ -239,7 +253,9 @@ def test_get_documents_empty_project(test_db, geoparserproject_with_existing_pro
     geoparserproject = geoparserproject_with_existing_project
 
     # Patch the get_db function with a fresh iterator
-    with patch("geoparser.geoparserv2.project.get_db", return_value=iter([test_db])):
+    with patch(
+        "geoparser.geoparserv2.geoparser_project.get_db", return_value=iter([test_db])
+    ):
         # Retrieve documents from empty project
         documents = geoparserproject.get_documents()
 

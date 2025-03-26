@@ -8,8 +8,8 @@ from sqlmodel import Session
 from geoparser.db.crud import DocumentRepository, ProjectRepository
 from geoparser.db.db import get_db
 from geoparser.db.models import Document, DocumentCreate, Project, ProjectCreate
-from geoparser.geoparserv2.module_manager import ModuleManager
-from geoparser.geoparserv2.modules import BaseModule
+from geoparser.geoparserv2.module_interfaces import BaseModule
+from geoparser.geoparserv2.module_orchestrator import ModuleOrchestrator
 
 
 class GeoparserProject:
@@ -18,7 +18,7 @@ class GeoparserProject:
 
     This class provides a unified interface for project-level geoparsing operations
     including document management and module execution coordination.
-    It delegates module-specific database interactions to the ModuleManager.
+    It delegates module-specific database interactions to the ModuleOrchestrator.
     """
 
     def __init__(self, project_name: str):
@@ -31,8 +31,8 @@ class GeoparserProject:
         self.project_id = self._initialize_project(project_name)
         self.project_name = project_name
 
-        # Create module manager for this project
-        self.module_manager = ModuleManager(self.project_id)
+        # Create module orchestrator for this project
+        self.module_orchestrator = ModuleOrchestrator(self.project_id)
 
     def _initialize_project(self, project_name: str) -> uuid.UUID:
         """
@@ -111,14 +111,14 @@ class GeoparserProject:
         """
         Run a processing module on the current project.
 
-        This method delegates the execution to the ModuleManager,
+        This method delegates the execution to the ModuleOrchestrator,
         which handles all module-specific database interactions.
 
         Args:
             module: The module instance to run.
         """
-        # Delegate to module manager
-        self.module_manager.run_module(module)
+        # Delegate to module orchestrator
+        self.module_orchestrator.run_module(module)
 
     def get_documents(
         self, document_ids: t.Optional[List[uuid.UUID]] = None

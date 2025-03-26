@@ -2,8 +2,8 @@ import uuid
 from typing import List, Optional, Union
 
 from geoparser.db.models import Document
-from geoparser.geoparserv2.modules import BaseModule
-from geoparser.geoparserv2.project import GeoparserProject
+from geoparser.geoparserv2.geoparser_project import GeoparserProject
+from geoparser.geoparserv2.module_interfaces import BaseModule
 
 
 class GeoparserV2:

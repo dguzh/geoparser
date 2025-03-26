@@ -27,14 +27,14 @@ from geoparser.db.models import (
     ResolutionSubjectCreate,
     ToponymCreate,
 )
-from geoparser.geoparserv2.modules import (
+from geoparser.geoparserv2.module_interfaces import (
     BaseModule,
     RecognitionModule,
     ResolutionModule,
 )
 
 
-class ModuleManager:
+class ModuleOrchestrator:
     """
     Manages the execution and database interactions for geoparser modules.
 
@@ -47,10 +47,10 @@ class ModuleManager:
 
     def __init__(self, project_id: uuid.UUID):
         """
-        Initialize a ModuleManager for a specific project.
+        Initialize a ModuleOrchestrator for a specific project.
 
         Args:
-            project_id: UUID of the project this manager is associated with
+            project_id: UUID of the project this orchestrator is associated with
         """
         self.project_id = project_id
 
