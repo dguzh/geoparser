@@ -2,8 +2,7 @@ import typing as t
 import uuid
 
 from sqlalchemy import not_
-from sqlmodel import Session as DBSession
-from sqlmodel import select
+from sqlmodel import Session, select
 
 from geoparser.db.crud.base import BaseRepository
 from geoparser.db.models import Document, RecognitionSubject
@@ -18,7 +17,7 @@ class RecognitionSubjectRepository(BaseRepository[RecognitionSubject]):
 
     @classmethod
     def get_by_document(
-        cls, db: DBSession, document_id: uuid.UUID
+        cls, db: Session, document_id: uuid.UUID
     ) -> t.List[RecognitionSubject]:
         """
         Get all recognition subjects for a document.
@@ -37,7 +36,7 @@ class RecognitionSubjectRepository(BaseRepository[RecognitionSubject]):
 
     @classmethod
     def get_by_module(
-        cls, db: DBSession, module_id: uuid.UUID
+        cls, db: Session, module_id: uuid.UUID
     ) -> t.List[RecognitionSubject]:
         """
         Get all recognition subjects for a module.
@@ -56,7 +55,7 @@ class RecognitionSubjectRepository(BaseRepository[RecognitionSubject]):
 
     @classmethod
     def get_by_document_and_module(
-        cls, db: DBSession, document_id: uuid.UUID, module_id: uuid.UUID
+        cls, db: Session, document_id: uuid.UUID, module_id: uuid.UUID
     ) -> t.Optional[RecognitionSubject]:
         """
         Get a recognition subject for a specific document and module.
@@ -77,7 +76,7 @@ class RecognitionSubjectRepository(BaseRepository[RecognitionSubject]):
 
     @classmethod
     def get_unprocessed_documents(
-        cls, db: DBSession, project_id: uuid.UUID, module_id: uuid.UUID
+        cls, db: Session, project_id: uuid.UUID, module_id: uuid.UUID
     ) -> t.List[Document]:
         """
         Get all documents from a project that have not been processed by a specific module.

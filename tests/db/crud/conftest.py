@@ -1,6 +1,5 @@
 import pytest
-from sqlmodel import Session as DBSession
-from sqlmodel import SQLModel
+from sqlmodel import Session, SQLModel
 from sqlmodel.pool import StaticPool
 
 from geoparser.db.db import create_engine
@@ -35,12 +34,12 @@ def test_db():
         "sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool
     )
     SQLModel.metadata.create_all(engine)
-    with DBSession(engine) as session:
+    with Session(engine) as session:
         yield session
 
 
 @pytest.fixture
-def test_project(test_db: DBSession):
+def test_project(test_db: Session):
     """Create a test project."""
     project_create = ProjectCreate(name="test-project")
     project = Project(name=project_create.name)
@@ -51,7 +50,7 @@ def test_project(test_db: DBSession):
 
 
 @pytest.fixture
-def test_document(test_db: DBSession, test_project: Project):
+def test_document(test_db: Session, test_project: Project):
     """Create a test document."""
     document_create = DocumentCreate(
         text="This is a test document with Berlin.", project_id=test_project.id
@@ -64,7 +63,7 @@ def test_document(test_db: DBSession, test_project: Project):
 
 
 @pytest.fixture
-def test_recognition_module(test_db: DBSession):
+def test_recognition_module(test_db: Session):
     """Create a test recognition module."""
     config = {
         "module_name": "test-recognition-module",
@@ -80,7 +79,7 @@ def test_recognition_module(test_db: DBSession):
 
 
 @pytest.fixture
-def test_resolution_module(test_db: DBSession):
+def test_resolution_module(test_db: Session):
     """Create a test resolution module."""
     config = {
         "module_name": "test-resolution-module",
@@ -96,7 +95,7 @@ def test_resolution_module(test_db: DBSession):
 
 
 @pytest.fixture
-def test_toponym(test_db: DBSession, test_document: Document):
+def test_toponym(test_db: Session, test_document: Document):
     """Create a test toponym."""
     toponym_create = ToponymCreate(start=27, end=33, document_id=test_document.id)
     toponym = Toponym(
@@ -110,7 +109,7 @@ def test_toponym(test_db: DBSession, test_document: Document):
 
 @pytest.fixture
 def test_recognition_object(
-    test_db: DBSession,
+    test_db: Session,
     test_toponym: Toponym,
     test_recognition_module: RecognitionModule,
 ):
@@ -128,7 +127,7 @@ def test_recognition_object(
 
 
 @pytest.fixture
-def test_location(test_db: DBSession, test_toponym: Toponym):
+def test_location(test_db: Session, test_toponym: Toponym):
     """Create a test location."""
     location_create = LocationCreate(
         location_id="123456", confidence=0.9, toponym_id=test_toponym.id
@@ -146,7 +145,7 @@ def test_location(test_db: DBSession, test_toponym: Toponym):
 
 @pytest.fixture
 def test_resolution_object(
-    test_db: DBSession,
+    test_db: Session,
     test_location: Location,
     test_resolution_module: ResolutionModule,
 ):
@@ -165,7 +164,7 @@ def test_resolution_object(
 
 @pytest.fixture
 def test_recognition_subject(
-    test_db: DBSession,
+    test_db: Session,
     test_document: Document,
     test_recognition_module: RecognitionModule,
 ):
@@ -185,7 +184,7 @@ def test_recognition_subject(
 
 @pytest.fixture
 def test_resolution_subject(
-    test_db: DBSession,
+    test_db: Session,
     test_toponym: Toponym,
     test_resolution_module: ResolutionModule,
 ):

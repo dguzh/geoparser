@@ -1,14 +1,14 @@
 import uuid
 from unittest.mock import patch
 
-from sqlmodel import Session as DBSession
+from sqlmodel import Session
 
 from geoparser.db.crud import DocumentRepository, ProjectRepository
 from geoparser.db.models import Document, Project
 from geoparser.geoparserv2.geoparserv2 import GeoparserV2
 
 
-def test_load_project_existing(test_db: DBSession, test_project: Project):
+def test_load_project_existing(test_db: Session, test_project: Project):
     """Test loading an existing project."""
     geoparserv2 = GeoparserV2.__new__(
         GeoparserV2
@@ -22,7 +22,7 @@ def test_load_project_existing(test_db: DBSession, test_project: Project):
     assert project.name == test_project.name
 
 
-def test_load_project_nonexistent(test_db: DBSession):
+def test_load_project_nonexistent(test_db: Session):
     """Test loading a non-existent project."""
     geoparserv2 = GeoparserV2.__new__(
         GeoparserV2
@@ -34,7 +34,7 @@ def test_load_project_nonexistent(test_db: DBSession):
     assert project is None
 
 
-def test_create_project(test_db: DBSession):
+def test_create_project(test_db: Session):
     """Test creating a new project."""
     geoparserv2 = GeoparserV2.__new__(
         GeoparserV2

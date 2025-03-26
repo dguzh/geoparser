@@ -1,6 +1,6 @@
 import uuid
 
-from sqlmodel import Session as DBSession
+from sqlmodel import Session
 
 from geoparser.db.crud import DocumentRepository, RecognitionSubjectRepository
 from geoparser.db.models import (
@@ -15,7 +15,7 @@ from geoparser.db.models import (
 
 
 def test_create(
-    test_db: DBSession,
+    test_db: Session,
     test_document: Document,
     test_recognition_module: RecognitionModule,
 ):
@@ -39,7 +39,7 @@ def test_create(
     assert db_subject.module_id == test_recognition_module.id
 
 
-def test_get(test_db: DBSession, test_recognition_subject: RecognitionSubject):
+def test_get(test_db: Session, test_recognition_subject: RecognitionSubject):
     """Test getting a recognition subject by ID."""
     # Test with valid ID
     subject = RecognitionSubjectRepository.get(test_db, test_recognition_subject.id)
@@ -55,7 +55,7 @@ def test_get(test_db: DBSession, test_recognition_subject: RecognitionSubject):
 
 
 def test_get_by_document(
-    test_db: DBSession,
+    test_db: Session,
     test_document: Document,
     test_recognition_subject: RecognitionSubject,
     test_recognition_module: RecognitionModule,
@@ -90,7 +90,7 @@ def test_get_by_document(
 
 
 def test_get_by_module(
-    test_db: DBSession,
+    test_db: Session,
     test_recognition_subject: RecognitionSubject,
     test_recognition_module: RecognitionModule,
 ):
@@ -124,7 +124,7 @@ def test_get_by_module(
     assert len(subjects) == 0
 
 
-def test_get_all(test_db: DBSession, test_recognition_subject: RecognitionSubject):
+def test_get_all(test_db: Session, test_recognition_subject: RecognitionSubject):
     """Test getting all recognition subjects."""
     # Create another recognition subject
     subject_create = RecognitionSubjectCreate(
@@ -140,7 +140,7 @@ def test_get_all(test_db: DBSession, test_recognition_subject: RecognitionSubjec
     assert len(subjects) >= 2
 
 
-def test_update(test_db: DBSession, test_recognition_subject: RecognitionSubject):
+def test_update(test_db: Session, test_recognition_subject: RecognitionSubject):
     """Test updating a recognition subject."""
     # Create a new module
     config = {"module_name": "updated-module", "model": "updated-model"}
@@ -167,7 +167,7 @@ def test_update(test_db: DBSession, test_recognition_subject: RecognitionSubject
     assert db_subject.module_id == module.id
 
 
-def test_delete(test_db: DBSession, test_recognition_subject: RecognitionSubject):
+def test_delete(test_db: Session, test_recognition_subject: RecognitionSubject):
     """Test deleting a recognition subject."""
     # Delete the recognition subject
     deleted_subject = RecognitionSubjectRepository.delete(
@@ -183,7 +183,7 @@ def test_delete(test_db: DBSession, test_recognition_subject: RecognitionSubject
 
 
 def test_get_by_document_and_module(
-    test_db: DBSession,
+    test_db: Session,
     test_document: Document,
     test_recognition_module: RecognitionModule,
     test_recognition_subject: RecognitionSubject,
@@ -211,7 +211,7 @@ def test_get_by_document_and_module(
 
 
 def test_get_unprocessed_documents(
-    test_db: DBSession,
+    test_db: Session,
     test_document: Document,
     test_recognition_module: RecognitionModule,
     test_recognition_subject: RecognitionSubject,

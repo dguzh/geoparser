@@ -1,12 +1,12 @@
 import uuid
 
-from sqlmodel import Session as DBSession
+from sqlmodel import Session
 
 from geoparser.db.crud import LocationRepository
 from geoparser.db.models import Location, LocationCreate, LocationUpdate, Toponym
 
 
-def test_create(test_db: DBSession, test_toponym: Toponym):
+def test_create(test_db: Session, test_toponym: Toponym):
     """Test creating a location."""
     # Create a location using the create model with all required fields
     location_create = LocationCreate(
@@ -29,7 +29,7 @@ def test_create(test_db: DBSession, test_toponym: Toponym):
     assert db_location.toponym_id == test_toponym.id
 
 
-def test_get(test_db: DBSession, test_location: Location):
+def test_get(test_db: Session, test_location: Location):
     """Test getting a location by ID."""
     # Test with valid ID
     location = LocationRepository.get(test_db, test_location.id)
@@ -45,7 +45,7 @@ def test_get(test_db: DBSession, test_location: Location):
 
 
 def test_get_by_toponym(
-    test_db: DBSession, test_toponym: Toponym, test_location: Location
+    test_db: Session, test_toponym: Toponym, test_location: Location
 ):
     """Test getting locations by toponym ID."""
     # Create another location for the same toponym
@@ -68,7 +68,7 @@ def test_get_by_toponym(
     assert len(locations) == 0
 
 
-def test_get_all(test_db: DBSession, test_location: Location):
+def test_get_all(test_db: Session, test_location: Location):
     """Test getting all locations."""
     # Create another location
     location_create = LocationCreate(
@@ -85,7 +85,7 @@ def test_get_all(test_db: DBSession, test_location: Location):
     assert any(l.location_id == "654321" for l in locations)
 
 
-def test_update(test_db: DBSession, test_location: Location):
+def test_update(test_db: Session, test_location: Location):
     """Test updating a location."""
     # Update the location
     location_update = LocationUpdate(
@@ -106,7 +106,7 @@ def test_update(test_db: DBSession, test_location: Location):
     assert db_location.confidence == 0.95
 
 
-def test_delete(test_db: DBSession, test_location: Location):
+def test_delete(test_db: Session, test_location: Location):
     """Test deleting a location."""
     # Delete the location
     deleted_location = LocationRepository.delete(test_db, id=test_location.id)

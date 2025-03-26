@@ -1,12 +1,12 @@
 import uuid
 
-from sqlmodel import Session as DBSession
+from sqlmodel import Session
 
 from geoparser.db.crud import DocumentRepository
 from geoparser.db.models import Document, DocumentCreate, DocumentUpdate, Project
 
 
-def test_create(test_db: DBSession, test_project: Project):
+def test_create(test_db: Session, test_project: Project):
     """Test creating a document."""
     # Create a document using the create model with all required fields
     document_create = DocumentCreate(
@@ -27,7 +27,7 @@ def test_create(test_db: DBSession, test_project: Project):
     assert db_document.project_id == test_project.id
 
 
-def test_get(test_db: DBSession, test_document: Document):
+def test_get(test_db: Session, test_document: Document):
     """Test getting a document by ID."""
     # Test with valid ID
     document = DocumentRepository.get(test_db, test_document.id)
@@ -42,7 +42,7 @@ def test_get(test_db: DBSession, test_document: Document):
 
 
 def test_get_by_project(
-    test_db: DBSession, test_project: Project, test_document: Document
+    test_db: Session, test_project: Project, test_document: Document
 ):
     """Test getting documents by project ID."""
     # Create another document in the same project
@@ -65,7 +65,7 @@ def test_get_by_project(
     assert len(documents) == 0
 
 
-def test_get_all(test_db: DBSession, test_document: Document):
+def test_get_all(test_db: Session, test_document: Document):
     """Test getting all documents."""
     # Create another document
     document_create = DocumentCreate(
@@ -82,7 +82,7 @@ def test_get_all(test_db: DBSession, test_document: Document):
     assert any(d.text == "Another test document." for d in documents)
 
 
-def test_update(test_db: DBSession, test_document: Document):
+def test_update(test_db: Session, test_document: Document):
     """Test updating a document."""
     # Update the document
     document_update = DocumentUpdate(id=test_document.id, text="Updated document text.")
@@ -99,7 +99,7 @@ def test_update(test_db: DBSession, test_document: Document):
     assert db_document.text == "Updated document text."
 
 
-def test_delete(test_db: DBSession, test_document: Document):
+def test_delete(test_db: Session, test_document: Document):
     """Test deleting a document."""
     # Delete the document
     deleted_document = DocumentRepository.delete(test_db, id=test_document.id)

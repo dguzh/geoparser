@@ -1,12 +1,12 @@
 import uuid
 
-from sqlmodel import Session as DBSession
+from sqlmodel import Session
 
 from geoparser.db.crud import ToponymRepository
 from geoparser.db.models import Document, Toponym, ToponymCreate, ToponymUpdate
 
 
-def test_create(test_db: DBSession, test_document: Document):
+def test_create(test_db: Session, test_document: Document):
     """Test creating a toponym."""
     # Create a toponym using the create model with all required fields
     toponym_create = ToponymCreate(start=10, end=15, document_id=test_document.id)
@@ -27,7 +27,7 @@ def test_create(test_db: DBSession, test_document: Document):
     assert db_toponym.document_id == test_document.id
 
 
-def test_get(test_db: DBSession, test_toponym: Toponym):
+def test_get(test_db: Session, test_toponym: Toponym):
     """Test getting a toponym by ID."""
     # Test with valid ID
     toponym = ToponymRepository.get(test_db, test_toponym.id)
@@ -43,7 +43,7 @@ def test_get(test_db: DBSession, test_toponym: Toponym):
 
 
 def test_get_by_document(
-    test_db: DBSession, test_document: Document, test_toponym: Toponym
+    test_db: Session, test_document: Document, test_toponym: Toponym
 ):
     """Test getting toponyms by document ID."""
     # Create another toponym in the same document
@@ -64,7 +64,7 @@ def test_get_by_document(
     assert len(toponyms) == 0
 
 
-def test_get_all(test_db: DBSession, test_toponym: Toponym):
+def test_get_all(test_db: Session, test_toponym: Toponym):
     """Test getting all toponyms."""
     # Create another toponym
     toponym_create = ToponymCreate(
@@ -81,7 +81,7 @@ def test_get_all(test_db: DBSession, test_toponym: Toponym):
     assert any(t.start == 20 and t.end == 25 for t in toponyms)
 
 
-def test_update(test_db: DBSession, test_toponym: Toponym):
+def test_update(test_db: Session, test_toponym: Toponym):
     """Test updating a toponym."""
     # Update the toponym
     toponym_update = ToponymUpdate(id=test_toponym.id, start=40, end=45)
@@ -100,7 +100,7 @@ def test_update(test_db: DBSession, test_toponym: Toponym):
     assert db_toponym.end == 45
 
 
-def test_delete(test_db: DBSession, test_toponym: Toponym):
+def test_delete(test_db: Session, test_toponym: Toponym):
     """Test deleting a toponym."""
     # Delete the toponym
     deleted_toponym = ToponymRepository.delete(test_db, id=test_toponym.id)

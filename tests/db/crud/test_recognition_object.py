@@ -1,6 +1,6 @@
 import uuid
 
-from sqlmodel import Session as DBSession
+from sqlmodel import Session
 
 from geoparser.db.crud import RecognitionObjectRepository, ToponymRepository
 from geoparser.db.models import (
@@ -15,7 +15,7 @@ from geoparser.db.models import (
 
 
 def test_create(
-    test_db: DBSession,
+    test_db: Session,
     test_toponym: Toponym,
     test_recognition_module: RecognitionModule,
 ):
@@ -41,7 +41,7 @@ def test_create(
     assert db_recognition.module_id == test_recognition_module.id
 
 
-def test_get(test_db: DBSession, test_recognition_object: RecognitionObject):
+def test_get(test_db: Session, test_recognition_object: RecognitionObject):
     """Test getting a recognition object by ID."""
     # Test with valid ID
     recognition = RecognitionObjectRepository.get(test_db, test_recognition_object.id)
@@ -57,7 +57,7 @@ def test_get(test_db: DBSession, test_recognition_object: RecognitionObject):
 
 
 def test_get_by_toponym(
-    test_db: DBSession,
+    test_db: Session,
     test_toponym: Toponym,
     test_recognition_object: RecognitionObject,
     test_recognition_module: RecognitionModule,
@@ -92,7 +92,7 @@ def test_get_by_toponym(
 
 
 def test_get_by_module(
-    test_db: DBSession,
+    test_db: Session,
     test_recognition_object: RecognitionObject,
     test_recognition_module: RecognitionModule,
 ):
@@ -125,7 +125,7 @@ def test_get_by_module(
     assert len(recognitions) == 0
 
 
-def test_get_all(test_db: DBSession, test_recognition_object: RecognitionObject):
+def test_get_all(test_db: Session, test_recognition_object: RecognitionObject):
     """Test getting all recognition objects."""
     # Create another recognition object
     recognition_create = RecognitionObjectCreate(
@@ -141,7 +141,7 @@ def test_get_all(test_db: DBSession, test_recognition_object: RecognitionObject)
     assert len(recognitions) >= 2
 
 
-def test_update(test_db: DBSession, test_recognition_object: RecognitionObject):
+def test_update(test_db: Session, test_recognition_object: RecognitionObject):
     """Test updating a recognition object."""
     # Create a new module
     config = {"module_name": "updated-module", "model": "updated-model"}
@@ -168,7 +168,7 @@ def test_update(test_db: DBSession, test_recognition_object: RecognitionObject):
     assert db_recognition.module_id == module.id
 
 
-def test_delete(test_db: DBSession, test_recognition_object: RecognitionObject):
+def test_delete(test_db: Session, test_recognition_object: RecognitionObject):
     """Test deleting a recognition object."""
     # Delete the recognition object
     deleted_recognition = RecognitionObjectRepository.delete(

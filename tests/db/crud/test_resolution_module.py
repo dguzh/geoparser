@@ -1,6 +1,6 @@
 import uuid
 
-from sqlmodel import Session as DBSession
+from sqlmodel import Session
 
 from geoparser.db.crud import ResolutionModuleRepository
 from geoparser.db.models import (
@@ -10,7 +10,7 @@ from geoparser.db.models import (
 )
 
 
-def test_create(test_db: DBSession):
+def test_create(test_db: Session):
     """Test creating a resolution module."""
     config = {
         "module_name": "test-resolution-module",
@@ -34,7 +34,7 @@ def test_create(test_db: DBSession):
     assert db_module.config["module_name"] == "test-resolution-module"
 
 
-def test_get(test_db: DBSession, test_resolution_module: ResolutionModule):
+def test_get(test_db: Session, test_resolution_module: ResolutionModule):
     """Test getting a resolution module by ID."""
     # Test with valid ID
     module = ResolutionModuleRepository.get(test_db, test_resolution_module.id)
@@ -48,7 +48,7 @@ def test_get(test_db: DBSession, test_resolution_module: ResolutionModule):
     assert module is None
 
 
-def test_get_by_config(test_db: DBSession):
+def test_get_by_config(test_db: Session):
     """Test getting a resolution module by config."""
     # Create modules with the same module_name but different configs
     config1 = {
@@ -107,7 +107,7 @@ def test_get_by_config(test_db: DBSession):
         pass  # Expected
 
 
-def test_get_all(test_db: DBSession, test_resolution_module: ResolutionModule):
+def test_get_all(test_db: Session, test_resolution_module: ResolutionModule):
     """Test getting all resolution modules."""
     # Create another module
     config = {
@@ -130,7 +130,7 @@ def test_get_all(test_db: DBSession, test_resolution_module: ResolutionModule):
     assert any(m.config["module_name"] == "another-resolution-module" for m in modules)
 
 
-def test_update(test_db: DBSession, test_resolution_module: ResolutionModule):
+def test_update(test_db: Session, test_resolution_module: ResolutionModule):
     """Test updating a resolution module."""
     # Update the module
     updated_config = {
@@ -155,7 +155,7 @@ def test_update(test_db: DBSession, test_resolution_module: ResolutionModule):
     assert db_module.config == updated_config
 
 
-def test_delete(test_db: DBSession, test_resolution_module: ResolutionModule):
+def test_delete(test_db: Session, test_resolution_module: ResolutionModule):
     """Test deleting a resolution module."""
     # Create a new module to delete
     config = {"module_name": "module-to-delete", "gazetteer": "to-be-deleted"}

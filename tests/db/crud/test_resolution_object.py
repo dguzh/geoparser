@@ -1,6 +1,6 @@
 import uuid
 
-from sqlmodel import Session as DBSession
+from sqlmodel import Session
 
 from geoparser.db.crud import LocationRepository, ResolutionObjectRepository
 from geoparser.db.models import (
@@ -15,7 +15,7 @@ from geoparser.db.models import (
 
 
 def test_create(
-    test_db: DBSession,
+    test_db: Session,
     test_location: Location,
     test_resolution_module: ResolutionModule,
 ):
@@ -39,7 +39,7 @@ def test_create(
     assert db_resolution.module_id == test_resolution_module.id
 
 
-def test_get(test_db: DBSession, test_resolution_object: ResolutionObject):
+def test_get(test_db: Session, test_resolution_object: ResolutionObject):
     """Test getting a resolution object by ID."""
     # Test with valid ID
     resolution = ResolutionObjectRepository.get(test_db, test_resolution_object.id)
@@ -55,7 +55,7 @@ def test_get(test_db: DBSession, test_resolution_object: ResolutionObject):
 
 
 def test_get_by_location(
-    test_db: DBSession,
+    test_db: Session,
     test_location: Location,
     test_resolution_object: ResolutionObject,
     test_resolution_module: ResolutionModule,
@@ -91,7 +91,7 @@ def test_get_by_location(
 
 
 def test_get_by_module(
-    test_db: DBSession,
+    test_db: Session,
     test_resolution_object: ResolutionObject,
     test_resolution_module: ResolutionModule,
 ):
@@ -126,7 +126,7 @@ def test_get_by_module(
     assert len(resolutions) == 0
 
 
-def test_get_all(test_db: DBSession, test_resolution_object: ResolutionObject):
+def test_get_all(test_db: Session, test_resolution_object: ResolutionObject):
     """Test getting all resolution objects."""
     # Create another resolution object
     resolution_create = ResolutionObjectCreate(
@@ -142,7 +142,7 @@ def test_get_all(test_db: DBSession, test_resolution_object: ResolutionObject):
     assert len(resolutions) >= 2
 
 
-def test_update(test_db: DBSession, test_resolution_object: ResolutionObject):
+def test_update(test_db: Session, test_resolution_object: ResolutionObject):
     """Test updating a resolution object."""
     # Create a new module
     config = {"module_name": "updated-module", "gazetteer": "updated-gazetteer"}
@@ -170,7 +170,7 @@ def test_update(test_db: DBSession, test_resolution_object: ResolutionObject):
     assert db_resolution.module_id == module.id
 
 
-def test_delete(test_db: DBSession, test_resolution_object: ResolutionObject):
+def test_delete(test_db: Session, test_resolution_object: ResolutionObject):
     """Test deleting a resolution object."""
     # Delete the resolution object
     deleted_resolution = ResolutionObjectRepository.delete(

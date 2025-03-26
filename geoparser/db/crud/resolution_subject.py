@@ -2,8 +2,7 @@ import typing as t
 import uuid
 
 from sqlalchemy import not_
-from sqlmodel import Session as DBSession
-from sqlmodel import select
+from sqlmodel import Session, select
 
 from geoparser.db.crud.base import BaseRepository
 from geoparser.db.models import Document, ResolutionSubject, Toponym
@@ -18,7 +17,7 @@ class ResolutionSubjectRepository(BaseRepository[ResolutionSubject]):
 
     @classmethod
     def get_by_toponym(
-        cls, db: DBSession, toponym_id: uuid.UUID
+        cls, db: Session, toponym_id: uuid.UUID
     ) -> t.List[ResolutionSubject]:
         """
         Get all resolution subjects for a toponym.
@@ -37,7 +36,7 @@ class ResolutionSubjectRepository(BaseRepository[ResolutionSubject]):
 
     @classmethod
     def get_by_module(
-        cls, db: DBSession, module_id: uuid.UUID
+        cls, db: Session, module_id: uuid.UUID
     ) -> t.List[ResolutionSubject]:
         """
         Get all resolution subjects for a module.
@@ -56,7 +55,7 @@ class ResolutionSubjectRepository(BaseRepository[ResolutionSubject]):
 
     @classmethod
     def get_by_toponym_and_module(
-        cls, db: DBSession, toponym_id: uuid.UUID, module_id: uuid.UUID
+        cls, db: Session, toponym_id: uuid.UUID, module_id: uuid.UUID
     ) -> t.Optional[ResolutionSubject]:
         """
         Get a resolution subject for a specific toponym and module.
@@ -77,7 +76,7 @@ class ResolutionSubjectRepository(BaseRepository[ResolutionSubject]):
 
     @classmethod
     def get_unprocessed_toponyms(
-        cls, db: DBSession, project_id: uuid.UUID, module_id: uuid.UUID
+        cls, db: Session, project_id: uuid.UUID, module_id: uuid.UUID
     ) -> t.List[Toponym]:
         """
         Get all toponyms from a project that have not been processed by a specific module.

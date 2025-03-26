@@ -1,6 +1,6 @@
 import uuid
 
-from sqlmodel import Session as DBSession
+from sqlmodel import Session
 
 from geoparser.db.crud import (
     DocumentRepository,
@@ -21,7 +21,7 @@ from geoparser.db.models import (
 
 
 def test_create(
-    test_db: DBSession,
+    test_db: Session,
     test_toponym: Toponym,
     test_resolution_module: ResolutionModule,
 ):
@@ -45,7 +45,7 @@ def test_create(
     assert db_subject.module_id == test_resolution_module.id
 
 
-def test_get(test_db: DBSession, test_resolution_subject: ResolutionSubject):
+def test_get(test_db: Session, test_resolution_subject: ResolutionSubject):
     """Test getting a resolution subject by ID."""
     # Test with valid ID
     subject = ResolutionSubjectRepository.get(test_db, test_resolution_subject.id)
@@ -61,7 +61,7 @@ def test_get(test_db: DBSession, test_resolution_subject: ResolutionSubject):
 
 
 def test_get_by_toponym(
-    test_db: DBSession,
+    test_db: Session,
     test_toponym: Toponym,
     test_resolution_subject: ResolutionSubject,
     test_resolution_module: ResolutionModule,
@@ -97,7 +97,7 @@ def test_get_by_toponym(
 
 
 def test_get_by_module(
-    test_db: DBSession,
+    test_db: Session,
     test_resolution_subject: ResolutionSubject,
     test_resolution_module: ResolutionModule,
 ):
@@ -130,7 +130,7 @@ def test_get_by_module(
     assert len(subjects) == 0
 
 
-def test_get_all(test_db: DBSession, test_resolution_subject: ResolutionSubject):
+def test_get_all(test_db: Session, test_resolution_subject: ResolutionSubject):
     """Test getting all resolution subjects."""
     # Create another resolution subject
     subject_create = ResolutionSubjectCreate(
@@ -146,7 +146,7 @@ def test_get_all(test_db: DBSession, test_resolution_subject: ResolutionSubject)
     assert len(subjects) >= 2
 
 
-def test_update(test_db: DBSession, test_resolution_subject: ResolutionSubject):
+def test_update(test_db: Session, test_resolution_subject: ResolutionSubject):
     """Test updating a resolution subject."""
     # Create a new module
     config = {"module_name": "updated-module", "gazetteer": "updated-gazetteer"}
@@ -174,7 +174,7 @@ def test_update(test_db: DBSession, test_resolution_subject: ResolutionSubject):
     assert db_subject.module_id == module.id
 
 
-def test_delete(test_db: DBSession, test_resolution_subject: ResolutionSubject):
+def test_delete(test_db: Session, test_resolution_subject: ResolutionSubject):
     """Test deleting a resolution subject."""
     # Delete the resolution subject
     deleted_subject = ResolutionSubjectRepository.delete(
@@ -190,7 +190,7 @@ def test_delete(test_db: DBSession, test_resolution_subject: ResolutionSubject):
 
 
 def test_get_by_toponym_and_module(
-    test_db: DBSession,
+    test_db: Session,
     test_toponym: Toponym,
     test_resolution_module: ResolutionModule,
     test_resolution_subject: ResolutionSubject,
@@ -218,7 +218,7 @@ def test_get_by_toponym_and_module(
 
 
 def test_get_unprocessed_toponyms(
-    test_db: DBSession,
+    test_db: Session,
     test_document: Document,
     test_toponym: Toponym,
     test_resolution_module: ResolutionModule,

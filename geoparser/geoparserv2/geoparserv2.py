@@ -3,7 +3,7 @@ import typing as t
 import uuid
 from typing import List, Union
 
-from sqlmodel import Session as DBSession
+from sqlmodel import Session
 
 from geoparser.db.crud import DocumentRepository, ProjectRepository
 from geoparser.db.db import get_db
@@ -50,7 +50,7 @@ class GeoparserV2:
 
         return project.id
 
-    def load_project(self, db: DBSession, project_name: str) -> t.Optional[Project]:
+    def load_project(self, db: Session, project_name: str) -> t.Optional[Project]:
         """
         Load a project by name from the database.
 
@@ -63,7 +63,7 @@ class GeoparserV2:
         """
         return ProjectRepository.get_by_name(db, project_name)
 
-    def create_project(self, db: DBSession, project_name: str) -> Project:
+    def create_project(self, db: Session, project_name: str) -> Project:
         """
         Create a new project with the given name.
 

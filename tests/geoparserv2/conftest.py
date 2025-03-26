@@ -1,8 +1,7 @@
 from unittest.mock import patch
 
 import pytest
-from sqlmodel import Session as DBSession
-from sqlmodel import SQLModel
+from sqlmodel import Session, SQLModel
 from sqlmodel.pool import StaticPool
 
 from geoparser.db.db import create_engine
@@ -17,12 +16,12 @@ def test_db():
         "sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool
     )
     SQLModel.metadata.create_all(engine)
-    with DBSession(engine) as session:
+    with Session(engine) as session:
         yield session
 
 
 @pytest.fixture
-def test_project(test_db: DBSession):
+def test_project(test_db: Session):
     """Create a test project."""
     project_create = ProjectCreate(name="test-project")
     project = Project(name=project_create.name)

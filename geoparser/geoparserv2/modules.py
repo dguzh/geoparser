@@ -3,7 +3,7 @@ import typing as t
 import uuid
 from abc import ABC, abstractmethod
 
-from sqlmodel import Session as DBSession
+from sqlmodel import Session
 
 from geoparser.db.crud import (
     LocationRepository,
@@ -87,7 +87,7 @@ class BaseModule(ABC):
             db.close()
 
     @abstractmethod
-    def _get_module(self, db: DBSession):
+    def _get_module(self, db: Session):
         """
         Get the module record from the database based on configuration.
 
@@ -99,7 +99,7 @@ class BaseModule(ABC):
         """
 
     @abstractmethod
-    def _create_module(self, db: DBSession):
+    def _create_module(self, db: Session):
         """
         Create a new module record in the database.
 
@@ -171,7 +171,7 @@ class BaseModule(ABC):
         return ", ".join(config_items)
 
     @abstractmethod
-    def _execute(self, db: DBSession, project_id: uuid.UUID) -> None:
+    def _execute(self, db: Session, project_id: uuid.UUID) -> None:
         """
         Execute the module's functionality with the provided database session.
 
@@ -206,7 +206,7 @@ class RecognitionModule(BaseModule):
         """
         super().__init__(config)
 
-    def _get_module(self, db: DBSession) -> t.Optional[RecognitionModule]:
+    def _get_module(self, db: Session) -> t.Optional[RecognitionModule]:
         """
         Get the module record from the database based on configuration.
 
@@ -218,7 +218,7 @@ class RecognitionModule(BaseModule):
         """
         return RecognitionModuleRepository.get_by_config(db, self.config)
 
-    def _create_module(self, db: DBSession) -> RecognitionModule:
+    def _create_module(self, db: Session) -> RecognitionModule:
         """
         Create a new module record in the database.
 
@@ -232,7 +232,7 @@ class RecognitionModule(BaseModule):
         return RecognitionModuleRepository.create(db, module_create)
 
     def _create_toponym(
-        self, db: DBSession, document_id: uuid.UUID, start: int, end: int
+        self, db: Session, document_id: uuid.UUID, start: int, end: int
     ) -> uuid.UUID:
         """
         Create a toponym and associate it with this recognition module.
@@ -258,9 +258,7 @@ class RecognitionModule(BaseModule):
 
         return toponym.id
 
-    def _create_recognition_subject(
-        self, db: DBSession, document_id: uuid.UUID
-    ) -> None:
+    def _create_recognition_subject(self, db: Session, document_id: uuid.UUID) -> None:
         """
         Create a recognition subject for a document.
 
@@ -275,7 +273,7 @@ class RecognitionModule(BaseModule):
         )
         RecognitionSubjectRepository.create(db, subject_create)
 
-    def _execute(self, db: DBSession, project_id: uuid.UUID) -> None:
+    def _execute(self, db: Session, project_id: uuid.UUID) -> None:
         """
         Execute toponym recognition on documents in the specified project.
 
@@ -358,7 +356,7 @@ class ResolutionModule(BaseModule):
         """
         super().__init__(config)
 
-    def _get_module(self, db: DBSession) -> t.Optional[ResolutionModule]:
+    def _get_module(self, db: Session) -> t.Optional[ResolutionModule]:
         """
         Get the module record from the database based on configuration.
 
@@ -370,7 +368,7 @@ class ResolutionModule(BaseModule):
         """
         return ResolutionModuleRepository.get_by_config(db, self.config)
 
-    def _create_module(self, db: DBSession) -> ResolutionModule:
+    def _create_module(self, db: Session) -> ResolutionModule:
         """
         Create a new module record in the database.
 
@@ -385,7 +383,7 @@ class ResolutionModule(BaseModule):
 
     def _create_location(
         self,
-        db: DBSession,
+        db: Session,
         toponym_id: uuid.UUID,
         location_id: str,
         confidence: t.Optional[float] = None,
@@ -416,7 +414,7 @@ class ResolutionModule(BaseModule):
 
         return location.id
 
-    def _create_resolution_subject(self, db: DBSession, toponym_id: uuid.UUID) -> None:
+    def _create_resolution_subject(self, db: Session, toponym_id: uuid.UUID) -> None:
         """
         Create a resolution subject for a toponym.
 
@@ -431,7 +429,7 @@ class ResolutionModule(BaseModule):
         )
         ResolutionSubjectRepository.create(db, subject_create)
 
-    def _execute(self, db: DBSession, project_id: uuid.UUID) -> None:
+    def _execute(self, db: Session, project_id: uuid.UUID) -> None:
         """
         Execute toponym resolution on toponyms in the specified project.
 

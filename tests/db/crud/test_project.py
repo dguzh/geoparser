@@ -1,12 +1,12 @@
 import uuid
 
-from sqlmodel import Session as DBSession
+from sqlmodel import Session
 
 from geoparser.db.crud import ProjectRepository
 from geoparser.db.models import Project, ProjectCreate, ProjectUpdate
 
 
-def test_create(test_db: DBSession):
+def test_create(test_db: Session):
     """Test creating a project."""
     project_create = ProjectCreate(name="test-create-project")
     project = Project(name=project_create.name)
@@ -22,7 +22,7 @@ def test_create(test_db: DBSession):
     assert db_project.name == "test-create-project"
 
 
-def test_get(test_db: DBSession, test_project: Project):
+def test_get(test_db: Session, test_project: Project):
     """Test getting a project by ID."""
     # Test with valid ID
     project = ProjectRepository.get(test_db, test_project.id)
@@ -36,7 +36,7 @@ def test_get(test_db: DBSession, test_project: Project):
     assert project is None
 
 
-def test_get_by_name(test_db: DBSession, test_project: Project):
+def test_get_by_name(test_db: Session, test_project: Project):
     """Test getting a project by name."""
     # Test with valid name
     project = ProjectRepository.get_by_name(test_db, test_project.name)
@@ -49,7 +49,7 @@ def test_get_by_name(test_db: DBSession, test_project: Project):
     assert project is None
 
 
-def test_get_all(test_db: DBSession, test_project: Project):
+def test_get_all(test_db: Session, test_project: Project):
     """Test getting all projects."""
     # Create another project
     project_create = ProjectCreate(name="another-test-project")
@@ -64,7 +64,7 @@ def test_get_all(test_db: DBSession, test_project: Project):
     assert any(s.name == "another-test-project" for s in projects)
 
 
-def test_update(test_db: DBSession, test_project: Project):
+def test_update(test_db: Session, test_project: Project):
     """Test updating a project."""
     # Update the project
     project_update = ProjectUpdate(id=test_project.id, name="updated-project")
@@ -81,7 +81,7 @@ def test_update(test_db: DBSession, test_project: Project):
     assert db_project.name == "updated-project"
 
 
-def test_delete(test_db: DBSession, test_project: Project):
+def test_delete(test_db: Session, test_project: Project):
     """Test deleting a project."""
     # Delete the project
     deleted_project = ProjectRepository.delete(test_db, id=test_project.id)
