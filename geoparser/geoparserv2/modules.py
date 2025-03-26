@@ -70,21 +70,18 @@ class BaseModule(ABC):
             The initialized module ID
         """
         db = next(get_db())
-        try:
-            module = self._get_module(db)
-            if module is None:
-                module = self._create_module(db)
-                db.commit()
-                logging.info(
-                    f"Created new {self.__class__.__name__.lower()} '{self.NAME}' with config: {self.get_config_string()}"
-                )
-            else:
-                logging.info(
-                    f"Using existing {self.__class__.__name__.lower()} '{self.NAME}' with config: {self.get_config_string()}"
-                )
-            return module.id
-        finally:
-            db.close()
+        module = self._get_module(db)
+        if module is None:
+            module = self._create_module(db)
+            db.commit()
+            logging.info(
+                f"Created new {self.__class__.__name__.lower()} '{self.NAME}' with config: {self.get_config_string()}"
+            )
+        else:
+            logging.info(
+                f"Using existing {self.__class__.__name__.lower()} '{self.NAME}' with config: {self.get_config_string()}"
+            )
+        return module.id
 
     @abstractmethod
     def _get_module(self, db: Session):
@@ -140,9 +137,6 @@ class BaseModule(ABC):
                 f"Error executing module '{self.NAME}' on project {project_id}: {str(e)}"
             )
             raise
-        finally:
-            # Close the database session
-            db.close()
 
     def get_config_string(self) -> str:
         """
