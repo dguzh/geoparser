@@ -9,6 +9,8 @@ from geoparser.db.models import (
     DocumentCreate,
     Location,
     LocationCreate,
+    Project,
+    ProjectCreate,
     RecognitionModule,
     RecognitionModuleCreate,
     RecognitionObject,
@@ -21,8 +23,6 @@ from geoparser.db.models import (
     ResolutionObjectCreate,
     ResolutionSubject,
     ResolutionSubjectCreate,
-    Project,
-    ProjectCreate,
     Toponym,
     ToponymCreate,
 )

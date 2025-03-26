@@ -8,8 +8,8 @@ from sqlmodel import Field, Relationship, SQLModel
 from geoparser.db.models.validators import normalize_newlines
 
 if t.TYPE_CHECKING:
-    from geoparser.db.models.recognition_process import RecognitionSubject
     from geoparser.db.models.project import Project
+    from geoparser.db.models.recognition_process import RecognitionSubject
     from geoparser.db.models.toponym import Toponym
 
 
