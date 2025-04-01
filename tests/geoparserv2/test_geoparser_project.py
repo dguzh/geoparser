@@ -90,6 +90,31 @@ def test_init_with_new_project(geoparserproject_with_new_project, test_db):
     assert db_project.name == "new-test-project"
 
 
+def test_init_with_no_project_name(test_db):
+    """Test initializing GeoparserProject without providing a project name."""
+    # Mock get_db to return the test database
+    with patch(
+        "geoparser.geoparserv2.geoparser_project.get_db", return_value=iter([test_db])
+    ):
+        with patch(
+            "uuid.uuid4", return_value=uuid.UUID("12345678-1234-5678-1234-567812345678")
+        ):
+            geoparserproject = GeoparserProject()
+
+            # Verify that a temporary project name was generated
+            assert geoparserproject.project_name.startswith("temp_project_")
+            assert (
+                "12345678-1234-5678-1234-567812345678" in geoparserproject.project_name
+            )
+
+            # Verify that a project was created in the database
+            db_project = ProjectRepository.get_by_name(
+                test_db, geoparserproject.project_name
+            )
+            assert db_project is not None
+            assert db_project.name == geoparserproject.project_name
+
+
 def test_add_documents_single(test_db, geoparserproject_with_existing_project):
     """Test adding a single document."""
     geoparserproject = geoparserproject_with_existing_project
