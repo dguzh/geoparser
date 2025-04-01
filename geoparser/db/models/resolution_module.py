@@ -4,8 +4,8 @@ import uuid
 from sqlmodel import JSON, Field, Relationship, SQLModel
 
 if t.TYPE_CHECKING:
-    from geoparser.db.models.resolution import ResolutionObject
-    from geoparser.db.models.resolution_process import ResolutionSubject
+    from geoparser.db.models.resolution_object import ResolutionObject
+    from geoparser.db.models.resolution_subject import ResolutionSubject
 
 
 class ResolutionModuleBase(SQLModel):

@@ -7,8 +7,8 @@ from sqlmodel import Field, Relationship, SQLModel
 if t.TYPE_CHECKING:
     from geoparser.db.models.document import Document
     from geoparser.db.models.location import Location
-    from geoparser.db.models.recognition import RecognitionObject
-    from geoparser.db.models.resolution_process import ResolutionSubject
+    from geoparser.db.models.recognition_object import RecognitionObject
+    from geoparser.db.models.resolution_subject import ResolutionSubject
 
 
 class ToponymBase(SQLModel):

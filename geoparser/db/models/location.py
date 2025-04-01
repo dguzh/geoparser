@@ -5,7 +5,7 @@ from sqlalchemy import UUID, Column, ForeignKey
 from sqlmodel import Field, Relationship, SQLModel
 
 if t.TYPE_CHECKING:
-    from geoparser.db.models.resolution import ResolutionObject
+    from geoparser.db.models.resolution_object import ResolutionObject
     from geoparser.db.models.toponym import Toponym
 
 

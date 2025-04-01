@@ -4,8 +4,8 @@ import uuid
 from sqlmodel import JSON, Field, Relationship, SQLModel
 
 if t.TYPE_CHECKING:
-    from geoparser.db.models.recognition import RecognitionObject
-    from geoparser.db.models.recognition_process import RecognitionSubject
+    from geoparser.db.models.recognition_object import RecognitionObject
+    from geoparser.db.models.recognition_subject import RecognitionSubject
 
 
 class RecognitionModuleBase(SQLModel):
