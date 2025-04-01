@@ -6,8 +6,6 @@ from typing import List, Union
 from geoparser.db.crud import DocumentRepository, ProjectRepository
 from geoparser.db.db import get_db
 from geoparser.db.models import Document, DocumentCreate, Project, ProjectCreate
-from geoparser.geoparserv2.module_interfaces import BaseModule
-from geoparser.geoparserv2.module_runner import ModuleRunner
 
 
 class GeoparserProject:
@@ -15,8 +13,7 @@ class GeoparserProject:
     Main entry point for the project-level geoparser orchestration.
 
     This class provides a unified interface for project-level geoparsing operations
-    including document management and module execution coordination.
-    It delegates module-specific database interactions to the ModuleRunner.
+    including document management and data retrieval.
     """
 
     def __init__(self, project_name: str):
@@ -28,9 +25,6 @@ class GeoparserProject:
         """
         self.project_id = self._initialize_project(project_name)
         self.project_name = project_name
-
-        # Create module runner
-        self.module_runner = ModuleRunner()
 
     def _initialize_project(self, project_name: str) -> uuid.UUID:
         """
@@ -109,16 +103,3 @@ class GeoparserProject:
             documents = DocumentRepository.get_by_project(db, self.project_id)
 
         return documents
-
-    def run(self, module: BaseModule) -> None:
-        """
-        Run a processing module on the current project.
-
-        This method delegates the execution to the ModuleRunner,
-        which handles all module-specific database interactions.
-
-        Args:
-            module: The module instance to run.
-        """
-        # Delegate to module runner with project_id
-        self.module_runner.run_module(module, self.project_id)
