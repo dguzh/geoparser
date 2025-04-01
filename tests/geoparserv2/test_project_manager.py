@@ -5,25 +5,25 @@ from sqlmodel import Session
 
 from geoparser.db.crud import DocumentRepository, ProjectRepository
 from geoparser.db.models import Document, Project
-from geoparser.geoparserv2.geoparser_project import GeoparserProject
+from geoparser.geoparserv2.project_manager import ProjectManager
 
 
 def test_initialize_project_existing(test_db: Session, test_project: Project):
     """Test _initialize_project with an existing project."""
-    geoparserproject = GeoparserProject.__new__(
-        GeoparserProject
+    project_manager = ProjectManager.__new__(
+        ProjectManager
     )  # Create instance without calling __init__
 
     # Mock ProjectRepository.get_by_name to return the test project
     with patch(
-        "geoparser.geoparserv2.geoparser_project.ProjectRepository.get_by_name",
+        "geoparser.geoparserv2.project_manager.ProjectRepository.get_by_name",
         return_value=test_project,
     ):
         with patch(
-            "geoparser.geoparserv2.geoparser_project.get_db",
+            "geoparser.geoparserv2.project_manager.get_db",
             return_value=iter([test_db]),
         ):
-            project_id = geoparserproject._initialize_project(test_project.name)
+            project_id = project_manager._initialize_project(test_project.name)
 
             # Verify the correct project id was returned
             assert project_id == test_project.id
@@ -31,29 +31,29 @@ def test_initialize_project_existing(test_db: Session, test_project: Project):
 
 def test_initialize_project_new(test_db: Session):
     """Test _initialize_project with a new project."""
-    geoparserproject = GeoparserProject.__new__(
-        GeoparserProject
+    project_manager = ProjectManager.__new__(
+        ProjectManager
     )  # Create instance without calling __init__
 
     # Mock ProjectRepository.get_by_name to return None (project doesn't exist)
     with patch(
-        "geoparser.geoparserv2.geoparser_project.ProjectRepository.get_by_name",
+        "geoparser.geoparserv2.project_manager.ProjectRepository.get_by_name",
         return_value=None,
     ):
         # Mock ProjectRepository.create to return a new project
         new_project = Project(name="new-project", id=uuid.uuid4())
         with patch(
-            "geoparser.geoparserv2.geoparser_project.ProjectRepository.create",
+            "geoparser.geoparserv2.project_manager.ProjectRepository.create",
             return_value=new_project,
         ):
             with patch(
-                "geoparser.geoparserv2.geoparser_project.get_db",
+                "geoparser.geoparserv2.project_manager.get_db",
                 return_value=iter([test_db]),
             ):
                 with patch(
-                    "geoparser.geoparserv2.geoparser_project.logging.info"
+                    "geoparser.geoparserv2.project_manager.logging.info"
                 ) as mock_log:
-                    project_id = geoparserproject._initialize_project("new-project")
+                    project_id = project_manager._initialize_project("new-project")
 
                     # Verify logging was called
                     mock_log.assert_called_once()
@@ -67,22 +67,22 @@ def test_initialize_project_new(test_db: Session):
 
 
 def test_init_with_existing_project(
-    geoparserproject_with_existing_project, test_project
+    project_manager_with_existing_project, test_project
 ):
-    """Test initializing GeoparserProject with an existing project."""
-    geoparserproject = geoparserproject_with_existing_project
+    """Test initializing ProjectManager with an existing project."""
+    project_manager = project_manager_with_existing_project
 
-    assert geoparserproject.project_id is not None
-    assert geoparserproject.project_id == test_project.id
-    assert geoparserproject.project_name == test_project.name
+    assert project_manager.project_id is not None
+    assert project_manager.project_id == test_project.id
+    assert project_manager.project_name == test_project.name
 
 
-def test_init_with_new_project(geoparserproject_with_new_project, test_db):
-    """Test initializing GeoparserProject with a new project name."""
-    geoparserproject = geoparserproject_with_new_project
+def test_init_with_new_project(project_manager_with_new_project, test_db):
+    """Test initializing ProjectManager with a new project name."""
+    project_manager = project_manager_with_new_project
 
-    assert geoparserproject.project_id is not None
-    assert geoparserproject.project_name == "new-test-project"
+    assert project_manager.project_id is not None
+    assert project_manager.project_name == "new-test-project"
 
     # Verify it was saved to the database
     db_project = ProjectRepository.get_by_name(test_db, "new-test-project")
@@ -91,40 +91,40 @@ def test_init_with_new_project(geoparserproject_with_new_project, test_db):
 
 
 def test_init_with_no_project_name(test_db):
-    """Test initializing GeoparserProject without providing a project name."""
+    """Test initializing ProjectManager without providing a project name."""
     # Mock get_db to return the test database
     with patch(
-        "geoparser.geoparserv2.geoparser_project.get_db", return_value=iter([test_db])
+        "geoparser.geoparserv2.project_manager.get_db", return_value=iter([test_db])
     ):
         with patch(
             "uuid.uuid4", return_value=uuid.UUID("12345678-1234-5678-1234-567812345678")
         ):
-            geoparserproject = GeoparserProject()
+            project_manager = ProjectManager()
 
             # Verify that a temporary project name was generated
-            assert geoparserproject.project_name.startswith("temp_project_")
+            assert project_manager.project_name.startswith("temp_project_")
             assert (
-                "12345678-1234-5678-1234-567812345678" in geoparserproject.project_name
+                "12345678-1234-5678-1234-567812345678" in project_manager.project_name
             )
 
             # Verify that a project was created in the database
             db_project = ProjectRepository.get_by_name(
-                test_db, geoparserproject.project_name
+                test_db, project_manager.project_name
             )
             assert db_project is not None
-            assert db_project.name == geoparserproject.project_name
+            assert db_project.name == project_manager.project_name
 
 
-def test_add_documents_single(test_db, geoparserproject_with_existing_project):
+def test_add_documents_single(test_db, project_manager_with_existing_project):
     """Test adding a single document."""
-    geoparserproject = geoparserproject_with_existing_project
+    project_manager = project_manager_with_existing_project
 
     # Patch the get_db function to return a fresh iterator each time
     with patch(
-        "geoparser.geoparserv2.geoparser_project.get_db", return_value=iter([test_db])
+        "geoparser.geoparserv2.project_manager.get_db", return_value=iter([test_db])
     ):
         # Add a single document
-        document_ids = geoparserproject.add_documents("This is a test document.")
+        document_ids = project_manager.add_documents("This is a test document.")
 
         # Verify the document was created
         assert len(document_ids) == 1
@@ -133,16 +133,16 @@ def test_add_documents_single(test_db, geoparserproject_with_existing_project):
         document = test_db.get(Document, document_ids[0])
         assert document is not None
         assert document.text == "This is a test document."
-        assert document.project_id == geoparserproject.project_id
+        assert document.project_id == project_manager.project_id
 
 
-def test_add_documents_multiple(test_db, geoparserproject_with_existing_project):
+def test_add_documents_multiple(test_db, project_manager_with_existing_project):
     """Test adding multiple documents."""
-    geoparserproject = geoparserproject_with_existing_project
+    project_manager = project_manager_with_existing_project
 
     # Patch the get_db function to return a fresh iterator each time
     with patch(
-        "geoparser.geoparserv2.geoparser_project.get_db", return_value=iter([test_db])
+        "geoparser.geoparserv2.project_manager.get_db", return_value=iter([test_db])
     ):
         # Add multiple documents
         texts = [
@@ -150,7 +150,7 @@ def test_add_documents_multiple(test_db, geoparserproject_with_existing_project)
             "This is the second test document.",
             "This is the third test document.",
         ]
-        document_ids = geoparserproject.add_documents(texts)
+        document_ids = project_manager.add_documents(texts)
 
         # Verify the documents were created
         assert len(document_ids) == 3
@@ -160,65 +160,65 @@ def test_add_documents_multiple(test_db, geoparserproject_with_existing_project)
             document = test_db.get(Document, doc_id)
             assert document is not None
             assert document.text == texts[i]
-            assert document.project_id == geoparserproject.project_id
+            assert document.project_id == project_manager.project_id
 
         # Verify we can retrieve all documents for the project
         documents = DocumentRepository.get_by_project(
-            test_db, geoparserproject.project_id
+            test_db, project_manager.project_id
         )
         assert len(documents) == 3
 
 
-def test_get_documents_all(test_db, geoparserproject_with_existing_project):
+def test_get_documents_all(test_db, project_manager_with_existing_project):
     """Test retrieving all documents for a project."""
-    geoparserproject = geoparserproject_with_existing_project
+    project_manager = project_manager_with_existing_project
 
     # Add multiple documents with one mock
     with patch(
-        "geoparser.geoparserv2.geoparser_project.get_db", return_value=iter([test_db])
+        "geoparser.geoparserv2.project_manager.get_db", return_value=iter([test_db])
     ):
         texts = [
             "This is the first test document.",
             "This is the second test document.",
         ]
-        geoparserproject.add_documents(texts)
+        project_manager.add_documents(texts)
 
     # Create a new mock for the get_documents call
     with patch(
-        "geoparser.geoparserv2.geoparser_project.get_db", return_value=iter([test_db])
+        "geoparser.geoparserv2.project_manager.get_db", return_value=iter([test_db])
     ):
         # Retrieve all documents
-        documents = geoparserproject.get_documents()
+        documents = project_manager.get_documents()
 
         # Verify we got the expected documents
         assert len(documents) == 2
         assert documents[0].text == texts[0]
         assert documents[1].text == texts[1]
-        assert all(doc.project_id == geoparserproject.project_id for doc in documents)
+        assert all(doc.project_id == project_manager.project_id for doc in documents)
 
 
-def test_get_documents_by_id(test_db, geoparserproject_with_existing_project):
+def test_get_documents_by_id(test_db, project_manager_with_existing_project):
     """Test retrieving specific documents by ID."""
-    geoparserproject = geoparserproject_with_existing_project
+    project_manager = project_manager_with_existing_project
 
     # Add documents with one mock
     with patch(
-        "geoparser.geoparserv2.geoparser_project.get_db", return_value=iter([test_db])
+        "geoparser.geoparserv2.project_manager.get_db", return_value=iter([test_db])
     ):
         texts = [
             "This is the first test document.",
             "This is the second test document.",
             "This is the third test document.",
         ]
-        document_ids = geoparserproject.add_documents(texts)
+        document_ids = project_manager.add_documents(texts)
 
     # Create a new mock for the get_documents call
     with patch(
-        "geoparser.geoparserv2.geoparser_project.get_db", return_value=iter([test_db])
+        "geoparser.geoparserv2.project_manager.get_db", return_value=iter([test_db])
     ):
         # Retrieve only specific documents by IDs
         selected_ids = [document_ids[0], document_ids[2]]  # First and third documents
-        documents = geoparserproject.get_documents(selected_ids)
+        documents = project_manager.get_documents(selected_ids)
 
         # Verify we got only the requested documents
         assert len(documents) == 2
@@ -228,16 +228,16 @@ def test_get_documents_by_id(test_db, geoparserproject_with_existing_project):
         assert documents[1].text == texts[2]
 
 
-def test_get_documents_empty_project(test_db, geoparserproject_with_existing_project):
+def test_get_documents_empty_project(test_db, project_manager_with_existing_project):
     """Test retrieving documents for an empty project."""
-    geoparserproject = geoparserproject_with_existing_project
+    project_manager = project_manager_with_existing_project
 
     # Patch the get_db function with a fresh iterator
     with patch(
-        "geoparser.geoparserv2.geoparser_project.get_db", return_value=iter([test_db])
+        "geoparser.geoparserv2.project_manager.get_db", return_value=iter([test_db])
     ):
         # Retrieve documents from empty project
-        documents = geoparserproject.get_documents()
+        documents = project_manager.get_documents()
 
         # Verify we got an empty list
         assert len(documents) == 0

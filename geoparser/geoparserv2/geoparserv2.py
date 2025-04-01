@@ -1,9 +1,9 @@
 from typing import List, Optional, Union
 
 from geoparser.db.models import Document
-from geoparser.geoparserv2.geoparser_project import GeoparserProject
 from geoparser.geoparserv2.module_interfaces import BaseModule
 from geoparser.geoparserv2.module_runner import ModuleRunner
+from geoparser.geoparserv2.project_manager import ProjectManager
 
 
 class GeoparserV2:
@@ -27,7 +27,7 @@ class GeoparserV2:
                           If None, creates a temporary project.
             modules: List of processing modules for text processing.
         """
-        self.project = GeoparserProject(project_name=project_name)
+        self.project_manager = ProjectManager(project_name=project_name)
         self.modules = modules or []
         self.module_runner = ModuleRunner()
 
@@ -45,11 +45,11 @@ class GeoparserV2:
             List of Document objects with processed toponyms and locations
         """
         # Add documents to the project and get their IDs
-        document_ids = self.project.add_documents(texts)
+        document_ids = self.project_manager.add_documents(texts)
 
         # Run each module on the project
         for module in self.modules:
-            self.module_runner.run_module(module, self.project.project_id)
+            self.module_runner.run_module(module, self.project_manager.project_id)
 
         # Retrieve the processed documents using the project
-        return self.project.get_documents(document_ids)
+        return self.project_manager.get_documents(document_ids)

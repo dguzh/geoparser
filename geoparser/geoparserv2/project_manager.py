@@ -8,7 +8,7 @@ from geoparser.db.db import get_db
 from geoparser.db.models import Document, DocumentCreate, Project, ProjectCreate
 
 
-class GeoparserProject:
+class ProjectManager:
     """
     Main entry point for the project-level geoparser orchestration.
 
@@ -18,7 +18,7 @@ class GeoparserProject:
 
     def __init__(self, project_name: Optional[str] = None):
         """
-        Initialize a GeoparserProject instance.
+        Initialize a ProjectManager instance.
 
         Args:
             project_name: Project name. If None, creates a temporary project with a UUID name.

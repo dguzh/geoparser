@@ -6,7 +6,7 @@ from sqlmodel.pool import StaticPool
 
 from geoparser.db.db import create_engine
 from geoparser.db.models import Project, ProjectCreate
-from geoparser.geoparserv2.geoparser_project import GeoparserProject
+from geoparser.geoparserv2.project_manager import ProjectManager
 
 
 @pytest.fixture(scope="function")
@@ -34,18 +34,18 @@ def test_project(test_db: Session):
 @pytest.fixture
 def mock_get_db(test_db):
     """Mock the get_db function to return our test database session."""
-    with patch("geoparser.geoparserv2.geoparser_project.get_db") as mock:
+    with patch("geoparser.geoparserv2.project_manager.get_db") as mock:
         mock.return_value = iter([test_db])
         yield mock
 
 
 @pytest.fixture
-def geoparserproject_with_existing_project(mock_get_db, test_project):
-    """Create a GeoparserProject instance with an existing project."""
-    return GeoparserProject(project_name=test_project.name)
+def project_manager_with_existing_project(mock_get_db, test_project):
+    """Create a ProjectManager instance with an existing project."""
+    return ProjectManager(project_name=test_project.name)
 
 
 @pytest.fixture
-def geoparserproject_with_new_project(mock_get_db):
-    """Create a GeoparserProject instance with a new project."""
-    return GeoparserProject(project_name="new-test-project")
+def project_manager_with_new_project(mock_get_db):
+    """Create a ProjectManager instance with a new project."""
+    return ProjectManager(project_name="new-test-project")
