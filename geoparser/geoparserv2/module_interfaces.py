@@ -1,8 +1,6 @@
 import typing as t
 from abc import ABC, abstractmethod
 
-from geoparser.db.models import RecognitionModule, ResolutionModule
-
 
 class BaseModule(ABC):
     """
