@@ -14,22 +14,23 @@ class ResolutionModuleRepository(BaseRepository[ResolutionModule]):
     model = ResolutionModule
 
     @classmethod
-    def get_by_config(cls, db: Session, config: dict) -> t.Optional[ResolutionModule]:
+    def get_by_name_and_config(
+        cls, db: Session, name: str, config: dict
+    ) -> t.Optional[ResolutionModule]:
         """
-        Get a resolution module by configuration.
+        Get a resolution module by name and configuration.
 
-        This method allows finding a specific module instance by its configuration,
-        which must include the module_name to uniquely identify the module type.
+        This method allows finding a specific module instance by its name and configuration.
 
         Args:
             db: Database session
-            config: Module configuration dict (must include module_name)
+            name: Name of the module
+            config: Module configuration dict
 
         Returns:
             ResolutionModule if found, None otherwise
         """
-        if "module_name" not in config:
-            raise ValueError("Config must include module_name")
-
-        statement = select(ResolutionModule).where(ResolutionModule.config == config)
+        statement = select(ResolutionModule).where(
+            (ResolutionModule.name == name) & (ResolutionModule.config == config)
+        )
         return db.exec(statement).first()

@@ -1,3 +1,5 @@
+import hashlib
+import json
 import typing as t
 from abc import ABC, abstractmethod
 
@@ -25,36 +27,19 @@ class BaseModule(ABC):
         if self.NAME is None:
             raise ValueError("Module must define a NAME class attribute")
 
+        self.name = self.NAME
         self.config = config or {}
 
-        # Include the module name in the config to ensure uniqueness
-        self.config["module_name"] = self.NAME
-
-    def get_config_string(self) -> str:
+    def __str__(self) -> str:
         """
-        Get a string representation of the module's configuration.
-
-        This can be used for logging and debugging purposes.
+        Get a string representation of the module.
 
         Returns:
-            String representation of the config
+            Short string with module name and config hash
         """
-        if not self.config or len(self.config) <= 1:  # Only module_name key
-            return "no config"
-
-        config_items = []
-        for key, value in self.config.items():
-            if key == "module_name":
-                continue  # Skip the module name in the string representation
-
-            if isinstance(value, str) and len(value) > 20:
-                # Truncate long string values
-                value_str = f"{value[:17]}..."
-            else:
-                value_str = str(value)
-            config_items.append(f"{key}={value_str}")
-
-        return ", ".join(config_items)
+        config_str = json.dumps(self.config, sort_keys=True)
+        config_hash = hashlib.md5(config_str.encode("utf-8")).hexdigest()[:8]
+        return f"<{self.name} (config={config_hash})>"
 
 
 class RecognitionModule(BaseModule):

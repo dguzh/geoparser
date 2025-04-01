@@ -14,22 +14,23 @@ class RecognitionModuleRepository(BaseRepository[RecognitionModule]):
     model = RecognitionModule
 
     @classmethod
-    def get_by_config(cls, db: Session, config: dict) -> t.Optional[RecognitionModule]:
+    def get_by_name_and_config(
+        cls, db: Session, name: str, config: dict
+    ) -> t.Optional[RecognitionModule]:
         """
-        Get a recognition module by configuration.
+        Get a recognition module by name and configuration.
 
-        This method allows finding a specific module instance by its configuration,
-        which must include the module_name to uniquely identify the module type.
+        This method allows finding a specific module instance by its name and configuration.
 
         Args:
             db: Database session
-            config: Module configuration dict (must include module_name)
+            name: Name of the module
+            config: Module configuration dict
 
         Returns:
             RecognitionModule if found, None otherwise
         """
-        if "module_name" not in config:
-            raise ValueError("Config must include module_name")
-
-        statement = select(RecognitionModule).where(RecognitionModule.config == config)
+        statement = select(RecognitionModule).where(
+            (RecognitionModule.name == name) & (RecognitionModule.config == config)
+        )
         return db.exec(statement).first()

@@ -11,9 +11,8 @@ if t.TYPE_CHECKING:
 class RecognitionModuleBase(SQLModel):
     """Base model for recognition module metadata."""
 
-    config: t.Optional[dict] = Field(
-        default=None, sa_type=JSON
-    )  # Configuration as JSON which includes module_name
+    name: str = Field(index=True)
+    config: t.Dict[str, t.Any] = Field(default_factory=dict, sa_type=JSON)
 
 
 class RecognitionModule(RecognitionModuleBase, table=True):
@@ -21,7 +20,7 @@ class RecognitionModule(RecognitionModuleBase, table=True):
     Stores metadata about recognition modules.
 
     This includes configuration information and other details about specific
-    recognition module instances. The module_name is stored in the config dictionary.
+    recognition module instances.
     """
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
@@ -49,4 +48,5 @@ class RecognitionModuleUpdate(SQLModel):
     """Model for updating a recognition module record."""
 
     id: uuid.UUID
-    config: t.Optional[dict] = None
+    name: t.Optional[str] = None
+    config: t.Optional[t.Dict[str, t.Any]] = None

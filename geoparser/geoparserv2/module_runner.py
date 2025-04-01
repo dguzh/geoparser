@@ -17,11 +17,9 @@ from geoparser.db.crud import (
 from geoparser.db.db import get_db
 from geoparser.db.models import (
     LocationCreate,
-    RecognitionModule,
     RecognitionModuleCreate,
     RecognitionObjectCreate,
     RecognitionSubjectCreate,
-    ResolutionModule,
     ResolutionModuleCreate,
     ResolutionObjectCreate,
     ResolutionSubjectCreate,
@@ -75,11 +73,11 @@ class ModuleRunner:
                 raise ValueError(f"Unsupported module type: {type(module)}")
 
             logging.info(
-                f"Module '{module.NAME}' completed successfully on project {project_id}"
+                f"Module {str(module)} completed successfully on project {project_id}"
             )
         except Exception as e:
             logging.error(
-                f"Error executing module '{module.NAME}' on project {project_id}: {str(e)}"
+                f"Error executing module {str(module)} on project {project_id}: {str(e)}"
             )
             raise
 
@@ -97,17 +95,17 @@ class ModuleRunner:
         """
         db = next(get_db())
 
-        db_module = RecognitionModuleRepository.get_by_config(db, module.config)
+        db_module = RecognitionModuleRepository.get_by_name_and_config(
+            db, module.name, module.config
+        )
         if db_module is None:
-            module_create = RecognitionModuleCreate(config=module.config)
+            module_create = RecognitionModuleCreate(
+                name=module.name, config=module.config
+            )
             db_module = RecognitionModuleRepository.create(db, module_create)
-            logging.info(
-                f"Created new recognition module '{module.NAME}' with config: {module.get_config_string()}"
-            )
+            logging.info(f"Created new recognition module {str(module)}")
         else:
-            logging.info(
-                f"Using existing recognition module '{module.NAME}' with config: {module.get_config_string()}"
-            )
+            logging.info(f"Using existing recognition module {str(module)}")
 
         return db_module.id
 
@@ -125,17 +123,17 @@ class ModuleRunner:
         """
         db = next(get_db())
 
-        db_module = ResolutionModuleRepository.get_by_config(db, module.config)
+        db_module = ResolutionModuleRepository.get_by_name_and_config(
+            db, module.name, module.config
+        )
         if db_module is None:
-            module_create = ResolutionModuleCreate(config=module.config)
+            module_create = ResolutionModuleCreate(
+                name=module.name, config=module.config
+            )
             db_module = ResolutionModuleRepository.create(db, module_create)
-            logging.info(
-                f"Created new resolution module '{module.NAME}' with config: {module.get_config_string()}"
-            )
+            logging.info(f"Created new resolution module {str(module)}")
         else:
-            logging.info(
-                f"Using existing resolution module '{module.NAME}' with config: {module.get_config_string()}"
-            )
+            logging.info(f"Using existing resolution module {str(module)}")
 
         return db_module.id
 
@@ -158,11 +156,11 @@ class ModuleRunner:
         )
 
         if not unprocessed_documents:
-            logging.info(f"No unprocessed documents found for module '{module.NAME}'")
+            logging.info(f"No unprocessed documents found for module {str(module)}")
             return
 
         logging.info(
-            f"Processing {len(unprocessed_documents)} documents with module '{module.NAME}' (config: {module.get_config_string()}) in project {project_id}."
+            f"Processing {len(unprocessed_documents)} documents with module {str(module)} in project {project_id}."
         )
 
         # Prepare input data for module
@@ -178,7 +176,7 @@ class ModuleRunner:
         )
 
         logging.info(
-            f"Module '{module.NAME}' (config: {module.get_config_string()}) completed processing {len(unprocessed_documents)} documents."
+            f"Module {str(module)} completed processing {len(unprocessed_documents)} documents."
         )
 
     def _get_unprocessed_documents(
@@ -290,11 +288,11 @@ class ModuleRunner:
         unprocessed_toponyms = self._get_unprocessed_toponyms(db, module_id, project_id)
 
         if not unprocessed_toponyms:
-            logging.info(f"No unprocessed toponyms found for module '{module.NAME}'")
+            logging.info(f"No unprocessed toponyms found for module {str(module)}")
             return
 
         logging.info(
-            f"Processing {len(unprocessed_toponyms)} toponyms with module '{module.NAME}' (config: {module.get_config_string()}) in project {project_id}."
+            f"Processing {len(unprocessed_toponyms)} toponyms with module {str(module)} in project {project_id}."
         )
 
         # Prepare input data for module
@@ -317,7 +315,7 @@ class ModuleRunner:
         )
 
         logging.info(
-            f"Module '{module.NAME}' (config: {module.get_config_string()}) completed processing {len(unprocessed_toponyms)} toponyms."
+            f"Module {str(module)} completed processing {len(unprocessed_toponyms)} toponyms."
         )
 
     def _get_unprocessed_toponyms(
