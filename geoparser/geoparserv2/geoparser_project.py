@@ -1,7 +1,7 @@
 import logging
 import typing as t
 import uuid
-from typing import List, Union
+from typing import List, Optional, Union
 
 from geoparser.db.crud import DocumentRepository, ProjectRepository
 from geoparser.db.db import get_db
@@ -16,15 +16,17 @@ class GeoparserProject:
     including document management and data retrieval.
     """
 
-    def __init__(self, project_name: str):
+    def __init__(self, project_name: Optional[str] = None):
         """
         Initialize a GeoparserProject instance.
 
         Args:
-            project_name: Project name. Will load or create a project with this name.
+            project_name: Project name. If None, creates a temporary project with a UUID name.
+                          Will load an existing project with this name or create a new one.
         """
-        self.project_id = self._initialize_project(project_name)
-        self.project_name = project_name
+        # Use a default project name if none provided
+        self.project_name = project_name or f"temp_project_{uuid.uuid4()}"
+        self.project_id = self._initialize_project(self.project_name)
 
     def _initialize_project(self, project_name: str) -> uuid.UUID:
         """

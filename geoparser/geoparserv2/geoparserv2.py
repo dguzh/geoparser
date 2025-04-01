@@ -1,4 +1,3 @@
-import uuid
 from typing import List, Optional, Union
 
 from geoparser.db.models import Document
@@ -28,9 +27,7 @@ class GeoparserV2:
                           If None, creates a temporary project.
             modules: List of processing modules for text processing.
         """
-        # Use a default project name if none provided
-        self.project_name = project_name or f"temp_project_{uuid.uuid4()}"
-        self.project = GeoparserProject(project_name=self.project_name)
+        self.project = GeoparserProject(project_name=project_name)
         self.modules = modules or []
         self.module_runner = ModuleRunner()
 
