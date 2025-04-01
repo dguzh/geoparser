@@ -66,12 +66,13 @@ def test_document(test_db: Session, test_project: Project):
 def test_recognition_module(test_db: Session):
     """Create a test recognition module."""
     config = {
-        "module_name": "test-recognition-module",
         "model": "test-model",
         "threshold": 0.75,
     }
-    module_create = RecognitionModuleCreate(config=config)
-    module = RecognitionModule(config=module_create.config)
+    module_create = RecognitionModuleCreate(
+        name="test-recognition-module", config=config
+    )
+    module = RecognitionModule(name=module_create.name, config=module_create.config)
     test_db.add(module)
     test_db.commit()
     test_db.refresh(module)
@@ -82,12 +83,11 @@ def test_recognition_module(test_db: Session):
 def test_resolution_module(test_db: Session):
     """Create a test resolution module."""
     config = {
-        "module_name": "test-resolution-module",
         "gazetteer": "test-gazetteer",
         "max_results": 5,
     }
-    module_create = ResolutionModuleCreate(config=config)
-    module = ResolutionModule(config=module_create.config)
+    module_create = ResolutionModuleCreate(name="test-resolution-module", config=config)
+    module = ResolutionModule(name=module_create.name, config=module_create.config)
     test_db.add(module)
     test_db.commit()
     test_db.refresh(module)

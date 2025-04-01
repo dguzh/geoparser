@@ -64,9 +64,11 @@ def test_get_by_toponym(
 ):
     """Test getting recognition objects by toponym ID."""
     # Create another recognition module
-    config = {"module_name": "another-recognition-module", "model": "another-model"}
-    module_create = RecognitionModuleCreate(config=config)
-    module = RecognitionModule(config=module_create.config)
+    config = {"model": "another-model"}
+    module_create = RecognitionModuleCreate(
+        name="another-recognition-module", config=config
+    )
+    module = RecognitionModule(name=module_create.name, config=module_create.config)
     test_db.add(module)
     test_db.commit()
     test_db.refresh(module)
@@ -144,9 +146,9 @@ def test_get_all(test_db: Session, test_recognition_object: RecognitionObject):
 def test_update(test_db: Session, test_recognition_object: RecognitionObject):
     """Test updating a recognition object."""
     # Create a new module
-    config = {"module_name": "updated-module", "model": "updated-model"}
-    module_create = RecognitionModuleCreate(config=config)
-    module = RecognitionModule(config=module_create.config)
+    config = {"model": "updated-model"}
+    module_create = RecognitionModuleCreate(name="updated-module", config=config)
+    module = RecognitionModule(name=module_create.name, config=module_create.config)
     test_db.add(module)
     test_db.commit()
     test_db.refresh(module)
