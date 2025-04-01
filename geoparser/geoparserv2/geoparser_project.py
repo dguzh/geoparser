@@ -29,8 +29,8 @@ class GeoparserProject:
         self.project_id = self._initialize_project(project_name)
         self.project_name = project_name
 
-        # Create module runner for this project
-        self.module_runner = ModuleRunner(self.project_id)
+        # Create module runner
+        self.module_runner = ModuleRunner()
 
     def _initialize_project(self, project_name: str) -> uuid.UUID:
         """
@@ -120,5 +120,5 @@ class GeoparserProject:
         Args:
             module: The module instance to run.
         """
-        # Delegate to module runner
-        self.module_runner.run_module(module)
+        # Delegate to module runner with project_id
+        self.module_runner.run_module(module, self.project_id)

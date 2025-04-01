@@ -45,44 +45,41 @@ class ModuleRunner:
     - Tracking module execution state for processed documents and toponyms
     """
 
-    def __init__(self, project_id: uuid.UUID):
+    def __init__(self):
         """
-        Initialize a ModuleRunner for a specific project.
+        Initialize a ModuleRunner.
+        """
 
-        Args:
-            project_id: UUID of the project this runner is associated with
+    def run_module(self, module: BaseModule, project_id: uuid.UUID) -> None:
         """
-        self.project_id = project_id
-
-    def run_module(self, module: BaseModule) -> None:
-        """
-        Run a module on the project.
+        Run a module on a specific project.
 
         This method handles the execution of the module, including database
         interactions and error handling.
 
         Args:
             module: The module to run
+            project_id: UUID of the project to run the module on
         """
         try:
             # Execute based on module type
             if isinstance(module, RecognitionModule):
                 # Initialize and execute recognition module
                 module_id = self._initialize_recognition_module(module)
-                self._execute_recognition_module(module, module_id)
+                self._execute_recognition_module(module, module_id, project_id)
             elif isinstance(module, ResolutionModule):
                 # Initialize and execute resolution module
                 module_id = self._initialize_resolution_module(module)
-                self._execute_resolution_module(module, module_id)
+                self._execute_resolution_module(module, module_id, project_id)
             else:
                 raise ValueError(f"Unsupported module type: {type(module)}")
 
             logging.info(
-                f"Module '{module.NAME}' completed successfully on project {self.project_id}"
+                f"Module '{module.NAME}' completed successfully on project {project_id}"
             )
         except Exception as e:
             logging.error(
-                f"Error executing module '{module.NAME}' on project {self.project_id}: {str(e)}"
+                f"Error executing module '{module.NAME}' on project {project_id}: {str(e)}"
             )
             raise
 
@@ -143,7 +140,7 @@ class ModuleRunner:
         return db_module.id
 
     def _execute_recognition_module(
-        self, module: RecognitionModule, module_id: uuid.UUID
+        self, module: RecognitionModule, module_id: uuid.UUID, project_id: uuid.UUID
     ) -> None:
         """
         Execute a recognition module on unprocessed documents.
@@ -151,18 +148,21 @@ class ModuleRunner:
         Args:
             module: Recognition module to execute
             module_id: Database ID of the module
+            project_id: UUID of the project to run the module on
         """
         db = next(get_db())
 
         # Get unprocessed documents
-        unprocessed_documents = self._get_unprocessed_documents(db, module_id)
+        unprocessed_documents = self._get_unprocessed_documents(
+            db, module_id, project_id
+        )
 
         if not unprocessed_documents:
             logging.info(f"No unprocessed documents found for module '{module.NAME}'")
             return
 
         logging.info(
-            f"Processing {len(unprocessed_documents)} documents with module '{module.NAME}' (config: {module.get_config_string()}) in project {self.project_id}."
+            f"Processing {len(unprocessed_documents)} documents with module '{module.NAME}' (config: {module.get_config_string()}) in project {project_id}."
         )
 
         # Prepare input data for module
@@ -181,19 +181,22 @@ class ModuleRunner:
             f"Module '{module.NAME}' (config: {module.get_config_string()}) completed processing {len(unprocessed_documents)} documents."
         )
 
-    def _get_unprocessed_documents(self, db: Session, module_id: uuid.UUID):
+    def _get_unprocessed_documents(
+        self, db: Session, module_id: uuid.UUID, project_id: uuid.UUID
+    ):
         """
         Get documents that haven't been processed by a specific module.
 
         Args:
             db: Database session
             module_id: ID of the module to check against
+            project_id: UUID of the project to check against
 
         Returns:
             List of unprocessed documents
         """
         return RecognitionSubjectRepository.get_unprocessed_documents(
-            db, self.project_id, module_id
+            db, project_id, module_id
         )
 
     def _process_toponym_predictions(
@@ -271,7 +274,7 @@ class ModuleRunner:
         RecognitionSubjectRepository.create(db, subject_create)
 
     def _execute_resolution_module(
-        self, module: ResolutionModule, module_id: uuid.UUID
+        self, module: ResolutionModule, module_id: uuid.UUID, project_id: uuid.UUID
     ) -> None:
         """
         Execute a resolution module on unprocessed toponyms.
@@ -279,18 +282,19 @@ class ModuleRunner:
         Args:
             module: Resolution module to execute
             module_id: Database ID of the module
+            project_id: UUID of the project to run the module on
         """
         db = next(get_db())
 
         # Get unprocessed toponyms
-        unprocessed_toponyms = self._get_unprocessed_toponyms(db, module_id)
+        unprocessed_toponyms = self._get_unprocessed_toponyms(db, module_id, project_id)
 
         if not unprocessed_toponyms:
             logging.info(f"No unprocessed toponyms found for module '{module.NAME}'")
             return
 
         logging.info(
-            f"Processing {len(unprocessed_toponyms)} toponyms with module '{module.NAME}' (config: {module.get_config_string()}) in project {self.project_id}."
+            f"Processing {len(unprocessed_toponyms)} toponyms with module '{module.NAME}' (config: {module.get_config_string()}) in project {project_id}."
         )
 
         # Prepare input data for module
@@ -316,19 +320,22 @@ class ModuleRunner:
             f"Module '{module.NAME}' (config: {module.get_config_string()}) completed processing {len(unprocessed_toponyms)} toponyms."
         )
 
-    def _get_unprocessed_toponyms(self, db: Session, module_id: uuid.UUID):
+    def _get_unprocessed_toponyms(
+        self, db: Session, module_id: uuid.UUID, project_id: uuid.UUID
+    ):
         """
         Get toponyms that haven't been processed by a specific resolution module.
 
         Args:
             db: Database session
             module_id: ID of the module to check against
+            project_id: UUID of the project to check against
 
         Returns:
             List of unprocessed toponyms
         """
         return ResolutionSubjectRepository.get_unprocessed_toponyms(
-            db, self.project_id, module_id
+            db, project_id, module_id
         )
 
     def _process_location_predictions(
