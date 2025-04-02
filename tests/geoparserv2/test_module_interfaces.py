@@ -68,7 +68,7 @@ def test_recognition_module_abstract():
         NAME = "invalid_recognition"
 
     # Should raise TypeError when instantiated due to abstract methods
-    with pytest.raises(TypeError, match="abstract method 'predict_toponyms'"):
+    with pytest.raises(TypeError, match="predict_toponyms"):
         InvalidRecognitionModule()
 
 
@@ -102,7 +102,7 @@ def test_resolution_module_abstract():
         NAME = "invalid_resolution"
 
     # Should raise TypeError when instantiated due to abstract methods
-    with pytest.raises(TypeError, match="abstract method 'predict_locations'"):
+    with pytest.raises(TypeError, match="predict_locations"):
         InvalidResolutionModule()
 
 
