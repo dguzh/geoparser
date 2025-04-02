@@ -1,12 +1,22 @@
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 
 import pytest
+import uuid
 from sqlmodel import Session, SQLModel
 from sqlmodel.pool import StaticPool
 
 from geoparser.db.db import create_engine
-from geoparser.db.models import Project, ProjectCreate
+from geoparser.db.models import (
+    Project, 
+    ProjectCreate, 
+    Document, 
+    DocumentCreate,
+    Toponym, 
+    ToponymCreate
+)
 from geoparser.geoparserv2.geoparserv2 import GeoparserV2
+from geoparser.geoparserv2.module_interfaces import RecognitionModule, ResolutionModule
+from geoparser.geoparserv2.module_runner import ModuleRunner
 
 
 @pytest.fixture(scope="function")
@@ -49,3 +59,58 @@ def geoparser_with_existing_project(mock_get_db, test_project):
 def geoparser_with_new_project(mock_get_db):
     """Create a GeoparserV2 instance with a new project."""
     return GeoparserV2(project_name="new-test-project")
+
+
+@pytest.fixture
+def test_document(test_db, test_project):
+    """Create a test document in the test project."""
+    document_create = DocumentCreate(
+        text="This is a test document about London and Paris.", 
+        project_id=test_project.id
+    )
+    document = Document.model_validate(document_create)
+    test_db.add(document)
+    test_db.commit()
+    test_db.refresh(document)
+    return document
+
+
+@pytest.fixture
+def test_toponym(test_db, test_document):
+    """Create a test toponym in the test document."""
+    toponym_create = ToponymCreate(
+        start=27, 
+        end=33, 
+        document_id=test_document.id
+    )
+    toponym = Toponym.model_validate(toponym_create)
+    test_db.add(toponym)
+    test_db.commit()
+    test_db.refresh(toponym)
+    return toponym
+
+
+@pytest.fixture
+def mock_recognition_module():
+    """Create a mock recognition module for testing."""
+    module = MagicMock(spec=RecognitionModule)
+    module.name = "mock_recognition"
+    module.config = {"param": "value"}
+    module.predict_toponyms.return_value = [[(27, 33), (39, 44)]]
+    return module
+
+
+@pytest.fixture
+def mock_resolution_module():
+    """Create a mock resolution module for testing."""
+    module = MagicMock(spec=ResolutionModule)
+    module.name = "mock_resolution"
+    module.config = {"param": "value"}
+    module.predict_locations.return_value = [[("loc1", 0.8), ("loc2", 0.6)]]
+    return module
+
+
+@pytest.fixture
+def module_runner():
+    """Create a ModuleRunner instance for testing."""
+    return ModuleRunner()
