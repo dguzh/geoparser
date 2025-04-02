@@ -1,18 +1,17 @@
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
-import uuid
 from sqlmodel import Session, SQLModel
 from sqlmodel.pool import StaticPool
 
 from geoparser.db.db import create_engine
 from geoparser.db.models import (
-    Project, 
-    ProjectCreate, 
-    Document, 
+    Document,
     DocumentCreate,
-    Toponym, 
-    ToponymCreate
+    Project,
+    ProjectCreate,
+    Toponym,
+    ToponymCreate,
 )
 from geoparser.geoparserv2.geoparserv2 import GeoparserV2
 from geoparser.geoparserv2.module_interfaces import RecognitionModule, ResolutionModule
@@ -65,8 +64,8 @@ def geoparser_with_new_project(mock_get_db):
 def test_document(test_db, test_project):
     """Create a test document in the test project."""
     document_create = DocumentCreate(
-        text="This is a test document about London and Paris.", 
-        project_id=test_project.id
+        text="This is a test document about London and Paris.",
+        project_id=test_project.id,
     )
     document = Document.model_validate(document_create)
     test_db.add(document)
@@ -78,11 +77,7 @@ def test_document(test_db, test_project):
 @pytest.fixture
 def test_toponym(test_db, test_document):
     """Create a test toponym in the test document."""
-    toponym_create = ToponymCreate(
-        start=27, 
-        end=33, 
-        document_id=test_document.id
-    )
+    toponym_create = ToponymCreate(start=27, end=33, document_id=test_document.id)
     toponym = Toponym.model_validate(toponym_create)
     test_db.add(toponym)
     test_db.commit()
