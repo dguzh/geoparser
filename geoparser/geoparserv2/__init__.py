@@ -4,4 +4,3 @@ from geoparser.geoparserv2.module_interfaces import (
     RecognitionModule,
     ResolutionModule,
 )
-from geoparser.geoparserv2.project_manager import ProjectManager
