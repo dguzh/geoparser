@@ -237,6 +237,46 @@ def test_get_documents_empty_project(test_db, geoparser_with_existing_project):
         assert documents == []
 
 
+def test_run_module(geoparser_with_existing_project):
+    """Test running a single module."""
+    geoparser = geoparser_with_existing_project
+
+    # Create a mock module
+    mock_module = MagicMock(spec=BaseModule)
+
+    # Patch the module_runner.run_module method
+    with patch.object(geoparser.module_runner, "run_module") as mock_run:
+        # Run the module
+        geoparser.run_module(mock_module)
+
+        # Verify module_runner.run_module was called correctly
+        mock_run.assert_called_once_with(mock_module, geoparser.project_id)
+
+
+def test_run_pipeline(geoparser_with_existing_project):
+    """Test running the entire pipeline."""
+    geoparser = geoparser_with_existing_project
+
+    # Create mock modules for the pipeline
+    mock_module1 = MagicMock(spec=BaseModule)
+    mock_module2 = MagicMock(spec=BaseModule)
+    mock_module3 = MagicMock(spec=BaseModule)
+
+    # Add modules to the pipeline
+    geoparser.pipeline = [mock_module1, mock_module2, mock_module3]
+
+    # Patch the run_module method
+    with patch.object(geoparser, "run_module") as mock_run:
+        # Run the pipeline
+        geoparser.run_pipeline()
+
+        # Verify run_module was called for each module in the pipeline
+        assert mock_run.call_count == 3
+        mock_run.assert_any_call(mock_module1)
+        mock_run.assert_any_call(mock_module2)
+        mock_run.assert_any_call(mock_module3)
+
+
 def test_parse_with_no_modules(test_db, geoparser_with_existing_project):
     """Test parsing with no modules configured."""
     geoparser = geoparser_with_existing_project
@@ -244,36 +284,38 @@ def test_parse_with_no_modules(test_db, geoparser_with_existing_project):
     # Patch the add_documents and get_documents methods
     with patch.object(geoparser, "add_documents") as mock_add:
         with patch.object(geoparser, "get_documents") as mock_get:
-            # Set up mocks
-            document_ids = [uuid.uuid4(), uuid.uuid4()]
-            mock_documents = [MagicMock(), MagicMock()]
-            mock_add.return_value = document_ids
-            mock_get.return_value = mock_documents
+            with patch.object(geoparser, "run_pipeline") as mock_run_pipeline:
+                # Set up mocks
+                document_ids = [uuid.uuid4(), uuid.uuid4()]
+                mock_documents = [MagicMock(), MagicMock()]
+                mock_add.return_value = document_ids
+                mock_get.return_value = mock_documents
 
-            # Call parse
-            text = "This is a test document."
-            result = geoparser.parse(text)
+                # Call parse
+                text = "This is a test document."
+                result = geoparser.parse(text)
 
-            # Verify
-            mock_add.assert_called_once_with(text)
-            mock_get.assert_called_once_with(document_ids)
-            assert result == mock_documents
+                # Verify
+                mock_add.assert_called_once_with(text)
+                mock_run_pipeline.assert_called_once()
+                mock_get.assert_called_once_with(document_ids)
+                assert result == mock_documents
 
 
-def test_parse_with_modules(test_db, geoparser_with_existing_project):
-    """Test parsing with modules configured."""
+def test_parse_with_pipeline(test_db, geoparser_with_existing_project):
+    """Test parsing with modules in the pipeline."""
     # Create mock modules
     mock_module1 = MagicMock(spec=BaseModule)
     mock_module2 = MagicMock(spec=BaseModule)
 
-    # Set up the geoparser with modules
+    # Set up the geoparser with pipeline
     geoparser = geoparser_with_existing_project
-    geoparser.modules = [mock_module1, mock_module2]
+    geoparser.pipeline = [mock_module1, mock_module2]
 
     # Patch methods
     with patch.object(geoparser, "add_documents") as mock_add:
         with patch.object(geoparser, "get_documents") as mock_get:
-            with patch.object(geoparser.module_runner, "run_module") as mock_run:
+            with patch.object(geoparser, "run_pipeline") as mock_run_pipeline:
                 # Set up mocks
                 document_ids = [uuid.uuid4()]
                 mock_documents = [MagicMock()]
@@ -286,10 +328,6 @@ def test_parse_with_modules(test_db, geoparser_with_existing_project):
 
                 # Verify
                 mock_add.assert_called_once_with(text)
+                mock_run_pipeline.assert_called_once()
                 mock_get.assert_called_once_with(document_ids)
                 assert result == mock_documents
-
-                # Verify modules were run
-                assert mock_run.call_count == 2
-                mock_run.assert_any_call(mock_module1, geoparser.project_id)
-                mock_run.assert_any_call(mock_module2, geoparser.project_id)

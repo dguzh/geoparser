@@ -21,7 +21,7 @@ class GeoparserV2:
     def __init__(
         self,
         project_name: Optional[str] = None,
-        modules: Optional[List[BaseModule]] = None,
+        pipeline: Optional[List[BaseModule]] = None,
     ):
         """
         Initialize a GeoparserV2 instance.
@@ -29,14 +29,14 @@ class GeoparserV2:
         Args:
             project_name: Optional name for persistent project storage.
                           If None, creates a temporary project.
-            modules: List of processing modules for text processing.
+            pipeline: List of processing modules for text processing pipeline.
         """
         # Project management
         self.project_name = project_name or f"temp_project_{uuid.uuid4()}"
         self.project_id = self._initialize_project(self.project_name)
 
         # Module management
-        self.modules = modules or []
+        self.pipeline = pipeline or []
         self.module_runner = ModuleRunner()
 
     def _initialize_project(self, project_name: str) -> uuid.UUID:
@@ -117,12 +117,30 @@ class GeoparserV2:
 
         return documents
 
+    def run_module(self, module: BaseModule) -> None:
+        """
+        Run a single processing module on the project's documents.
+
+        Args:
+            module: The processing module to run.
+        """
+        self.module_runner.run_module(module, self.project_id)
+
+    def run_pipeline(self) -> None:
+        """
+        Run all modules in the pipeline on the project's documents.
+
+        This executes each module in the pipeline in sequence.
+        """
+        for module in self.pipeline:
+            self.run_module(module)
+
     def parse(self, texts: Union[str, List[str]]) -> List[Document]:
         """
-        Parse one or more texts with the configured modules.
+        Parse one or more texts with the configured pipeline.
 
         This method adds documents to the project, processes them with
-        all configured modules, and returns the processed documents.
+        all configured modules in the pipeline, and returns the processed documents.
 
         Args:
             texts: Either a single document text or a list of texts
@@ -133,9 +151,8 @@ class GeoparserV2:
         # Add documents to the project and get their IDs
         document_ids = self.add_documents(texts)
 
-        # Run each module on the project
-        for module in self.modules:
-            self.module_runner.run_module(module, self.project_id)
+        # Run the pipeline on the project
+        self.run_pipeline()
 
         # Retrieve the processed documents using the project
         return self.get_documents(document_ids)
