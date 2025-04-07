@@ -131,11 +131,31 @@ def annotate(
     try:
         doc = get_document(session, doc_index)
     except DocumentNotFoundException:
-        # If the document index is out of range, redirect to the first document
-        return RedirectResponse(
-            url=app.url_path_for("annotate", session_id=session.id, doc_index=0),
-            status_code=status.HTTP_302_FOUND,
-        )
+        if doc_index > 0:
+            # If the document index is out of range, redirect to the first document
+            return RedirectResponse(
+                url=app.url_path_for("annotate", session_id=session.id, doc_index=0),
+                status_code=status.HTTP_302_FOUND,
+            )
+        else:
+            # If there is no document to begin with, render without documents
+            return templates.TemplateResponse(
+                request=request,
+                name="html/annotate.html",
+                context={
+                    "doc": None,
+                    "doc_index": None,
+                    "pre_annotated_text": None,
+                    "total_docs": 0,
+                    "gazetteer": geoparser.gazetteer,
+                    "documents": [],
+                    "total_toponyms": 0,
+                    "annotated_toponyms": 0,
+                    "session_id": session.id,
+                    "spacy_models": spacy_models,
+                },
+            )
+
     # Prepare pre-annotated text
     pre_annotated_text = DocumentRepository.get_pre_annotated_text(db, doc.id)
     # Prepare documents list with progress
