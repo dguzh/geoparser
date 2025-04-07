@@ -42,6 +42,33 @@ def test_get(test_db: Session, test_toponym: Toponym):
     assert toponym is None
 
 
+def test_get_by_document_and_span(
+    test_db: Session, test_document: Document, test_toponym: Toponym
+):
+    """Test getting a toponym by document ID and span."""
+    # Test with valid document ID and span
+    toponym = ToponymRepository.get_by_document_and_span(
+        test_db, test_document.id, test_toponym.start, test_toponym.end
+    )
+    assert toponym is not None
+    assert toponym.id == test_toponym.id
+    assert toponym.start == test_toponym.start
+    assert toponym.end == test_toponym.end
+
+    # Test with valid document ID but invalid span
+    toponym = ToponymRepository.get_by_document_and_span(
+        test_db, test_document.id, 999, 1000
+    )
+    assert toponym is None
+
+    # Test with invalid document ID
+    invalid_id = uuid.uuid4()
+    toponym = ToponymRepository.get_by_document_and_span(
+        test_db, invalid_id, test_toponym.start, test_toponym.end
+    )
+    assert toponym is None
+
+
 def test_get_by_document(
     test_db: Session, test_document: Document, test_toponym: Toponym
 ):

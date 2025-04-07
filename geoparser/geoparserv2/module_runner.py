@@ -243,9 +243,18 @@ class ModuleRunner:
         Returns:
             ID of the created toponym
         """
-        # Create the toponym
-        toponym_create = ToponymCreate(start=start, end=end, document_id=document_id)
-        toponym = ToponymRepository.create(db, toponym_create)
+        # Check if a toponym with the same span already exists for this document
+        toponym = ToponymRepository.get_by_document_and_span(
+            db, document_id, start, end
+        )
+
+        # If not, create the toponym
+        if toponym is None:
+            # Create the toponym
+            toponym_create = ToponymCreate(
+                start=start, end=end, document_id=document_id
+            )
+            toponym = ToponymRepository.create(db, toponym_create)
 
         # Create the recognition object (link between toponym and module)
         recognition_object_create = RecognitionObjectCreate(

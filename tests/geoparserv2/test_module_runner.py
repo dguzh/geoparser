@@ -348,24 +348,53 @@ def test_create_toponym_record(test_db, test_document):
     runner = ModuleRunner()
     module_id = uuid.uuid4()
 
-    # Mock repository calls
-    with patch.object(ToponymRepository, "create") as mock_create_toponym:
-        with patch.object(RecognitionObjectRepository, "create") as mock_create_object:
-            # Set up mocks
-            toponym_id = uuid.uuid4()
-            toponym = MagicMock()
-            toponym.id = toponym_id
-            mock_create_toponym.return_value = toponym
+    # Test case 1: Toponym does not exist yet
+    with patch.object(
+        ToponymRepository, "get_by_document_and_span", return_value=None
+    ) as mock_get:
+        with patch.object(ToponymRepository, "create") as mock_create_toponym:
+            with patch.object(
+                RecognitionObjectRepository, "create"
+            ) as mock_create_object:
+                # Set up mocks
+                toponym_id = uuid.uuid4()
+                toponym = MagicMock()
+                toponym.id = toponym_id
+                mock_create_toponym.return_value = toponym
 
-            # Call _create_toponym_record
-            result = runner._create_toponym_record(
-                test_db, test_document.id, 10, 15, module_id
-            )
+                # Call _create_toponym_record
+                result = runner._create_toponym_record(
+                    test_db, test_document.id, 10, 15, module_id
+                )
 
-            # Verify method calls and result
-            mock_create_toponym.assert_called_once()
-            mock_create_object.assert_called_once()
-            assert result == toponym_id
+                # Verify method calls and result
+                mock_get.assert_called_once_with(test_db, test_document.id, 10, 15)
+                mock_create_toponym.assert_called_once()
+                mock_create_object.assert_called_once()
+                assert result == toponym_id
+
+    # Test case 2: Toponym already exists
+    with patch.object(ToponymRepository, "get_by_document_and_span") as mock_get:
+        with patch.object(ToponymRepository, "create") as mock_create_toponym:
+            with patch.object(
+                RecognitionObjectRepository, "create"
+            ) as mock_create_object:
+                # Set up mocks
+                existing_toponym_id = uuid.uuid4()
+                existing_toponym = MagicMock()
+                existing_toponym.id = existing_toponym_id
+                mock_get.return_value = existing_toponym
+
+                # Call _create_toponym_record
+                result = runner._create_toponym_record(
+                    test_db, test_document.id, 10, 15, module_id
+                )
+
+                # Verify method calls and result
+                mock_get.assert_called_once_with(test_db, test_document.id, 10, 15)
+                mock_create_toponym.assert_not_called()  # Should not create new toponym
+                mock_create_object.assert_called_once()
+                assert result == existing_toponym_id
 
 
 def test_process_location_predictions(test_db, mock_resolution_module):
