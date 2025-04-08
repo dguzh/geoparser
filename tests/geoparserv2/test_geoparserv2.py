@@ -244,12 +244,12 @@ def test_run_module(geoparser_with_existing_project):
     # Create a mock module
     mock_module = MagicMock(spec=BaseModule)
 
-    # Patch the module_runner.run_module method
-    with patch.object(geoparser.module_runner, "run_module") as mock_run:
+    # Mock private methods
+    with patch.object(geoparser.orchestrator, "run_module") as mock_run:
         # Run the module
         geoparser.run_module(mock_module)
 
-        # Verify module_runner.run_module was called correctly
+        # Verify orchestrator.run_module was called correctly
         mock_run.assert_called_once_with(mock_module, geoparser.project_id)
 
 

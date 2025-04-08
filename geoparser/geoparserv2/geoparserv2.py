@@ -6,8 +6,8 @@ from typing import List, Optional, Union
 from geoparser.db.crud import DocumentRepository, ProjectRepository
 from geoparser.db.db import get_db
 from geoparser.db.models import Document, DocumentCreate, Project, ProjectCreate
-from geoparser.geoparserv2.module_runner import ModuleRunner
 from geoparser.geoparserv2.modules.interfaces import BaseModule
+from geoparser.geoparserv2.orchestrator import Orchestrator
 
 
 class GeoparserV2:
@@ -37,7 +37,7 @@ class GeoparserV2:
 
         # Module management
         self.pipeline = pipeline or []
-        self.module_runner = ModuleRunner()
+        self.orchestrator = Orchestrator()
 
     def _initialize_project(self, project_name: str) -> uuid.UUID:
         """
@@ -124,7 +124,7 @@ class GeoparserV2:
         Args:
             module: The processing module to run.
         """
-        self.module_runner.run_module(module, self.project_id)
+        self.orchestrator.run_module(module, self.project_id)
 
     def run_pipeline(self) -> None:
         """

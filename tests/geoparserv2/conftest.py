@@ -14,8 +14,8 @@ from geoparser.db.models import (
     ToponymCreate,
 )
 from geoparser.geoparserv2.geoparserv2 import GeoparserV2
-from geoparser.geoparserv2.module_runner import ModuleRunner
 from geoparser.geoparserv2.modules.interfaces import RecognitionModule, ResolutionModule
+from geoparser.geoparserv2.orchestrator import Orchestrator
 
 
 @pytest.fixture(scope="function")
@@ -106,6 +106,6 @@ def mock_resolution_module():
 
 
 @pytest.fixture
-def module_runner():
-    """Create a ModuleRunner instance for testing."""
-    return ModuleRunner()
+def orchestrator():
+    """Create an Orchestrator instance for testing."""
+    return Orchestrator()

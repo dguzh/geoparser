@@ -32,7 +32,7 @@ from geoparser.geoparserv2.modules.interfaces import (
 )
 
 
-class ModuleRunner:
+class Orchestrator:
     """
     Manages the execution and database interactions for geoparser modules.
 
@@ -45,7 +45,7 @@ class ModuleRunner:
 
     def __init__(self):
         """
-        Initialize a ModuleRunner.
+        Initialize an Orchestrator.
         """
 
     def run_module(self, module: BaseModule, project_id: uuid.UUID) -> None:
