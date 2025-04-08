@@ -122,8 +122,8 @@ def test_resolution_module_implementation():
 
     # Should produce expected output
     toponyms = [
-        {"start": 0, "end": 5, "document_text": "Test document 1"},
-        {"start": 10, "end": 15, "document_text": "Test document 2"},
+        {"start": 0, "end": 5, "document_text": "Test document 1", "text": "Test"},
+        {"start": 10, "end": 15, "document_text": "Test document 2", "text": "docum"},
     ]
     result = module.predict_locations(toponyms)
     assert len(result) == 2

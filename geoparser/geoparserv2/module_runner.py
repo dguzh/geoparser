@@ -309,6 +309,7 @@ class ModuleRunner:
             {
                 "start": toponym.start,
                 "end": toponym.end,
+                "text": toponym.text,
                 "document_text": toponym.document.text,
             }
             for toponym in unprocessed_toponyms

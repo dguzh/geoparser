@@ -283,7 +283,14 @@ def test_execute_resolution_module(
                 mock_get_tops.assert_called_once_with(
                     test_db, module_id, test_project.id
                 )
+
+                # Verify that predict_locations was called with data that includes the text field
                 mock_resolution_module.predict_locations.assert_called_once()
+                call_args = mock_resolution_module.predict_locations.call_args[0][0]
+                assert len(call_args) == 1
+                assert "text" in call_args[0]
+                assert call_args[0]["text"] == test_toponym.text
+
                 mock_process.assert_called_once_with(
                     test_db,
                     [test_toponym.id],

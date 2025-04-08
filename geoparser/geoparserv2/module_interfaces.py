@@ -113,6 +113,7 @@ class ResolutionModule(BaseModule):
             toponym_data: List of dictionaries containing toponym information:
                           - start: start position in document
                           - end: end position in document
+                          - text: the actual toponym text
                           - document_text: full document text
 
         Returns:
