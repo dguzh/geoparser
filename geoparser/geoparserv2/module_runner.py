@@ -25,7 +25,7 @@ from geoparser.db.models import (
     ResolutionSubjectCreate,
     ToponymCreate,
 )
-from geoparser.geoparserv2.module_interfaces import (
+from geoparser.geoparserv2.modules.interfaces import (
     BaseModule,
     RecognitionModule,
     ResolutionModule,

@@ -14,8 +14,8 @@ from geoparser.db.models import (
     ToponymCreate,
 )
 from geoparser.geoparserv2.geoparserv2 import GeoparserV2
-from geoparser.geoparserv2.module_interfaces import RecognitionModule, ResolutionModule
 from geoparser.geoparserv2.module_runner import ModuleRunner
+from geoparser.geoparserv2.modules.interfaces import RecognitionModule, ResolutionModule
 
 
 @pytest.fixture(scope="function")
