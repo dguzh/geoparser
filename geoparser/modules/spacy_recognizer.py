@@ -35,8 +35,21 @@ class SpacyRecognitionModule(AbstractRecognitionModule):
         self.model_name = model_name
         self.entity_types = entity_types
 
+        # Initialize spaCy model with optimized pipeline
+        self.nlp = self._initialize_spacy_model()
+
+    def _initialize_spacy_model(self) -> spacy.language.Language:
+        """
+        Initialize and configure the spaCy model with optimized pipeline.
+
+        Loads the specified model and disables unnecessary pipeline components
+        to optimize performance for NER tasks.
+
+        Returns:
+            Configured spaCy Language model
+        """
         # Load spaCy model
-        self.nlp = spacy.load(self.model_name)
+        nlp = spacy.load(self.model_name)
 
         # Disable non-NER components to optimize performance
         pipe_components = [
@@ -46,9 +59,8 @@ class SpacyRecognitionModule(AbstractRecognitionModule):
             "attribute_ruler",
             "lemmatizer",
         ]
-        self.nlp.disable_pipes(
-            *[p for p in pipe_components if p in self.nlp.pipe_names]
-        )
+        nlp.disable_pipes(*[p for p in pipe_components if p in nlp.pipe_names])
+        return nlp
 
     def predict_toponyms(
         self, document_texts: List[str]
