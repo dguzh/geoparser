@@ -43,11 +43,11 @@ class AbstractModule(ABC):
         Returns:
             Normalized configuration dictionary
         """
-        # Process each value: convert sets to lists
+        # Process each value: convert sets to sorted lists
         normalized_dict = {}
         for key, value in config_dict.items():
             if isinstance(value, set):
-                normalized_dict[key] = list(value)
+                normalized_dict[key] = sorted(list(value))
             else:
                 normalized_dict[key] = value
 
