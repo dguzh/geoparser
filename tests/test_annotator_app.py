@@ -14,6 +14,7 @@ from werkzeug.wrappers import Response
 
 from geoparser.annotator.app import app, get_db
 from geoparser.annotator.db.crud import (
+    DocumentRepository,
     SessionRepository,
     SessionSettingsRepository,
     ToponymRepository,
@@ -104,13 +105,20 @@ def test_continue_session(client: TestClient):
 
 @pytest.mark.parametrize("valid_session", [True, False])
 @pytest.mark.parametrize("doc_index", [0, 1])
+@pytest.mark.parametrize("doc_exists", [True, False])
 def test_annotate(
-    test_db: DBSession, client: TestClient, valid_session: bool, doc_index: int
+    test_db: DBSession,
+    client: TestClient,
+    valid_session: bool,
+    doc_index: int,
+    doc_exists: bool,
 ):
     session_id = uuid.uuid4()
     if valid_session:
         session = set_session(test_db)
         session_id = session.id
+    if valid_session and not doc_exists:
+        DocumentRepository.delete(test_db, session.documents[0].id)
     response = client.get(
         f"/session/{session_id}/document/{doc_index}/annotate", follow_redirects=False
     )
@@ -125,8 +133,11 @@ def test_annotate(
             r"http:\/\/testserver\/session\/.*\/document\/0\/annotate",
             str(response.next_request.url),
         )
-    # vaild doc_index returns the annotate page
-    elif valid_session and doc_index == 0:
+
+    # there are two cases where we redirect to 0:
+    # 1) valid doc_index
+    # 2) no existing documents
+    elif (valid_session and doc_index == 0) or (valid_session and not doc_exists):
         assert response.status_code == 200
 
 
