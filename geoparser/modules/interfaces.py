@@ -4,7 +4,7 @@ import typing as t
 from abc import ABC, abstractmethod
 
 
-class BaseModule(ABC):
+class AbstractModule(ABC):
     """
     Abstract base class for any geoparser module.
 
@@ -42,7 +42,7 @@ class BaseModule(ABC):
         return f"<{self.name} (config={config_hash})>"
 
 
-class RecognitionModule(BaseModule):
+class AbstractRecognitionModule(AbstractModule):
     """
     Abstract class for modules that perform toponym recognition.
 
@@ -80,7 +80,7 @@ class RecognitionModule(BaseModule):
         """
 
 
-class ResolutionModule(BaseModule):
+class AbstractResolutionModule(AbstractModule):
     """
     Abstract class for modules that perform toponym resolution.
 

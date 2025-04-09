@@ -15,7 +15,10 @@ from geoparser.db.models import (
 )
 from geoparser.geoparserv2.geoparserv2 import GeoparserV2
 from geoparser.geoparserv2.orchestrator import Orchestrator
-from geoparser.modules.interfaces import RecognitionModule, ResolutionModule
+from geoparser.modules.interfaces import (
+    AbstractRecognitionModule,
+    AbstractResolutionModule,
+)
 
 
 @pytest.fixture(scope="function")
@@ -88,7 +91,7 @@ def test_toponym(test_db, test_document):
 @pytest.fixture
 def mock_recognition_module():
     """Create a mock recognition module for testing."""
-    module = MagicMock(spec=RecognitionModule)
+    module = MagicMock(spec=AbstractRecognitionModule)
     module.name = "mock_recognition"
     module.config = {"param": "value"}
     module.predict_toponyms.return_value = [[(27, 33), (39, 44)]]
@@ -98,7 +101,7 @@ def mock_recognition_module():
 @pytest.fixture
 def mock_resolution_module():
     """Create a mock resolution module for testing."""
-    module = MagicMock(spec=ResolutionModule)
+    module = MagicMock(spec=AbstractResolutionModule)
     module.name = "mock_resolution"
     module.config = {"param": "value"}
     module.predict_locations.return_value = [[("loc1", 0.8), ("loc2", 0.6)]]

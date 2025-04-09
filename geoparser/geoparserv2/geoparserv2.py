@@ -7,7 +7,7 @@ from geoparser.db.crud import DocumentRepository, ProjectRepository
 from geoparser.db.db import get_db
 from geoparser.db.models import Document, DocumentCreate, Project, ProjectCreate
 from geoparser.geoparserv2.orchestrator import Orchestrator
-from geoparser.modules.interfaces import BaseModule
+from geoparser.modules.interfaces import AbstractModule
 
 
 class GeoparserV2:
@@ -21,7 +21,7 @@ class GeoparserV2:
     def __init__(
         self,
         project_name: Optional[str] = None,
-        pipeline: Optional[List[BaseModule]] = None,
+        pipeline: Optional[List[AbstractModule]] = None,
     ):
         """
         Initialize a GeoparserV2 instance.
@@ -117,7 +117,7 @@ class GeoparserV2:
 
         return documents
 
-    def run_module(self, module: BaseModule) -> None:
+    def run_module(self, module: AbstractModule) -> None:
         """
         Run a single processing module on the project's documents.
 

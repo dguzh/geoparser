@@ -3,14 +3,18 @@ import json
 
 import pytest
 
-from geoparser.modules.interfaces import BaseModule, RecognitionModule, ResolutionModule
+from geoparser.modules.interfaces import (
+    AbstractModule,
+    AbstractRecognitionModule,
+    AbstractResolutionModule,
+)
 
 
 def test_base_module_init():
-    """Test initialization of BaseModule with proper NAME attribute."""
+    """Test initialization of AbstractModule with proper NAME attribute."""
 
-    # Create a concrete subclass of BaseModule with a NAME
-    class TestModule(BaseModule):
+    # Create a concrete subclass of AbstractModule with a NAME
+    class TestModule(AbstractModule):
         NAME = "test_module"
 
     # Initialize with no config
@@ -26,10 +30,10 @@ def test_base_module_init():
 
 
 def test_base_module_init_missing_name():
-    """Test initialization of BaseModule fails when NAME is not defined."""
+    """Test initialization of AbstractModule fails when NAME is not defined."""
 
-    # Create a concrete subclass of BaseModule without a NAME
-    class InvalidModule(BaseModule):
+    # Create a concrete subclass of AbstractModule without a NAME
+    class InvalidModule(AbstractModule):
         pass
 
     # Initialize should raise ValueError
@@ -38,10 +42,10 @@ def test_base_module_init_missing_name():
 
 
 def test_base_module_str():
-    """Test the string representation of a BaseModule."""
+    """Test the string representation of a AbstractModule."""
 
-    # Create a concrete subclass of BaseModule with a NAME
-    class TestModule(BaseModule):
+    # Create a concrete subclass of AbstractModule with a NAME
+    class TestModule(AbstractModule):
         NAME = "test_module"
 
     # Initialize with a config and check string representation
@@ -57,10 +61,10 @@ def test_base_module_str():
 
 
 def test_recognition_module_abstract():
-    """Test that RecognitionModule is abstract and requires implementation."""
+    """Test that AbstractRecognitionModule is abstract and requires implementation."""
 
     # Create a concrete subclass that doesn't implement required methods
-    class InvalidRecognitionModule(RecognitionModule):
+    class InvalidRecognitionModule(AbstractRecognitionModule):
         NAME = "invalid_recognition"
 
     # Should raise TypeError when instantiated due to abstract methods
@@ -69,10 +73,10 @@ def test_recognition_module_abstract():
 
 
 def test_recognition_module_implementation():
-    """Test a valid implementation of RecognitionModule."""
+    """Test a valid implementation of AbstractRecognitionModule."""
 
     # Create a valid implementation
-    class ValidRecognitionModule(RecognitionModule):
+    class ValidRecognitionModule(AbstractRecognitionModule):
         NAME = "valid_recognition"
 
         def predict_toponyms(self, document_texts):
@@ -91,10 +95,10 @@ def test_recognition_module_implementation():
 
 
 def test_resolution_module_abstract():
-    """Test that ResolutionModule is abstract and requires implementation."""
+    """Test that AbstractResolutionModule is abstract and requires implementation."""
 
     # Create a concrete subclass that doesn't implement required methods
-    class InvalidResolutionModule(ResolutionModule):
+    class InvalidResolutionModule(AbstractResolutionModule):
         NAME = "invalid_resolution"
 
     # Should raise TypeError when instantiated due to abstract methods
@@ -103,10 +107,10 @@ def test_resolution_module_abstract():
 
 
 def test_resolution_module_implementation():
-    """Test a valid implementation of ResolutionModule."""
+    """Test a valid implementation of AbstractResolutionModule."""
 
     # Create a valid implementation
-    class ValidResolutionModule(ResolutionModule):
+    class ValidResolutionModule(AbstractResolutionModule):
         NAME = "valid_resolution"
 
         def predict_locations(self, toponym_data):

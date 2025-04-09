@@ -13,8 +13,7 @@ from geoparser.db.crud import (
     ResolutionSubjectRepository,
     ToponymRepository,
 )
-from geoparser.db.models import RecognitionModule as RecognitionModuleModel
-from geoparser.db.models import ResolutionModule as ResolutionModuleModel
+from geoparser.db.models import RecognitionModule, ResolutionModule
 from geoparser.geoparserv2.orchestrator import Orchestrator
 
 
@@ -35,7 +34,7 @@ def test_initialize_recognition_module_new(test_db, mock_recognition_module):
         with patch.object(
             RecognitionModuleRepository, "get_by_name_and_config", return_value=None
         ) as mock_get:
-            new_module = RecognitionModuleModel(
+            new_module = RecognitionModule(
                 id=uuid.uuid4(), name="mock_recognition", config={"param": "value"}
             )
             with patch.object(
@@ -61,7 +60,7 @@ def test_initialize_recognition_module_existing(test_db, mock_recognition_module
     orchestrator = Orchestrator()
 
     # Create existing module in database
-    existing_module = RecognitionModuleModel(
+    existing_module = RecognitionModule(
         id=uuid.uuid4(), name="mock_recognition", config={"param": "value"}
     )
 
@@ -97,7 +96,7 @@ def test_initialize_resolution_module_new(test_db, mock_resolution_module):
         with patch.object(
             ResolutionModuleRepository, "get_by_name_and_config", return_value=None
         ) as mock_get:
-            new_module = ResolutionModuleModel(
+            new_module = ResolutionModule(
                 id=uuid.uuid4(), name="mock_resolution", config={"param": "value"}
             )
             with patch.object(
@@ -121,7 +120,7 @@ def test_initialize_resolution_module_existing(test_db, mock_resolution_module):
     orchestrator = Orchestrator()
 
     # Create existing module in database
-    existing_module = ResolutionModuleModel(
+    existing_module = ResolutionModule(
         id=uuid.uuid4(), name="mock_resolution", config={"param": "value"}
     )
 
@@ -192,7 +191,7 @@ def test_run_module_unsupported_type(test_db, test_project):
     """Test run_module with an unsupported module type."""
     orchestrator = Orchestrator()
 
-    # Create unsupported module (not a RecognitionModule or ResolutionModule)
+    # Create unsupported module (not a AbstractRecognitionModule or AbstractResolutionModule)
     unsupported_module = MagicMock()
 
     # Call run_module and expect error

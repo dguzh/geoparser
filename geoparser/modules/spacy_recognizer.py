@@ -2,10 +2,10 @@ from typing import List, Optional, Tuple
 
 import spacy
 
-from geoparser.modules.interfaces import RecognitionModule
+from geoparser.modules.interfaces import AbstractRecognitionModule
 
 
-class SpacyRecognitionModule(RecognitionModule):
+class SpacyRecognitionModule(AbstractRecognitionModule):
     """
     A recognition module that uses spaCy to identify toponyms in document text.
 

@@ -6,7 +6,7 @@ from sqlmodel import Session
 from geoparser.db.crud import DocumentRepository, ProjectRepository
 from geoparser.db.models import Document, Project
 from geoparser.geoparserv2.geoparserv2 import GeoparserV2
-from geoparser.modules.interfaces import BaseModule
+from geoparser.modules.interfaces import AbstractModule
 
 
 def test_initialize_project_existing(test_db: Session, test_project: Project):
@@ -242,7 +242,7 @@ def test_run_module(geoparser_with_existing_project):
     geoparser = geoparser_with_existing_project
 
     # Create a mock module
-    mock_module = MagicMock(spec=BaseModule)
+    mock_module = MagicMock(spec=AbstractModule)
 
     # Mock private methods
     with patch.object(geoparser.orchestrator, "run_module") as mock_run:
@@ -258,9 +258,9 @@ def test_run_pipeline(geoparser_with_existing_project):
     geoparser = geoparser_with_existing_project
 
     # Create mock modules for the pipeline
-    mock_module1 = MagicMock(spec=BaseModule)
-    mock_module2 = MagicMock(spec=BaseModule)
-    mock_module3 = MagicMock(spec=BaseModule)
+    mock_module1 = MagicMock(spec=AbstractModule)
+    mock_module2 = MagicMock(spec=AbstractModule)
+    mock_module3 = MagicMock(spec=AbstractModule)
 
     # Add modules to the pipeline
     geoparser.pipeline = [mock_module1, mock_module2, mock_module3]
@@ -305,8 +305,8 @@ def test_parse_with_no_modules(test_db, geoparser_with_existing_project):
 def test_parse_with_pipeline(test_db, geoparser_with_existing_project):
     """Test parsing with modules in the pipeline."""
     # Create mock modules
-    mock_module1 = MagicMock(spec=BaseModule)
-    mock_module2 = MagicMock(spec=BaseModule)
+    mock_module1 = MagicMock(spec=AbstractModule)
+    mock_module2 = MagicMock(spec=AbstractModule)
 
     # Set up the geoparser with pipeline
     geoparser = geoparser_with_existing_project
