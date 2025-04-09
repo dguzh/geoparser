@@ -30,3 +30,6 @@ def get_db() -> t.Iterator[Session]:
         yield db
     finally:
         db.close()
+
+
+create_db_and_tables(engine)
