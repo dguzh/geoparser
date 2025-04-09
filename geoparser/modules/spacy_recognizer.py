@@ -1,4 +1,4 @@
-from typing import List, Optional, Tuple
+from typing import List, Set, Tuple
 
 import spacy
 
@@ -15,22 +15,25 @@ class SpacyRecognitionModule(AbstractRecognitionModule):
 
     NAME = "SpacyRecognizer"
 
-    def __init__(self, config: Optional[dict] = None):
+    def __init__(
+        self,
+        model_name: str = "en_core_web_sm",
+        entity_types: Set[str] = {"GPE", "LOC", "FAC"},
+    ):
         """
         Initialize the SpaCy recognition module.
 
         Args:
-            config: Configuration parameters for this module.
-                   Possible keys:
-                   - model_name: spaCy model to use (default: "en_core_web_sm")
-                   - entity_types: Set of spaCy entity types to consider as toponyms
-                                  (default: {"GPE", "LOC", "FAC"})
+            model_name: spaCy model to use (default: "en_core_web_sm")
+            entity_types: Set of spaCy entity types to consider as toponyms
+                          (default: {"GPE", "LOC", "FAC"})
         """
-        super().__init__(config)
+        # Initialize parent with the parameters
+        super().__init__(model_name=model_name, entity_types=entity_types)
 
-        # Set defaults if not provided in config
-        self.model_name = self.config.get("model_name", "en_core_web_sm")
-        self.entity_types = set(self.config.get("entity_types", {"GPE", "LOC", "FAC"}))
+        # Store instance attributes directly from parameters
+        self.model_name = model_name
+        self.entity_types = entity_types
 
         # Load spaCy model
         self.nlp = spacy.load(self.model_name)

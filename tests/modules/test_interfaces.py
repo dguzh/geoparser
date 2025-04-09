@@ -21,11 +21,10 @@ def test_base_module_init():
     assert module.name == "test_module"
     assert module.config == {}
 
-    # Initialize with config
-    config = {"param1": "value1", "param2": 42}
-    module = TestModule(config=config)
+    # Initialize with config parameters
+    module = TestModule(param1="value1", param2=42)
     assert module.name == "test_module"
-    assert module.config == config
+    assert module.config == {"param1": "value1", "param2": 42}
 
 
 def test_base_module_init_missing_name():
@@ -47,15 +46,30 @@ def test_base_module_repr():
     class TestModule(AbstractModule):
         NAME = "test_module"
 
-    # Initialize with a config and check representation
-    config = {"param1": "value1", "param2": 42}
-    module = TestModule(config=config)
+    # Initialize with config parameters and check representation
+    module = TestModule(param1="value1", param2=42)
 
-    # Calculate expected config hash
+    # Calculate expected config hash - should be sorted
+    config = {"param1": "value1", "param2": 42}
     config_str = json.dumps(config, sort_keys=True)
 
     expected_str = f"test_module (config={config_str})"
     assert repr(module) == expected_str
+
+
+def test_config_order_invariance():
+    """Test that different order of parameters produces the same config hash."""
+
+    # Create a concrete subclass of AbstractModule with a NAME
+    class TestModule(AbstractModule):
+        NAME = "test_module"
+
+    # Initialize with parameters in different orders
+    module1 = TestModule(a=1, b=2)
+    module2 = TestModule(b=2, a=1)
+
+    # Representations should be identical due to sorted keys
+    assert repr(module1) == repr(module2)
 
 
 def test_recognition_module_abstract():
@@ -83,6 +97,10 @@ def test_recognition_module_implementation():
     # Should instantiate without errors
     module = ValidRecognitionModule()
     assert module.name == "valid_recognition"
+
+    # Should instantiate with parameters
+    module = ValidRecognitionModule(custom_param="test")
+    assert module.config == {"custom_param": "test"}
 
     # Should produce expected output
     documents = ["Test document 1", "Test document 2"]
@@ -117,6 +135,10 @@ def test_resolution_module_implementation():
     # Should instantiate without errors
     module = ValidResolutionModule()
     assert module.name == "valid_resolution"
+
+    # Should instantiate with parameters
+    module = ValidResolutionModule(model="test_model", threshold=0.5)
+    assert module.config == {"model": "test_model", "threshold": 0.5}
 
     # Should produce expected output
     toponyms = [

@@ -16,18 +16,44 @@ class AbstractModule(ABC):
     # Module name should be defined by subclasses
     NAME: str = None
 
-    def __init__(self, config: t.Optional[dict] = None):
+    def __init__(self, **kwargs):
         """
         Initialize a module.
 
         Args:
-            config: Optional configuration parameters for this module
+            **kwargs: Configuration parameters for this module
         """
         if self.NAME is None:
             raise ValueError("Module must define a NAME class attribute")
 
         self.name = self.NAME
-        self.config = config or {}
+        self.config = self._normalize_config(kwargs)
+
+    def _normalize_config(self, config_dict: dict) -> dict:
+        """
+        Normalize configuration dictionary for consistent storage.
+
+        This helper method:
+        1. Converts sets to lists for JSON serialization
+        2. Sorts items by key for order-invariant config distinction
+
+        Args:
+            config_dict: Raw configuration dictionary
+
+        Returns:
+            Normalized configuration dictionary
+        """
+        # Process each value: convert sets to lists
+        normalized_dict = {}
+        for key, value in config_dict.items():
+            if isinstance(value, set):
+                normalized_dict[key] = list(value)
+            else:
+                normalized_dict[key] = value
+
+        # Sort by key for consistent ordering
+        sorted_items = sorted(normalized_dict.items(), key=lambda x: x[0])
+        return dict(sorted_items)
 
     def __repr__(self) -> str:
         """
@@ -51,14 +77,14 @@ class AbstractRecognitionModule(AbstractModule):
     # This base class should have NAME set to None since it should not be instantiated directly
     NAME = None
 
-    def __init__(self, config: t.Optional[dict] = None):
+    def __init__(self, **kwargs):
         """
         Initialize a recognition module.
 
         Args:
-            config: Optional configuration parameters for this module
+            **kwargs: Configuration parameters for this module
         """
-        super().__init__(config)
+        super().__init__(**kwargs)
 
     @abstractmethod
     def predict_toponyms(
@@ -89,14 +115,14 @@ class AbstractResolutionModule(AbstractModule):
     # This base class should have NAME set to None since it should not be instantiated directly
     NAME = None
 
-    def __init__(self, config: t.Optional[dict] = None):
+    def __init__(self, **kwargs):
         """
         Initialize a resolution module.
 
         Args:
-            config: Optional configuration parameters for this module
+            **kwargs: Configuration parameters for this module
         """
-        super().__init__(config)
+        super().__init__(**kwargs)
 
     @abstractmethod
     def predict_locations(
