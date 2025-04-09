@@ -1,4 +1,3 @@
-import hashlib
 import json
 import typing as t
 from abc import ABC, abstractmethod
@@ -30,7 +29,7 @@ class AbstractModule(ABC):
         self.name = self.NAME
         self.config = config or {}
 
-    def __str__(self) -> str:
+    def __repr__(self) -> str:
         """
         Get a string representation of the module.
 
@@ -38,8 +37,7 @@ class AbstractModule(ABC):
             Short string with module name and config hash
         """
         config_str = json.dumps(self.config, sort_keys=True)
-        config_hash = hashlib.md5(config_str.encode("utf-8")).hexdigest()[:8]
-        return f"<{self.name} (config={config_hash})>"
+        return f"{self.name} (config={config_str})"
 
 
 class AbstractRecognitionModule(AbstractModule):
