@@ -1,4 +1,3 @@
-import hashlib
 import json
 
 import pytest
@@ -41,23 +40,22 @@ def test_base_module_init_missing_name():
         InvalidModule()
 
 
-def test_base_module_str():
-    """Test the string representation of a AbstractModule."""
+def test_base_module_repr():
+    """Test the representation of a AbstractModule."""
 
     # Create a concrete subclass of AbstractModule with a NAME
     class TestModule(AbstractModule):
         NAME = "test_module"
 
-    # Initialize with a config and check string representation
+    # Initialize with a config and check representation
     config = {"param1": "value1", "param2": 42}
     module = TestModule(config=config)
 
     # Calculate expected config hash
     config_str = json.dumps(config, sort_keys=True)
-    config_hash = hashlib.md5(config_str.encode("utf-8")).hexdigest()[:8]
 
-    expected_str = f"<test_module (config={config_hash})>"
-    assert str(module) == expected_str
+    expected_str = f"test_module (config={config_str})"
+    assert repr(module) == expected_str
 
 
 def test_recognition_module_abstract():
