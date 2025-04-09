@@ -6,10 +6,10 @@ from abc import ABC, abstractmethod
 
 class BaseModule(ABC):
     """
-    Abstract base class for any GeoparserV2 module.
+    Abstract base class for any geoparser module.
 
     All modules must implement this interface to be compatible
-    with the GeoparserV2 architecture.
+    with the geoparser architecture.
 
     Modules focus purely on the prediction logic without database interactions.
     """

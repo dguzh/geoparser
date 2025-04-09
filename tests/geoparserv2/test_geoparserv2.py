@@ -6,7 +6,7 @@ from sqlmodel import Session
 from geoparser.db.crud import DocumentRepository, ProjectRepository
 from geoparser.db.models import Document, Project
 from geoparser.geoparserv2.geoparserv2 import GeoparserV2
-from geoparser.geoparserv2.modules.interfaces import BaseModule
+from geoparser.modules.interfaces import BaseModule
 
 
 def test_initialize_project_existing(test_db: Session, test_project: Project):

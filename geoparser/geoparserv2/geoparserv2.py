@@ -6,8 +6,8 @@ from typing import List, Optional, Union
 from geoparser.db.crud import DocumentRepository, ProjectRepository
 from geoparser.db.db import get_db
 from geoparser.db.models import Document, DocumentCreate, Project, ProjectCreate
-from geoparser.geoparserv2.modules.interfaces import BaseModule
 from geoparser.geoparserv2.orchestrator import Orchestrator
+from geoparser.modules.interfaces import BaseModule
 
 
 class GeoparserV2:

@@ -2,7 +2,7 @@ from typing import List, Optional, Tuple
 
 import spacy
 
-from .interfaces import RecognitionModule
+from geoparser.modules.interfaces import RecognitionModule
 
 
 class SpacyRecognitionModule(RecognitionModule):
