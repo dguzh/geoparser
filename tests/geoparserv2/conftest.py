@@ -80,7 +80,7 @@ def test_document(test_db, test_project):
 @pytest.fixture
 def test_toponym(test_db, test_document):
     """Create a test toponym in the test document."""
-    toponym_create = ToponymCreate(start=27, end=33, document_id=test_document.id)
+    toponym_create = ToponymCreate(start=29, end=35, document_id=test_document.id)
     toponym = Toponym.model_validate(toponym_create)
     test_db.add(toponym)
     test_db.commit()
@@ -94,7 +94,7 @@ def mock_recognition_module():
     module = MagicMock(spec=AbstractRecognitionModule)
     module.name = "mock_recognition"
     module.config = {"param": "value"}
-    module.predict_toponyms.return_value = [[(27, 33), (39, 44)]]
+    module.predict_toponyms.return_value = [[(29, 35), (41, 46)]]
     return module
 
 

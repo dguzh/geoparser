@@ -101,7 +101,7 @@ def test_get_by_module(
     """Test getting recognition objects by module ID."""
     # Create another toponym
     toponym_create = ToponymCreate(
-        start=40, end=45, document_id=test_recognition_object.toponym.document_id
+        start=10, end=14, document_id=test_recognition_object.toponym.document_id
     )
 
     # Create the toponym

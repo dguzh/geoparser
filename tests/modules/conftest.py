@@ -14,7 +14,7 @@ def mock_recognition_module():
     module = MagicMock(spec=AbstractRecognitionModule)
     module.name = "mock_recognition"
     module.config = {"param": "value"}
-    module.predict_toponyms.return_value = [[(27, 33), (39, 44)]]
+    module.predict_toponyms.return_value = [[(29, 35), (41, 46)]]
     return module
 
 

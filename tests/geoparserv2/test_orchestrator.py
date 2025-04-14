@@ -372,11 +372,11 @@ def test_create_toponym_record(test_db, test_document):
 
                 # Call the method
                 result_id = orchestrator._create_toponym_record(
-                    test_db, test_document.id, 10, 15, module_id
+                    test_db, test_document.id, 29, 35, module_id
                 )
 
                 # Verify calls
-                mock_get.assert_called_once_with(test_db, test_document.id, 10, 15)
+                mock_get.assert_called_once_with(test_db, test_document.id, 29, 35)
                 mock_create_toponym.assert_called_once()
                 mock_create_recognition.assert_called_once()
                 assert result_id == toponym_id
@@ -397,11 +397,11 @@ def test_create_toponym_record_existing(test_db, test_document, test_toponym):
             ) as mock_create_recognition:
                 # Call the method
                 result_id = orchestrator._create_toponym_record(
-                    test_db, test_document.id, 27, 33, module_id
+                    test_db, test_document.id, 29, 35, module_id
                 )
 
                 # Verify calls
-                mock_get.assert_called_once_with(test_db, test_document.id, 27, 33)
+                mock_get.assert_called_once_with(test_db, test_document.id, 29, 35)
                 mock_create_toponym.assert_not_called()
                 mock_create_recognition.assert_called_once()
                 assert result_id == test_toponym.id

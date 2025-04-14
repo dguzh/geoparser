@@ -105,7 +105,9 @@ def test_get_by_module(
     """Test getting resolution subjects by module ID."""
     # Create another toponym
     toponym_create = ToponymCreate(
-        start=40, end=45, document_id=test_resolution_subject.toponym.document_id
+        start=10,
+        end=14,
+        document_id=test_resolution_subject.toponym.document_id,  # "test"
     )
 
     # Create the toponym
@@ -234,12 +236,12 @@ def test_get_unprocessed_toponyms(
 
     # Create toponyms for the new document
     toponym_create1 = ToponymCreate(
-        start=23, end=29, document_id=another_document.id  # "Berlin"
+        start=27, end=33, document_id=another_document.id  # "Berlin"
     )
     new_toponym1 = ToponymRepository.create(test_db, toponym_create1)
 
     toponym_create2 = ToponymCreate(
-        start=34, end=39, document_id=another_document.id  # "Paris"
+        start=38, end=43, document_id=another_document.id  # "Paris"
     )
     new_toponym2 = ToponymRepository.create(test_db, toponym_create2)
 

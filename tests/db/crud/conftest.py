@@ -98,7 +98,7 @@ def test_resolution_module(test_db: Session):
 @pytest.fixture
 def test_toponym(test_db: Session, test_document: Document):
     """Create a test toponym."""
-    toponym_create = ToponymCreate(start=27, end=33, document_id=test_document.id)
+    toponym_create = ToponymCreate(start=29, end=35, document_id=test_document.id)
     toponym = ToponymRepository.create(test_db, toponym_create)
     return toponym
 
