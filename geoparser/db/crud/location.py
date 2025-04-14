@@ -27,4 +27,4 @@ class LocationRepository(BaseRepository[Location]):
             List of locations
         """
         statement = select(Location).where(Location.toponym_id == toponym_id)
-        return db.exec(statement).all()
+        return db.exec(statement).unique().all()

@@ -43,6 +43,7 @@ class Document(DocumentBase, table=True):
             "order_by": "Toponym.start",
             "cascade": "all, delete-orphan",
             "passive_deletes": True,
+            "lazy": "joined",  # Enable eager loading
         },
     )
     recognition_subjects: list["RecognitionSubject"] = Relationship(

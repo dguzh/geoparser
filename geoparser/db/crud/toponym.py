@@ -85,7 +85,7 @@ class ToponymRepository(BaseRepository[Toponym]):
             List of toponyms
         """
         statement = select(Toponym).where(Toponym.document_id == document_id)
-        return db.exec(statement).all()
+        return db.exec(statement).unique().all()
 
     @classmethod
     def get_by_document_and_span(
@@ -108,4 +108,4 @@ class ToponymRepository(BaseRepository[Toponym]):
             Toponym.start == start,
             Toponym.end == end,
         )
-        return db.exec(statement).first()
+        return db.exec(statement).unique().first()

@@ -32,7 +32,7 @@ class RecognitionSubjectRepository(BaseRepository[RecognitionSubject]):
         statement = select(RecognitionSubject).where(
             RecognitionSubject.document_id == document_id
         )
-        return db.exec(statement).all()
+        return db.exec(statement).unique().all()
 
     @classmethod
     def get_by_module(
@@ -51,7 +51,7 @@ class RecognitionSubjectRepository(BaseRepository[RecognitionSubject]):
         statement = select(RecognitionSubject).where(
             RecognitionSubject.module_id == module_id
         )
-        return db.exec(statement).all()
+        return db.exec(statement).unique().all()
 
     @classmethod
     def get_by_document_and_module(
@@ -72,7 +72,7 @@ class RecognitionSubjectRepository(BaseRepository[RecognitionSubject]):
             RecognitionSubject.document_id == document_id,
             RecognitionSubject.module_id == module_id,
         )
-        return db.exec(statement).first()
+        return db.exec(statement).unique().first()
 
     @classmethod
     def get_unprocessed_documents(
@@ -104,4 +104,4 @@ class RecognitionSubjectRepository(BaseRepository[RecognitionSubject]):
                 )
             ),
         )
-        return db.exec(statement).all()
+        return db.exec(statement).unique().all()

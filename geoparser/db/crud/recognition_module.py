@@ -33,4 +33,4 @@ class RecognitionModuleRepository(BaseRepository[RecognitionModule]):
         statement = select(RecognitionModule).where(
             (RecognitionModule.name == name) & (RecognitionModule.config == config)
         )
-        return db.exec(statement).first()
+        return db.exec(statement).unique().first()

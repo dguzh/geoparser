@@ -26,4 +26,4 @@ class ProjectRepository(BaseRepository[Project]):
             Project if found, None otherwise
         """
         statement = select(Project).where(Project.name == name)
-        return db.exec(statement).first()
+        return db.exec(statement).unique().first()

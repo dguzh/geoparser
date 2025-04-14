@@ -39,6 +39,7 @@ class Toponym(ToponymBase, table=True):
         sa_relationship_kwargs={
             "cascade": "all, delete-orphan",
             "passive_deletes": True,
+            "lazy": "joined",  # Enable eager loading
         },
     )
     recognition_objects: list["RecognitionObject"] = Relationship(

@@ -27,4 +27,4 @@ class DocumentRepository(BaseRepository[Document]):
             List of documents
         """
         statement = select(Document).where(Document.project_id == project_id)
-        return db.exec(statement).all()
+        return db.exec(statement).unique().all()

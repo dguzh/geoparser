@@ -31,7 +31,7 @@ class RecognitionObjectRepository(BaseRepository[RecognitionObject]):
         statement = select(RecognitionObject).where(
             RecognitionObject.toponym_id == toponym_id
         )
-        return db.exec(statement).all()
+        return db.exec(statement).unique().all()
 
     @classmethod
     def get_by_module(
@@ -50,7 +50,7 @@ class RecognitionObjectRepository(BaseRepository[RecognitionObject]):
         statement = select(RecognitionObject).where(
             RecognitionObject.module_id == module_id
         )
-        return db.exec(statement).all()
+        return db.exec(statement).unique().all()
 
     @classmethod
     def get_by_toponym_and_module(
@@ -71,4 +71,4 @@ class RecognitionObjectRepository(BaseRepository[RecognitionObject]):
             RecognitionObject.toponym_id == toponym_id,
             RecognitionObject.module_id == module_id,
         )
-        return db.exec(statement).first()
+        return db.exec(statement).unique().first()

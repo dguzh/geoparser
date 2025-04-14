@@ -32,7 +32,7 @@ class ResolutionSubjectRepository(BaseRepository[ResolutionSubject]):
         statement = select(ResolutionSubject).where(
             ResolutionSubject.toponym_id == toponym_id
         )
-        return db.exec(statement).all()
+        return db.exec(statement).unique().all()
 
     @classmethod
     def get_by_module(
@@ -51,7 +51,7 @@ class ResolutionSubjectRepository(BaseRepository[ResolutionSubject]):
         statement = select(ResolutionSubject).where(
             ResolutionSubject.module_id == module_id
         )
-        return db.exec(statement).all()
+        return db.exec(statement).unique().all()
 
     @classmethod
     def get_by_toponym_and_module(
@@ -72,7 +72,7 @@ class ResolutionSubjectRepository(BaseRepository[ResolutionSubject]):
             ResolutionSubject.toponym_id == toponym_id,
             ResolutionSubject.module_id == module_id,
         )
-        return db.exec(statement).first()
+        return db.exec(statement).unique().first()
 
     @classmethod
     def get_unprocessed_toponyms(
@@ -107,4 +107,4 @@ class ResolutionSubjectRepository(BaseRepository[ResolutionSubject]):
                 ),
             )
         )
-        return db.exec(statement).all()
+        return db.exec(statement).unique().all()

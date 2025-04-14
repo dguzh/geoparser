@@ -33,4 +33,4 @@ class ResolutionModuleRepository(BaseRepository[ResolutionModule]):
         statement = select(ResolutionModule).where(
             (ResolutionModule.name == name) & (ResolutionModule.config == config)
         )
-        return db.exec(statement).first()
+        return db.exec(statement).unique().first()

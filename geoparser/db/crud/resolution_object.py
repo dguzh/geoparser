@@ -31,7 +31,7 @@ class ResolutionObjectRepository(BaseRepository[ResolutionObject]):
         statement = select(ResolutionObject).where(
             ResolutionObject.location_id == location_id
         )
-        return db.exec(statement).all()
+        return db.exec(statement).unique().all()
 
     @classmethod
     def get_by_module(
@@ -50,7 +50,7 @@ class ResolutionObjectRepository(BaseRepository[ResolutionObject]):
         statement = select(ResolutionObject).where(
             ResolutionObject.module_id == module_id
         )
-        return db.exec(statement).all()
+        return db.exec(statement).unique().all()
 
     @classmethod
     def get_by_location_and_module(
@@ -71,4 +71,4 @@ class ResolutionObjectRepository(BaseRepository[ResolutionObject]):
             ResolutionObject.location_id == location_id,
             ResolutionObject.module_id == module_id,
         )
-        return db.exec(statement).first()
+        return db.exec(statement).unique().first()

@@ -47,7 +47,8 @@ class BaseRepository(Generic[T]):
         Returns:
             Record if found, None otherwise
         """
-        return db.get(cls.model, id)
+        statement = select(cls.model).where(cls.model.id == id)
+        return db.exec(statement).unique().first()
 
     @classmethod
     def get_all(cls, db: Session) -> t.List[T]:
@@ -61,7 +62,7 @@ class BaseRepository(Generic[T]):
             List of all records
         """
         statement = select(cls.model)
-        return db.exec(statement).all()
+        return db.exec(statement).unique().all()
 
     @classmethod
     def update(cls, db: Session, *, db_obj: T, obj_in: SQLModel) -> T:
@@ -97,7 +98,7 @@ class BaseRepository(Generic[T]):
         Returns:
             Deleted object if found, None otherwise
         """
-        obj = db.get(cls.model, id)
+        obj = cls.get(db, id)
         if obj:
             db.delete(obj)
             db.commit()
