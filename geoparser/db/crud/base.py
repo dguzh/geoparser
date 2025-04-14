@@ -21,19 +21,14 @@ class BaseRepository(Generic[T]):
 
         Args:
             db: Database session
-            obj_in: Object to create
+            obj_in: Object to create (typically a Create model)
 
         Returns:
             Created object
         """
-        # If obj_in is already an instance of the model, use it directly
-        if isinstance(obj_in, cls.model):
-            db_obj = obj_in
-        else:
-            # Convert input to model instance by creating a new instance with the data
-            # This is more reliable than using model_validate
-            data = obj_in.model_dump()
-            db_obj = cls.model(**data)
+        # Convert input to model instance using the model's data
+        data = obj_in.model_dump()
+        db_obj = cls.model(**data)
 
         db.add(db_obj)
         db.commit()

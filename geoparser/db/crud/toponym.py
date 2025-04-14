@@ -6,6 +6,7 @@ from sqlmodel import Session, select
 from geoparser.db.crud.base import BaseRepository
 from geoparser.db.models import Toponym
 from geoparser.db.models.document import Document
+from geoparser.db.models.toponym import ToponymCreate
 
 
 class ToponymRepository(BaseRepository[Toponym]):
@@ -16,33 +17,24 @@ class ToponymRepository(BaseRepository[Toponym]):
     model = Toponym
 
     @classmethod
-    def create(cls, db: Session, obj_in: t.Union[dict, Toponym]) -> Toponym:
+    def create(cls, db: Session, obj_in: ToponymCreate) -> Toponym:
         """
         Create a new toponym and populate its text field from the document.
 
         Args:
             db: Database session
-            obj_in: Toponym data to create or Toponym instance
+            obj_in: ToponymCreate instance with document_id, start and end positions
 
         Returns:
             Created toponym with populated text field
         """
-        # First, ensure we're working with a dict
-        if isinstance(obj_in, Toponym):
-            data = {
-                "document_id": obj_in.document_id,
-                "start": obj_in.start,
-                "end": obj_in.end,
-            }
-        else:
-            data = obj_in.copy() if isinstance(obj_in, dict) else obj_in.model_dump()
+        # Extract data from the ToponymCreate model
+        data = obj_in.model_dump()
+        document_id = data["document_id"]
+        start = data["start"]
+        end = data["end"]
 
         # Get the document to extract the text
-        document_id = data.get("document_id")
-        start = data.get("start")
-        end = data.get("end")
-
-        # Get the document
         document = db.get(Document, document_id)
         if document and hasattr(document, "text"):
             # Extract the text from the document using the span
