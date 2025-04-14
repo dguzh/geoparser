@@ -6,7 +6,7 @@ from sqlmodel import Session, select
 from geoparser.db.crud.base import BaseRepository
 from geoparser.db.models import Toponym
 from geoparser.db.models.document import Document
-from geoparser.db.models.toponym import ToponymCreate
+from geoparser.db.models.toponym import ToponymCreate, ToponymUpdate
 
 
 class ToponymRepository(BaseRepository[Toponym]):
@@ -42,6 +42,36 @@ class ToponymRepository(BaseRepository[Toponym]):
 
         # Create the toponym with the added text field
         return super().create(db, Toponym(**data))
+
+    @classmethod
+    def update(cls, db: Session, *, db_obj: Toponym, obj_in: ToponymUpdate) -> Toponym:
+        """
+        Update a toponym and refresh its text field.
+
+        Args:
+            db: Database session
+            db_obj: Existing toponym to update
+            obj_in: ToponymUpdate with new data
+
+        Returns:
+            Updated toponym with refreshed text field
+        """
+        # Get update data
+        update_data = obj_in.model_dump(exclude_unset=True)
+
+        # Determine the new positions and document
+        start = update_data.get("start", db_obj.start)
+        end = update_data.get("end", db_obj.end)
+        document_id = update_data.get("document_id", db_obj.document_id)
+
+        # Get the document to extract updated text
+        document = db.get(Document, document_id)
+        if document and hasattr(document, "text"):
+            # Update the text field
+            update_data["text"] = document.text[start:end]
+
+        # Call the parent class update method
+        return super().update(db, db_obj=db_obj, obj_in=update_data)
 
     @classmethod
     def get_by_document(cls, db: Session, document_id: uuid.UUID) -> t.List[Toponym]:
