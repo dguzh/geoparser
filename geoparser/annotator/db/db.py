@@ -6,6 +6,7 @@ from sqlalchemy import event
 from sqlmodel import Session, SQLModel, create_engine
 
 db_location = Path(user_data_dir("geoparser", "")) / "annotator" / "annotator.db"
+db_location.parent.mkdir(parents=True, exist_ok=True)
 sqlite_url = f"sqlite:///{db_location}"
 
 engine = create_engine(sqlite_url, echo=False)
