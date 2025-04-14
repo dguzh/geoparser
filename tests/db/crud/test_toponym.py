@@ -18,6 +18,8 @@ def test_create(test_db: Session, test_document: Document):
     assert created_toponym.start == 10
     assert created_toponym.end == 15
     assert created_toponym.document_id == test_document.id
+    # Verify text field is correctly populated based on document content
+    assert created_toponym.text == test_document.text[10:15]
 
     # Verify it was saved to the database
     db_toponym = test_db.get(Toponym, created_toponym.id)
@@ -25,6 +27,7 @@ def test_create(test_db: Session, test_document: Document):
     assert db_toponym.start == 10
     assert db_toponym.end == 15
     assert db_toponym.document_id == test_document.id
+    assert db_toponym.text == test_document.text[10:15]
 
 
 def test_get(test_db: Session, test_toponym: Toponym):
@@ -77,13 +80,22 @@ def test_get_by_document(
     toponym_create = ToponymCreate(start=20, end=25, document_id=test_document.id)
 
     # Create the toponym
-    ToponymRepository.create(test_db, toponym_create)
+    created_toponym = ToponymRepository.create(test_db, toponym_create)
+
+    # Verify text field is populated
+    assert created_toponym.text == test_document.text[20:25]
 
     # Get toponyms by document
     toponyms = ToponymRepository.get_by_document(test_db, test_document.id)
     assert len(toponyms) == 2
-    assert any(t.start == 27 and t.end == 33 for t in toponyms)
-    assert any(t.start == 20 and t.end == 25 for t in toponyms)
+    assert any(
+        t.start == 27 and t.end == 33 and t.text == test_document.text[27:33]
+        for t in toponyms
+    )
+    assert any(
+        t.start == 20 and t.end == 25 and t.text == test_document.text[20:25]
+        for t in toponyms
+    )
 
     # Test with invalid document ID
     invalid_id = uuid.uuid4()
@@ -93,19 +105,31 @@ def test_get_by_document(
 
 def test_get_all(test_db: Session, test_toponym: Toponym):
     """Test getting all toponyms."""
+    # Get document text for verification
+    document = test_db.get(Document, test_toponym.document_id)
+
     # Create another toponym
     toponym_create = ToponymCreate(
         start=20, end=25, document_id=test_toponym.document_id
     )
 
     # Create the toponym
-    ToponymRepository.create(test_db, toponym_create)
+    created_toponym = ToponymRepository.create(test_db, toponym_create)
+
+    # Verify text field is populated
+    assert created_toponym.text == document.text[20:25]
 
     # Get all toponyms
     toponyms = ToponymRepository.get_all(test_db)
     assert len(toponyms) == 2
-    assert any(t.start == 27 and t.end == 33 for t in toponyms)
-    assert any(t.start == 20 and t.end == 25 for t in toponyms)
+    assert any(
+        t.start == 27 and t.end == 33 and t.text == document.text[27:33]
+        for t in toponyms
+    )
+    assert any(
+        t.start == 20 and t.end == 25 and t.text == document.text[20:25]
+        for t in toponyms
+    )
 
 
 def test_update(test_db: Session, test_toponym: Toponym):
@@ -119,12 +143,16 @@ def test_update(test_db: Session, test_toponym: Toponym):
     assert updated_toponym.id == test_toponym.id
     assert updated_toponym.start == 40
     assert updated_toponym.end == 45
+    # Verify text is updated
+    document = test_db.get(Document, test_toponym.document_id)
+    assert updated_toponym.text == document.text[40:45]
 
     # Verify it was updated in the database
     db_toponym = test_db.get(Toponym, test_toponym.id)
     assert db_toponym is not None
     assert db_toponym.start == 40
     assert db_toponym.end == 45
+    assert db_toponym.text == document.text[40:45]
 
 
 def test_delete(test_db: Session, test_toponym: Toponym):

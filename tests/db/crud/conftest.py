@@ -2,6 +2,7 @@ import pytest
 from sqlmodel import Session, SQLModel
 from sqlmodel.pool import StaticPool
 
+from geoparser.db.crud import ToponymRepository
 from geoparser.db.db import create_engine
 from geoparser.db.models import (
     Document,
@@ -98,12 +99,7 @@ def test_resolution_module(test_db: Session):
 def test_toponym(test_db: Session, test_document: Document):
     """Create a test toponym."""
     toponym_create = ToponymCreate(start=27, end=33, document_id=test_document.id)
-    toponym = Toponym(
-        start=toponym_create.start, end=toponym_create.end, document_id=test_document.id
-    )
-    test_db.add(toponym)
-    test_db.commit()
-    test_db.refresh(toponym)
+    toponym = ToponymRepository.create(test_db, toponym_create)
     return toponym
 
 

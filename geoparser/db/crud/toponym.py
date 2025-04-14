@@ -70,8 +70,7 @@ class ToponymRepository(BaseRepository[Toponym]):
             # Update the text field
             update_data["text"] = document.text[start:end]
 
-        # Call the parent class update method
-        return super().update(db, db_obj=db_obj, obj_in=update_data)
+        return super().update(db, db_obj=db_obj, obj_in=Toponym(**update_data))
 
     @classmethod
     def get_by_document(cls, db: Session, document_id: uuid.UUID) -> t.List[Toponym]:
