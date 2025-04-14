@@ -16,6 +16,7 @@ class ToponymBase(SQLModel):
 
     start: int  # Start position of the toponym in the document text
     end: int  # End position of the toponym in the document text
+    text: t.Optional[str] = None  # The actual text of the toponym
 
 
 class Toponym(ToponymBase, table=True):
@@ -54,21 +55,6 @@ class Toponym(ToponymBase, table=True):
             "passive_deletes": True,
         },
     )
-
-    @property
-    def text(self) -> str:
-        """
-        Get the actual text of the toponym from the document.
-
-        This property computes the text on-demand by extracting
-        the substring from the document text using the start and end positions.
-
-        Returns:
-            The text of the toponym
-        """
-        if self.document and hasattr(self.document, "text"):
-            return self.document.text[self.start : self.end]
-        return ""
 
 
 class ToponymCreate(ToponymBase):
