@@ -18,8 +18,8 @@ from geoparser.db.models import (
     Toponym,
     ToponymRead,
 )
-from geoparser.geoparserv2.orchestrator import Orchestrator
 from geoparser.modules.interfaces import AbstractModule
+from geoparser.orchestrator import Orchestrator
 
 
 class GeoparserV2:

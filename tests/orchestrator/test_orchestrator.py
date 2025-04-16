@@ -14,7 +14,7 @@ from geoparser.db.crud import (
     ToponymRepository,
 )
 from geoparser.db.models import RecognitionModule, ResolutionModule
-from geoparser.geoparserv2.orchestrator import Orchestrator
+from geoparser.orchestrator import Orchestrator
 
 
 def test_orchestrator_initialization():
@@ -29,7 +29,7 @@ def test_initialize_recognition_module_new(test_db, mock_recognition_module):
 
     # Mock database calls for module creation
     with patch(
-        "geoparser.geoparserv2.orchestrator.get_db", return_value=iter([test_db])
+        "geoparser.orchestrator.orchestrator.get_db", return_value=iter([test_db])
     ):
         with patch.object(
             RecognitionModuleRepository, "get_by_name_and_config", return_value=None
@@ -66,7 +66,7 @@ def test_initialize_recognition_module_existing(test_db, mock_recognition_module
 
     # Mock database calls
     with patch(
-        "geoparser.geoparserv2.orchestrator.get_db", return_value=iter([test_db])
+        "geoparser.orchestrator.orchestrator.get_db", return_value=iter([test_db])
     ):
         with patch.object(
             RecognitionModuleRepository,
@@ -91,7 +91,7 @@ def test_initialize_resolution_module_new(test_db, mock_resolution_module):
 
     # Mock database calls for module creation
     with patch(
-        "geoparser.geoparserv2.orchestrator.get_db", return_value=iter([test_db])
+        "geoparser.orchestrator.orchestrator.get_db", return_value=iter([test_db])
     ):
         with patch.object(
             ResolutionModuleRepository, "get_by_name_and_config", return_value=None
@@ -126,7 +126,7 @@ def test_initialize_resolution_module_existing(test_db, mock_resolution_module):
 
     # Mock database calls
     with patch(
-        "geoparser.geoparserv2.orchestrator.get_db", return_value=iter([test_db])
+        "geoparser.orchestrator.orchestrator.get_db", return_value=iter([test_db])
     ):
         with patch.object(
             ResolutionModuleRepository,
@@ -208,7 +208,7 @@ def test_execute_recognition_module(
 
     # Mock private methods and database calls
     with patch(
-        "geoparser.geoparserv2.orchestrator.get_db", return_value=iter([test_db])
+        "geoparser.orchestrator.orchestrator.get_db", return_value=iter([test_db])
     ):
         with patch.object(orchestrator, "_get_unprocessed_documents") as mock_get_docs:
             with patch.object(
@@ -246,7 +246,7 @@ def test_execute_recognition_module_no_documents(
 
     # Mock private methods and database calls
     with patch(
-        "geoparser.geoparserv2.orchestrator.get_db", return_value=iter([test_db])
+        "geoparser.orchestrator.orchestrator.get_db", return_value=iter([test_db])
     ):
         with patch.object(orchestrator, "_get_unprocessed_documents") as mock_get_docs:
             # Set up mocks
@@ -274,7 +274,7 @@ def test_execute_resolution_module(
 
     # Mock private methods and database calls
     with patch(
-        "geoparser.geoparserv2.orchestrator.get_db", return_value=iter([test_db])
+        "geoparser.orchestrator.orchestrator.get_db", return_value=iter([test_db])
     ):
         with patch.object(orchestrator, "_get_unprocessed_toponyms") as mock_get_topo:
             with patch.object(
@@ -313,7 +313,7 @@ def test_execute_resolution_module_no_toponyms(
 
     # Mock private methods and database calls
     with patch(
-        "geoparser.geoparserv2.orchestrator.get_db", return_value=iter([test_db])
+        "geoparser.orchestrator.orchestrator.get_db", return_value=iter([test_db])
     ):
         with patch.object(orchestrator, "_get_unprocessed_toponyms") as mock_get_topo:
             # Set up mocks
