@@ -1,5 +1,3 @@
-import json
-
 import pytest
 
 from geoparser.modules.interfaces import (
@@ -49,11 +47,9 @@ def test_base_module_repr():
     # Initialize with config parameters and check representation
     module = TestModule(param1="value1", param2=42)
 
-    # Calculate expected config hash - should be sorted
-    config = {"param1": "value1", "param2": 42}
-    config_str = json.dumps(config, sort_keys=True)
-
-    expected_str = f"test_module (config={config_str})"
+    # Expected string representation with parameters shown directly
+    expected_str = "test_module(param1='value1', param2=42)"
+    assert str(module) == expected_str
     assert repr(module) == expected_str
 
 

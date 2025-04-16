@@ -1,4 +1,3 @@
-import json
 import typing as t
 from abc import ABC, abstractmethod
 
@@ -55,15 +54,24 @@ class AbstractModule(ABC):
         sorted_items = sorted(normalized_dict.items(), key=lambda x: x[0])
         return dict(sorted_items)
 
-    def __repr__(self) -> str:
+    def __str__(self) -> str:
         """
-        Get a string representation of the module.
+        Return a string representation of the module.
 
         Returns:
-            Short string with module name and config hash
+            String with module name and config parameters
         """
-        config_str = json.dumps(self.config, sort_keys=True)
-        return f"{self.name} (config={config_str})"
+        config_str = ", ".join(f"{k}={repr(v)}" for k, v in self.config.items())
+        return f"{self.name}({config_str})"
+
+    def __repr__(self) -> str:
+        """
+        Return a developer representation of the module.
+
+        Returns:
+            Same as __str__ method
+        """
+        return self.__str__()
 
 
 class AbstractRecognitionModule(AbstractModule):

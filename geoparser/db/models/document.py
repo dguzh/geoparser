@@ -85,3 +85,21 @@ class DocumentRead(SQLModel):
     toponyms: list["ToponymRead"] = []
 
     model_config = {"from_attributes": True}
+
+    def __str__(self) -> str:
+        """
+        Return a string representation of the document.
+
+        Returns:
+            String with document indicator and text content
+        """
+        return f'Document("{self.text}")'
+
+    def __repr__(self) -> str:
+        """
+        Return a developer representation of the document.
+
+        Returns:
+            Same as __str__ method
+        """
+        return self.__str__()

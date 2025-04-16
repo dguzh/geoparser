@@ -95,3 +95,21 @@ class ToponymRead(SQLModel):
     modules: list["RecognitionModuleRead"] = []
 
     model_config = {"from_attributes": True}
+
+    def __str__(self) -> str:
+        """
+        Return a string representation of the toponym.
+
+        Returns:
+            String with toponym indicator and text content
+        """
+        return f'Toponym("{self.text}")' if self.text else 'Toponym("<unnamed>")'
+
+    def __repr__(self) -> str:
+        """
+        Return a developer representation of the toponym.
+
+        Returns:
+            Same as __str__ method
+        """
+        return self.__str__()

@@ -64,3 +64,22 @@ class RecognitionModuleRead(SQLModel):
     config: t.Dict[str, t.Any]
 
     model_config = {"from_attributes": True}
+
+    def __str__(self) -> str:
+        """
+        Return a string representation of the recognition module.
+
+        Returns:
+            String with module name and config parameters
+        """
+        config_str = ", ".join(f"{k}={repr(v)}" for k, v in self.config.items())
+        return f"{self.name}({config_str})"
+
+    def __repr__(self) -> str:
+        """
+        Return a developer representation of the recognition module.
+
+        Returns:
+            Same as __str__ method
+        """
+        return self.__str__()

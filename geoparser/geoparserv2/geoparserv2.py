@@ -9,6 +9,7 @@ from geoparser.db.models import (
     Document,
     DocumentCreate,
     DocumentRead,
+    Location,
     LocationRead,
     Project,
     ProjectCreate,

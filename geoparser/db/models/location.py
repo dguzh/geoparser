@@ -79,3 +79,21 @@ class LocationRead(SQLModel):
     modules: list["ResolutionModuleRead"] = []
 
     model_config = {"from_attributes": True}
+
+    def __str__(self) -> str:
+        """
+        Return a string representation of the location.
+
+        Returns:
+            String with location indicator and location ID
+        """
+        return f"Location({self.location_id})"
+
+    def __repr__(self) -> str:
+        """
+        Return a developer representation of the location.
+
+        Returns:
+            Same as __str__ method
+        """
+        return self.__str__()
