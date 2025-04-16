@@ -26,32 +26,32 @@ class AbstractModule(ABC):
             raise ValueError("Module must define a NAME class attribute")
 
         self.name = self.NAME
-        self.config = self._normalize_config(kwargs)
+        self.config = self._initialize_config(kwargs)
 
-    def _normalize_config(self, config_dict: dict) -> dict:
+    def _initialize_config(self, kwargs_dict: dict) -> dict:
         """
-        Normalize configuration dictionary for consistent storage.
+        Initialize configuration dictionary for consistent storage.
 
         This helper method:
         1. Converts sets to lists for JSON serialization
         2. Sorts items by key for order-invariant config distinction
 
         Args:
-            config_dict: Raw configuration dictionary
+            kwargs_dict: Raw configuration dictionary
 
         Returns:
             Normalized configuration dictionary
         """
         # Process each value: convert sets to sorted lists
-        normalized_dict = {}
-        for key, value in config_dict.items():
+        config_dict = {}
+        for key, value in kwargs_dict.items():
             if isinstance(value, set):
-                normalized_dict[key] = sorted(list(value))
+                config_dict[key] = sorted(list(value))
             else:
-                normalized_dict[key] = value
+                config_dict[key] = value
 
         # Sort by key for consistent ordering
-        sorted_items = sorted(normalized_dict.items(), key=lambda x: x[0])
+        sorted_items = sorted(config_dict.items(), key=lambda x: x[0])
         return dict(sorted_items)
 
     def __str__(self) -> str:
