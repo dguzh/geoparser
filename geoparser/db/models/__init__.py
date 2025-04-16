@@ -14,6 +14,7 @@ from geoparser.db.models.project import Project, ProjectCreate, ProjectUpdate
 from geoparser.db.models.recognition_module import (
     RecognitionModule,
     RecognitionModuleCreate,
+    RecognitionModuleRead,
     RecognitionModuleUpdate,
 )
 from geoparser.db.models.recognition_object import (
@@ -29,6 +30,7 @@ from geoparser.db.models.recognition_subject import (
 from geoparser.db.models.resolution_module import (
     ResolutionModule,
     ResolutionModuleCreate,
+    ResolutionModuleRead,
     ResolutionModuleUpdate,
 )
 from geoparser.db.models.resolution_object import (
@@ -66,8 +68,10 @@ for rebuild in [
     ResolutionObjectCreate,
     RecognitionModule,
     RecognitionModuleCreate,
+    RecognitionModuleRead,
     ResolutionModule,
     ResolutionModuleCreate,
+    ResolutionModuleRead,
     RecognitionSubject,
     RecognitionSubjectCreate,
     ResolutionSubject,

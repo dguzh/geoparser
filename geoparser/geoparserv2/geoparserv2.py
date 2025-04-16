@@ -12,6 +12,8 @@ from geoparser.db.models import (
     LocationRead,
     Project,
     ProjectCreate,
+    RecognitionModuleRead,
+    ResolutionModuleRead,
     Toponym,
     ToponymRead,
 )
@@ -154,10 +156,37 @@ class GeoparserV2:
             A ToponymRead object with nested LocationRead objects
         """
         toponym_read = ToponymRead.model_validate(toponym)
+
         toponym_read.locations = [
-            LocationRead.model_validate(location) for location in toponym.locations
+            self._convert_to_location_read(location) for location in toponym.locations
         ]
+
+        toponym_read.modules = [
+            RecognitionModuleRead.model_validate(recog_obj.module)
+            for recog_obj in toponym.recognition_objects
+        ]
+
         return toponym_read
+
+    def _convert_to_location_read(self, location: "Location") -> LocationRead:
+        """
+        Convert a Location ORM object to a LocationRead model, including all related objects.
+
+        Args:
+            location: The Location ORM object to convert
+
+        Returns:
+            A LocationRead object with related module information
+        """
+        location_read = LocationRead.model_validate(location)
+
+        # Extract and convert the modules from resolution_objects
+        location_read.modules = [
+            ResolutionModuleRead.model_validate(resol_obj.module)
+            for resol_obj in location.resolution_objects
+        ]
+
+        return location_read
 
     def run_module(self, module: AbstractModule) -> None:
         """

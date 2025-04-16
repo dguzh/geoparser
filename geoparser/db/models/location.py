@@ -5,6 +5,7 @@ from sqlalchemy import UUID, Column, ForeignKey
 from sqlmodel import Field, Relationship, SQLModel
 
 if t.TYPE_CHECKING:
+    from geoparser.db.models.resolution_module import ResolutionModuleRead
     from geoparser.db.models.resolution_object import ResolutionObject
     from geoparser.db.models.toponym import Toponym
 
@@ -41,6 +42,7 @@ class Location(LocationBase, table=True):
         sa_relationship_kwargs={
             "cascade": "all, delete-orphan",
             "passive_deletes": True,
+            "lazy": "joined",
         },
     )
 
@@ -74,5 +76,6 @@ class LocationRead(SQLModel):
     toponym_id: uuid.UUID
     location_id: str
     confidence: t.Optional[float] = None
+    modules: list["ResolutionModuleRead"] = []
 
     model_config = {"from_attributes": True}

@@ -50,3 +50,16 @@ class RecognitionModuleUpdate(SQLModel):
     id: uuid.UUID
     name: t.Optional[str] = None
     config: t.Optional[t.Dict[str, t.Any]] = None
+
+
+class RecognitionModuleRead(SQLModel):
+    """
+    Model for reading recognition module data.
+
+    Only exposes the id and name of a recognition module.
+    """
+
+    id: uuid.UUID
+    name: str
+
+    model_config = {"from_attributes": True}

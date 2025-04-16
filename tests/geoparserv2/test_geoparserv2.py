@@ -4,7 +4,21 @@ from unittest.mock import MagicMock, patch
 from sqlmodel import Session
 
 from geoparser.db.crud import DocumentRepository, ProjectRepository
-from geoparser.db.models import Document, DocumentRead, Project
+from geoparser.db.models import (
+    Document,
+    DocumentRead,
+    Location,
+    LocationRead,
+    Project,
+    RecognitionModule,
+    RecognitionModuleRead,
+    RecognitionObject,
+    ResolutionModule,
+    ResolutionModuleRead,
+    ResolutionObject,
+    Toponym,
+    ToponymRead,
+)
 from geoparser.geoparserv2.geoparserv2 import GeoparserV2
 from geoparser.modules.interfaces import AbstractModule
 
@@ -358,6 +372,81 @@ def test_convert_to_document_read(test_db, geoparser_with_existing_project):
     assert doc_read.text == document.text
     assert isinstance(doc_read.toponyms, list)
     assert len(doc_read.toponyms) == 0
+
+
+def test_convert_to_toponym_read(geoparser_with_existing_project):
+    """Test converting a Toponym to a ToponymRead with modules."""
+    geoparser = geoparser_with_existing_project
+
+    # Create mock objects
+    toponym = Toponym(
+        id=uuid.uuid4(),
+        document_id=uuid.uuid4(),
+        start=0,
+        end=10,
+        text="New York",
+        locations=[],
+        recognition_objects=[],
+    )
+
+    # Add a mock recognition module and object
+    module = RecognitionModule(id=uuid.uuid4(), name="TestRecognitionModule")
+    recognition_object = RecognitionObject(
+        id=uuid.uuid4(), toponym_id=toponym.id, module_id=module.id, module=module
+    )
+    toponym.recognition_objects.append(recognition_object)
+
+    # Test conversion
+    toponym_read = geoparser._convert_to_toponym_read(toponym)
+
+    # Verify
+    assert isinstance(toponym_read, ToponymRead)
+    assert toponym_read.id == toponym.id
+    assert toponym_read.text == toponym.text
+    assert toponym_read.start == toponym.start
+    assert toponym_read.end == toponym.end
+
+    # Verify modules were populated correctly
+    assert len(toponym_read.modules) == 1
+    assert isinstance(toponym_read.modules[0], RecognitionModuleRead)
+    assert toponym_read.modules[0].id == module.id
+    assert toponym_read.modules[0].name == module.name
+
+
+def test_convert_to_location_read(geoparser_with_existing_project):
+    """Test converting a Location to a LocationRead with modules."""
+    geoparser = geoparser_with_existing_project
+
+    # Create mock objects
+    location = Location(
+        id=uuid.uuid4(),
+        toponym_id=uuid.uuid4(),
+        location_id="123456",
+        confidence=0.95,
+        resolution_objects=[],
+    )
+
+    # Add a mock resolution module and object
+    module = ResolutionModule(id=uuid.uuid4(), name="TestResolutionModule")
+    resolution_object = ResolutionObject(
+        id=uuid.uuid4(), location_id=location.id, module_id=module.id, module=module
+    )
+    location.resolution_objects.append(resolution_object)
+
+    # Test conversion
+    location_read = geoparser._convert_to_location_read(location)
+
+    # Verify
+    assert isinstance(location_read, LocationRead)
+    assert location_read.id == location.id
+    assert location_read.location_id == location.location_id
+    assert location_read.confidence == location.confidence
+
+    # Verify modules were populated correctly
+    assert len(location_read.modules) == 1
+    assert isinstance(location_read.modules[0], ResolutionModuleRead)
+    assert location_read.modules[0].id == module.id
+    assert location_read.modules[0].name == module.name
 
 
 def test_parse_returns_document_read(test_db, geoparser_with_existing_project):

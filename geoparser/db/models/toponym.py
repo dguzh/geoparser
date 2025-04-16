@@ -7,6 +7,7 @@ from sqlmodel import Field, Relationship, SQLModel
 if t.TYPE_CHECKING:
     from geoparser.db.models.document import Document
     from geoparser.db.models.location import Location, LocationRead
+    from geoparser.db.models.recognition_module import RecognitionModuleRead
     from geoparser.db.models.recognition_object import RecognitionObject
     from geoparser.db.models.resolution_subject import ResolutionSubject
 
@@ -47,6 +48,7 @@ class Toponym(ToponymBase, table=True):
         sa_relationship_kwargs={
             "cascade": "all, delete-orphan",
             "passive_deletes": True,
+            "lazy": "joined",
         },
     )
     resolution_subjects: list["ResolutionSubject"] = Relationship(
@@ -90,5 +92,6 @@ class ToponymRead(SQLModel):
     end: int
     text: t.Optional[str] = None
     locations: list["LocationRead"] = []
+    modules: list["RecognitionModuleRead"] = []
 
     model_config = {"from_attributes": True}

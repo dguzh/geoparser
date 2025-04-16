@@ -50,3 +50,16 @@ class ResolutionModuleUpdate(SQLModel):
     id: uuid.UUID
     name: t.Optional[str] = None
     config: t.Optional[t.Dict[str, t.Any]] = None
+
+
+class ResolutionModuleRead(SQLModel):
+    """
+    Model for reading resolution module data.
+
+    Only exposes the id and name of a resolution module.
+    """
+
+    id: uuid.UUID
+    name: str
+
+    model_config = {"from_attributes": True}
