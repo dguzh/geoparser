@@ -390,7 +390,11 @@ def test_convert_to_toponym_read(geoparser_with_existing_project):
     )
 
     # Add a mock recognition module and object
-    module = RecognitionModule(id=uuid.uuid4(), name="TestRecognitionModule")
+    module = RecognitionModule(
+        id=uuid.uuid4(),
+        name="TestRecognitionModule",
+        config={"model_type": "spacy", "threshold": 0.85},
+    )
     recognition_object = RecognitionObject(
         id=uuid.uuid4(), toponym_id=toponym.id, module_id=module.id, module=module
     )
@@ -411,6 +415,9 @@ def test_convert_to_toponym_read(geoparser_with_existing_project):
     assert isinstance(toponym_read.modules[0], RecognitionModuleRead)
     assert toponym_read.modules[0].id == module.id
     assert toponym_read.modules[0].name == module.name
+    assert toponym_read.modules[0].config == module.config
+    assert toponym_read.modules[0].config["model_type"] == "spacy"
+    assert toponym_read.modules[0].config["threshold"] == 0.85
 
 
 def test_convert_to_location_read(geoparser_with_existing_project):
@@ -427,7 +434,11 @@ def test_convert_to_location_read(geoparser_with_existing_project):
     )
 
     # Add a mock resolution module and object
-    module = ResolutionModule(id=uuid.uuid4(), name="TestResolutionModule")
+    module = ResolutionModule(
+        id=uuid.uuid4(),
+        name="TestResolutionModule",
+        config={"gazetteer": "geonames", "max_results": 5},
+    )
     resolution_object = ResolutionObject(
         id=uuid.uuid4(), location_id=location.id, module_id=module.id, module=module
     )
@@ -447,6 +458,9 @@ def test_convert_to_location_read(geoparser_with_existing_project):
     assert isinstance(location_read.modules[0], ResolutionModuleRead)
     assert location_read.modules[0].id == module.id
     assert location_read.modules[0].name == module.name
+    assert location_read.modules[0].config == module.config
+    assert location_read.modules[0].config["gazetteer"] == "geonames"
+    assert location_read.modules[0].config["max_results"] == 5
 
 
 def test_parse_returns_document_read(test_db, geoparser_with_existing_project):

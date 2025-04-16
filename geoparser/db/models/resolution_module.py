@@ -56,10 +56,11 @@ class ResolutionModuleRead(SQLModel):
     """
     Model for reading resolution module data.
 
-    Only exposes the id and name of a resolution module.
+    Only exposes the id, name and config of a resolution module.
     """
 
     id: uuid.UUID
     name: str
+    config: t.Dict[str, t.Any]
 
     model_config = {"from_attributes": True}

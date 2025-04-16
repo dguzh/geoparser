@@ -56,10 +56,11 @@ class RecognitionModuleRead(SQLModel):
     """
     Model for reading recognition module data.
 
-    Only exposes the id and name of a recognition module.
+    Only exposes the id, name and config of a recognition module.
     """
 
     id: uuid.UUID
     name: str
+    config: t.Dict[str, t.Any]
 
     model_config = {"from_attributes": True}
