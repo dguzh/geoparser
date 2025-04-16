@@ -5,7 +5,16 @@ from typing import List, Optional, Union
 
 from geoparser.db.crud import DocumentRepository, ProjectRepository
 from geoparser.db.db import get_db
-from geoparser.db.models import Document, DocumentCreate, Project, ProjectCreate
+from geoparser.db.models import (
+    Document,
+    DocumentCreate,
+    DocumentRead,
+    LocationRead,
+    Project,
+    ProjectCreate,
+    Toponym,
+    ToponymRead,
+)
 from geoparser.geoparserv2.orchestrator import Orchestrator
 from geoparser.modules.interfaces import AbstractModule
 
@@ -91,7 +100,7 @@ class GeoparserV2:
 
     def get_documents(
         self, document_ids: t.Optional[List[uuid.UUID]] = None
-    ) -> List[Document]:
+    ) -> List[DocumentRead]:
         """
         Retrieve documents with their associated toponyms and locations.
 
@@ -104,7 +113,7 @@ class GeoparserV2:
                           If None, retrieves all documents in the project.
 
         Returns:
-            List of Document objects with related toponyms and locations.
+            List of DocumentRead objects with related toponyms and locations.
         """
         db = next(get_db())
 
@@ -115,7 +124,40 @@ class GeoparserV2:
             # Retrieve all documents for the project
             documents = DocumentRepository.get_by_project(db, self.project_id)
 
-        return documents
+        # Convert ORM objects to read models
+        return [self._convert_to_document_read(doc) for doc in documents]
+
+    def _convert_to_document_read(self, document: "Document") -> DocumentRead:
+        """
+        Convert a Document ORM object to a DocumentRead model, including all related objects.
+
+        Args:
+            document: The Document ORM object to convert
+
+        Returns:
+            A DocumentRead object with nested ToponymRead and LocationRead objects
+        """
+        doc_read = DocumentRead.model_validate(document)
+        doc_read.toponyms = [
+            self._convert_to_toponym_read(toponym) for toponym in document.toponyms
+        ]
+        return doc_read
+
+    def _convert_to_toponym_read(self, toponym: "Toponym") -> ToponymRead:
+        """
+        Convert a Toponym ORM object to a ToponymRead model, including all related objects.
+
+        Args:
+            toponym: The Toponym ORM object to convert
+
+        Returns:
+            A ToponymRead object with nested LocationRead objects
+        """
+        toponym_read = ToponymRead.model_validate(toponym)
+        toponym_read.locations = [
+            LocationRead.model_validate(location) for location in toponym.locations
+        ]
+        return toponym_read
 
     def run_module(self, module: AbstractModule) -> None:
         """
@@ -135,7 +177,7 @@ class GeoparserV2:
         for module in self.pipeline:
             self.run_module(module)
 
-    def parse(self, texts: Union[str, List[str]]) -> List[Document]:
+    def parse(self, texts: Union[str, List[str]]) -> List[DocumentRead]:
         """
         Parse one or more texts with the configured pipeline.
 
@@ -146,7 +188,7 @@ class GeoparserV2:
             texts: Either a single document text or a list of texts
 
         Returns:
-            List of Document objects with processed toponyms and locations
+            List of DocumentRead objects with processed toponyms and locations
         """
         # Add documents to the project and get their IDs
         document_ids = self.add_documents(texts)

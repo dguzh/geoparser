@@ -10,7 +10,7 @@ from geoparser.db.models.validators import normalize_newlines
 if t.TYPE_CHECKING:
     from geoparser.db.models.project import Project
     from geoparser.db.models.recognition_subject import RecognitionSubject
-    from geoparser.db.models.toponym import Toponym
+    from geoparser.db.models.toponym import Toponym, ToponymRead
 
 
 class DocumentBase(SQLModel):
@@ -71,3 +71,17 @@ class DocumentUpdate(SQLModel):
     id: uuid.UUID
     project_id: t.Optional[uuid.UUID] = None
     text: t.Optional[str] = None
+
+
+class DocumentRead(SQLModel):
+    """
+    Model for reading document data.
+
+    Only exposes the id, text and toponyms of a document.
+    """
+
+    id: uuid.UUID
+    text: str
+    toponyms: list["ToponymRead"] = []
+
+    model_config = {"from_attributes": True}

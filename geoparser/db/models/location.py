@@ -61,3 +61,18 @@ class LocationUpdate(SQLModel):
     id: uuid.UUID
     location_id: t.Optional[str] = None
     confidence: t.Optional[float] = None
+
+
+class LocationRead(SQLModel):
+    """
+    Model for reading location data.
+
+    Only exposes the id, toponym_id, location_id and confidence of a location.
+    """
+
+    id: uuid.UUID
+    toponym_id: uuid.UUID
+    location_id: str
+    confidence: t.Optional[float] = None
+
+    model_config = {"from_attributes": True}

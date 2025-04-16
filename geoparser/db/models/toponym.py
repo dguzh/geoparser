@@ -6,7 +6,7 @@ from sqlmodel import Field, Relationship, SQLModel
 
 if t.TYPE_CHECKING:
     from geoparser.db.models.document import Document
-    from geoparser.db.models.location import Location
+    from geoparser.db.models.location import Location, LocationRead
     from geoparser.db.models.recognition_object import RecognitionObject
     from geoparser.db.models.resolution_subject import ResolutionSubject
 
@@ -75,3 +75,20 @@ class ToponymUpdate(SQLModel):
     document_id: t.Optional[uuid.UUID] = None
     start: t.Optional[int] = None
     end: t.Optional[int] = None
+
+
+class ToponymRead(SQLModel):
+    """
+    Model for reading toponym data.
+
+    Only exposes the id, document_id, start, end, text and locations of a toponym.
+    """
+
+    id: uuid.UUID
+    document_id: uuid.UUID
+    start: int
+    end: int
+    text: t.Optional[str] = None
+    locations: list["LocationRead"] = []
+
+    model_config = {"from_attributes": True}
