@@ -20,6 +20,25 @@ def enable_foreign_keys(dbapi_connection, connection_record):
     cursor.close()
 
 
+def get_gazetteer_prefix(name: str) -> str:
+    """
+    Generate a deterministic table name prefix for a gazetteer.
+
+    This function creates a consistent naming pattern for gazetteer tables
+    to emulate schemas in SQLite, which doesn't support actual schemas.
+
+    Args:
+        name: Name of the gazetteer
+
+    Returns:
+        Prefix string in format 'gazetteer_{normalized_name}__'
+        where normalized_name is lowercase with non-alphanumeric chars removed
+    """
+    # Normalize name: lowercase and remove non-alphanumeric chars
+    normalized = "".join(c for c in name.lower() if c.isalnum())
+    return f"gazetteer_{normalized}__"
+
+
 def create_db_and_tables(engine):
     SQLModel.metadata.create_all(engine)
 

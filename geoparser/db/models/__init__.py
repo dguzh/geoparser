@@ -4,6 +4,7 @@ from geoparser.db.models.document import (
     DocumentRead,
     DocumentUpdate,
 )
+from geoparser.db.models.gazetteer import Gazetteer, GazetteerCreate, GazetteerUpdate
 from geoparser.db.models.location import (
     Location,
     LocationCreate,
@@ -76,5 +77,8 @@ for rebuild in [
     RecognitionSubjectCreate,
     ResolutionSubject,
     ResolutionSubjectCreate,
+    Gazetteer,
+    GazetteerCreate,
+    GazetteerUpdate,
 ]:
     rebuild.model_rebuild()
