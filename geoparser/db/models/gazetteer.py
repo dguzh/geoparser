@@ -9,7 +9,7 @@ class GazetteerBase(SQLModel):
     """Base model for gazetteer data."""
 
     name: str = Field(index=True, unique=True)
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    installed_at: datetime = Field(default_factory=datetime.utcnow)
 
 
 class Gazetteer(GazetteerBase, table=True):
@@ -32,3 +32,4 @@ class GazetteerUpdate(SQLModel):
 
     id: uuid.UUID
     name: t.Optional[str] = None
+    installed_at: t.Optional[datetime] = None
