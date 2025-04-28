@@ -35,7 +35,7 @@ class SourceConfig(BaseModel):
     id: str
     type: SourceType
     url: str
-    target: str
+    file: str
     separator: t.Optional[str] = None
     skiprows: t.Optional[int] = None
     layer: t.Optional[str] = None
