@@ -153,8 +153,32 @@ class GazetteerInstaller:
                 raise FileNotFoundError(f"File '{file}' not found")
 
         # Create a unique extraction directory for this archive
-        extraction_path = download_path.parent / download_path.stem
-        extraction_path.mkdir(exist_ok=True)
+        extraction_dir = download_path.parent / download_path.stem
+
+        # Check if the extraction directory exists
+        if extraction_dir.exists():
+            # Check if the extraction directory itself is the target file
+            if extraction_dir.name == file:
+                # Check if the zip file is newer than the extraction directory
+                if download_path.stat().st_mtime <= extraction_dir.stat().st_mtime:
+                    # File exists and is up to date, return it
+                    return extraction_dir
+                # Otherwise, we'll need to re-extract
+
+            # Check if the target file already exists in the extraction path
+            for path in extraction_dir.glob("**/*"):
+                if path.name == file:
+                    # Check if the zip file is not newer than the extracted file
+                    if download_path.stat().st_mtime <= path.stat().st_mtime:
+                        # File exists and is up to date, return it
+                        return path
+                    # Otherwise, we'll need to re-extract
+
+            # If we reach here, we need to clean up and re-extract
+            shutil.rmtree(extraction_dir)
+
+        # Create extraction directory
+        extraction_dir.mkdir(exist_ok=True)
 
         # Extract all files from the archive with a progress bar
         with zipfile.ZipFile(download_path, "r") as zip_ref:
@@ -170,17 +194,17 @@ class GazetteerInstaller:
             ) as pbar:
                 # Extract files one by one to update progress incrementally
                 for zip_info in zip_ref.infolist():
-                    zip_ref.extract(zip_info, path=extraction_path)
+                    zip_ref.extract(zip_info, path=extraction_dir)
                     pbar.update(zip_info.file_size)
 
-        # Look for the target file in the extracted files
-        for path in extraction_path.glob("**/*"):
+        # Check if the extraction directory itself might be the target
+        if extraction_dir.name == file:
+            return extraction_dir
+
+        # Otherwiseook for the target file in the extracted files
+        for path in extraction_dir.glob("**/*"):
             if path.name == file:
                 return path
-
-        # Check if the extraction directory itself might be the target
-        if extraction_path.name == file:
-            return extraction_path
 
         # If we can't find the target file, raise an error
         raise FileNotFoundError(f"File '{file}' not found")
