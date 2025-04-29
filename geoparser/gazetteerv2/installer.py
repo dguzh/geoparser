@@ -2,6 +2,7 @@ import shutil
 import warnings
 import zipfile
 from pathlib import Path
+from typing import Union
 
 import geopandas as gpd
 import pandas as pd
@@ -46,14 +47,19 @@ class GazetteerInstaller:
         """
         self.chunk_size = chunk_size
 
-    def install(self, gazetteer: GazetteerConfig, keep_downloads: bool = False) -> None:
+    def install(
+        self, config_path: Union[str, Path], keep_downloads: bool = False
+    ) -> None:
         """
-        Install a gazetteer from a configuration.
+        Install a gazetteer from a YAML configuration file.
 
         Args:
-            gazetteer: The gazetteer configuration
+            config_path: Path to the YAML configuration file
             keep_downloads: Whether to keep downloaded files after installation
         """
+        # Load gazetteer configuration from YAML
+        gazetteer = GazetteerConfig.from_yaml(config_path)
+
         # Create directory for this gazetteer
         downloads_dir = (
             Path(user_data_dir("geoparser", "")) / "downloads" / gazetteer.name
