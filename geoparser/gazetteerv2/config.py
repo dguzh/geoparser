@@ -37,7 +37,7 @@ class SourceConfig(BaseModel):
     url: str
     file: str
     separator: t.Optional[str] = None
-    skiprows: t.Optional[int] = None
+    skiprows: t.Optional[int] = 0
     layer: t.Optional[str] = None
     columns: list[ColumnConfig]
     geometry: t.Optional[GeometryConfig] = None
@@ -46,11 +46,9 @@ class SourceConfig(BaseModel):
     def validate_type_specific_fields(self) -> "SourceConfig":
         """Validate that fields are appropriate for the source type."""
         if self.type == SourceType.TABULAR:
-            # Tabular sources must have separator and skiprows
+            # Tabular sources must have separator
             if self.separator is None:
                 raise ValueError("Tabular sources must specify a separator")
-            if self.skiprows is None:
-                raise ValueError("Tabular sources must specify skiprows")
             # Tabular sources should not have layer
             if self.layer is not None:
                 raise ValueError("Layer can not be specified for tabular sources")
@@ -58,7 +56,7 @@ class SourceConfig(BaseModel):
             # Spatial sources should not have separator or skiprows
             if self.separator is not None:
                 raise ValueError("Separator can not be specified for spatial sources")
-            if self.skiprows is not None:
+            if self.skiprows != 0:
                 raise ValueError("Skiprows can not be specified for spatial sources")
             # Geometry should only be for tabular sources
             if self.geometry is not None:
