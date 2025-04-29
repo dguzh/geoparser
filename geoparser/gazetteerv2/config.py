@@ -17,7 +17,7 @@ class ColumnConfig(BaseModel):
     """Configuration for a column in a source file."""
 
     name: str
-    keep: bool = True
+    drop: bool = False
 
 
 class GeometryConfig(BaseModel):

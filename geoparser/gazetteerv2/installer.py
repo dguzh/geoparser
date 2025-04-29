@@ -271,8 +271,8 @@ class GazetteerInstaller:
             table_name: Name of the table to load data into
             if_exists: How to behave if the table already exists
         """
-        # Filter columns based on keep flag
-        keep_columns = [col.name for col in source.columns if col.keep]
+        # Filter columns based on drop flag
+        keep_columns = [col.name for col in source.columns if not col.drop]
         chunk = chunk[keep_columns]
 
         # Create geometry if specified
@@ -378,8 +378,8 @@ class GazetteerInstaller:
         # Rename columns
         chunk = chunk.rename(columns=rename_map)
 
-        # Filter columns based on keep flag, always including geometry
-        keep_columns = [col.name for col in source.columns if col.keep]
+        # Filter columns based on drop flag, always including geometry
+        keep_columns = [col.name for col in source.columns if not col.drop]
         if "geometry" in chunk.columns and "geometry" not in keep_columns:
             keep_columns.append("geometry")
 
