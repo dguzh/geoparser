@@ -211,9 +211,6 @@ class GazetteerInstaller:
         # Get column names
         names = [col.name for col in source.columns]
 
-        # Create column data types dictionary
-        dtype = {col.name: col.type for col in source.columns}
-
         # Read and process file in chunks
         chunk_iter = pd.read_table(
             file_path,
@@ -221,7 +218,6 @@ class GazetteerInstaller:
             skiprows=source.skiprows,
             header=None,
             names=names,
-            dtype=dtype,
             low_memory=False,
             chunksize=chunk_size,
         )
@@ -367,11 +363,6 @@ class GazetteerInstaller:
 
         # Keep only the specified columns
         chunk = chunk[keep_columns]
-
-        # Apply column types from config
-        for col in source.columns:
-            if col.name in chunk.columns:
-                chunk[col.name] = chunk[col.name].astype(col.type)
 
         # Convert geometry to WKT for storage in SQLite
         chunk["geometry"] = chunk.geometry.to_wkt()
