@@ -46,37 +46,35 @@ class GazetteerInstaller:
         """
         self.chunk_size = chunk_size
 
-    def install(self, config: GazetteerConfig, keep_downloads: bool = False) -> None:
+    def install(self, gazetteer: GazetteerConfig, keep_downloads: bool = False) -> None:
         """
         Install a gazetteer from a configuration.
 
         Args:
-            config: The gazetteer configuration
+            gazetteer: The gazetteer configuration
             keep_downloads: Whether to keep downloaded files after installation
         """
         # Create directory for this gazetteer
-        downloads_dir = Path(user_data_dir("geoparser", "")) / "downloads" / config.name
+        downloads_dir = (
+            Path(user_data_dir("geoparser", "")) / "downloads" / gazetteer.name
+        )
         downloads_dir.mkdir(parents=True, exist_ok=True)
 
-        for source in config.sources:
+        for source in gazetteer.sources:
             # Download file if necessary
             download_path = self._download_file(source.url, downloads_dir)
 
             # Extract file if necessary and get the path to the specific file
             file_path = self._extract_file(source.file, download_path)
 
-            # Load data into SQLite
-            table_name = f"{get_gazetteer_prefix(config.name)}{source.id.lower()}"
-
             # Call appropriate load method based on source type
             if source.type == SourceType.TABULAR:
-                self._load_tabular(file_path, table_name, source)
-
+                self._load_tabular(file_path, gazetteer, source)
             elif source.type == SourceType.SPATIAL:
-                self._load_spatial(file_path, table_name, source)
+                self._load_spatial(file_path, gazetteer, source)
 
         # Update gazetteer metadata
-        self._update_gazetteer_metadata(config.name)
+        self._update_gazetteer_metadata(gazetteer.name)
 
         # Clean up downloads if requested
         if not keep_downloads:
@@ -124,7 +122,7 @@ class GazetteerInstaller:
 
         return download_path
 
-    def _extract_file(self, target_file: str, download_path: Path) -> Path:
+    def _extract_file(self, file: str, download_path: Path) -> Path:
         """
         Extract files from a zip archive and locate the target file.
 
@@ -132,7 +130,7 @@ class GazetteerInstaller:
         For zip files, extracts contents and returns the path to the target file.
 
         Args:
-            target_file: The target file to locate after extraction
+            file: The file to locate after extraction
             download_path: Path to the downloaded file
 
         Returns:
@@ -143,10 +141,10 @@ class GazetteerInstaller:
         """
         # If the archive is not a zip file, check if it's the target file
         if not zipfile.is_zipfile(download_path):
-            if download_path.name == target_file:
+            if download_path.name == file:
                 return download_path
             else:
-                raise FileNotFoundError(f"File '{target_file}' not found")
+                raise FileNotFoundError(f"File '{file}' not found")
 
         # Create a unique extraction directory for this archive
         extraction_path = download_path.parent / download_path.stem
@@ -164,34 +162,37 @@ class GazetteerInstaller:
                 unit_scale=True,
                 desc=f"Extracting {download_path.name}",
             ) as pbar:
-                # Extract all files
-                zip_ref.extractall(path=extraction_path)
-                # Update progress to 100% after extraction completes
-                pbar.update(total_size)
+                # Extract files one by one to update progress incrementally
+                for zip_info in zip_ref.infolist():
+                    zip_ref.extract(zip_info, path=extraction_path)
+                    pbar.update(zip_info.file_size)
 
         # Look for the target file in the extracted files
         for path in extraction_path.glob("**/*"):
-            if path.name == target_file:
+            if path.name == file:
                 return path
 
         # Check if the extraction directory itself might be the target
-        if extraction_path.name == target_file:
+        if extraction_path.name == file:
             return extraction_path
 
         # If we can't find the target file, raise an error
-        raise FileNotFoundError(f"File '{target_file}' not found")
+        raise FileNotFoundError(f"File '{file}' not found")
 
     def _load_tabular(
-        self, file_path: Path, table_name: str, source: SourceConfig
+        self, file_path: Path, gazetteer: GazetteerConfig, source: SourceConfig
     ) -> None:
         """
         Load tabular data into SQLite using chunked processing.
 
         Args:
             file_path: Path to the file containing the data
-            table_name: Name of the table to create
+            gazetteer: The gazetteer configuration
             source: Source configuration
         """
+        # Generate table name
+        table_name = f"{get_gazetteer_prefix(gazetteer.name)}{source.id.lower()}"
+
         # Get total row count for progress bar
         total_rows = (
             pyogrio.read_info(f"CSV:{file_path}", encoding="utf-8")["features"]
@@ -272,16 +273,19 @@ class GazetteerInstaller:
         chunk.to_sql(table_name, engine, index=False, if_exists=if_exists)
 
     def _load_spatial(
-        self, file_path: Path, table_name: str, source: SourceConfig
+        self, file_path: Path, gazetteer: GazetteerConfig, source: SourceConfig
     ) -> None:
         """
         Load spatial data into SQLite using chunked processing.
 
         Args:
             file_path: Path to the file containing the data
-            table_name: Name of the table to create
+            gazetteer: The gazetteer configuration
             source: Source configuration
         """
+        # Generate table name
+        table_name = f"{get_gazetteer_prefix(gazetteer.name)}{source.id.lower()}"
+
         # Set up kwargs for reading
         kwargs = {}
         if source.layer:
