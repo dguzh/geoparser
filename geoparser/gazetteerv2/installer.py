@@ -199,11 +199,9 @@ class GazetteerInstaller:
         # Generate table name
         table_name = f"{get_gazetteer_prefix(gazetteer.name)}{source.id.lower()}"
 
-        # Get total row count for progress bar
-        total_rows = (
-            pyogrio.read_info(f"CSV:{file_path}", encoding="utf-8")["features"]
-            - source.skiprows
-        )
+        # Get total row count for progress bar using a more reliable method for tabular files
+        with open(file_path, "r", encoding="utf-8") as f:
+            total_rows = sum(1 for _ in f) - source.skiprows
 
         # Calculate chunk size based on total rows
         chunk_size = min(self.chunk_size, total_rows)
