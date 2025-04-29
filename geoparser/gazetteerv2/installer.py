@@ -201,7 +201,7 @@ class GazetteerInstaller:
         if extraction_dir.name == file:
             return extraction_dir
 
-        # Otherwiseook for the target file in the extracted files
+        # Otherwise, look for the target file in the extracted files
         for path in extraction_dir.glob("**/*"):
             if path.name == file:
                 return path

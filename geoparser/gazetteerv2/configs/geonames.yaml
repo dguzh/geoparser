@@ -1,0 +1,171 @@
+name: geonames
+sources:
+  - id: allCountries
+    type: tabular
+    url: https://download.geonames.org/export/dump/allCountries.zip
+    file: allCountries.txt
+    separator: "\t"
+    skiprows: 0
+    columns:
+      - name: geonameid
+        keep: true
+      - name: name
+        keep: true
+      - name: asciiname
+        keep: true
+      - name: alternatenames
+        keep: true
+      - name: latitude
+        keep: true
+      - name: longitude
+        keep: true
+      - name: feature_class
+        keep: true
+      - name: feature_code
+        keep: true
+      - name: country_code
+        keep: true
+      - name: cc2
+        keep: true
+      - name: admin1_code
+        keep: true
+      - name: admin2_code
+        keep: true
+      - name: admin3_code
+        keep: true
+      - name: admin4_code
+        keep: true
+      - name: population
+        keep: true
+      - name: elevation
+        keep: true
+      - name: dem
+        keep: true
+      - name: timezone
+        keep: true
+      - name: modification_date
+        keep: true
+    geometry:
+      x: longitude
+      y: latitude
+      crs: EPSG:4326
+
+  - id: admin1CodesASCII
+    type: tabular
+    url: https://download.geonames.org/export/dump/admin1CodesASCII.txt
+    file: admin1CodesASCII.txt
+    separator: "\t"
+    skiprows: 0
+    columns:
+      - name: code
+        keep: true
+      - name: name
+        keep: true
+      - name: asciiname
+        keep: true
+      - name: geonameid
+        keep: true
+
+  - id: admin2Codes
+    type: tabular
+    url: https://download.geonames.org/export/dump/admin2Codes.txt
+    file: admin2Codes.txt
+    separator: "\t"
+    skiprows: 0
+    columns:
+      - name: code
+        keep: true
+      - name: name
+        keep: true
+      - name: asciiname
+        keep: true
+      - name: geonameid
+        keep: true
+
+  - id: countryInfo
+    type: tabular
+    url: https://download.geonames.org/export/dump/countryInfo.txt
+    file: countryInfo.txt
+    separator: "\t"
+    skiprows: 50
+    columns:
+      - name: ISO
+        keep: true
+      - name: ISO3
+        keep: true
+      - name: ISO_Numeric
+        keep: true
+      - name: fips
+        keep: true
+      - name: Country
+        keep: true
+      - name: Capital
+        keep: true
+      - name: Area
+        keep: true
+      - name: Population
+        keep: true
+      - name: Continent
+        keep: true
+      - name: tld
+        keep: true
+      - name: CurrencyCode
+        keep: true
+      - name: CurrencyName
+        keep: true
+      - name: Phone
+        keep: true
+      - name: PostalCodeFormat
+        keep: true
+      - name: PostalCodeRegex
+        keep: true
+      - name: Languages
+        keep: true
+      - name: geonameid
+        keep: true
+      - name: neighbours
+        keep: true
+      - name: EquivalentFipsCode
+        keep: true
+
+  - id: featureCodes_en
+    type: tabular
+    url: https://download.geonames.org/export/dump/featureCodes_en.txt
+    file: featureCodes_en.txt
+    separator: "\t"
+    skiprows: 0
+    columns:
+      - name: code
+        keep: true
+      - name: name
+        keep: true
+      - name: description
+        keep: true
+
+  - id: alternateNames
+    type: tabular
+    url: https://download.geonames.org/export/dump/alternateNames.zip
+    file: alternateNames.txt
+    separator: "\t"
+    skiprows: 0
+    columns:
+      - name: alternateNameId
+        keep: true
+      - name: geonameid
+        keep: true
+      - name: isolanguage
+        keep: true
+      - name: alternate_name
+        keep: true
+      - name: isPreferredName
+        keep: true
+      - name: isShortName
+        keep: true
+      - name: isColloquial
+        keep: true
+      - name: isHistoric
+        keep: true
+      - name: from
+        keep: true
+      - name: to
+        keep: true 

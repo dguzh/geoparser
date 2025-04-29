@@ -1,0 +1,225 @@
+name: swissnames3d
+sources:
+  - id: swissNAMES3D_PKT
+    type: spatial
+    url: https://data.geo.admin.ch/ch.swisstopo.swissnames3d/swissnames3d_2024/swissnames3d_2024_2056.shp.zip
+    file: swissNAMES3D_PKT.shp
+    columns:
+      - name: UUID
+        keep: true
+      - name: OBJEKTART
+        keep: true
+      - name: OBJEKTKLAS
+        keep: true
+      - name: HOEHE
+        keep: true
+      - name: GEBAEUDENU
+        keep: true
+      - name: NAME_UUID
+        keep: true
+      - name: NAME
+        keep: true
+      - name: STATUS
+        keep: true
+      - name: SPRACHCODE
+        keep: true
+      - name: NAMEN_TYP
+        keep: true
+      - name: NAMENGRUPP
+        keep: true
+
+  - id: swissNAMES3D_LIN
+    type: spatial
+    url: https://data.geo.admin.ch/ch.swisstopo.swissnames3d/swissnames3d_2024/swissnames3d_2024_2056.shp.zip
+    file: swissNAMES3D_LIN.shp
+    columns:
+      - name: UUID
+        keep: true
+      - name: OBJEKTART
+        keep: true
+      - name: OBJEKTKLAS
+        keep: true
+      - name: KUNSTBAUTE
+        keep: true
+      - name: NAME_UUID
+        keep: true
+      - name: NAME
+        keep: true
+      - name: STATUS
+        keep: true
+      - name: SPRACHCODE
+        keep: true
+      - name: NAMEN_TYP
+        keep: true
+      - name: NAMENGRUPP
+        keep: true
+
+  - id: swissNAMES3D_PLY
+    type: spatial
+    url: https://data.geo.admin.ch/ch.swisstopo.swissnames3d/swissnames3d_2024/swissnames3d_2024_2056.shp.zip
+    file: swissNAMES3D_PLY.shp
+    columns:
+      - name: UUID
+        keep: true
+      - name: OBJEKTART
+        keep: true
+      - name: OBJEKTKLAS
+        keep: true
+      - name: EINWOHNERK
+        keep: true
+      - name: NAME_UUID
+        keep: true
+      - name: NAME
+        keep: true
+      - name: STATUS
+        keep: true
+      - name: SPRACHCODE
+        keep: true
+      - name: NAMEN_TYP
+        keep: true
+      - name: NAMENGRUPP
+        keep: true
+      - name: ISCED
+        keep: true
+
+  - id: swissBOUNDARIES3D_1_5_TLM_HOHEITSGEBIET
+    type: spatial
+    url: https://data.geo.admin.ch/ch.swisstopo.swissboundaries3d/swissboundaries3d_2024-01/swissboundaries3d_2024-01_2056_5728.shp.zip
+    file: swissBOUNDARIES3D_1_5_TLM_HOHEITSGEBIET.shp
+    columns:
+      - name: UUID
+        keep: true
+      - name: DATUM_AEND
+        keep: true
+      - name: DATUM_ERST
+        keep: true
+      - name: ERSTELL_J
+        keep: true
+      - name: ERSTELL_M
+        keep: true
+      - name: GRUND_AEND
+        keep: true
+      - name: HERKUNFT
+        keep: true
+      - name: HERKUNFT_J
+        keep: true
+      - name: HERKUNFT_M
+        keep: true
+      - name: REVISION_J
+        keep: true
+      - name: REVISION_M
+        keep: true
+      - name: REVISION_Q
+        keep: true
+      - name: OBJEKTART
+        keep: true
+      - name: BFS_NUMMER
+        keep: true
+      - name: BEZIRKSNUM
+        keep: true
+      - name: KANTONSNUM
+        keep: true
+      - name: NAME
+        keep: true
+      - name: GEM_FLAECH
+        keep: true
+      - name: SEE_FLAECH
+        keep: true
+      - name: ICC
+        keep: true
+      - name: SHN
+        keep: true
+      - name: EINWOHNERZ
+        keep: true
+      - name: HIST_NR
+        keep: true
+
+  - id: swissBOUNDARIES3D_1_5_TLM_BEZIRKSGEBIET
+    type: spatial
+    url: https://data.geo.admin.ch/ch.swisstopo.swissboundaries3d/swissboundaries3d_2024-01/swissboundaries3d_2024-01_2056_5728.shp.zip
+    file: swissBOUNDARIES3D_1_5_TLM_BEZIRKSGEBIET.shp
+    columns:
+      - name: UUID
+        keep: true
+      - name: DATUM_AEND
+        keep: true
+      - name: DATUM_ERST
+        keep: true
+      - name: ERSTELL_J
+        keep: true
+      - name: ERSTELL_M
+        keep: true
+      - name: GRUND_AEND
+        keep: true
+      - name: HERKUNFT
+        keep: true
+      - name: HERKUNFT_J
+        keep: true
+      - name: HERKUNFT_M
+        keep: true
+      - name: REVISION_J
+        keep: true
+      - name: REVISION_M
+        keep: true
+      - name: REVISION_Q
+        keep: true
+      - name: OBJEKTART
+        keep: true
+      - name: BEZIRKSNUM
+        keep: true
+      - name: SEE_FLAECH
+        keep: true
+      - name: BEZIRKSFLA
+        keep: true
+      - name: NAME
+        keep: true
+      - name: KANTONSNUM
+        keep: true
+      - name: ICC
+        keep: true
+      - name: EINWOHNERZ
+        keep: true
+
+  - id: swissBOUNDARIES3D_1_5_TLM_KANTONSGEBIET
+    type: spatial
+    url: https://data.geo.admin.ch/ch.swisstopo.swissboundaries3d/swissboundaries3d_2024-01/swissboundaries3d_2024-01_2056_5728.shp.zip
+    file: swissBOUNDARIES3D_1_5_TLM_KANTONSGEBIET.shp
+    columns:
+      - name: UUID
+        keep: true
+      - name: DATUM_AEND
+        keep: true
+      - name: DATUM_ERST
+        keep: true
+      - name: ERSTELL_J
+        keep: true
+      - name: ERSTELL_M
+        keep: true
+      - name: GRUND_AEND
+        keep: true
+      - name: HERKUNFT
+        keep: true
+      - name: HERKUNFT_J
+        keep: true
+      - name: HERKUNFT_M
+        keep: true
+      - name: REVISION_J
+        keep: true
+      - name: REVISION_M
+        keep: true
+      - name: REVISION_Q
+        keep: true
+      - name: OBJEKTART
+        keep: true
+      - name: KANTONSNUM
+        keep: true
+      - name: SEE_FLAECH
+        keep: true
+      - name: KANTONSFLA
+        keep: true
+      - name: NAME
+        keep: true
+      - name: ICC
+        keep: true
+      - name: EINWOHNERZ
+        keep: true 
