@@ -2,7 +2,6 @@ import shutil
 import uuid
 import warnings
 import zipfile
-from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Union
 
@@ -19,7 +18,7 @@ from geoparser.db.crud.gazetteer_column import GazetteerColumnRepository
 from geoparser.db.crud.gazetteer_relationship import GazetteerRelationshipRepository
 from geoparser.db.crud.gazetteer_table import GazetteerTableRepository
 from geoparser.db.db import engine, get_db, get_gazetteer_prefix
-from geoparser.db.models.gazetteer import GazetteerCreate, GazetteerUpdate
+from geoparser.db.models.gazetteer import GazetteerCreate
 from geoparser.db.models.gazetteer_column import GazetteerColumn, GazetteerColumnCreate
 from geoparser.db.models.gazetteer_relationship import GazetteerRelationshipCreate
 from geoparser.db.models.gazetteer_table import GazetteerTable, GazetteerTableCreate
@@ -104,9 +103,6 @@ class GazetteerInstaller:
         # Create relationship metadata and indexes
         self._create_relationships(gazetteer_config, gazetteer_record.id)
 
-        # Update the gazetteer metadata to indicate completion
-        self._update_gazetteer_record(gazetteer_record.id)
-
         # Clean up downloads if requested
         if not keep_downloads:
             self._cleanup_downloads(downloads_dir)
@@ -133,21 +129,6 @@ class GazetteerInstaller:
 
         # Create a new gazetteer record
         return GazetteerRepository.create(db, GazetteerCreate(name=name))
-
-    def _update_gazetteer_record(self, gazetteer_id: uuid.UUID):
-        """
-        Update an existing gazetteer record in the database.
-
-        Args:
-            gazetteer_id: ID of the gazetteer to update
-        """
-        db = next(get_db())
-        gazetteer = GazetteerRepository.get(db, gazetteer_id)
-
-        # Explicitly set the current datetime in the modified field
-        update_data = GazetteerUpdate(id=gazetteer_id, modified=datetime.utcnow())
-
-        GazetteerRepository.update(db, db_obj=gazetteer, obj_in=update_data)
 
     def _download_file(self, url: str, downloads_dir: Path) -> Path:
         """

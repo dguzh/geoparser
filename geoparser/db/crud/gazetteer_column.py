@@ -28,23 +28,3 @@ class GazetteerColumnRepository(BaseRepository[GazetteerColumn]):
         """
         statement = select(GazetteerColumn).where(GazetteerColumn.table_id == table_id)
         return db.exec(statement).unique().all()
-
-    @classmethod
-    def get_by_name_and_table(
-        cls, db: Session, table_id: uuid.UUID, name: str
-    ) -> t.Optional[GazetteerColumn]:
-        """
-        Get a column by name and table ID.
-
-        Args:
-            db: Database session
-            table_id: ID of the table
-            name: Name of the column
-
-        Returns:
-            GazetteerColumn if found, None otherwise
-        """
-        statement = select(GazetteerColumn).where(
-            GazetteerColumn.table_id == table_id, GazetteerColumn.name == name
-        )
-        return db.exec(statement).unique().first()
