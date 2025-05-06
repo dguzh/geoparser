@@ -18,7 +18,7 @@ class GazetteerRepository(BaseRepository[Gazetteer]):
     @classmethod
     def get_by_name(cls, db: Session, name: str) -> t.Optional[Gazetteer]:
         """
-        Get a gazetteer by name.
+        Get the most recent gazetteer with the given name.
 
         Args:
             db: Database session
@@ -27,7 +27,11 @@ class GazetteerRepository(BaseRepository[Gazetteer]):
         Returns:
             Gazetteer if found, None otherwise
         """
-        statement = select(Gazetteer).where(Gazetteer.name == name)
+        statement = (
+            select(Gazetteer)
+            .where(Gazetteer.name == name)
+            .order_by(Gazetteer.modified.desc())
+        )
         return db.exec(statement).unique().first()
 
     @classmethod
@@ -35,7 +39,7 @@ class GazetteerRepository(BaseRepository[Gazetteer]):
         """
         Update a gazetteer if it exists, or create it if it doesn't.
 
-        This method updates the installed_at timestamp to the current time.
+        This method updates the modified timestamp to the current time.
 
         Args:
             db: Database session
@@ -49,12 +53,10 @@ class GazetteerRepository(BaseRepository[Gazetteer]):
         if gazetteer:
             # Update existing gazetteer with new timestamp
             gazetteer_update = GazetteerUpdate(
-                id=gazetteer.id, name=name, installed_at=datetime.utcnow()
+                id=gazetteer.id, name=name, modified=datetime.utcnow()
             )
             return cls.update(db, db_obj=gazetteer, obj_in=gazetteer_update)
         else:
             # Create new gazetteer
-            gazetteer_create = GazetteerCreate(
-                name=name, installed_at=datetime.utcnow()
-            )
+            gazetteer_create = GazetteerCreate(name=name, modified=datetime.utcnow())
             return cls.create(db, gazetteer_create)

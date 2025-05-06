@@ -1,112 +1,191 @@
 name: geonames
 sources:
-  - id: allCountries
+  - name: allCountries
     type: tabular
     url: https://download.geonames.org/export/dump/allCountries.zip
     file: allCountries.txt
     separator: "\t"
-    skiprows: 0
-    columns:
+    source_columns:
       - name: geonameid
+        type: INTEGER
+        primary: true
       - name: name
+        type: TEXT
       - name: asciiname
+        type: TEXT
       - name: alternatenames
+        type: TEXT
       - name: latitude
+        type: REAL
       - name: longitude
+        type: REAL
       - name: feature_class
+        type: TEXT
       - name: feature_code
+        type: TEXT
       - name: country_code
+        type: TEXT
       - name: cc2
+        type: TEXT
       - name: admin1_code
+        type: TEXT
       - name: admin2_code
+        type: TEXT
       - name: admin3_code
+        type: TEXT
       - name: admin4_code
+        type: TEXT
       - name: population
+        type: INTEGER
       - name: elevation
+        type: INTEGER
       - name: dem
+        type: INTEGER
       - name: timezone
+        type: TEXT
       - name: modification_date
-    geometry:
-      x: longitude
-      y: latitude
-      crs: EPSG:4326
+        type: TEXT
+    derived_columns:
+      - name: feature_code_full
+        type: TEXT
+        expression: "feature_class || '.' || feature_code"
+      - name: admin1_code_full
+        type: TEXT
+        expression: "country_code || '.' || admin1_code"
+      - name: admin2_code_full
+        type: TEXT
+        expression: "country_code || '.' || admin1_code || '.' || admin2_code"
+      - name: geometry
+        type: TEXT
+        expression: "('POINT(' || longitude || ' ' || latitude || ')')"
 
-  - id: admin1CodesASCII
+  - name: admin1CodesASCII
     type: tabular
     url: https://download.geonames.org/export/dump/admin1CodesASCII.txt
     file: admin1CodesASCII.txt
     separator: "\t"
-    skiprows: 0
-    columns:
+    source_columns:
       - name: code
+        type: TEXT
+        primary: true
       - name: name
+        type: TEXT
       - name: asciiname
+        type: TEXT
       - name: geonameid
+        type: INTEGER
 
-  - id: admin2Codes
+  - name: admin2Codes
     type: tabular
     url: https://download.geonames.org/export/dump/admin2Codes.txt
     file: admin2Codes.txt
     separator: "\t"
-    skiprows: 0
-    columns:
+    source_columns:
       - name: code
+        type: TEXT
+        primary: true
       - name: name
+        type: TEXT
       - name: asciiname
+        type: TEXT
       - name: geonameid
+        type: INTEGER
 
-  - id: countryInfo
+  - name: countryInfo
     type: tabular
     url: https://download.geonames.org/export/dump/countryInfo.txt
     file: countryInfo.txt
     separator: "\t"
     skiprows: 50
-    columns:
+    source_columns:
       - name: ISO
+        type: TEXT
+        primary: true
       - name: ISO3
+        type: TEXT
       - name: ISO_Numeric
+        type: INTEGER
       - name: fips
+        type: TEXT
       - name: Country
+        type: TEXT
       - name: Capital
+        type: TEXT
       - name: Area
+        type: REAL
       - name: Population
+        type: INTEGER
       - name: Continent
+        type: TEXT
       - name: tld
+        type: TEXT
       - name: CurrencyCode
+        type: TEXT
       - name: CurrencyName
+        type: TEXT
       - name: Phone
+        type: TEXT
       - name: PostalCodeFormat
+        type: TEXT
       - name: PostalCodeRegex
+        type: TEXT
       - name: Languages
+        type: TEXT
       - name: geonameid
+        type: INTEGER
       - name: neighbours
+        type: TEXT
       - name: EquivalentFipsCode
+        type: TEXT
 
-  - id: featureCodes_en
+  - name: featureCodes
     type: tabular
     url: https://download.geonames.org/export/dump/featureCodes_en.txt
     file: featureCodes_en.txt
     separator: "\t"
-    skiprows: 0
-    columns:
+    source_columns:
       - name: code
+        type: TEXT
+        primary: true
       - name: name
+        type: TEXT
       - name: description
+        type: TEXT
 
-  - id: alternateNames
+  - name: alternateNames
     type: tabular
     url: https://download.geonames.org/export/dump/alternateNames.zip
     file: alternateNames.txt
     separator: "\t"
-    skiprows: 0
-    columns:
+    source_columns:
       - name: alternateNameId
+        type: INTEGER
+        primary: true
       - name: geonameid
+        type: INTEGER
       - name: isolanguage
+        type: TEXT
       - name: alternate_name
+        type: TEXT
       - name: isPreferredName
+        type: INTEGER
       - name: isShortName
+        type: INTEGER
       - name: isColloquial
+        type: INTEGER
       - name: isHistoric
-      - name: from
-      - name: to 
+        type: INTEGER
+      - name: xfrom
+        type: TEXT
+      - name: xto
+        type: TEXT
+
+relationships:
+  - local: allCountries.feature_code_full
+    remote: featureCodes.code
+  - local: allCountries.country_code
+    remote: countryInfo.ISO
+  - local: allCountries.admin1_code_full
+    remote: admin1CodesASCII.code
+  - local: allCountries.admin2_code_full
+    remote: admin2Codes.code 
