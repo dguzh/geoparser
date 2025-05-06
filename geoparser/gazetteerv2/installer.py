@@ -102,19 +102,6 @@ class GazetteerInstaller:
         if not keep_downloads:
             self._cleanup_downloads(downloads_dir)
 
-    def _get_table_name(self, gazetteer_name: str, source_name: str) -> str:
-        """
-        Get the full table name for a source.
-
-        Args:
-            gazetteer_name: Name of the gazetteer
-            source_name: Name of the source
-
-        Returns:
-            Full table name with prefix
-        """
-        return f"{get_gazetteer_prefix(gazetteer_name)}{source_name.lower()}"
-
     def _create_gazetteer_record(self, name: str):
         """
         Create a new gazetteer record in the database.
@@ -266,6 +253,29 @@ class GazetteerInstaller:
         # If we can't find the target file, raise an error
         raise FileNotFoundError(f"File '{file}' not found")
 
+    def _cleanup_downloads(self, downloads_dir: Path) -> None:
+        """
+        Clean up downloaded files and extracted contents.
+
+        Args:
+            downloads_dir: Path to the gazetteer directory to clean up
+        """
+        if downloads_dir.exists():
+            shutil.rmtree(downloads_dir)
+
+    def _get_table_name(self, gazetteer_name: str, source_name: str) -> str:
+        """
+        Get the full table name for a source.
+
+        Args:
+            gazetteer_name: Name of the gazetteer
+            source_name: Name of the source
+
+        Returns:
+            Full table name with prefix
+        """
+        return f"{get_gazetteer_prefix(gazetteer_name)}{source_name.lower()}"
+
     def _create_table(self, gazetteer_name: str, source_config: SourceConfig) -> str:
         """
         Create a table with the appropriate columns and primary keys.
@@ -354,33 +364,6 @@ class GazetteerInstaller:
             self._load_tabular_file(file_path, table_name, source_config, chunksize)
         elif source_config.type == SourceType.SPATIAL:
             self._load_spatial_file(file_path, table_name, source_config, chunksize)
-
-    def _get_pandas_dtype_mapping(self, source_config: SourceConfig) -> Dict:
-        """
-        Create a mapping from column names to pandas dtypes.
-
-        This ensures pandas reads in data with the correct types,
-        especially important for text columns that might otherwise
-        be inferred as numeric.
-
-        Args:
-            source_config: Source configuration
-
-        Returns:
-            Dictionary mapping column names to pandas dtypes
-        """
-        dtype_map = {}
-        for col in source_config.source_columns:
-            # Map our DataType to pandas dtype
-            if col.type == DataType.TEXT:
-                dtype_map[col.name] = "str"
-            elif col.type == DataType.INTEGER:
-                dtype_map[col.name] = "Int64"  # Nullable integer type
-            elif col.type == DataType.REAL:
-                dtype_map[col.name] = "float64"
-            # BLOB type doesn't have a direct pandas equivalent, will be handled as object
-
-        return dtype_map
 
     def _load_tabular_file(
         self,
@@ -543,6 +526,33 @@ class GazetteerInstaller:
 
         # Convert to DataFrame and load to database
         pd.DataFrame(chunk).to_sql(table_name, engine, index=False, if_exists="append")
+
+    def _get_pandas_dtype_mapping(self, source_config: SourceConfig) -> Dict:
+        """
+        Create a mapping from column names to pandas dtypes.
+
+        This ensures pandas reads in data with the correct types,
+        especially important for text columns that might otherwise
+        be inferred as numeric.
+
+        Args:
+            source_config: Source configuration
+
+        Returns:
+            Dictionary mapping column names to pandas dtypes
+        """
+        dtype_map = {}
+        for col in source_config.source_columns:
+            # Map our DataType to pandas dtype
+            if col.type == DataType.TEXT:
+                dtype_map[col.name] = "str"
+            elif col.type == DataType.INTEGER:
+                dtype_map[col.name] = "Int64"  # Nullable integer type
+            elif col.type == DataType.REAL:
+                dtype_map[col.name] = "float64"
+            # BLOB type doesn't have a direct pandas equivalent, will be handled as object
+
+        return dtype_map
 
     def _create_derived_columns(
         self, table_name: str, source_config: SourceConfig, chunksize: int
@@ -737,13 +747,3 @@ class GazetteerInstaller:
                     )
                     connection.commit()
                 pbar.update(1)
-
-    def _cleanup_downloads(self, downloads_dir: Path) -> None:
-        """
-        Clean up downloaded files and extracted contents.
-
-        Args:
-            downloads_dir: Path to the gazetteer directory to clean up
-        """
-        if downloads_dir.exists():
-            shutil.rmtree(downloads_dir)
