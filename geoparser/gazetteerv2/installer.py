@@ -15,10 +15,12 @@ from appdirs import user_data_dir
 from tqdm.auto import tqdm
 
 from geoparser.db.crud.gazetteer import GazetteerRepository
+from geoparser.db.crud.gazetteer_column import GazetteerColumnRepository
 from geoparser.db.crud.gazetteer_relationship import GazetteerRelationshipRepository
 from geoparser.db.crud.gazetteer_table import GazetteerTableRepository
 from geoparser.db.db import engine, get_db, get_gazetteer_prefix
 from geoparser.db.models.gazetteer import GazetteerCreate, GazetteerUpdate
+from geoparser.db.models.gazetteer_column import GazetteerColumn, GazetteerColumnCreate
 from geoparser.db.models.gazetteer_relationship import GazetteerRelationshipCreate
 from geoparser.db.models.gazetteer_table import GazetteerTable, GazetteerTableCreate
 from geoparser.gazetteerv2.config import (
@@ -71,6 +73,9 @@ class GazetteerInstaller:
         # Create a new gazetteer entry in the database
         gazetteer_record = self._create_gazetteer_record(gazetteer_config.name)
 
+        # Track tables and their columns
+        table_columns = {}
+
         for source_config in gazetteer_config.sources:
             # Download file if necessary
             download_path = self._download_file(source_config.url, downloads_dir)
@@ -88,9 +93,13 @@ class GazetteerInstaller:
             self._create_derived_columns(table_name, source_config, chunksize)
 
             # Register the table in our metadata
-            self._create_table_record(
+            table = self._create_table_record(
                 gazetteer_record.id, table_name, source_config.name
             )
+
+            # Register columns in our metadata
+            columns = self._create_column_records(table.id, source_config)
+            table_columns[source_config.name] = columns
 
         # Create relationship metadata and indexes
         self._create_relationships(gazetteer_config, gazetteer_record.id)
@@ -354,6 +363,43 @@ class GazetteerInstaller:
             gazetteer_id=gazetteer_id,
         )
         return GazetteerTableRepository.create(db, table_data)
+
+    def _create_column_records(
+        self, table_id: uuid.UUID, source_config: SourceConfig
+    ) -> Dict[str, GazetteerColumn]:
+        """
+        Create records for all columns in a table.
+
+        Args:
+            table_id: ID of the table
+            source_config: Source configuration
+
+        Returns:
+            Dictionary mapping column names to GazetteerColumn objects
+        """
+        db = next(get_db())
+        column_map = {}
+
+        # Create source columns
+        for col_config in source_config.source_columns:
+            if not col_config.drop:
+                column_data = GazetteerColumnCreate(
+                    name=col_config.name,
+                    table_id=table_id,
+                )
+                column = GazetteerColumnRepository.create(db, column_data)
+                column_map[col_config.name] = column
+
+        # Create derived columns
+        for col_config in source_config.derived_columns:
+            column_data = GazetteerColumnCreate(
+                name=col_config.name,
+                table_id=table_id,
+            )
+            column = GazetteerColumnRepository.create(db, column_data)
+            column_map[col_config.name] = column
+
+        return column_map
 
     def _load_file(
         self,
@@ -645,6 +691,13 @@ class GazetteerInstaller:
         tables = GazetteerTableRepository.get_by_gazetteer(db, gazetteer_id)
         table_map = {table.name: table for table in tables}
 
+        # Also create a dictionary to map (table_name, column_name) to GazetteerColumn objects
+        column_map = {}
+        for table in tables:
+            columns = GazetteerColumnRepository.get_by_table(db, table.id)
+            for column in columns:
+                column_map[(table.name, column.name)] = column
+
         for relationship_config in gazetteer_config.relationships:
             # Get the table objects
             local_table = table_map.get(relationship_config.local_table)
@@ -657,11 +710,25 @@ class GazetteerInstaller:
                 )
                 continue
 
+            # Get the column objects
+            local_column = column_map.get(
+                (relationship_config.local_table, relationship_config.local_column)
+            )
+            remote_column = column_map.get(
+                (relationship_config.remote_table, relationship_config.remote_column)
+            )
+
+            if not local_column or not remote_column:
+                # Log warning and continue if columns not found
+                print(
+                    f"Warning: Could not find columns for relationship: {relationship_config.local} - {relationship_config.remote}"
+                )
+                continue
+
             # Create the relationship record
             self._create_relationship_record(
-                local_table.id,
-                remote_table.id,
-                relationship_config,
+                local_column.id,
+                remote_column.id,
                 gazetteer_id,
             )
 
@@ -675,30 +742,32 @@ class GazetteerInstaller:
 
     def _create_relationship_record(
         self,
-        local_table_id: uuid.UUID,
-        remote_table_id: uuid.UUID,
-        relationship_config: RelationshipConfig,
+        local_column_id: uuid.UUID,
+        remote_column_id: uuid.UUID,
         gazetteer_id: uuid.UUID,
     ) -> None:
         """
         Create a single relationship metadata record in the database.
 
         Args:
-            local_table_id: ID of the local table
-            remote_table_id: ID of the remote table
-            relationship_config: Relationship configuration
+            local_column_id: ID of the local column
+            remote_column_id: ID of the remote column
             gazetteer_id: ID of the gazetteer in the database
         """
         # Get a database session
         db = next(get_db())
 
+        # Get the table IDs from the columns
+        local_column = GazetteerColumnRepository.get(db, local_column_id)
+        remote_column = GazetteerColumnRepository.get(db, remote_column_id)
+
         # Store relationship metadata
         relationship = GazetteerRelationshipCreate(
             gazetteer_id=gazetteer_id,
-            local_table_id=local_table_id,
-            local_column=relationship_config.local_column,
-            remote_table_id=remote_table_id,
-            remote_column=relationship_config.remote_column,
+            local_table_id=local_column.table_id,
+            local_column_id=local_column_id,
+            remote_table_id=remote_column.table_id,
+            remote_column_id=remote_column_id,
         )
         GazetteerRelationshipRepository.create(db, relationship)
 

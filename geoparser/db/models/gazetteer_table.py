@@ -6,6 +6,7 @@ from sqlmodel import Field, Relationship, SQLModel
 
 if t.TYPE_CHECKING:
     from geoparser.db.models.gazetteer import Gazetteer
+    from geoparser.db.models.gazetteer_column import GazetteerColumn
     from geoparser.db.models.gazetteer_relationship import GazetteerRelationship
 
 
@@ -32,6 +33,14 @@ class GazetteerTable(GazetteerTableBase, table=True):
         )
     )
     gazetteer: "Gazetteer" = Relationship(back_populates="tables")
+
+    columns: list["GazetteerColumn"] = Relationship(
+        back_populates="table",
+        sa_relationship_kwargs={
+            "cascade": "all, delete-orphan",
+            "passive_deletes": True,
+        },
+    )
 
     local_relationships: list["GazetteerRelationship"] = Relationship(
         back_populates="local_table",
