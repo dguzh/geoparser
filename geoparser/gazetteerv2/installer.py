@@ -2,6 +2,7 @@ import shutil
 import uuid
 import warnings
 import zipfile
+from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Union
 
@@ -150,9 +151,11 @@ class GazetteerInstaller:
         """
         db = next(get_db())
         gazetteer = GazetteerRepository.get(db, gazetteer_id)
-        GazetteerRepository.update(
-            db, db_obj=gazetteer, obj_in=GazetteerUpdate(id=gazetteer_id)
-        )
+
+        # Explicitly set the current datetime in the modified field
+        update_data = GazetteerUpdate(id=gazetteer_id, modified=datetime.utcnow())
+
+        GazetteerRepository.update(db, db_obj=gazetteer, obj_in=update_data)
 
     def _download_file(self, url: str, downloads_dir: Path) -> Path:
         """

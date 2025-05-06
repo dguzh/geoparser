@@ -41,4 +41,4 @@ class GazetteerUpdate(SQLModel):
 
     id: uuid.UUID
     name: t.Optional[str] = None
-    modified: datetime = Field(default_factory=datetime.utcnow)
+    modified: t.Optional[datetime] = None
