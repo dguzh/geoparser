@@ -10,6 +10,11 @@ from geoparser.db.models.gazetteer_relationship import (
     GazetteerRelationshipCreate,
     GazetteerRelationshipUpdate,
 )
+from geoparser.db.models.gazetteer_table import (
+    GazetteerTable,
+    GazetteerTableCreate,
+    GazetteerTableUpdate,
+)
 from geoparser.db.models.location import (
     Location,
     LocationCreate,
@@ -88,5 +93,8 @@ for rebuild in [
     GazetteerRelationship,
     GazetteerRelationshipCreate,
     GazetteerRelationshipUpdate,
+    GazetteerTable,
+    GazetteerTableCreate,
+    GazetteerTableUpdate,
 ]:
     rebuild.model_rebuild()

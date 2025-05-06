@@ -16,9 +16,11 @@ from tqdm.auto import tqdm
 
 from geoparser.db.crud.gazetteer import GazetteerRepository
 from geoparser.db.crud.gazetteer_relationship import GazetteerRelationshipRepository
+from geoparser.db.crud.gazetteer_table import GazetteerTableRepository
 from geoparser.db.db import engine, get_db, get_gazetteer_prefix
 from geoparser.db.models.gazetteer import GazetteerCreate, GazetteerUpdate
 from geoparser.db.models.gazetteer_relationship import GazetteerRelationshipCreate
+from geoparser.db.models.gazetteer_table import GazetteerTableCreate
 from geoparser.gazetteerv2.config import (
     DataType,
     GazetteerConfig,
@@ -82,32 +84,16 @@ class GazetteerInstaller:
             # Load the data from the file
             self._load_file(file_path, table_name, source_config, chunksize)
 
-            # Create derived columns
-            if source_config.derived_columns:
-                self._create_derived_columns(table_name, source_config, chunksize)
+            # Create derived columns without checking first
+            self._create_derived_columns(table_name, source_config, chunksize)
+
+            # Register the table in our metadata
+            self._create_table_record(
+                gazetteer_record.id, table_name, source_config.name
+            )
 
         # Create relationship metadata and indexes
-        for relationship_config in gazetteer_config.relationships:
-            # Get the table names
-            local_table_name = self._get_table_name(
-                gazetteer_config.name, relationship_config.local_table
-            )
-            remote_table_name = self._get_table_name(
-                gazetteer_config.name, relationship_config.remote_table
-            )
-
-            self._create_relationship_record(
-                local_table_name,
-                remote_table_name,
-                relationship_config,
-                gazetteer_record.id,
-            )
-            self._create_relationship_index(
-                local_table_name,
-                remote_table_name,
-                relationship_config,
-                gazetteer_config.sources,
-            )
+        self._create_relationships(gazetteer_config, gazetteer_record.id)
 
         # Update the gazetteer metadata to indicate completion
         self._update_gazetteer_record(gazetteer_record.id)
@@ -324,6 +310,27 @@ class GazetteerInstaller:
             connection.commit()
 
         return table_name
+
+    def _create_table_record(
+        self, gazetteer_id: uuid.UUID, table_name: str, source_name: str
+    ) -> None:
+        """
+        Create a record for the table in the gazetteer_table metadata.
+
+        Args:
+            gazetteer_id: ID of the gazetteer
+            table_name: Name of the table
+            source_name: Name of the source
+        """
+        db = next(get_db())
+
+        # Create a new entry
+        table_data = GazetteerTableCreate(
+            name=table_name,
+            source_name=source_name,
+            gazetteer_id=gazetteer_id,
+        )
+        GazetteerTableRepository.create(db, table_data)
 
     def _load_file(
         self,
@@ -548,6 +555,10 @@ class GazetteerInstaller:
             source_config: Source configuration
             chunksize: Number of records to process at once
         """
+        # Skip if no derived columns defined
+        if not source_config.derived_columns:
+            return
+
         # Get row count for progress tracking
         with engine.connect() as connection:
             result = connection.execute(sa.text(f"SELECT COUNT(*) FROM {table_name}"))
@@ -595,6 +606,38 @@ class GazetteerInstaller:
 
                     # Update progress
                     pbar.update(limit)
+
+    def _create_relationships(
+        self, gazetteer_config: GazetteerConfig, gazetteer_id: uuid.UUID
+    ) -> None:
+        """
+        Create relationship metadata and indexes for all relationships.
+
+        Args:
+            gazetteer_config: Gazetteer configuration
+            gazetteer_id: ID of the gazetteer
+        """
+        for relationship_config in gazetteer_config.relationships:
+            # Get the table names
+            local_table_name = self._get_table_name(
+                gazetteer_config.name, relationship_config.local_table
+            )
+            remote_table_name = self._get_table_name(
+                gazetteer_config.name, relationship_config.remote_table
+            )
+
+            self._create_relationship_record(
+                local_table_name,
+                remote_table_name,
+                relationship_config,
+                gazetteer_id,
+            )
+            self._create_relationship_index(
+                local_table_name,
+                remote_table_name,
+                relationship_config,
+                gazetteer_config.sources,
+            )
 
     def _create_relationship_record(
         self,
