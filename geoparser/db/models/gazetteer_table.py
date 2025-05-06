@@ -6,13 +6,14 @@ from sqlmodel import Field, Relationship, SQLModel
 
 if t.TYPE_CHECKING:
     from geoparser.db.models.gazetteer import Gazetteer
+    from geoparser.db.models.gazetteer_relationship import GazetteerRelationship
 
 
 class GazetteerTableBase(SQLModel):
     """Base model for gazetteer table metadata."""
 
     name: str = Field(index=True)
-    source_name: str = Field(index=True)
+    table_name: str = Field(index=True)
 
 
 class GazetteerTable(GazetteerTableBase, table=True):
@@ -32,6 +33,24 @@ class GazetteerTable(GazetteerTableBase, table=True):
     )
     gazetteer: "Gazetteer" = Relationship(back_populates="tables")
 
+    local_relationships: list["GazetteerRelationship"] = Relationship(
+        back_populates="local_table",
+        sa_relationship_kwargs={
+            "cascade": "all, delete-orphan",
+            "passive_deletes": True,
+            "foreign_keys": "[GazetteerRelationship.local_table_id]",
+        },
+    )
+
+    remote_relationships: list["GazetteerRelationship"] = Relationship(
+        back_populates="remote_table",
+        sa_relationship_kwargs={
+            "cascade": "all, delete-orphan",
+            "passive_deletes": True,
+            "foreign_keys": "[GazetteerRelationship.remote_table_id]",
+        },
+    )
+
 
 class GazetteerTableCreate(GazetteerTableBase):
     """Model for creating a new gazetteer table record."""
@@ -44,5 +63,5 @@ class GazetteerTableUpdate(SQLModel):
 
     id: uuid.UUID
     name: t.Optional[str] = None
-    source_name: t.Optional[str] = None
+    table_name: t.Optional[str] = None
     gazetteer_id: t.Optional[uuid.UUID] = None

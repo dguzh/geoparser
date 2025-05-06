@@ -20,7 +20,7 @@ from geoparser.db.crud.gazetteer_table import GazetteerTableRepository
 from geoparser.db.db import engine, get_db, get_gazetteer_prefix
 from geoparser.db.models.gazetteer import GazetteerCreate, GazetteerUpdate
 from geoparser.db.models.gazetteer_relationship import GazetteerRelationshipCreate
-from geoparser.db.models.gazetteer_table import GazetteerTableCreate
+from geoparser.db.models.gazetteer_table import GazetteerTable, GazetteerTableCreate
 from geoparser.gazetteerv2.config import (
     DataType,
     GazetteerConfig,
@@ -105,6 +105,7 @@ class GazetteerInstaller:
     def _create_gazetteer_record(self, name: str):
         """
         Create a new gazetteer record in the database.
+        If records with the same name already exist, they will be deleted first.
 
         Args:
             name: Name of the gazetteer
@@ -113,6 +114,15 @@ class GazetteerInstaller:
             Created Gazetteer object
         """
         db = next(get_db())
+
+        # Get all existing gazetteers with this name
+        existing_gazetteers = GazetteerRepository.get_by_name(db, name)
+
+        # Delete each existing gazetteer
+        for gazetteer in existing_gazetteers:
+            GazetteerRepository.delete(db, id=gazetteer.id)
+
+        # Create a new gazetteer record
         return GazetteerRepository.create(db, GazetteerCreate(name=name))
 
     def _update_gazetteer_record(self, gazetteer_id: uuid.UUID):
@@ -323,24 +333,27 @@ class GazetteerInstaller:
 
     def _create_table_record(
         self, gazetteer_id: uuid.UUID, table_name: str, source_name: str
-    ) -> None:
+    ) -> GazetteerTable:
         """
         Create a record for the table in the gazetteer_table metadata.
 
         Args:
             gazetteer_id: ID of the gazetteer
-            table_name: Name of the table
-            source_name: Name of the source
+            table_name: Name of the table in the database
+            source_name: Name of the source from configuration
+
+        Returns:
+            Created GazetteerTable object
         """
         db = next(get_db())
 
-        # Create a new entry
+        # Create a new entry - now name is the source name from config, and table_name is the actual DB table name
         table_data = GazetteerTableCreate(
-            name=table_name,
-            source_name=source_name,
+            name=source_name,
+            table_name=table_name,
             gazetteer_id=gazetteer_id,
         )
-        GazetteerTableRepository.create(db, table_data)
+        return GazetteerTableRepository.create(db, table_data)
 
     def _load_file(
         self,
@@ -627,32 +640,43 @@ class GazetteerInstaller:
             gazetteer_config: Gazetteer configuration
             gazetteer_id: ID of the gazetteer
         """
-        for relationship_config in gazetteer_config.relationships:
-            # Get the table names
-            local_table_name = self._get_table_name(
-                gazetteer_config.name, relationship_config.local_table
-            )
-            remote_table_name = self._get_table_name(
-                gazetteer_config.name, relationship_config.remote_table
-            )
+        # Create a dictionary to map source names to GazetteerTable objects
+        db = next(get_db())
+        tables = GazetteerTableRepository.get_by_gazetteer(db, gazetteer_id)
+        table_map = {table.name: table for table in tables}
 
+        for relationship_config in gazetteer_config.relationships:
+            # Get the table objects
+            local_table = table_map.get(relationship_config.local_table)
+            remote_table = table_map.get(relationship_config.remote_table)
+
+            if not local_table or not remote_table:
+                # Log warning and continue if tables not found
+                print(
+                    f"Warning: Could not find tables for relationship: {relationship_config.local} - {relationship_config.remote}"
+                )
+                continue
+
+            # Create the relationship record
             self._create_relationship_record(
-                local_table_name,
-                remote_table_name,
+                local_table.id,
+                remote_table.id,
                 relationship_config,
                 gazetteer_id,
             )
+
+            # Create the indexes
             self._create_relationship_index(
-                local_table_name,
-                remote_table_name,
+                local_table.table_name,
+                remote_table.table_name,
                 relationship_config,
                 gazetteer_config.sources,
             )
 
     def _create_relationship_record(
         self,
-        local_table_name: str,
-        remote_table_name: str,
+        local_table_id: uuid.UUID,
+        remote_table_id: uuid.UUID,
         relationship_config: RelationshipConfig,
         gazetteer_id: uuid.UUID,
     ) -> None:
@@ -660,8 +684,8 @@ class GazetteerInstaller:
         Create a single relationship metadata record in the database.
 
         Args:
-            local_table_name: Name of the local table
-            remote_table_name: Name of the remote table
+            local_table_id: ID of the local table
+            remote_table_id: ID of the remote table
             relationship_config: Relationship configuration
             gazetteer_id: ID of the gazetteer in the database
         """
@@ -671,9 +695,9 @@ class GazetteerInstaller:
         # Store relationship metadata
         relationship = GazetteerRelationshipCreate(
             gazetteer_id=gazetteer_id,
-            local_table=local_table_name,
+            local_table_id=local_table_id,
             local_column=relationship_config.local_column,
-            remote_table=remote_table_name,
+            remote_table_id=remote_table_id,
             remote_column=relationship_config.remote_column,
         )
         GazetteerRelationshipRepository.create(db, relationship)
@@ -689,8 +713,8 @@ class GazetteerInstaller:
         Create indexes for a single relationship.
 
         Args:
-            local_table_name: Name of the local table
-            remote_table_name: Name of the remote table
+            local_table_name: Physical name of the local table in database
+            remote_table_name: Physical name of the remote table in database
             relationship_config: Relationship configuration
             source_configs: List of all source configurations
         """

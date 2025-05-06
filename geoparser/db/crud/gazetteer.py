@@ -14,20 +14,16 @@ class GazetteerRepository(BaseRepository[Gazetteer]):
     model = Gazetteer
 
     @classmethod
-    def get_by_name(cls, db: Session, name: str) -> t.Optional[Gazetteer]:
+    def get_by_name(cls, db: Session, name: str) -> t.List[Gazetteer]:
         """
-        Get the most recent gazetteer with the given name.
+        Get all gazetteers with the given name.
 
         Args:
             db: Database session
             name: Name of the gazetteer
 
         Returns:
-            Gazetteer if found, None otherwise
+            List of Gazetteer objects
         """
-        statement = (
-            select(Gazetteer)
-            .where(Gazetteer.name == name)
-            .order_by(Gazetteer.modified.desc())
-        )
-        return db.exec(statement).unique().first()
+        statement = select(Gazetteer).where(Gazetteer.name == name)
+        return db.exec(statement).unique().all()
