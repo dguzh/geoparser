@@ -319,6 +319,9 @@ class GazetteerInstaller:
             connection.execute(sa.text(create_table_sql))
             connection.commit()
 
+        # Dispose the engine to clear connection pool and cached schema information
+        engine.dispose()
+
         return table_name
 
     def _create_table_record(
