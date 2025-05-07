@@ -603,59 +603,42 @@ class GazetteerInstaller:
         Args:
             table_name: Name of the table
             source_config: Source configuration
-            chunksize: Number of records to process at once
+            chunksize: Number of records to process at once (not used in this implementation)
         """
         # Skip if no derived columns defined
         if not source_config.derived_columns:
             return
 
-        # Get row count for progress tracking
-        with engine.connect() as connection:
-            result = connection.execute(sa.text(f"SELECT COUNT(*) FROM {table_name}"))
-            total_rows = result.scalar()
-
-        # No action needed if the table is empty
-        if total_rows == 0:
-            return
-
         # For each derived column
         for col_config in source_config.derived_columns:
-            # Add column to the table
-            with engine.connect() as connection:
-                connection.execute(
-                    sa.text(
-                        f"ALTER TABLE {table_name} ADD COLUMN {col_config.name} "
-                        f"{col_config.type.value}"
-                    )
-                )
-                connection.commit()
-
-            # Create progress bar for this column
+            # Create progress bar for this column - just showing a single step
             with tqdm(
-                total=total_rows,
+                total=1,
                 desc=f"Deriving {source_config.name}.{col_config.name}",
-                unit="rows",
+                unit="columns",
             ) as pbar:
-                # Process in chunks to keep memory usage low
-                for offset in range(0, total_rows, chunksize):
-                    limit = min(chunksize, total_rows - offset)
-                    end_rowid = offset + limit
-
-                    # Update the chunk
-                    with engine.connect() as connection:
-                        connection.execute(
-                            sa.text(
-                                f"""
-                                UPDATE {table_name} 
-                                SET {col_config.name} = ({col_config.expression})
-                                WHERE rowid BETWEEN {offset + 1} AND {end_rowid}
-                                """
-                            )
+                # Add column to the table
+                with engine.connect() as connection:
+                    connection.execute(
+                        sa.text(
+                            f"ALTER TABLE {table_name} ADD COLUMN {col_config.name} "
+                            f"{col_config.type.value}"
                         )
-                        connection.commit()
+                    )
+                    connection.commit()
 
-                    # Update progress
-                    pbar.update(limit)
+                # Update all rows at once
+                with engine.connect() as connection:
+                    connection.execute(
+                        sa.text(
+                            f"UPDATE {table_name} "
+                            f"SET {col_config.name} = ({col_config.expression})"
+                        )
+                    )
+                    connection.commit()
+
+                # Mark progress as complete
+                pbar.update(1)
 
     def _create_relationships(
         self, gazetteer_config: GazetteerConfig, gazetteer_id: uuid.UUID
