@@ -72,9 +72,6 @@ class GazetteerInstaller:
         # Create a new gazetteer entry in the database
         gazetteer_record = self._create_gazetteer_record(gazetteer_config.name)
 
-        # Track tables and their columns
-        table_columns = {}
-
         for source_config in gazetteer_config.sources:
             # Download file if necessary
             download_path = self._download_file(source_config.url, downloads_dir)
@@ -97,8 +94,7 @@ class GazetteerInstaller:
             )
 
             # Register columns in our metadata
-            columns = self._create_column_records(table.id, source_config)
-            table_columns[source_config.name] = columns
+            self._create_column_records(table.id, source_config)
 
         # Create relationship metadata and indexes
         self._create_relationships(gazetteer_config, gazetteer_record.id)
