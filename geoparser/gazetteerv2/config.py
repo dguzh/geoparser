@@ -3,7 +3,7 @@ from enum import Enum
 from pathlib import Path
 
 import yaml
-from pydantic import BaseModel, field_validator, model_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 
 class SourceType(str, Enum):
@@ -22,8 +22,8 @@ class DataType(str, Enum):
     BLOB = "BLOB"
 
 
-class SourceColumnConfig(BaseModel):
-    """Configuration for a column in a source file."""
+class AttributeConfig(BaseModel):
+    """Configuration for an attribute in a source file."""
 
     name: str
     type: DataType
@@ -31,46 +31,19 @@ class SourceColumnConfig(BaseModel):
     drop: bool = False
 
     @model_validator(mode="after")
-    def validate_primary_and_drop(self) -> "SourceColumnConfig":
-        """Validate that a primary column cannot be dropped."""
+    def validate_primary_and_drop(self) -> "AttributeConfig":
+        """Validate that a primary attribute cannot be dropped."""
         if self.primary and self.drop:
-            raise ValueError("A primary key column cannot be dropped")
+            raise ValueError("A primary key attribute cannot be dropped")
         return self
 
 
-class DerivedColumnConfig(BaseModel):
-    """Configuration for a derived column created from an expression."""
+class StatementConfig(BaseModel):
+    """SQL statement configuration for a view."""
 
-    name: str
-    type: DataType
-    expression: str
-
-
-class RelationshipConfig(BaseModel):
-    """Configuration for a relationship between two sources."""
-
-    local: str
-    remote: str
-
-    @property
-    def local_table(self) -> str:
-        """Get the local table name from the relationship definition."""
-        return self.local.split(".")[0]
-
-    @property
-    def local_column(self) -> str:
-        """Get the local column name from the relationship definition."""
-        return self.local.split(".")[1]
-
-    @property
-    def remote_table(self) -> str:
-        """Get the remote table name from the relationship definition."""
-        return self.remote.split(".")[0]
-
-    @property
-    def remote_column(self) -> str:
-        """Get the remote column name from the relationship definition."""
-        return self.remote.split(".")[1]
+    select: t.List[str]
+    from_: t.List[str] = Field(alias="from")
+    join: t.Optional[t.List[str]] = None
 
 
 class SourceConfig(BaseModel):
@@ -83,8 +56,7 @@ class SourceConfig(BaseModel):
     separator: t.Optional[str] = None
     skiprows: int = 0
     layer: t.Optional[str] = None
-    source_columns: list[SourceColumnConfig]
-    derived_columns: list[DerivedColumnConfig] = []
+    attributes: t.List[AttributeConfig]
 
     @model_validator(mode="after")
     def validate_type_specific_fields(self) -> "SourceConfig":
@@ -104,23 +76,27 @@ class SourceConfig(BaseModel):
                 raise ValueError("Skiprows can not be specified for spatial sources")
 
             # For spatial sources, check if the last column is named "geometry"
-            if (
-                self.source_columns
-                and self.source_columns[-1].name.lower() != "geometry"
-            ):
+            if self.attributes and self.attributes[-1].name.lower() != "geometry":
                 raise ValueError(
-                    "For spatial sources, the last source_column must be named 'geometry'"
+                    "For spatial sources, the last attribute must be named 'geometry'"
                 )
 
         return self
+
+
+class ViewConfig(BaseModel):
+    """Configuration for a view over source tables."""
+
+    name: str
+    statement: StatementConfig
 
 
 class GazetteerConfig(BaseModel):
     """Configuration for a gazetteer."""
 
     name: str
-    sources: list[SourceConfig]
-    relationships: list[RelationshipConfig] = []
+    sources: t.List[SourceConfig]
+    views: t.Optional[t.List[ViewConfig]] = []
 
     @field_validator("name")
     @classmethod
@@ -141,19 +117,31 @@ class GazetteerConfig(BaseModel):
         return self
 
     @model_validator(mode="after")
-    def validate_relationships(self) -> "GazetteerConfig":
-        """Validate that relationships reference existing sources."""
-        source_names = {source.name for source in self.sources}
+    def validate_view_references(self) -> "GazetteerConfig":
+        """Validate that views reference existing sources."""
+        if not self.views:
+            return self
 
-        for rel in self.relationships:
-            if rel.local_table not in source_names:
-                raise ValueError(
-                    f"Relationship references non-existent source: {rel.local_table}"
-                )
-            if rel.remote_table not in source_names:
-                raise ValueError(
-                    f"Relationship references non-existent source: {rel.remote_table}"
-                )
+        source_names = {source.name for source in self.sources}
+        view_names = {view.name for view in self.views}
+
+        # Check for duplicate view names
+        if len(view_names) != len(self.views):
+            raise ValueError("View names must be unique within a gazetteer")
+
+        # Check for view names that conflict with source names
+        conflicts = view_names.intersection(source_names)
+        if conflicts:
+            raise ValueError(f"View names conflict with source names: {conflicts}")
+
+        # Check that 'from' references existing sources or views
+        all_names = source_names.union(view_names)
+        for view in self.views:
+            for source_ref in view.statement.from_:
+                if source_ref not in all_names:
+                    raise ValueError(
+                        f"View '{view.name}' references non-existent source/view: {source_ref}"
+                    )
 
         return self
 

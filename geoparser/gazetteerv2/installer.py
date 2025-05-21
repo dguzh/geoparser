@@ -1,9 +1,8 @@
 import shutil
-import uuid
 import warnings
 import zipfile
 from pathlib import Path
-from typing import Dict, List, Union
+from typing import Dict, Union
 
 import geopandas as gpd
 import pandas as pd
@@ -14,20 +13,14 @@ from appdirs import user_data_dir
 from tqdm.auto import tqdm
 
 from geoparser.db.crud.gazetteer import GazetteerRepository
-from geoparser.db.crud.gazetteer_column import GazetteerColumnRepository
-from geoparser.db.crud.gazetteer_relationship import GazetteerRelationshipRepository
-from geoparser.db.crud.gazetteer_table import GazetteerTableRepository
-from geoparser.db.db import engine, get_db, get_gazetteer_prefix
+from geoparser.db.db import engine, get_db
 from geoparser.db.models.gazetteer import GazetteerCreate
-from geoparser.db.models.gazetteer_column import GazetteerColumn, GazetteerColumnCreate
-from geoparser.db.models.gazetteer_relationship import GazetteerRelationshipCreate
-from geoparser.db.models.gazetteer_table import GazetteerTable, GazetteerTableCreate
 from geoparser.gazetteerv2.config import (
     DataType,
     GazetteerConfig,
-    RelationshipConfig,
     SourceConfig,
     SourceType,
+    ViewConfig,
 )
 
 # Suppress geopandas warning about geometry column
@@ -72,6 +65,7 @@ class GazetteerInstaller:
         # Create a new gazetteer entry in the database
         gazetteer_record = self._create_gazetteer_record(gazetteer_config.name)
 
+        # First pass: Create all base tables and load data
         for source_config in gazetteer_config.sources:
             # Download file if necessary
             download_path = self._download_file(source_config.url, downloads_dir)
@@ -80,24 +74,14 @@ class GazetteerInstaller:
             file_path = self._extract_file(source_config.file, download_path)
 
             # Create the table with primary keys and get the table name
-            table_name = self._create_table(gazetteer_config.name, source_config)
+            table_name = self._create_table(source_config)
 
             # Load the data from the file
             self._load_file(file_path, table_name, source_config, chunksize)
 
-            # Create derived columns without checking first
-            self._create_derived_columns(table_name, source_config, chunksize)
-
-            # Register the table in our metadata
-            table = self._create_table_record(
-                gazetteer_record.id, table_name, source_config.name
-            )
-
-            # Register columns in our metadata
-            self._create_column_records(table.id, source_config)
-
-        # Create relationship metadata and indexes
-        self._create_relationships(gazetteer_config, gazetteer_record.id)
+        # Second pass: Create views if configured
+        for view_config in gazetteer_config.views:
+            self._create_view(view_config)
 
         # Clean up downloads if requested
         if not keep_downloads:
@@ -259,31 +243,17 @@ class GazetteerInstaller:
         if downloads_dir.exists():
             shutil.rmtree(downloads_dir)
 
-    def _get_table_name(self, gazetteer_name: str, source_name: str) -> str:
-        """
-        Get the full table name for a source.
-
-        Args:
-            gazetteer_name: Name of the gazetteer
-            source_name: Name of the source
-
-        Returns:
-            Full table name with prefix
-        """
-        return f"{get_gazetteer_prefix(gazetteer_name)}{source_name.lower()}"
-
-    def _create_table(self, gazetteer_name: str, source_config: SourceConfig) -> str:
+    def _create_table(self, source_config: SourceConfig) -> str:
         """
         Create a table with the appropriate columns and primary keys.
 
         Args:
-            gazetteer_name: Name of the gazetteer
             source_config: Source configuration
 
         Returns:
             The created table name
         """
-        table_name = self._get_table_name(gazetteer_name, source_config.name)
+        table_name = source_config.name
 
         # Drop the existing table if it exists
         with engine.connect() as connection:
@@ -294,12 +264,12 @@ class GazetteerInstaller:
         columns = []
         primary_keys = []
 
-        # Add columns for source columns (that aren't dropped)
-        for col in source_config.source_columns:
-            if not col.drop:
-                columns.append(f"{col.name} {col.type.value}")
-                if col.primary:
-                    primary_keys.append(col.name)
+        # Add columns for attributes (that aren't dropped)
+        for attr in source_config.attributes:
+            if not attr.drop:
+                columns.append(f"{attr.name} {attr.type.value}")
+                if attr.primary:
+                    primary_keys.append(attr.name)
 
         # If no primary keys defined, don't add a primary key constraint
         pk_clause = ""
@@ -319,67 +289,6 @@ class GazetteerInstaller:
         engine.dispose()
 
         return table_name
-
-    def _create_table_record(
-        self, gazetteer_id: uuid.UUID, table_name: str, source_name: str
-    ) -> GazetteerTable:
-        """
-        Create a record for the table in the gazetteer_table metadata.
-
-        Args:
-            gazetteer_id: ID of the gazetteer
-            table_name: Name of the table in the database
-            source_name: Name of the source from configuration
-
-        Returns:
-            Created GazetteerTable object
-        """
-        db = next(get_db())
-
-        # Create a new entry - now name is the source name from config, and table_name is the actual DB table name
-        table_data = GazetteerTableCreate(
-            name=source_name,
-            table_name=table_name,
-            gazetteer_id=gazetteer_id,
-        )
-        return GazetteerTableRepository.create(db, table_data)
-
-    def _create_column_records(
-        self, table_id: uuid.UUID, source_config: SourceConfig
-    ) -> Dict[str, GazetteerColumn]:
-        """
-        Create records for all columns in a table.
-
-        Args:
-            table_id: ID of the table
-            source_config: Source configuration
-
-        Returns:
-            Dictionary mapping column names to GazetteerColumn objects
-        """
-        db = next(get_db())
-        column_map = {}
-
-        # Create source columns
-        for col_config in source_config.source_columns:
-            if not col_config.drop:
-                column_data = GazetteerColumnCreate(
-                    name=col_config.name,
-                    table_id=table_id,
-                )
-                column = GazetteerColumnRepository.create(db, column_data)
-                column_map[col_config.name] = column
-
-        # Create derived columns
-        for col_config in source_config.derived_columns:
-            column_data = GazetteerColumnCreate(
-                name=col_config.name,
-                table_id=table_id,
-            )
-            column = GazetteerColumnRepository.create(db, column_data)
-            column_map[col_config.name] = column
-
-        return column_map
 
     def _load_file(
         self,
@@ -428,7 +337,7 @@ class GazetteerInstaller:
         chunksize = min(chunksize, total_rows)
 
         # Get column names and dtype mapping for pandas
-        names = [col.name for col in source_config.source_columns]
+        names = [attr.name for attr in source_config.attributes]
         dtype = self._get_pandas_dtype_mapping(source_config)
 
         # Read and process file in chunks
@@ -466,9 +375,7 @@ class GazetteerInstaller:
             source_config: Source configuration
         """
         # Filter columns based on drop flag
-        keep_columns = [
-            col.name for col in source_config.source_columns if not col.drop
-        ]
+        keep_columns = [attr.name for attr in source_config.attributes if not attr.drop]
         chunk = chunk[keep_columns]
 
         # Load processed chunk to database with append strategy
@@ -540,7 +447,7 @@ class GazetteerInstaller:
         # Create a simple mapping from column indices to config column names
         # We assume the order matches between the source data and our configuration
         chunk_cols = list(chunk.columns)
-        config_cols = [col.name for col in source_config.source_columns]
+        config_cols = [attr.name for attr in source_config.attributes]
 
         rename_map = {
             col: config_cols[i]
@@ -552,9 +459,7 @@ class GazetteerInstaller:
         chunk = chunk.rename(columns=rename_map)
 
         # Filter columns based on drop flag
-        keep_columns = [
-            col.name for col in source_config.source_columns if not col.drop
-        ]
+        keep_columns = [attr.name for attr in source_config.attributes if not attr.drop]
 
         # Keep only the specified columns
         chunk = chunk[keep_columns]
@@ -581,225 +486,70 @@ class GazetteerInstaller:
             Dictionary mapping column names to pandas dtypes
         """
         dtype_map = {}
-        for col in source_config.source_columns:
+        for attr in source_config.attributes:
             # Map our DataType to pandas dtype
-            if col.type == DataType.TEXT:
-                dtype_map[col.name] = "str"
-            elif col.type == DataType.INTEGER:
-                dtype_map[col.name] = "Int64"  # Nullable integer type
-            elif col.type == DataType.REAL:
-                dtype_map[col.name] = "float64"
+            if attr.type == DataType.TEXT:
+                dtype_map[attr.name] = "str"
+            elif attr.type == DataType.INTEGER:
+                dtype_map[attr.name] = "Int64"  # Nullable integer type
+            elif attr.type == DataType.REAL:
+                dtype_map[attr.name] = "float64"
             # BLOB type doesn't have a direct pandas equivalent, will be handled as object
 
         return dtype_map
 
-    def _create_derived_columns(
-        self, table_name: str, source_config: SourceConfig, chunksize: int
-    ) -> None:
+    def _create_view(self, view_config: ViewConfig) -> None:
         """
-        Create derived columns from SQL expressions.
+        Create a SQL view based on view configuration.
 
         Args:
-            table_name: Name of the table
-            source_config: Source configuration
-            chunksize: Number of records to process at once (not used in this implementation)
+            view_config: View configuration
         """
-        # Skip if no derived columns defined
-        if not source_config.derived_columns:
-            return
+        view_name = view_config.name
 
-        # For each derived column
-        for col_config in source_config.derived_columns:
-            # Create progress bar for this column - just showing a single step
-            with tqdm(
-                total=1,
-                desc=f"Deriving {source_config.name}.{col_config.name}",
-                unit="columns",
-            ) as pbar:
-                # Add column to the table
-                with engine.connect() as connection:
-                    connection.execute(
-                        sa.text(
-                            f"ALTER TABLE {table_name} ADD COLUMN {col_config.name} "
-                            f"{col_config.type.value}"
-                        )
-                    )
-                    connection.commit()
+        with tqdm(
+            total=1,
+            desc=f"Creating {view_config.name}",
+            unit="view",
+        ) as pbar:
+            with engine.connect() as connection:
+                # Drop the view if it exists
+                connection.execute(sa.text(f"DROP VIEW IF EXISTS {view_name}"))
 
-                # Update all rows at once
-                with engine.connect() as connection:
-                    connection.execute(
-                        sa.text(
-                            f"UPDATE {table_name} "
-                            f"SET {col_config.name} = ({col_config.expression})"
-                        )
-                    )
-                    connection.commit()
+                # Build the view SQL
+                view_sql = self._build_view_sql(view_config)
 
-                # Mark progress as complete
-                pbar.update(1)
+                # Create the view
+                connection.execute(sa.text(view_sql))
+                connection.commit()
 
-    def _create_relationships(
-        self, gazetteer_config: GazetteerConfig, gazetteer_id: uuid.UUID
-    ) -> None:
+            # Mark progress as complete
+            pbar.update(1)
+
+    def _build_view_sql(self, view_config: ViewConfig) -> str:
         """
-        Create relationship metadata and indexes for all relationships.
+        Build SQL for a view based on the view configuration.
 
         Args:
-            gazetteer_config: Gazetteer configuration
-            gazetteer_id: ID of the gazetteer
+            view_config: View configuration
+
+        Returns:
+            SQL for creating the view
         """
-        # Create a dictionary to map source names to GazetteerTable objects
-        db = next(get_db())
-        tables = GazetteerTableRepository.get_by_gazetteer(db, gazetteer_id)
-        table_map = {table.name: table for table in tables}
+        view_name = view_config.name
 
-        # Also create a dictionary to map (table_name, column_name) to GazetteerColumn objects
-        column_map = {}
-        for table in tables:
-            columns = GazetteerColumnRepository.get_by_table(db, table.id)
-            for column in columns:
-                column_map[(table.name, column.name)] = column
+        # Build the select clause
+        select_clause = ", ".join(view_config.statement.select)
 
-        for relationship_config in gazetteer_config.relationships:
-            # Get the table objects
-            local_table = table_map.get(relationship_config.local_table)
-            remote_table = table_map.get(relationship_config.remote_table)
+        # Build the from clause - use source names directly
+        from_clause = ", ".join(view_config.statement.from_)
 
-            if not local_table or not remote_table:
-                # Log warning and continue if tables not found
-                print(
-                    f"Warning: Could not find tables for relationship: {relationship_config.local} - {relationship_config.remote}"
-                )
-                continue
+        # Build the join clause if specified
+        join_clause = ""
+        if view_config.statement.join:
+            join_clause = " " + " ".join(view_config.statement.join)
 
-            # Get the column objects
-            local_column = column_map.get(
-                (relationship_config.local_table, relationship_config.local_column)
-            )
-            remote_column = column_map.get(
-                (relationship_config.remote_table, relationship_config.remote_column)
-            )
+        # Build the full SQL
+        sql = f"CREATE VIEW {view_name} AS SELECT {select_clause} FROM {from_clause}{join_clause}"
 
-            if not local_column or not remote_column:
-                # Log warning and continue if columns not found
-                print(
-                    f"Warning: Could not find columns for relationship: {relationship_config.local} - {relationship_config.remote}"
-                )
-                continue
-
-            # Create the relationship record
-            self._create_relationship_record(
-                local_column.id,
-                remote_column.id,
-                gazetteer_id,
-            )
-
-            # Create the indexes
-            self._create_relationship_index(
-                local_table.table_name,
-                remote_table.table_name,
-                relationship_config,
-                gazetteer_config.sources,
-            )
-
-    def _create_relationship_record(
-        self,
-        local_column_id: uuid.UUID,
-        remote_column_id: uuid.UUID,
-        gazetteer_id: uuid.UUID,
-    ) -> None:
-        """
-        Create a single relationship metadata record in the database.
-
-        Args:
-            local_column_id: ID of the local column
-            remote_column_id: ID of the remote column
-            gazetteer_id: ID of the gazetteer in the database
-        """
-        # Get a database session
-        db = next(get_db())
-
-        # Get the table IDs from the columns
-        local_column = GazetteerColumnRepository.get(db, local_column_id)
-        remote_column = GazetteerColumnRepository.get(db, remote_column_id)
-
-        # Store relationship metadata
-        relationship = GazetteerRelationshipCreate(
-            gazetteer_id=gazetteer_id,
-            local_table_id=local_column.table_id,
-            local_column_id=local_column_id,
-            remote_table_id=remote_column.table_id,
-            remote_column_id=remote_column_id,
-        )
-        GazetteerRelationshipRepository.create(db, relationship)
-
-    def _create_relationship_index(
-        self,
-        local_table_name: str,
-        remote_table_name: str,
-        relationship_config: RelationshipConfig,
-        source_configs: List[SourceConfig],
-    ) -> None:
-        """
-        Create indexes for a single relationship.
-
-        Args:
-            local_table_name: Physical name of the local table in database
-            remote_table_name: Physical name of the remote table in database
-            relationship_config: Relationship configuration
-            source_configs: List of all source configurations
-        """
-        # Find the source configurations
-        local_source = next(
-            s for s in source_configs if s.name == relationship_config.local_table
-        )
-        remote_source = next(
-            s for s in source_configs if s.name == relationship_config.remote_table
-        )
-
-        # Check if the local column is already a primary key
-        local_is_primary = any(
-            col.name == relationship_config.local_column and col.primary
-            for col in local_source.source_columns
-        )
-
-        # Check if the remote column is already a primary key
-        remote_is_primary = any(
-            col.name == relationship_config.remote_column and col.primary
-            for col in remote_source.source_columns
-        )
-
-        # Create index for local column if it's not a primary key
-        if not local_is_primary:
-            index_name = f"{local_table_name}__{relationship_config.local_column}"
-            with tqdm(
-                total=1,
-                desc=f"Indexing {relationship_config.local_table}.{relationship_config.local_column}",
-                unit="index",
-            ) as pbar:
-                with engine.connect() as connection:
-                    connection.execute(
-                        sa.text(
-                            f"CREATE INDEX IF NOT EXISTS {index_name} ON {local_table_name}({relationship_config.local_column})"
-                        )
-                    )
-                    connection.commit()
-                pbar.update(1)
-
-        # Create index for remote column if it's not a primary key
-        if not remote_is_primary:
-            index_name = f"{remote_table_name}__{relationship_config.remote_column}"
-            with tqdm(
-                total=1,
-                desc=f"Indexing {relationship_config.remote_table}.{relationship_config.remote_column}",
-                unit="index",
-            ) as pbar:
-                with engine.connect() as connection:
-                    connection.execute(
-                        sa.text(
-                            f"CREATE INDEX IF NOT EXISTS {index_name} ON {remote_table_name}({relationship_config.remote_column})"
-                        )
-                    )
-                    connection.commit()
-                pbar.update(1)
+        return sql

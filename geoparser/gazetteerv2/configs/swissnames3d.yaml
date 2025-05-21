@@ -4,7 +4,7 @@ sources:
     type: spatial
     url: https://data.geo.admin.ch/ch.swisstopo.swissnames3d/swissnames3d_2024/swissnames3d_2024_2056.shp.zip
     file: swissNAMES3D_PKT.shp
-    source_columns:
+    attributes:
       - name: UUID
         type: TEXT
         primary: true
@@ -36,7 +36,7 @@ sources:
     type: spatial
     url: https://data.geo.admin.ch/ch.swisstopo.swissnames3d/swissnames3d_2024/swissnames3d_2024_2056.shp.zip
     file: swissNAMES3D_LIN.shp
-    source_columns:
+    attributes:
       - name: UUID
         type: TEXT
         primary: true
@@ -66,7 +66,7 @@ sources:
     type: spatial
     url: https://data.geo.admin.ch/ch.swisstopo.swissnames3d/swissnames3d_2024/swissnames3d_2024_2056.shp.zip
     file: swissNAMES3D_PLY.shp
-    source_columns:
+    attributes:
       - name: UUID
         type: TEXT
         primary: true
@@ -98,7 +98,7 @@ sources:
     type: spatial
     url: https://data.geo.admin.ch/ch.swisstopo.swissboundaries3d/swissboundaries3d_2024-01/swissboundaries3d_2024-01_2056_5728.shp.zip
     file: swissBOUNDARIES3D_1_5_TLM_HOHEITSGEBIET.shp
-    source_columns:
+    attributes:
       - name: UUID
         type: TEXT
         primary: true
@@ -153,7 +153,7 @@ sources:
     type: spatial
     url: https://data.geo.admin.ch/ch.swisstopo.swissboundaries3d/swissboundaries3d_2024-01/swissboundaries3d_2024-01_2056_5728.shp.zip
     file: swissBOUNDARIES3D_1_5_TLM_BEZIRKSGEBIET.shp
-    source_columns:
+    attributes:
       - name: UUID
         type: TEXT
         primary: true
@@ -202,7 +202,7 @@ sources:
     type: spatial
     url: https://data.geo.admin.ch/ch.swisstopo.swissboundaries3d/swissboundaries3d_2024-01/swissboundaries3d_2024-01_2056_5728.shp.zip
     file: swissBOUNDARIES3D_1_5_TLM_KANTONSGEBIET.shp
-    source_columns:
+    attributes:
       - name: UUID
         type: TEXT
         primary: true

@@ -5,7 +5,7 @@ sources:
     url: https://download.geonames.org/export/dump/allCountries.zip
     file: allCountries.txt
     separator: "\t"
-    source_columns:
+    attributes:
       - name: geonameid
         type: INTEGER
         primary: true
@@ -45,26 +45,13 @@ sources:
         type: TEXT
       - name: modification_date
         type: TEXT
-    derived_columns:
-      - name: feature_code_full
-        type: TEXT
-        expression: "feature_class || '.' || feature_code"
-      - name: admin1_code_full
-        type: TEXT
-        expression: "country_code || '.' || admin1_code"
-      - name: admin2_code_full
-        type: TEXT
-        expression: "country_code || '.' || admin1_code || '.' || admin2_code"
-      - name: geometry
-        type: TEXT
-        expression: "('POINT(' || longitude || ' ' || latitude || ')')"
 
   - name: admin1CodesASCII
     type: tabular
     url: https://download.geonames.org/export/dump/admin1CodesASCII.txt
     file: admin1CodesASCII.txt
     separator: "\t"
-    source_columns:
+    attributes:
       - name: code
         type: TEXT
         primary: true
@@ -80,7 +67,7 @@ sources:
     url: https://download.geonames.org/export/dump/admin2Codes.txt
     file: admin2Codes.txt
     separator: "\t"
-    source_columns:
+    attributes:
       - name: code
         type: TEXT
         primary: true
@@ -97,7 +84,7 @@ sources:
     file: countryInfo.txt
     separator: "\t"
     skiprows: 50
-    source_columns:
+    attributes:
       - name: ISO
         type: TEXT
         primary: true
@@ -143,7 +130,7 @@ sources:
     url: https://download.geonames.org/export/dump/featureCodes_en.txt
     file: featureCodes_en.txt
     separator: "\t"
-    source_columns:
+    attributes:
       - name: code
         type: TEXT
         primary: true
@@ -157,7 +144,7 @@ sources:
     url: https://download.geonames.org/export/dump/alternateNames.zip
     file: alternateNames.txt
     separator: "\t"
-    source_columns:
+    attributes:
       - name: alternateNameId
         type: INTEGER
         primary: true
@@ -180,12 +167,25 @@ sources:
       - name: xto
         type: TEXT
 
-relationships:
-  - local: allCountries.feature_code_full
-    remote: featureCodes.code
-  - local: allCountries.country_code
-    remote: countryInfo.ISO
-  - local: allCountries.admin1_code_full
-    remote: admin1CodesASCII.code
-  - local: allCountries.admin2_code_full
-    remote: admin2Codes.code 
+views:
+  - name: allCountriesEnriched
+    statement:
+      select:
+        - allCountries.*
+        - "'POINT(' || longitude || ' ' || latitude || ')' AS geometry"
+        - "feature_class || '.' || feature_code AS feature_code_full"
+        - "country_code || '.' || admin1_code AS admin1_code_full"
+        - "country_code || '.' || admin1_code || '.' || admin2_code AS admin2_code_full"
+        - "countryInfo.Country AS country_name"
+        - "countryInfo.Continent AS continent"
+        - "admin1.name AS admin1_name"
+        - "admin2.name AS admin2_name"
+        - "features.name AS feature_name"
+        - "features.description AS feature_description"
+      from:
+        - allCountries
+      join:
+        - "LEFT JOIN countryInfo ON allCountries.country_code = countryInfo.ISO"
+        - "LEFT JOIN admin1CodesASCII AS admin1 ON country_code || '.' || admin1_code = admin1.code"
+        - "LEFT JOIN admin2Codes AS admin2 ON country_code || '.' || admin1_code || '.' || admin2_code = admin2.code"
+        - "LEFT JOIN featureCodes AS features ON feature_class || '.' || feature_code = features.code" 
