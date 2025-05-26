@@ -2,7 +2,7 @@ import shutil
 import warnings
 import zipfile
 from pathlib import Path
-from typing import Dict, Union
+from typing import Dict, List, Union
 
 import geopandas as gpd
 import pandas as pd
@@ -81,6 +81,9 @@ class GazetteerInstaller:
 
             # Apply derivations after loading the data
             self._create_derivations(source_config, table_name)
+
+            # Create indices for indexed columns
+            self._create_indices(source_config, table_name)
 
         # Second pass: Create views if configured
         for view_config in gazetteer_config.views:
@@ -519,6 +522,53 @@ class GazetteerInstaller:
                     pbar.update(1)
 
             # Commit all the updates
+            connection.commit()
+
+    def _create_indices(self, source_config: SourceConfig, table_name: str) -> None:
+        """
+        Create indices for columns marked with index=True.
+
+        Args:
+            source_config: Source configuration
+            table_name: Name of the table to create indices for
+        """
+        # Collect all columns that need indices
+        indexed_columns: List[str] = []
+
+        # Check regular attributes
+        for attr in source_config.attributes:
+            if attr.index and not attr.drop:
+                indexed_columns.append(attr.name)
+
+        # Check derivations
+        for derivation in source_config.derivations:
+            if derivation.index:
+                indexed_columns.append(derivation.name)
+
+        if not indexed_columns:
+            return
+
+        with engine.connect() as connection:
+            for column_name in indexed_columns:
+                index_name = f"idx_{table_name}_{column_name}"
+
+                # Create index with a progress bar
+                with tqdm(
+                    total=1,
+                    desc=f"Indexing {table_name}.{column_name}",
+                    unit="index",
+                ) as pbar:
+                    # Drop the index if it exists
+                    connection.execute(sa.text(f"DROP INDEX IF EXISTS {index_name}"))
+
+                    # Create the index
+                    create_index_sql = (
+                        f"CREATE INDEX {index_name} ON {table_name}({column_name})"
+                    )
+                    connection.execute(sa.text(create_index_sql))
+                    pbar.update(1)
+
+            # Commit all the index creations
             connection.commit()
 
     def _get_pandas_dtype_mapping(self, source_config: SourceConfig) -> Dict:

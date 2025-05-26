@@ -27,6 +27,7 @@ class AttributeConfig(BaseModel):
 
     name: str
     type: DataType
+    index: bool = False
     primary: bool = False
     drop: bool = False
 
@@ -43,6 +44,7 @@ class DerivationConfig(BaseModel):
 
     name: str
     type: DataType
+    index: bool = False
     expression: str
 
 

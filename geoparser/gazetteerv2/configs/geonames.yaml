@@ -25,6 +25,7 @@ sources:
         type: TEXT
       - name: country_code
         type: TEXT
+        index: true
       - name: cc2
         type: TEXT
       - name: admin1_code
@@ -51,12 +52,15 @@ sources:
         expression: "'POINT(' || longitude || ' ' || latitude || ')'"
       - name: feature_code_full
         type: TEXT
+        index: true
         expression: "feature_class || '.' || feature_code"
       - name: admin1_code_full
         type: TEXT
+        index: true
         expression: "country_code || '.' || admin1_code"
       - name: admin2_code_full
         type: TEXT
+        index: true
         expression: "country_code || '.' || admin1_code || '.' || admin2_code"
 
   - name: admin1CodesASCII
