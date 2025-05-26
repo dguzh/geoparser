@@ -79,6 +79,9 @@ class GazetteerInstaller:
             # Load the data from the file
             self._load_file(file_path, table_name, source_config, chunksize)
 
+            # Apply derivations after loading the data
+            self._create_derivations(table_name, source_config)
+
         # Second pass: Create views if configured
         for view_config in gazetteer_config.views:
             self._create_view(view_config)
@@ -270,6 +273,10 @@ class GazetteerInstaller:
                 columns.append(f"{attr.name} {attr.type.value}")
                 if attr.primary:
                     primary_keys.append(attr.name)
+
+        # Add columns for derivations
+        for derivation in source_config.derivations:
+            columns.append(f"{derivation.name} {derivation.type.value}")
 
         # If no primary keys defined, don't add a primary key constraint
         pk_clause = ""
@@ -470,6 +477,39 @@ class GazetteerInstaller:
 
         # Convert to DataFrame and load to database
         pd.DataFrame(chunk).to_sql(table_name, engine, index=False, if_exists="append")
+
+    def _create_derivations(self, table_name: str, source_config: SourceConfig) -> None:
+        """
+        Create derived columns in a table using SQL expressions.
+
+        This is done after all data has been loaded into the table.
+
+        Args:
+            table_name: Name of the table to create derivations for
+            source_config: Source configuration
+        """
+        if not source_config.derivations:
+            return
+
+        with engine.connect() as connection:
+            for derivation in source_config.derivations:
+                # Create an UPDATE statement to set the derived column
+                update_sql = (
+                    f"UPDATE {table_name} "
+                    f"SET {derivation.name} = {derivation.expression}"
+                )
+
+                # Execute the update with a progress bar
+                with tqdm(
+                    total=1,
+                    desc=f"Deriving {table_name}.{derivation.name}",
+                    unit="column",
+                ) as pbar:
+                    connection.execute(sa.text(update_sql))
+                    pbar.update(1)
+
+            # Commit all the updates
+            connection.commit()
 
     def _get_pandas_dtype_mapping(self, source_config: SourceConfig) -> Dict:
         """

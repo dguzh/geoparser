@@ -38,6 +38,14 @@ class AttributeConfig(BaseModel):
         return self
 
 
+class DerivationConfig(BaseModel):
+    """Configuration for a derived attribute in a source."""
+
+    name: str
+    type: DataType
+    expression: str
+
+
 class StatementConfig(BaseModel):
     """SQL statement configuration for a view."""
 
@@ -57,6 +65,7 @@ class SourceConfig(BaseModel):
     skiprows: int = 0
     layer: t.Optional[str] = None
     attributes: t.List[AttributeConfig]
+    derivations: t.List[DerivationConfig] = []
 
     @model_validator(mode="after")
     def validate_type_specific_fields(self) -> "SourceConfig":

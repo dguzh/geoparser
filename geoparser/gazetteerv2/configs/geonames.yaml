@@ -45,6 +45,19 @@ sources:
         type: TEXT
       - name: modification_date
         type: TEXT
+    derivations:
+      - name: geometry
+        type: TEXT
+        expression: "'POINT(' || longitude || ' ' || latitude || ')'"
+      - name: feature_code_full
+        type: TEXT
+        expression: "feature_class || '.' || feature_code"
+      - name: admin1_code_full
+        type: TEXT
+        expression: "country_code || '.' || admin1_code"
+      - name: admin2_code_full
+        type: TEXT
+        expression: "country_code || '.' || admin1_code || '.' || admin2_code"
 
   - name: admin1CodesASCII
     type: tabular
@@ -172,10 +185,6 @@ views:
     statement:
       select:
         - allCountries.*
-        - "'POINT(' || longitude || ' ' || latitude || ')' AS geometry"
-        - "feature_class || '.' || feature_code AS feature_code_full"
-        - "country_code || '.' || admin1_code AS admin1_code_full"
-        - "country_code || '.' || admin1_code || '.' || admin2_code AS admin2_code_full"
         - "countryInfo.Country AS country_name"
         - "countryInfo.Continent AS continent"
         - "admin1.name AS admin1_name"
@@ -186,6 +195,6 @@ views:
         - allCountries
       join:
         - "LEFT JOIN countryInfo ON allCountries.country_code = countryInfo.ISO"
-        - "LEFT JOIN admin1CodesASCII AS admin1 ON country_code || '.' || admin1_code = admin1.code"
-        - "LEFT JOIN admin2Codes AS admin2 ON country_code || '.' || admin1_code || '.' || admin2_code = admin2.code"
-        - "LEFT JOIN featureCodes AS features ON feature_class || '.' || feature_code = features.code" 
+        - "LEFT JOIN admin1CodesASCII AS admin1 ON allCountries.admin1_code_full = admin1.code"
+        - "LEFT JOIN admin2Codes AS admin2 ON allCountries.admin2_code_full = admin2.code"
+        - "LEFT JOIN featureCodes AS features ON allCountries.feature_code_full = features.code" 
