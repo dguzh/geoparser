@@ -63,24 +63,24 @@ class GazetteerInstaller:
         downloads_dir.mkdir(parents=True, exist_ok=True)
 
         # Create a new gazetteer entry in the database
-        gazetteer_record = self._create_gazetteer_record(gazetteer_config.name)
+        gazetteer_record = self._create_gazetteer_record(gazetteer_config)
 
         # First pass: Create all base tables and load data
         for source_config in gazetteer_config.sources:
             # Download file if necessary
-            download_path = self._download_file(source_config.url, downloads_dir)
+            download_path = self._download_file(source_config, downloads_dir)
 
             # Extract file if necessary and get the path to the specific file
-            file_path = self._extract_file(source_config.file, download_path)
+            file_path = self._extract_file(source_config, download_path)
 
             # Create the table with primary keys and get the table name
             table_name = self._create_table(source_config)
 
             # Load the data from the file
-            self._load_file(file_path, table_name, source_config, chunksize)
+            self._load_file(source_config, file_path, table_name, chunksize)
 
             # Apply derivations after loading the data
-            self._create_derivations(table_name, source_config)
+            self._create_derivations(source_config, table_name)
 
         # Second pass: Create views if configured
         for view_config in gazetteer_config.views:
@@ -90,18 +90,19 @@ class GazetteerInstaller:
         if not keep_downloads:
             self._cleanup_downloads(downloads_dir)
 
-    def _create_gazetteer_record(self, name: str):
+    def _create_gazetteer_record(self, gazetteer_config: GazetteerConfig):
         """
         Create a new gazetteer record in the database.
         If records with the same name already exist, they will be deleted first.
 
         Args:
-            name: Name of the gazetteer
+            gazetteer_config: Gazetteer configuration
 
         Returns:
             Created Gazetteer object
         """
         db = next(get_db())
+        name = gazetteer_config.name
 
         # Get all existing gazetteers with this name
         existing_gazetteers = GazetteerRepository.get_by_name(db, name)
@@ -113,17 +114,20 @@ class GazetteerInstaller:
         # Create a new gazetteer record
         return GazetteerRepository.create(db, GazetteerCreate(name=name))
 
-    def _download_file(self, url: str, downloads_dir: Path) -> Path:
+    def _download_file(self, source_config: SourceConfig, downloads_dir: Path) -> Path:
         """
         Download a file if it doesn't exist or has changed size.
 
         Args:
-            url: URL to download from
+            source_config: Source configuration
             downloads_dir: Directory to save the file in
 
         Returns:
             Path to the downloaded file
         """
+        # Get the URL from source config
+        url = source_config.url
+
         # Create the download path
         download_path = downloads_dir / Path(url).name
 
@@ -155,7 +159,7 @@ class GazetteerInstaller:
 
         return download_path
 
-    def _extract_file(self, file: str, download_path: Path) -> Path:
+    def _extract_file(self, source_config: SourceConfig, download_path: Path) -> Path:
         """
         Extract files from a zip archive and locate the target file.
 
@@ -163,7 +167,7 @@ class GazetteerInstaller:
         For zip files, extracts contents and returns the path to the target file.
 
         Args:
-            file: The file to locate after extraction
+            source_config: Source configuration
             download_path: Path to the downloaded file
 
         Returns:
@@ -172,6 +176,9 @@ class GazetteerInstaller:
         Raises:
             FileNotFoundError: If the target file can't be found
         """
+        # Get the target file from source config
+        file = source_config.file
+
         # If the archive is not a zip file, check if it's the target file
         if not zipfile.is_zipfile(download_path):
             if download_path.name == file:
@@ -299,9 +306,9 @@ class GazetteerInstaller:
 
     def _load_file(
         self,
+        source_config: SourceConfig,
         file_path: Path,
         table_name: str,
-        source_config: SourceConfig,
         chunksize: int,
     ) -> None:
         """
@@ -310,30 +317,30 @@ class GazetteerInstaller:
         This is a helper method that calls the appropriate loader based on source type.
 
         Args:
+            source_config: Source configuration
             file_path: Path to the file containing the data
             table_name: Name of the table to load into
-            source_config: Source configuration
             chunksize: Number of records to process at once
         """
         if source_config.type == SourceType.TABULAR:
-            self._load_tabular_file(file_path, table_name, source_config, chunksize)
+            self._load_tabular_file(source_config, file_path, table_name, chunksize)
         elif source_config.type == SourceType.SPATIAL:
-            self._load_spatial_file(file_path, table_name, source_config, chunksize)
+            self._load_spatial_file(source_config, file_path, table_name, chunksize)
 
     def _load_tabular_file(
         self,
+        source_config: SourceConfig,
         file_path: Path,
         table_name: str,
-        source_config: SourceConfig,
         chunksize: int,
     ) -> None:
         """
         Load tabular data into SQLite using chunked processing.
 
         Args:
+            source_config: Source configuration
             file_path: Path to the file containing the data
             table_name: Name of the table to load into
-            source_config: Source configuration
             chunksize: Number of records to process at once
         """
         # Get total row count for progress bar using a more reliable method for tabular files
@@ -365,21 +372,24 @@ class GazetteerInstaller:
         ) as pbar:
             for chunk in chunk_iter:
                 # Process this chunk and load to database
-                self._process_tabular_chunk(chunk, table_name, source_config)
+                self._process_tabular_chunk(source_config, chunk, table_name)
 
                 # Update progress bar
                 pbar.update(len(chunk))
 
     def _process_tabular_chunk(
-        self, chunk: pd.DataFrame, table_name: str, source_config: SourceConfig
+        self,
+        source_config: SourceConfig,
+        chunk: pd.DataFrame,
+        table_name: str,
     ) -> None:
         """
         Process a chunk of tabular data and load it to the database.
 
         Args:
+            source_config: Source configuration
             chunk: Chunk of data to process
             table_name: Name of the table to load into
-            source_config: Source configuration
         """
         # Filter columns based on drop flag
         keep_columns = [attr.name for attr in source_config.attributes if not attr.drop]
@@ -390,18 +400,18 @@ class GazetteerInstaller:
 
     def _load_spatial_file(
         self,
+        source_config: SourceConfig,
         file_path: Path,
         table_name: str,
-        source_config: SourceConfig,
         chunksize: int,
     ) -> None:
         """
         Load spatial data into SQLite using chunked processing.
 
         Args:
+            source_config: Source configuration
             file_path: Path to the file containing the data
             table_name: Name of the table to load into
-            source_config: Source configuration
             chunksize: Number of records to process at once
         """
         # Set up kwargs for reading
@@ -432,24 +442,24 @@ class GazetteerInstaller:
                 chunk = gpd.read_file(file_path, **chunk_kwargs)
 
                 # Process this chunk and load to database
-                self._process_spatial_chunk(chunk, table_name, source_config)
+                self._process_spatial_chunk(source_config, chunk, table_name)
 
                 # Update progress
                 pbar.update(len(chunk))
 
     def _process_spatial_chunk(
         self,
+        source_config: SourceConfig,
         chunk: gpd.GeoDataFrame,
         table_name: str,
-        source_config: SourceConfig,
     ) -> None:
         """
         Process a chunk of spatial data and load it to the database.
 
         Args:
+            source_config: Source configuration
             chunk: GeoDataFrame chunk to process
             table_name: Name of the table to load into
-            source_config: Source configuration
         """
         # Create a simple mapping from column indices to config column names
         # We assume the order matches between the source data and our configuration
@@ -478,15 +488,15 @@ class GazetteerInstaller:
         # Convert to DataFrame and load to database
         pd.DataFrame(chunk).to_sql(table_name, engine, index=False, if_exists="append")
 
-    def _create_derivations(self, table_name: str, source_config: SourceConfig) -> None:
+    def _create_derivations(self, source_config: SourceConfig, table_name: str) -> None:
         """
         Create derived columns in a table using SQL expressions.
 
         This is done after all data has been loaded into the table.
 
         Args:
-            table_name: Name of the table to create derivations for
             source_config: Source configuration
+            table_name: Name of the table to create derivations for
         """
         if not source_config.derivations:
             return
