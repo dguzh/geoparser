@@ -17,6 +17,7 @@ from geoparser.db.db import engine, get_db
 from geoparser.db.models.gazetteer import GazetteerCreate
 from geoparser.gazetteerv2.config import (
     DataType,
+    FeatureConfig,
     GazetteerConfig,
     SourceConfig,
     SourceType,
@@ -88,6 +89,10 @@ class GazetteerInstaller:
         # Second pass: Create views if configured
         for view_config in gazetteer_config.views:
             self._create_view(view_config)
+
+        # Third pass: Register features if configured
+        for feature_config in gazetteer_config.features:
+            self._register_features(gazetteer_config, feature_config)
 
         # Clean up downloads if requested
         if not keep_downloads:
@@ -651,5 +656,73 @@ class GazetteerInstaller:
 
         # Build the full SQL
         sql = f"CREATE VIEW {view_name} AS SELECT {select_clause} FROM {from_clause}{join_clause}"
+
+        return sql
+
+    def _register_features(
+        self, gazetteer_config: GazetteerConfig, feature_config: FeatureConfig
+    ) -> None:
+        """
+        Register features from a single source and populate the Feature table.
+
+        Uses efficient INSERT INTO ... SELECT for performance with large datasets.
+
+        Args:
+            gazetteer_config: Gazetteer configuration
+            feature_config: Configuration for this feature source
+        """
+        source_name = feature_config.source
+        identifier_column = feature_config.identifier
+
+        with tqdm(
+            total=1,
+            desc=f"Registering {source_name}.{identifier_column}",
+            unit="source",
+        ) as pbar:
+            with engine.connect() as connection:
+                # Build the feature registration SQL
+                insert_sql = self._build_feature_sql(gazetteer_config, feature_config)
+
+                connection.execute(sa.text(insert_sql))
+                connection.commit()
+
+            pbar.update(1)
+
+    def _build_feature_sql(
+        self, gazetteer_config: GazetteerConfig, feature_config: FeatureConfig
+    ) -> str:
+        """
+        Build SQL for registering features from a source.
+
+        Args:
+            gazetteer_config: Gazetteer configuration
+            feature_config: Feature configuration
+
+        Returns:
+            SQL for inserting features into the Feature table
+        """
+        source_name = feature_config.source
+        identifier_column = feature_config.identifier
+        gazetteer_name = gazetteer_config.name
+
+        # Use INSERT INTO ... SELECT for performance
+        # Generate UUIDs in SQLite format (without hyphens) to match SQLAlchemy's storage
+        sql = f"""
+            INSERT OR IGNORE INTO feature (id, gazetteer_name, table_name, identifier_name, identifier_value)
+            SELECT 
+                lower(hex(randomblob(4))) || 
+                lower(hex(randomblob(2))) || 
+                '4' || substr(lower(hex(randomblob(2))),2) || 
+                substr('ab89', 1 + (abs(random()) % 4) , 1) ||
+                substr(lower(hex(randomblob(2))),2) || 
+                lower(hex(randomblob(6))) as id,
+                '{gazetteer_name}' as gazetteer_name,
+                '{source_name}' as table_name,
+                '{identifier_column}' as identifier_name,
+                CAST({identifier_column} AS TEXT) as identifier_value
+            FROM {source_name}
+            WHERE {identifier_column} IS NOT NULL
+            GROUP BY CAST({identifier_column} AS TEXT)
+        """
 
         return sql

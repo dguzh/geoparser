@@ -5,6 +5,7 @@ from sqlalchemy import UUID, Column, ForeignKey
 from sqlmodel import Field, Relationship, SQLModel
 
 if t.TYPE_CHECKING:
+    from geoparser.db.models.feature import Feature
     from geoparser.db.models.resolution_module import ResolutionModuleRead
     from geoparser.db.models.resolution_object import ResolutionObject
     from geoparser.db.models.toponym import Toponym
@@ -14,12 +15,8 @@ class LocationBase(SQLModel):
     """
     Base model for location data.
 
-    Contains the location_id which references a gazetteer entry,
-    as well as an optional confidence score.
+    Contains a reference to a feature in the gazetteer system.
     """
-
-    location_id: str
-    confidence: t.Optional[float] = None
 
 
 class Location(LocationBase, table=True):
@@ -36,7 +33,13 @@ class Location(LocationBase, table=True):
             UUID, ForeignKey("toponym.id", ondelete="CASCADE"), nullable=False
         )
     )
+    feature_id: uuid.UUID = Field(
+        sa_column=Column(
+            UUID, ForeignKey("feature.id", ondelete="CASCADE"), nullable=False
+        )
+    )
     toponym: "Toponym" = Relationship(back_populates="locations")
+    _feature: "Feature" = Relationship(sa_relationship_kwargs={"lazy": "joined"})
     resolution_objects: list["ResolutionObject"] = Relationship(
         back_populates="location",
         sa_relationship_kwargs={
@@ -46,36 +49,47 @@ class Location(LocationBase, table=True):
         },
     )
 
+    @property
+    def feature(self) -> t.Dict[str, t.Any]:
+        """
+        Get the feature data as a dictionary.
+
+        Returns:
+            Dictionary containing all columns from the gazetteer row
+        """
+        return self._feature.data
+
 
 class LocationCreate(LocationBase):
     """
     Model for creating a new location.
 
-    Includes the toponym_id to associate the location with a toponym.
+    Includes the toponym_id and feature_id to associate the location.
     """
 
     toponym_id: uuid.UUID
+    feature_id: uuid.UUID
 
 
 class LocationUpdate(SQLModel):
     """Model for updating an existing location."""
 
     id: uuid.UUID
-    location_id: t.Optional[str] = None
-    confidence: t.Optional[float] = None
+    toponym_id: t.Optional[uuid.UUID] = None
+    feature_id: t.Optional[uuid.UUID] = None
 
 
 class LocationRead(SQLModel):
     """
     Model for reading location data.
 
-    Only exposes the id, toponym_id, location_id and confidence of a location.
+    Includes the feature data for complete location information.
     """
 
     id: uuid.UUID
     toponym_id: uuid.UUID
-    location_id: str
-    confidence: t.Optional[float] = None
+    feature_id: uuid.UUID
+    feature: t.Optional[t.Dict[str, t.Any]] = None
     modules: list["ResolutionModuleRead"] = []
 
     model_config = {"from_attributes": True}
@@ -85,9 +99,11 @@ class LocationRead(SQLModel):
         Return a string representation of the location.
 
         Returns:
-            String with location indicator and location ID
+            String with location indicator
         """
-        return f"Location({self.location_id})"
+        return (
+            f"Location({self._feature.gazetteer_name}:{self._feature.identifier_value})"
+        )
 
     def __repr__(self) -> str:
         """

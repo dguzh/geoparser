@@ -4,6 +4,7 @@ from geoparser.db.models.document import (
     DocumentRead,
     DocumentUpdate,
 )
+from geoparser.db.models.feature import Feature, FeatureCreate, FeatureUpdate
 from geoparser.db.models.gazetteer import Gazetteer, GazetteerCreate, GazetteerUpdate
 from geoparser.db.models.location import (
     Location,
@@ -63,6 +64,8 @@ for rebuild in [
     Location,
     LocationCreate,
     LocationRead,
+    Feature,
+    FeatureCreate,
     RecognitionObject,
     RecognitionObjectCreate,
     ResolutionObject,

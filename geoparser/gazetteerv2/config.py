@@ -102,12 +102,20 @@ class ViewConfig(BaseModel):
     statement: StatementConfig
 
 
+class FeatureConfig(BaseModel):
+    """Configuration for extracting features from a gazetteer source."""
+
+    source: str
+    identifier: str
+
+
 class GazetteerConfig(BaseModel):
     """Configuration for a gazetteer."""
 
     name: str
     sources: t.List[SourceConfig]
     views: t.Optional[t.List[ViewConfig]] = []
+    features: t.Optional[t.List[FeatureConfig]] = []
 
     @field_validator("name")
     @classmethod
@@ -153,6 +161,24 @@ class GazetteerConfig(BaseModel):
                     raise ValueError(
                         f"View '{view.name}' references non-existent source/view: {source_ref}"
                     )
+
+        return self
+
+    @model_validator(mode="after")
+    def validate_feature_references(self) -> "GazetteerConfig":
+        """Validate that features reference existing sources or views."""
+        if not self.features:
+            return self
+
+        source_names = {source.name for source in self.sources}
+        view_names = {view.name for view in self.views} if self.views else set()
+        all_names = source_names.union(view_names)
+
+        for feature in self.features:
+            if feature.source not in all_names:
+                raise ValueError(
+                    f"Feature configuration references non-existent source/view: {feature.source}"
+                )
 
         return self
 

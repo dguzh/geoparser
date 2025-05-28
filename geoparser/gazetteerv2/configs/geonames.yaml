@@ -201,4 +201,8 @@ views:
         - "LEFT JOIN countryInfo ON allCountries.country_code = countryInfo.ISO"
         - "LEFT JOIN admin1CodesASCII AS admin1 ON allCountries.admin1_code_full = admin1.code"
         - "LEFT JOIN admin2Codes AS admin2 ON allCountries.admin2_code_full = admin2.code"
-        - "LEFT JOIN featureCodes AS features ON allCountries.feature_code_full = features.code" 
+        - "LEFT JOIN featureCodes AS features ON allCountries.feature_code_full = features.code"
+
+features:
+  - source: allCountries
+    identifier: geonameid
