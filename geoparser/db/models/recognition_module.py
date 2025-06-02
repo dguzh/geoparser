@@ -39,32 +39,6 @@ class RecognitionModule(RecognitionModuleBase, table=True):
         },
     )
 
-
-class RecognitionModuleCreate(RecognitionModuleBase):
-    """Model for creating a new recognition module record."""
-
-
-class RecognitionModuleUpdate(SQLModel):
-    """Model for updating a recognition module record."""
-
-    id: uuid.UUID
-    name: t.Optional[str] = None
-    config: t.Optional[t.Dict[str, t.Any]] = None
-
-
-class RecognitionModuleRead(SQLModel):
-    """
-    Model for reading recognition module data.
-
-    Only exposes the id, name and config of a recognition module.
-    """
-
-    id: uuid.UUID
-    name: str
-    config: t.Dict[str, t.Any]
-
-    model_config = {"from_attributes": True}
-
     def __str__(self) -> str:
         """
         Return a string representation of the recognition module.
@@ -83,3 +57,15 @@ class RecognitionModuleRead(SQLModel):
             Same as __str__ method
         """
         return self.__str__()
+
+
+class RecognitionModuleCreate(RecognitionModuleBase):
+    """Model for creating a new recognition module record."""
+
+
+class RecognitionModuleUpdate(SQLModel):
+    """Model for updating a recognition module record."""
+
+    id: uuid.UUID
+    name: t.Optional[str] = None
+    config: t.Optional[t.Dict[str, t.Any]] = None

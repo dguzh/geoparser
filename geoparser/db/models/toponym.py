@@ -6,8 +6,7 @@ from sqlmodel import Field, Relationship, SQLModel
 
 if t.TYPE_CHECKING:
     from geoparser.db.models.document import Document
-    from geoparser.db.models.location import Location, LocationRead
-    from geoparser.db.models.recognition_module import RecognitionModuleRead
+    from geoparser.db.models.location import Location
     from geoparser.db.models.recognition_object import RecognitionObject
     from geoparser.db.models.resolution_subject import ResolutionSubject
 
@@ -59,6 +58,24 @@ class Toponym(ToponymBase, table=True):
         },
     )
 
+    def __str__(self) -> str:
+        """
+        Return a string representation of the toponym.
+
+        Returns:
+            String with toponym indicator and text content
+        """
+        return f'Toponym("{self.text}")'
+
+    def __repr__(self) -> str:
+        """
+        Return a developer representation of the toponym.
+
+        Returns:
+            Same as __str__ method
+        """
+        return self.__str__()
+
 
 class ToponymCreate(ToponymBase):
     """
@@ -77,39 +94,3 @@ class ToponymUpdate(SQLModel):
     document_id: t.Optional[uuid.UUID] = None
     start: t.Optional[int] = None
     end: t.Optional[int] = None
-
-
-class ToponymRead(SQLModel):
-    """
-    Model for reading toponym data.
-
-    Only exposes the id, document_id, start, end, text and locations of a toponym.
-    """
-
-    id: uuid.UUID
-    document_id: uuid.UUID
-    start: int
-    end: int
-    text: t.Optional[str] = None
-    locations: list["LocationRead"] = []
-    modules: list["RecognitionModuleRead"] = []
-
-    model_config = {"from_attributes": True}
-
-    def __str__(self) -> str:
-        """
-        Return a string representation of the toponym.
-
-        Returns:
-            String with toponym indicator and text content
-        """
-        return f'Toponym("{self.text}")' if self.text else 'Toponym("<unnamed>")'
-
-    def __repr__(self) -> str:
-        """
-        Return a developer representation of the toponym.
-
-        Returns:
-            Same as __str__ method
-        """
-        return self.__str__()

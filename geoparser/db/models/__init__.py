@@ -1,22 +1,11 @@
-from geoparser.db.models.document import (
-    Document,
-    DocumentCreate,
-    DocumentRead,
-    DocumentUpdate,
-)
+from geoparser.db.models.document import Document, DocumentCreate, DocumentUpdate
 from geoparser.db.models.feature import Feature, FeatureCreate, FeatureUpdate
 from geoparser.db.models.gazetteer import Gazetteer, GazetteerCreate, GazetteerUpdate
-from geoparser.db.models.location import (
-    Location,
-    LocationCreate,
-    LocationRead,
-    LocationUpdate,
-)
+from geoparser.db.models.location import Location, LocationCreate, LocationUpdate
 from geoparser.db.models.project import Project, ProjectCreate, ProjectUpdate
 from geoparser.db.models.recognition_module import (
     RecognitionModule,
     RecognitionModuleCreate,
-    RecognitionModuleRead,
     RecognitionModuleUpdate,
 )
 from geoparser.db.models.recognition_object import (
@@ -32,7 +21,6 @@ from geoparser.db.models.recognition_subject import (
 from geoparser.db.models.resolution_module import (
     ResolutionModule,
     ResolutionModuleCreate,
-    ResolutionModuleRead,
     ResolutionModuleUpdate,
 )
 from geoparser.db.models.resolution_object import (
@@ -45,25 +33,17 @@ from geoparser.db.models.resolution_subject import (
     ResolutionSubjectCreate,
     ResolutionSubjectUpdate,
 )
-from geoparser.db.models.toponym import (
-    Toponym,
-    ToponymCreate,
-    ToponymRead,
-    ToponymUpdate,
-)
+from geoparser.db.models.toponym import Toponym, ToponymCreate, ToponymUpdate
 
 for rebuild in [
     Project,
     ProjectCreate,
     Document,
     DocumentCreate,
-    DocumentRead,
     Toponym,
     ToponymCreate,
-    ToponymRead,
     Location,
     LocationCreate,
-    LocationRead,
     Feature,
     FeatureCreate,
     RecognitionObject,
@@ -72,10 +52,8 @@ for rebuild in [
     ResolutionObjectCreate,
     RecognitionModule,
     RecognitionModuleCreate,
-    RecognitionModuleRead,
     ResolutionModule,
     ResolutionModuleCreate,
-    ResolutionModuleRead,
     RecognitionSubject,
     RecognitionSubjectCreate,
     ResolutionSubject,

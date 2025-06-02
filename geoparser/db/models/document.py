@@ -10,7 +10,7 @@ from geoparser.db.models.validators import normalize_newlines
 if t.TYPE_CHECKING:
     from geoparser.db.models.project import Project
     from geoparser.db.models.recognition_subject import RecognitionSubject
-    from geoparser.db.models.toponym import Toponym, ToponymRead
+    from geoparser.db.models.toponym import Toponym
 
 
 class DocumentBase(SQLModel):
@@ -54,38 +54,6 @@ class Document(DocumentBase, table=True):
         },
     )
 
-
-class DocumentCreate(DocumentBase):
-    """
-    Model for creating a new document.
-
-    Includes the project_id to associate the document with a project.
-    """
-
-    project_id: uuid.UUID
-
-
-class DocumentUpdate(SQLModel):
-    """Model for updating an existing document."""
-
-    id: uuid.UUID
-    project_id: t.Optional[uuid.UUID] = None
-    text: t.Optional[str] = None
-
-
-class DocumentRead(SQLModel):
-    """
-    Model for reading document data.
-
-    Only exposes the id, text and toponyms of a document.
-    """
-
-    id: uuid.UUID
-    text: str
-    toponyms: list["ToponymRead"] = []
-
-    model_config = {"from_attributes": True}
-
     def __str__(self) -> str:
         """
         Return a string representation of the document.
@@ -103,3 +71,21 @@ class DocumentRead(SQLModel):
             Same as __str__ method
         """
         return self.__str__()
+
+
+class DocumentCreate(DocumentBase):
+    """
+    Model for creating a new document.
+
+    Includes the project_id to associate the document with a project.
+    """
+
+    project_id: uuid.UUID
+
+
+class DocumentUpdate(SQLModel):
+    """Model for updating an existing document."""
+
+    id: uuid.UUID
+    project_id: t.Optional[uuid.UUID] = None
+    text: t.Optional[str] = None

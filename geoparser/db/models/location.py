@@ -6,7 +6,6 @@ from sqlmodel import Field, Relationship, SQLModel
 
 if t.TYPE_CHECKING:
     from geoparser.db.models.feature import Feature
-    from geoparser.db.models.resolution_module import ResolutionModuleRead
     from geoparser.db.models.resolution_object import ResolutionObject
     from geoparser.db.models.toponym import Toponym
 
@@ -59,41 +58,6 @@ class Location(LocationBase, table=True):
         """
         return self._feature.data
 
-
-class LocationCreate(LocationBase):
-    """
-    Model for creating a new location.
-
-    Includes the toponym_id and feature_id to associate the location.
-    """
-
-    toponym_id: uuid.UUID
-    feature_id: uuid.UUID
-
-
-class LocationUpdate(SQLModel):
-    """Model for updating an existing location."""
-
-    id: uuid.UUID
-    toponym_id: t.Optional[uuid.UUID] = None
-    feature_id: t.Optional[uuid.UUID] = None
-
-
-class LocationRead(SQLModel):
-    """
-    Model for reading location data.
-
-    Includes the feature data for complete location information.
-    """
-
-    id: uuid.UUID
-    toponym_id: uuid.UUID
-    feature_id: uuid.UUID
-    feature: t.Optional[t.Dict[str, t.Any]] = None
-    modules: list["ResolutionModuleRead"] = []
-
-    model_config = {"from_attributes": True}
-
     def __str__(self) -> str:
         """
         Return a string representation of the location.
@@ -113,3 +77,22 @@ class LocationRead(SQLModel):
             Same as __str__ method
         """
         return self.__str__()
+
+
+class LocationCreate(LocationBase):
+    """
+    Model for creating a new location.
+
+    Includes the toponym_id and feature_id to associate the location.
+    """
+
+    toponym_id: uuid.UUID
+    feature_id: uuid.UUID
+
+
+class LocationUpdate(SQLModel):
+    """Model for updating an existing location."""
+
+    id: uuid.UUID
+    toponym_id: t.Optional[uuid.UUID] = None
+    feature_id: t.Optional[uuid.UUID] = None
