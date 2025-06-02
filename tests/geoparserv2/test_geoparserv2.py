@@ -4,21 +4,7 @@ from unittest.mock import MagicMock, patch
 from sqlmodel import Session
 
 from geoparser.db.crud import DocumentRepository, ProjectRepository
-from geoparser.db.models import (
-    Document,
-    DocumentRead,
-    Location,
-    LocationRead,
-    Project,
-    RecognitionModule,
-    RecognitionModuleRead,
-    RecognitionObject,
-    ResolutionModule,
-    ResolutionModuleRead,
-    ResolutionObject,
-    Toponym,
-    ToponymRead,
-)
+from geoparser.db.models import Document, Project
 from geoparser.geoparserv2.geoparserv2 import GeoparserV2
 from geoparser.modules.interfaces import AbstractModule
 
@@ -201,9 +187,9 @@ def test_get_documents_all(test_db, geoparser_with_existing_project):
         assert len(documents) == 2
         assert documents[0].text == texts[0]
         assert documents[1].text == texts[1]
-        # Check that the returned objects are DocumentRead instances
-        assert isinstance(documents[0], DocumentRead)
-        assert isinstance(documents[1], DocumentRead)
+        # Check that the returned objects are Document instances
+        assert isinstance(documents[0], Document)
+        assert isinstance(documents[1], Document)
 
 
 def test_get_documents_by_id(test_db, geoparser_with_existing_project):
@@ -235,9 +221,9 @@ def test_get_documents_by_id(test_db, geoparser_with_existing_project):
         assert documents[0].text == texts[0]
         assert documents[1].id == document_ids[2]
         assert documents[1].text == texts[2]
-        # Check that the returned objects are DocumentRead instances
-        assert isinstance(documents[0], DocumentRead)
-        assert isinstance(documents[1], DocumentRead)
+        # Check that the returned objects are Document instances
+        assert isinstance(documents[0], Document)
+        assert isinstance(documents[1], Document)
 
 
 def test_get_documents_empty_project(test_db, geoparser_with_existing_project):
@@ -352,148 +338,32 @@ def test_parse_with_pipeline(test_db, geoparser_with_existing_project):
                 assert result == mock_documents
 
 
-def test_convert_to_document_read(test_db, geoparser_with_existing_project):
-    """Test converting a Document to a DocumentRead."""
+def test_parse_returns_documents(test_db, geoparser_with_existing_project):
+    """Test that parse method returns Document objects."""
     geoparser = geoparser_with_existing_project
 
-    # Create a document with no toponyms
-    with patch(
-        "geoparser.geoparserv2.geoparserv2.get_db", return_value=iter([test_db])
-    ):
-        doc_id = geoparser.add_documents("Test document")[0]
-        document = DocumentRepository.get(test_db, doc_id)
-
-    # Test conversion
-    doc_read = geoparser._convert_to_document_read(document)
-
-    # Verify
-    assert isinstance(doc_read, DocumentRead)
-    assert doc_read.id == document.id
-    assert doc_read.text == document.text
-    assert isinstance(doc_read.toponyms, list)
-    assert len(doc_read.toponyms) == 0
-
-
-def test_convert_to_toponym_read(geoparser_with_existing_project):
-    """Test converting a Toponym to a ToponymRead with modules."""
-    geoparser = geoparser_with_existing_project
-
-    # Create mock objects
-    toponym = Toponym(
-        id=uuid.uuid4(),
-        document_id=uuid.uuid4(),
-        start=0,
-        end=10,
-        text="New York",
-        locations=[],
-        recognition_objects=[],
-    )
-
-    # Add a mock recognition module and object
-    module = RecognitionModule(
-        id=uuid.uuid4(),
-        name="TestRecognitionModule",
-        config={"model_type": "spacy", "threshold": 0.85},
-    )
-    recognition_object = RecognitionObject(
-        id=uuid.uuid4(), toponym_id=toponym.id, module_id=module.id, module=module
-    )
-    toponym.recognition_objects.append(recognition_object)
-
-    # Test conversion
-    toponym_read = geoparser._convert_to_toponym_read(toponym)
-
-    # Verify
-    assert isinstance(toponym_read, ToponymRead)
-    assert toponym_read.id == toponym.id
-    assert toponym_read.text == toponym.text
-    assert toponym_read.start == toponym.start
-    assert toponym_read.end == toponym.end
-
-    # Verify modules were populated correctly
-    assert len(toponym_read.modules) == 1
-    assert isinstance(toponym_read.modules[0], RecognitionModuleRead)
-    assert toponym_read.modules[0].id == module.id
-    assert toponym_read.modules[0].name == module.name
-    assert toponym_read.modules[0].config == module.config
-    assert toponym_read.modules[0].config["model_type"] == "spacy"
-    assert toponym_read.modules[0].config["threshold"] == 0.85
-
-
-def test_convert_to_location_read(geoparser_with_existing_project):
-    """Test converting a Location to a LocationRead with modules."""
-    geoparser = geoparser_with_existing_project
-
-    # Create mock objects
-    location = Location(
-        id=uuid.uuid4(),
-        toponym_id=uuid.uuid4(),
-        location_id="123456",
-        confidence=0.95,
-        resolution_objects=[],
-    )
-
-    # Add a mock resolution module and object
-    module = ResolutionModule(
-        id=uuid.uuid4(),
-        name="TestResolutionModule",
-        config={"gazetteer": "geonames", "max_results": 5},
-    )
-    resolution_object = ResolutionObject(
-        id=uuid.uuid4(), location_id=location.id, module_id=module.id, module=module
-    )
-    location.resolution_objects.append(resolution_object)
-
-    # Test conversion
-    location_read = geoparser._convert_to_location_read(location)
-
-    # Verify
-    assert isinstance(location_read, LocationRead)
-    assert location_read.id == location.id
-    assert location_read.location_id == location.location_id
-    assert location_read.confidence == location.confidence
-
-    # Verify modules were populated correctly
-    assert len(location_read.modules) == 1
-    assert isinstance(location_read.modules[0], ResolutionModuleRead)
-    assert location_read.modules[0].id == module.id
-    assert location_read.modules[0].name == module.name
-    assert location_read.modules[0].config == module.config
-    assert location_read.modules[0].config["gazetteer"] == "geonames"
-    assert location_read.modules[0].config["max_results"] == 5
-
-
-def test_parse_returns_document_read(test_db, geoparser_with_existing_project):
-    """Test that parse method returns DocumentRead objects."""
-    geoparser = geoparser_with_existing_project
-
-    # Set up mock documents and DocumentRead objects
+    # Set up mock documents
     document = Document(
         id=uuid.uuid4(), text="Test text", project_id=geoparser.project_id
     )
-    doc_read = DocumentRead.model_validate(document)
 
     # Patch methods
     with patch.object(geoparser, "add_documents") as mock_add:
         with patch.object(geoparser, "run_pipeline"):
-            with patch.object(
-                geoparser, "_convert_to_document_read", return_value=doc_read
-            ) as mock_convert:
-                with patch.object(DocumentRepository, "get", return_value=document):
-                    with patch(
-                        "geoparser.geoparserv2.geoparserv2.get_db",
-                        return_value=iter([test_db]),
-                    ):
-                        # Set up mock
-                        doc_id = uuid.uuid4()
-                        mock_add.return_value = [doc_id]
+            with patch.object(DocumentRepository, "get", return_value=document):
+                with patch(
+                    "geoparser.geoparserv2.geoparserv2.get_db",
+                    return_value=iter([test_db]),
+                ):
+                    # Set up mock
+                    doc_id = uuid.uuid4()
+                    mock_add.return_value = [doc_id]
 
-                        # Call parse
-                        result = geoparser.parse("This is a test document.")
+                    # Call parse
+                    result = geoparser.parse("This is a test document.")
 
-                        # Verify
-                        assert len(result) == 1
-                        assert isinstance(result[0], DocumentRead)
-                        assert result[0].id == doc_read.id
-                        assert result[0].text == doc_read.text
-                        mock_convert.assert_called_once()
+                    # Verify
+                    assert len(result) == 1
+                    assert isinstance(result[0], Document)
+                    assert result[0].id == document.id
+                    assert result[0].text == document.text
