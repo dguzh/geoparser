@@ -2,8 +2,13 @@ import uuid
 
 from sqlmodel import Session
 
-from geoparser.db.crud import LocationRepository, ResolutionObjectRepository
+from geoparser.db.crud import (
+    FeatureRepository,
+    LocationRepository,
+    ResolutionObjectRepository,
+)
 from geoparser.db.models import (
+    FeatureCreate,
     Location,
     LocationCreate,
     ResolutionModule,
@@ -97,11 +102,19 @@ def test_get_by_module(
     test_resolution_module: ResolutionModule,
 ):
     """Test getting resolution objects by module ID."""
+    # Create another feature
+    feature_create = FeatureCreate(
+        gazetteer_name="another-gazetteer",
+        table_name="another_table",
+        identifier_name="another_id",
+        identifier_value="another-location",
+    )
+    another_feature = FeatureRepository.create(test_db, feature_create)
+
     # Create another location
     location_create = LocationCreate(
-        location_id="another-location",
-        confidence=0.7,
         toponym_id=test_resolution_object.location.toponym_id,
+        feature_id=another_feature.id,
     )
 
     # Create the location

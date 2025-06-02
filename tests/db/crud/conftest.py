@@ -2,11 +2,13 @@ import pytest
 from sqlmodel import Session, SQLModel
 from sqlmodel.pool import StaticPool
 
-from geoparser.db.crud import ToponymRepository
+from geoparser.db.crud import FeatureRepository, ToponymRepository
 from geoparser.db.db import create_engine
 from geoparser.db.models import (
     Document,
     DocumentCreate,
+    Feature,
+    FeatureCreate,
     Location,
     LocationCreate,
     Project,
@@ -96,6 +98,19 @@ def test_resolution_module(test_db: Session):
 
 
 @pytest.fixture
+def test_feature(test_db: Session):
+    """Create a test feature."""
+    feature_create = FeatureCreate(
+        gazetteer_name="test-gazetteer",
+        table_name="test_table",
+        identifier_name="test_id",
+        identifier_value="123456",
+    )
+    feature = FeatureRepository.create(test_db, feature_create)
+    return feature
+
+
+@pytest.fixture
 def test_toponym(test_db: Session, test_document: Document):
     """Create a test toponym."""
     toponym_create = ToponymCreate(start=29, end=35, document_id=test_document.id)
@@ -123,15 +138,14 @@ def test_recognition_object(
 
 
 @pytest.fixture
-def test_location(test_db: Session, test_toponym: Toponym):
+def test_location(test_db: Session, test_toponym: Toponym, test_feature: Feature):
     """Create a test location."""
     location_create = LocationCreate(
-        location_id="123456", confidence=0.9, toponym_id=test_toponym.id
+        toponym_id=test_toponym.id, feature_id=test_feature.id
     )
     location = Location(
-        location_id=location_create.location_id,
-        confidence=location_create.confidence,
         toponym_id=test_toponym.id,
+        feature_id=test_feature.id,
     )
     test_db.add(location)
     test_db.commit()
