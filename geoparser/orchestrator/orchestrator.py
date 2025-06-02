@@ -1,10 +1,11 @@
 import logging
 import uuid
-from typing import List, Optional, Tuple
+from typing import List, Tuple
 
 from sqlmodel import Session
 
 from geoparser.db.crud import (
+    FeatureRepository,
     LocationRepository,
     RecognitionModuleRepository,
     RecognitionObjectRepository,
@@ -360,7 +361,7 @@ class Orchestrator:
         self,
         db: Session,
         toponym_ids: List[uuid.UUID],
-        predicted_locations: List[List[Tuple[str, Optional[float]]]],
+        predicted_locations: List[List[Tuple[str, str]]],
         module_id: uuid.UUID,
     ) -> None:
         """
@@ -369,15 +370,15 @@ class Orchestrator:
         Args:
             db: Database session
             toponym_ids: List of toponym IDs
-            predicted_locations: Nested list of predicted locations
+            predicted_locations: Nested list of predicted (gazetteer_name, identifier) tuples
             module_id: ID of the module that made the predictions
         """
         # Process each toponym with its predicted locations
         for toponym_id, locations in zip(toponym_ids, predicted_locations):
             # Create location records for each prediction
-            for location_id, confidence in locations:
+            for gazetteer_name, identifier in locations:
                 self._create_location_record(
-                    db, toponym_id, location_id, confidence, module_id
+                    db, toponym_id, gazetteer_name, identifier, module_id
                 )
 
             # Mark toponym as processed
@@ -387,8 +388,8 @@ class Orchestrator:
         self,
         db: Session,
         toponym_id: uuid.UUID,
-        location_id: str,
-        confidence: Optional[float],
+        gazetteer_name: str,
+        identifier: str,
         module_id: uuid.UUID,
     ) -> uuid.UUID:
         """
@@ -397,17 +398,20 @@ class Orchestrator:
         Args:
             db: Database session
             toponym_id: ID of the toponym
-            location_id: ID of the location in the gazetteer
-            confidence: Optional confidence score
+            gazetteer_name: Name of the gazetteer
+            identifier: Identifier value in the gazetteer
             module_id: ID of the resolution module
 
         Returns:
             ID of the created location
         """
-        # Create the location
-        location_create = LocationCreate(
-            location_id=location_id, confidence=confidence, toponym_id=toponym_id
+        # Look up the feature by gazetteer and identifier
+        feature = FeatureRepository.get_by_gazetteer_and_identifier(
+            db, gazetteer_name, identifier
         )
+
+        # Create the location
+        location_create = LocationCreate(toponym_id=toponym_id, feature_id=feature.id)
         location = LocationRepository.create(db, location_create)
 
         # Create the resolution object (link between location and module)

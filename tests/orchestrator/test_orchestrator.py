@@ -4,6 +4,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from geoparser.db.crud import (
+    FeatureRepository,
     LocationRepository,
     RecognitionModuleRepository,
     RecognitionObjectRepository,
@@ -283,7 +284,7 @@ def test_execute_resolution_module(
                 # Set up mocks
                 mock_get_topo.return_value = [test_toponym]
                 mock_resolution_module.predict_locations.return_value = [
-                    [("loc1", 0.8), ("loc2", 0.6)]
+                    [("test_gazetteer", "loc1"), ("test_gazetteer", "loc2")]
                 ]
 
                 # Call the method
@@ -299,7 +300,7 @@ def test_execute_resolution_module(
                 mock_process.assert_called_once_with(
                     test_db,
                     [test_toponym.id],
-                    [[("loc1", 0.8), ("loc2", 0.6)]],
+                    [[("test_gazetteer", "loc1"), ("test_gazetteer", "loc2")]],
                     module_id,
                 )
 
@@ -420,13 +421,17 @@ def test_process_location_predictions(test_db, mock_resolution_module):
             orchestrator._process_location_predictions(
                 test_db,
                 [toponym_id],
-                [[("loc1", 0.8), ("loc2", 0.6)]],
+                [[("test_gazetteer", "loc1"), ("test_gazetteer", "loc2")]],
                 module_id,
             )
 
             # Verify method calls
-            mock_create.assert_any_call(test_db, toponym_id, "loc1", 0.8, module_id)
-            mock_create.assert_any_call(test_db, toponym_id, "loc2", 0.6, module_id)
+            mock_create.assert_any_call(
+                test_db, toponym_id, "test_gazetteer", "loc1", module_id
+            )
+            mock_create.assert_any_call(
+                test_db, toponym_id, "test_gazetteer", "loc2", module_id
+            )
             assert mock_create.call_count == 2
 
             mock_mark.assert_called_once_with(test_db, toponym_id, module_id)
@@ -438,25 +443,36 @@ def test_create_location_record(test_db, test_toponym):
     module_id = uuid.uuid4()
 
     # Mock database calls
-    with patch.object(LocationRepository, "create") as mock_create_location:
-        with patch.object(
-            ResolutionObjectRepository, "create"
-        ) as mock_create_resolution:
-            # Set up mocks
-            location_id = uuid.uuid4()
-            location = MagicMock()
-            location.id = location_id
-            mock_create_location.return_value = location
+    with patch.object(
+        FeatureRepository, "get_by_gazetteer_and_identifier"
+    ) as mock_get_feature:
+        with patch.object(LocationRepository, "create") as mock_create_location:
+            with patch.object(
+                ResolutionObjectRepository, "create"
+            ) as mock_create_resolution:
+                # Set up mocks
+                feature_id = uuid.uuid4()
+                feature = MagicMock()
+                feature.id = feature_id
+                mock_get_feature.return_value = feature
 
-            # Call the method
-            result_id = orchestrator._create_location_record(
-                test_db, test_toponym.id, "loc1", 0.8, module_id
-            )
+                location_id = uuid.uuid4()
+                location = MagicMock()
+                location.id = location_id
+                mock_create_location.return_value = location
 
-            # Verify calls
-            mock_create_location.assert_called_once()
-            mock_create_resolution.assert_called_once()
-            assert result_id == location_id
+                # Call the method
+                result_id = orchestrator._create_location_record(
+                    test_db, test_toponym.id, "test_gazetteer", "loc1", module_id
+                )
+
+                # Verify calls
+                mock_get_feature.assert_called_once_with(
+                    test_db, "test_gazetteer", "loc1"
+                )
+                mock_create_location.assert_called_once()
+                mock_create_resolution.assert_called_once()
+                assert result_id == location_id
 
 
 def test_mark_document_processed(test_db, test_document):

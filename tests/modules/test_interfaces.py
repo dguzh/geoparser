@@ -126,7 +126,10 @@ def test_resolution_module_implementation():
         NAME = "valid_resolution"
 
         def predict_locations(self, toponym_data):
-            return [[("loc1", 0.8), ("loc2", 0.6)] for _ in toponym_data]
+            return [
+                [("test_gazetteer", "loc1"), ("test_gazetteer", "loc2")]
+                for _ in toponym_data
+            ]
 
     # Should instantiate without errors
     module = ValidResolutionModule()
@@ -143,5 +146,5 @@ def test_resolution_module_implementation():
     ]
     result = module.predict_locations(toponyms)
     assert len(result) == 2
-    assert result[0] == [("loc1", 0.8), ("loc2", 0.6)]
-    assert result[1] == [("loc1", 0.8), ("loc2", 0.6)]
+    assert result[0] == [("test_gazetteer", "loc1"), ("test_gazetteer", "loc2")]
+    assert result[1] == [("test_gazetteer", "loc1"), ("test_gazetteer", "loc2")]

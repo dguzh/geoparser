@@ -83,7 +83,9 @@ def mock_resolution_module():
     module = MagicMock(spec=AbstractResolutionModule)
     module.name = "mock_resolution"
     module.config = {"param": "value"}
-    module.predict_locations.return_value = [[("loc1", 0.8), ("loc2", 0.6)]]
+    module.predict_locations.return_value = [
+        [("test_gazetteer", "loc1"), ("test_gazetteer", "loc2")]
+    ]
     return module
 
 

@@ -135,7 +135,7 @@ class AbstractResolutionModule(AbstractModule):
     @abstractmethod
     def predict_locations(
         self, toponym_data: t.List[dict]
-    ) -> t.List[t.List[t.Tuple[str, t.Optional[float]]]]:
+    ) -> t.List[t.List[t.Tuple[str, str]]]:
         """
         Predict locations for multiple toponyms.
 
@@ -149,6 +149,8 @@ class AbstractResolutionModule(AbstractModule):
                           - document_text: full document text
 
         Returns:
-            List of lists of tuples containing (location_id, confidence).
+            List of lists of tuples containing (gazetteer_name, identifier).
             Each inner list corresponds to locations found for one toponym at the same index in the input list.
+            The gazetteer_name identifies which gazetteer the identifier refers to,
+            and the identifier is the value used to identify the location in that gazetteer.
         """
