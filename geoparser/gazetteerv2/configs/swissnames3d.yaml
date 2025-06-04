@@ -246,15 +246,15 @@ sources:
         type: TEXT 
 
 features:
-  - source: swissNAMES3D_PKT
-    identifier: UUID
-  - source: swissNAMES3D_LIN
-    identifier: UUID
-  - source: swissNAMES3D_PLY
-    identifier: UUID 
-  - source: swissBOUNDARIES3D_1_5_TLM_HOHEITSGEBIET
-    identifier: UUID
-  - source: swissBOUNDARIES3D_1_5_TLM_BEZIRKSGEBIET
-    identifier: UUID
-  - source: swissBOUNDARIES3D_1_5_TLM_KANTONSGEBIET
-    identifier: UUID
+  - table: swissNAMES3D_PKT
+    identifier_column: UUID
+  - table: swissNAMES3D_LIN
+    identifier_column: UUID
+  - table: swissNAMES3D_PLY
+    identifier_column: UUID
+  - table: swissBOUNDARIES3D_1_5_TLM_HOHEITSGEBIET
+    identifier_column: UUID
+  - table: swissBOUNDARIES3D_1_5_TLM_BEZIRKSGEBIET
+    identifier_column: UUID
+  - table: swissBOUNDARIES3D_1_5_TLM_KANTONSGEBIET
+    identifier_column: UUID

@@ -671,8 +671,8 @@ class GazetteerInstaller:
             gazetteer_config: Gazetteer configuration
             feature_config: Configuration for this feature source
         """
-        source_name = feature_config.source
-        identifier_column = feature_config.identifier
+        source_name = feature_config.table
+        identifier_column = feature_config.identifier_column
 
         with tqdm(
             total=1,
@@ -701,8 +701,8 @@ class GazetteerInstaller:
         Returns:
             SQL for inserting features into the Feature table
         """
-        source_name = feature_config.source
-        identifier_column = feature_config.identifier
+        source_name = feature_config.table
+        identifier_column = feature_config.identifier_column
         gazetteer_name = gazetteer_config.name
 
         # Use INSERT INTO ... SELECT for performance

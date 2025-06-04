@@ -105,8 +105,8 @@ class ViewConfig(BaseModel):
 class FeatureConfig(BaseModel):
     """Configuration for extracting features from a gazetteer source."""
 
-    source: str
-    identifier: str
+    table: str
+    identifier_column: str
 
 
 class GazetteerConfig(BaseModel):
@@ -175,9 +175,9 @@ class GazetteerConfig(BaseModel):
         all_names = source_names.union(view_names)
 
         for feature in self.features:
-            if feature.source not in all_names:
+            if feature.table not in all_names:
                 raise ValueError(
-                    f"Feature configuration references non-existent source/view: {feature.source}"
+                    f"Feature configuration references non-existent source/view: {feature.table}"
                 )
 
         return self

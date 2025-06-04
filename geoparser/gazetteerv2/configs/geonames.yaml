@@ -204,5 +204,5 @@ views:
         - "LEFT JOIN featureCodes AS features ON allCountries.feature_code_full = features.code"
 
 features:
-  - source: allCountries
-    identifier: geonameid
+  - table: allCountries
+    identifier_column: geonameid
