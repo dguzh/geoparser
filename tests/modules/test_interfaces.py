@@ -76,7 +76,7 @@ def test_recognition_module_abstract():
         NAME = "invalid_recognition"
 
     # Should raise TypeError when instantiated due to abstract methods
-    with pytest.raises(TypeError, match="predict_toponyms"):
+    with pytest.raises(TypeError, match="predict_references"):
         InvalidRecognitionModule()
 
 
@@ -87,7 +87,7 @@ def test_recognition_module_implementation():
     class ValidRecognitionModule(AbstractRecognitionModule):
         NAME = "valid_recognition"
 
-        def predict_toponyms(self, document_texts):
+        def predict_references(self, document_texts):
             return [[(0, 5), (10, 15)] for _ in document_texts]
 
     # Should instantiate without errors
@@ -100,7 +100,7 @@ def test_recognition_module_implementation():
 
     # Should produce expected output
     documents = ["Test document 1", "Test document 2"]
-    result = module.predict_toponyms(documents)
+    result = module.predict_references(documents)
     assert len(result) == 2
     assert result[0] == [(0, 5), (10, 15)]
     assert result[1] == [(0, 5), (10, 15)]
@@ -114,7 +114,7 @@ def test_resolution_module_abstract():
         NAME = "invalid_resolution"
 
     # Should raise TypeError when instantiated due to abstract methods
-    with pytest.raises(TypeError, match="predict_locations"):
+    with pytest.raises(TypeError, match="predict_referents"):
         InvalidResolutionModule()
 
 
@@ -125,10 +125,10 @@ def test_resolution_module_implementation():
     class ValidResolutionModule(AbstractResolutionModule):
         NAME = "valid_resolution"
 
-        def predict_locations(self, toponym_data):
+        def predict_referents(self, reference_data):
             return [
                 [("test_gazetteer", "loc1"), ("test_gazetteer", "loc2")]
-                for _ in toponym_data
+                for _ in reference_data
             ]
 
     # Should instantiate without errors
@@ -140,11 +140,11 @@ def test_resolution_module_implementation():
     assert module.config == {"model": "test_model", "threshold": 0.5}
 
     # Should produce expected output
-    toponyms = [
+    references = [
         {"start": 0, "end": 5, "document_text": "Test document 1", "text": "Test"},
         {"start": 10, "end": 15, "document_text": "Test document 2", "text": "docum"},
     ]
-    result = module.predict_locations(toponyms)
+    result = module.predict_referents(references)
     assert len(result) == 2
     assert result[0] == [("test_gazetteer", "loc1"), ("test_gazetteer", "loc2")]
     assert result[1] == [("test_gazetteer", "loc1"), ("test_gazetteer", "loc2")]

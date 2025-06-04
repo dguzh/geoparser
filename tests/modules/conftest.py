@@ -14,7 +14,7 @@ def mock_recognition_module():
     module = MagicMock(spec=AbstractRecognitionModule)
     module.name = "mock_recognition"
     module.config = {"param": "value"}
-    module.predict_toponyms.return_value = [[(29, 35), (41, 46)]]
+    module.predict_references.return_value = [[(29, 35), (41, 46)]]
     return module
 
 
@@ -24,7 +24,7 @@ def mock_resolution_module():
     module = MagicMock(spec=AbstractResolutionModule)
     module.name = "mock_resolution"
     module.config = {"param": "value"}
-    module.predict_locations.return_value = [
+    module.predict_referents.return_value = [
         [("test_gazetteer", "loc1"), ("test_gazetteer", "loc2")]
     ]
     return module

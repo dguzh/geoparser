@@ -2,15 +2,13 @@ import pytest
 from sqlmodel import Session, SQLModel
 from sqlmodel.pool import StaticPool
 
-from geoparser.db.crud import FeatureRepository, ToponymRepository
+from geoparser.db.crud import FeatureRepository, ReferenceRepository
 from geoparser.db.db import create_engine
 from geoparser.db.models import (
     Document,
     DocumentCreate,
     Feature,
     FeatureCreate,
-    Location,
-    LocationCreate,
     Project,
     ProjectCreate,
     RecognitionModule,
@@ -19,14 +17,16 @@ from geoparser.db.models import (
     RecognitionObjectCreate,
     RecognitionSubject,
     RecognitionSubjectCreate,
+    Reference,
+    ReferenceCreate,
+    Referent,
+    ReferentCreate,
     ResolutionModule,
     ResolutionModuleCreate,
     ResolutionObject,
     ResolutionObjectCreate,
     ResolutionSubject,
     ResolutionSubjectCreate,
-    Toponym,
-    ToponymCreate,
 )
 
 
@@ -111,25 +111,26 @@ def test_feature(test_db: Session):
 
 
 @pytest.fixture
-def test_toponym(test_db: Session, test_document: Document):
-    """Create a test toponym."""
-    toponym_create = ToponymCreate(start=29, end=35, document_id=test_document.id)
-    toponym = ToponymRepository.create(test_db, toponym_create)
-    return toponym
+def test_reference(test_db: Session, test_document: Document):
+    """Create a test reference."""
+    reference_create = ReferenceCreate(start=29, end=35, document_id=test_document.id)
+    reference = ReferenceRepository.create(test_db, reference_create)
+    return reference
 
 
 @pytest.fixture
 def test_recognition_object(
     test_db: Session,
-    test_toponym: Toponym,
+    test_reference: Reference,
     test_recognition_module: RecognitionModule,
 ):
     """Create a test recognition object."""
     recognition_create = RecognitionObjectCreate(
-        toponym_id=test_toponym.id, module_id=test_recognition_module.id
+        reference_id=test_reference.id, module_id=test_recognition_module.id
     )
     recognition = RecognitionObject(
-        toponym_id=recognition_create.toponym_id, module_id=recognition_create.module_id
+        reference_id=recognition_create.reference_id,
+        module_id=recognition_create.module_id,
     )
     test_db.add(recognition)
     test_db.commit()
@@ -138,33 +139,33 @@ def test_recognition_object(
 
 
 @pytest.fixture
-def test_location(test_db: Session, test_toponym: Toponym, test_feature: Feature):
-    """Create a test location."""
-    location_create = LocationCreate(
-        toponym_id=test_toponym.id, feature_id=test_feature.id
+def test_referent(test_db: Session, test_reference: Reference, test_feature: Feature):
+    """Create a test referent."""
+    referent_create = ReferentCreate(
+        reference_id=test_reference.id, feature_id=test_feature.id
     )
-    location = Location(
-        toponym_id=test_toponym.id,
+    referent = Referent(
+        reference_id=test_reference.id,
         feature_id=test_feature.id,
     )
-    test_db.add(location)
+    test_db.add(referent)
     test_db.commit()
-    test_db.refresh(location)
-    return location
+    test_db.refresh(referent)
+    return referent
 
 
 @pytest.fixture
 def test_resolution_object(
     test_db: Session,
-    test_location: Location,
+    test_referent: Referent,
     test_resolution_module: ResolutionModule,
 ):
     """Create a test resolution object."""
     resolution_create = ResolutionObjectCreate(
-        location_id=test_location.id, module_id=test_resolution_module.id
+        referent_id=test_referent.id, module_id=test_resolution_module.id
     )
     resolution = ResolutionObject(
-        location_id=resolution_create.location_id, module_id=resolution_create.module_id
+        referent_id=resolution_create.referent_id, module_id=resolution_create.module_id
     )
     test_db.add(resolution)
     test_db.commit()
@@ -195,15 +196,15 @@ def test_recognition_subject(
 @pytest.fixture
 def test_resolution_subject(
     test_db: Session,
-    test_toponym: Toponym,
+    test_reference: Reference,
     test_resolution_module: ResolutionModule,
 ):
     """Create a test resolution subject."""
     resolution_subject_create = ResolutionSubjectCreate(
-        toponym_id=test_toponym.id, module_id=test_resolution_module.id
+        reference_id=test_reference.id, module_id=test_resolution_module.id
     )
     resolution_subject = ResolutionSubject(
-        toponym_id=resolution_subject_create.toponym_id,
+        reference_id=resolution_subject_create.reference_id,
         module_id=resolution_subject_create.module_id,
     )
     test_db.add(resolution_subject)

@@ -10,8 +10,8 @@ from geoparser.db.models import (
     DocumentCreate,
     Project,
     ProjectCreate,
-    Toponym,
-    ToponymCreate,
+    Reference,
+    ReferenceCreate,
 )
 from geoparser.geoparserv2.geoparserv2 import GeoparserV2
 from geoparser.modules.interfaces import (
@@ -78,14 +78,14 @@ def test_document(test_db, test_project):
 
 
 @pytest.fixture
-def test_toponym(test_db, test_document):
-    """Create a test toponym in the test document."""
-    toponym_create = ToponymCreate(start=29, end=35, document_id=test_document.id)
-    toponym = Toponym.model_validate(toponym_create)
-    test_db.add(toponym)
+def test_reference(test_db, test_document):
+    """Create a test reference in the test document."""
+    reference_create = ReferenceCreate(start=29, end=35, document_id=test_document.id)
+    reference = Reference.model_validate(reference_create)
+    test_db.add(reference)
     test_db.commit()
-    test_db.refresh(toponym)
-    return toponym
+    test_db.refresh(reference)
+    return reference
 
 
 @pytest.fixture
@@ -94,7 +94,7 @@ def mock_recognition_module():
     module = MagicMock(spec=AbstractRecognitionModule)
     module.name = "mock_recognition"
     module.config = {"param": "value"}
-    module.predict_toponyms.return_value = [[(29, 35), (41, 46)]]
+    module.predict_references.return_value = [[(29, 35), (41, 46)]]
     return module
 
 
@@ -104,7 +104,7 @@ def mock_resolution_module():
     module = MagicMock(spec=AbstractResolutionModule)
     module.name = "mock_resolution"
     module.config = {"param": "value"}
-    module.predict_locations.return_value = [[("loc1", 0.8), ("loc2", 0.6)]]
+    module.predict_referents.return_value = [[("loc1", 0.8), ("loc2", 0.6)]]
     return module
 
 

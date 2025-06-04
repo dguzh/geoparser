@@ -2,27 +2,27 @@ import uuid
 
 from sqlmodel import Session
 
-from geoparser.db.crud import RecognitionObjectRepository, ToponymRepository
+from geoparser.db.crud import RecognitionObjectRepository, ReferenceRepository
 from geoparser.db.models import (
     RecognitionModule,
     RecognitionModuleCreate,
     RecognitionObject,
     RecognitionObjectCreate,
     RecognitionObjectUpdate,
-    Toponym,
-    ToponymCreate,
+    Reference,
+    ReferenceCreate,
 )
 
 
 def test_create(
     test_db: Session,
-    test_toponym: Toponym,
+    test_reference: Reference,
     test_recognition_module: RecognitionModule,
 ):
     """Test creating a recognition object."""
     # Create a recognition object using the create model with all required fields
     recognition_create = RecognitionObjectCreate(
-        module_id=test_recognition_module.id, toponym_id=test_toponym.id
+        module_id=test_recognition_module.id, reference_id=test_reference.id
     )
 
     # Create the recognition object
@@ -31,13 +31,13 @@ def test_create(
     )
 
     assert created_recognition.id is not None
-    assert created_recognition.toponym_id == test_toponym.id
+    assert created_recognition.reference_id == test_reference.id
     assert created_recognition.module_id == test_recognition_module.id
 
     # Verify it was saved to the database
     db_recognition = test_db.get(RecognitionObject, created_recognition.id)
     assert db_recognition is not None
-    assert db_recognition.toponym_id == test_toponym.id
+    assert db_recognition.reference_id == test_reference.id
     assert db_recognition.module_id == test_recognition_module.id
 
 
@@ -47,7 +47,7 @@ def test_get(test_db: Session, test_recognition_object: RecognitionObject):
     recognition = RecognitionObjectRepository.get(test_db, test_recognition_object.id)
     assert recognition is not None
     assert recognition.id == test_recognition_object.id
-    assert recognition.toponym_id == test_recognition_object.toponym_id
+    assert recognition.reference_id == test_recognition_object.reference_id
     assert recognition.module_id == test_recognition_object.module_id
 
     # Test with invalid ID
@@ -56,13 +56,13 @@ def test_get(test_db: Session, test_recognition_object: RecognitionObject):
     assert recognition is None
 
 
-def test_get_by_toponym(
+def test_get_by_reference(
     test_db: Session,
-    test_toponym: Toponym,
+    test_reference: Reference,
     test_recognition_object: RecognitionObject,
     test_recognition_module: RecognitionModule,
 ):
-    """Test getting recognition objects by toponym ID."""
+    """Test getting recognition objects by reference ID."""
     # Create another recognition module
     config = {"model": "another-model"}
     module_create = RecognitionModuleCreate(
@@ -73,23 +73,25 @@ def test_get_by_toponym(
     test_db.commit()
     test_db.refresh(module)
 
-    # Create another recognition object for the same toponym
+    # Create another recognition object for the same reference
     recognition_create = RecognitionObjectCreate(
-        module_id=module.id, toponym_id=test_toponym.id
+        module_id=module.id, reference_id=test_reference.id
     )
 
     # Create the recognition object
     RecognitionObjectRepository.create(test_db, recognition_create)
 
-    # Get recognition objects by toponym
-    recognitions = RecognitionObjectRepository.get_by_toponym(test_db, test_toponym.id)
+    # Get recognition objects by reference
+    recognitions = RecognitionObjectRepository.get_by_reference(
+        test_db, test_reference.id
+    )
     assert len(recognitions) == 2
     assert any(r.module_id == test_recognition_module.id for r in recognitions)
     assert any(r.module_id == module.id for r in recognitions)
 
-    # Test with invalid toponym ID
+    # Test with invalid reference ID
     invalid_id = uuid.uuid4()
-    recognitions = RecognitionObjectRepository.get_by_toponym(test_db, invalid_id)
+    recognitions = RecognitionObjectRepository.get_by_reference(test_db, invalid_id)
     assert len(recognitions) == 0
 
 
@@ -99,17 +101,17 @@ def test_get_by_module(
     test_recognition_module: RecognitionModule,
 ):
     """Test getting recognition objects by module ID."""
-    # Create another toponym
-    toponym_create = ToponymCreate(
-        start=10, end=14, document_id=test_recognition_object.toponym.document_id
+    # Create another reference
+    reference_create = ReferenceCreate(
+        start=10, end=14, document_id=test_recognition_object.reference.document_id
     )
 
-    # Create the toponym
-    toponym = ToponymRepository.create(test_db, toponym_create)
+    # Create the reference
+    reference = ReferenceRepository.create(test_db, reference_create)
 
     # Create another recognition object for the same module
     recognition_create = RecognitionObjectCreate(
-        module_id=test_recognition_module.id, toponym_id=toponym.id
+        module_id=test_recognition_module.id, reference_id=reference.id
     )
 
     # Create the recognition object
@@ -132,7 +134,7 @@ def test_get_all(test_db: Session, test_recognition_object: RecognitionObject):
     # Create another recognition object
     recognition_create = RecognitionObjectCreate(
         module_id=test_recognition_object.module_id,
-        toponym_id=test_recognition_object.toponym_id,
+        reference_id=test_recognition_object.reference_id,
     )
 
     # Create the recognition object

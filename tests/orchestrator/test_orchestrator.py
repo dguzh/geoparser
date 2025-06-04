@@ -5,14 +5,14 @@ import pytest
 
 from geoparser.db.crud import (
     FeatureRepository,
-    LocationRepository,
     RecognitionModuleRepository,
     RecognitionObjectRepository,
     RecognitionSubjectRepository,
+    ReferenceRepository,
+    ReferentRepository,
     ResolutionModuleRepository,
     ResolutionObjectRepository,
     ResolutionSubjectRepository,
-    ToponymRepository,
 )
 from geoparser.db.models import RecognitionModule, ResolutionModule
 from geoparser.orchestrator import Orchestrator
@@ -213,11 +213,11 @@ def test_execute_recognition_module(
     ):
         with patch.object(orchestrator, "_get_unprocessed_documents") as mock_get_docs:
             with patch.object(
-                orchestrator, "_process_toponym_predictions"
+                orchestrator, "_process_reference_predictions"
             ) as mock_process:
                 # Set up mocks
                 mock_get_docs.return_value = [test_document]
-                mock_recognition_module.predict_toponyms.return_value = [
+                mock_recognition_module.predict_references.return_value = [
                     [(0, 5), (10, 15)]
                 ]
 
@@ -230,7 +230,7 @@ def test_execute_recognition_module(
                 mock_get_docs.assert_called_once_with(
                     test_db, module_id, test_project.id
                 )
-                mock_recognition_module.predict_toponyms.assert_called_once_with(
+                mock_recognition_module.predict_references.assert_called_once_with(
                     [test_document.text]
                 )
                 mock_process.assert_called_once_with(
@@ -260,30 +260,30 @@ def test_execute_recognition_module_no_documents(
 
             # Verify that recognition module wasn't called due to no documents
             mock_get_docs.assert_called_once_with(test_db, module_id, test_project.id)
-            mock_recognition_module.predict_toponyms.assert_not_called()
+            mock_recognition_module.predict_references.assert_not_called()
 
 
 def test_execute_resolution_module(
-    test_db, test_project, mock_resolution_module, test_toponym, test_document
+    test_db, test_project, mock_resolution_module, test_reference, test_document
 ):
-    """Test _execute_resolution_module with a toponym."""
+    """Test _execute_resolution_module with a reference."""
     orchestrator = Orchestrator()
     module_id = uuid.uuid4()
 
-    # Add document reference to the toponym for testing
-    test_toponym.document = test_document
+    # Add document reference to the reference for testing
+    test_reference.document = test_document
 
     # Mock private methods and database calls
     with patch(
         "geoparser.orchestrator.orchestrator.get_db", return_value=iter([test_db])
     ):
-        with patch.object(orchestrator, "_get_unprocessed_toponyms") as mock_get_topo:
+        with patch.object(orchestrator, "_get_unprocessed_references") as mock_get_refs:
             with patch.object(
-                orchestrator, "_process_location_predictions"
+                orchestrator, "_process_referent_predictions"
             ) as mock_process:
                 # Set up mocks
-                mock_get_topo.return_value = [test_toponym]
-                mock_resolution_module.predict_locations.return_value = [
+                mock_get_refs.return_value = [test_reference]
+                mock_resolution_module.predict_referents.return_value = [
                     [("test_gazetteer", "loc1"), ("test_gazetteer", "loc2")]
                 ]
 
@@ -293,22 +293,22 @@ def test_execute_resolution_module(
                 )
 
                 # Verify calls
-                mock_get_topo.assert_called_once_with(
+                mock_get_refs.assert_called_once_with(
                     test_db, module_id, test_project.id
                 )
-                mock_resolution_module.predict_locations.assert_called_once()
+                mock_resolution_module.predict_referents.assert_called_once()
                 mock_process.assert_called_once_with(
                     test_db,
-                    [test_toponym.id],
+                    [test_reference.id],
                     [[("test_gazetteer", "loc1"), ("test_gazetteer", "loc2")]],
                     module_id,
                 )
 
 
-def test_execute_resolution_module_no_toponyms(
+def test_execute_resolution_module_no_references(
     test_db, test_project, mock_resolution_module
 ):
-    """Test _execute_resolution_module with no toponyms."""
+    """Test _execute_resolution_module with no references."""
     orchestrator = Orchestrator()
     module_id = uuid.uuid4()
 
@@ -316,31 +316,31 @@ def test_execute_resolution_module_no_toponyms(
     with patch(
         "geoparser.orchestrator.orchestrator.get_db", return_value=iter([test_db])
     ):
-        with patch.object(orchestrator, "_get_unprocessed_toponyms") as mock_get_topo:
+        with patch.object(orchestrator, "_get_unprocessed_references") as mock_get_refs:
             # Set up mocks
-            mock_get_topo.return_value = []
+            mock_get_refs.return_value = []
 
             # Call the method
             orchestrator._execute_resolution_module(
                 mock_resolution_module, module_id, test_project.id
             )
 
-            # Verify that resolution module wasn't called due to no toponyms
-            mock_get_topo.assert_called_once_with(test_db, module_id, test_project.id)
-            mock_resolution_module.predict_locations.assert_not_called()
+            # Verify that resolution module wasn't called due to no references
+            mock_get_refs.assert_called_once_with(test_db, module_id, test_project.id)
+            mock_resolution_module.predict_referents.assert_not_called()
 
 
-def test_process_toponym_predictions(test_db, mock_recognition_module):
-    """Test _process_toponym_predictions."""
+def test_process_reference_predictions(test_db, mock_recognition_module):
+    """Test _process_reference_predictions."""
     orchestrator = Orchestrator()
     module_id = uuid.uuid4()
     document_id = uuid.uuid4()
 
     # Mock private methods
-    with patch.object(orchestrator, "_create_toponym_record") as mock_create:
+    with patch.object(orchestrator, "_create_reference_record") as mock_create:
         with patch.object(orchestrator, "_mark_document_processed") as mock_mark:
             # Call the method
-            orchestrator._process_toponym_predictions(
+            orchestrator._process_reference_predictions(
                 test_db, [document_id], [[(0, 5), (10, 15)]], module_id
             )
 
@@ -352,93 +352,93 @@ def test_process_toponym_predictions(test_db, mock_recognition_module):
             mock_mark.assert_called_once_with(test_db, document_id, module_id)
 
 
-def test_create_toponym_record(test_db, test_document):
-    """Test _create_toponym_record when toponym doesn't exist."""
+def test_create_reference_record(test_db, test_document):
+    """Test _create_reference_record when reference doesn't exist."""
     orchestrator = Orchestrator()
     module_id = uuid.uuid4()
 
     # Mock database calls
     with patch.object(
-        ToponymRepository, "get_by_document_and_span", return_value=None
+        ReferenceRepository, "get_by_document_and_span", return_value=None
     ) as mock_get:
-        with patch.object(ToponymRepository, "create") as mock_create_toponym:
+        with patch.object(ReferenceRepository, "create") as mock_create_reference:
             with patch.object(
                 RecognitionObjectRepository, "create"
             ) as mock_create_recognition:
                 # Set up mocks
-                toponym_id = uuid.uuid4()
-                toponym = MagicMock()
-                toponym.id = toponym_id
-                mock_create_toponym.return_value = toponym
+                reference_id = uuid.uuid4()
+                reference = MagicMock()
+                reference.id = reference_id
+                mock_create_reference.return_value = reference
 
                 # Call the method
-                result_id = orchestrator._create_toponym_record(
+                result_id = orchestrator._create_reference_record(
                     test_db, test_document.id, 29, 35, module_id
                 )
 
                 # Verify calls
                 mock_get.assert_called_once_with(test_db, test_document.id, 29, 35)
-                mock_create_toponym.assert_called_once()
+                mock_create_reference.assert_called_once()
                 mock_create_recognition.assert_called_once()
-                assert result_id == toponym_id
+                assert result_id == reference_id
 
 
-def test_create_toponym_record_existing(test_db, test_document, test_toponym):
-    """Test _create_toponym_record when toponym already exists."""
+def test_create_reference_record_existing(test_db, test_document, test_reference):
+    """Test _create_reference_record when reference already exists."""
     orchestrator = Orchestrator()
     module_id = uuid.uuid4()
 
     # Mock database calls
     with patch.object(
-        ToponymRepository, "get_by_document_and_span", return_value=test_toponym
+        ReferenceRepository, "get_by_document_and_span", return_value=test_reference
     ) as mock_get:
-        with patch.object(ToponymRepository, "create") as mock_create_toponym:
+        with patch.object(ReferenceRepository, "create") as mock_create_reference:
             with patch.object(
                 RecognitionObjectRepository, "create"
             ) as mock_create_recognition:
                 # Call the method
-                result_id = orchestrator._create_toponym_record(
+                result_id = orchestrator._create_reference_record(
                     test_db, test_document.id, 29, 35, module_id
                 )
 
                 # Verify calls
                 mock_get.assert_called_once_with(test_db, test_document.id, 29, 35)
-                mock_create_toponym.assert_not_called()
+                mock_create_reference.assert_not_called()
                 mock_create_recognition.assert_called_once()
-                assert result_id == test_toponym.id
+                assert result_id == test_reference.id
 
 
-def test_process_location_predictions(test_db, mock_resolution_module):
-    """Test _process_location_predictions."""
+def test_process_referent_predictions(test_db, mock_resolution_module):
+    """Test _process_referent_predictions."""
     orchestrator = Orchestrator()
     module_id = uuid.uuid4()
-    toponym_id = uuid.uuid4()
+    reference_id = uuid.uuid4()
 
     # Mock private methods
-    with patch.object(orchestrator, "_create_location_record") as mock_create:
-        with patch.object(orchestrator, "_mark_toponym_processed") as mock_mark:
+    with patch.object(orchestrator, "_create_referent_record") as mock_create:
+        with patch.object(orchestrator, "_mark_reference_processed") as mock_mark:
             # Call the method
-            orchestrator._process_location_predictions(
+            orchestrator._process_referent_predictions(
                 test_db,
-                [toponym_id],
+                [reference_id],
                 [[("test_gazetteer", "loc1"), ("test_gazetteer", "loc2")]],
                 module_id,
             )
 
             # Verify method calls
             mock_create.assert_any_call(
-                test_db, toponym_id, "test_gazetteer", "loc1", module_id
+                test_db, reference_id, "test_gazetteer", "loc1", module_id
             )
             mock_create.assert_any_call(
-                test_db, toponym_id, "test_gazetteer", "loc2", module_id
+                test_db, reference_id, "test_gazetteer", "loc2", module_id
             )
             assert mock_create.call_count == 2
 
-            mock_mark.assert_called_once_with(test_db, toponym_id, module_id)
+            mock_mark.assert_called_once_with(test_db, reference_id, module_id)
 
 
-def test_create_location_record(test_db, test_toponym):
-    """Test _create_location_record."""
+def test_create_referent_record(test_db, test_reference):
+    """Test _create_referent_record."""
     orchestrator = Orchestrator()
     module_id = uuid.uuid4()
 
@@ -446,7 +446,7 @@ def test_create_location_record(test_db, test_toponym):
     with patch.object(
         FeatureRepository, "get_by_gazetteer_and_identifier"
     ) as mock_get_feature:
-        with patch.object(LocationRepository, "create") as mock_create_location:
+        with patch.object(ReferentRepository, "create") as mock_create_referent:
             with patch.object(
                 ResolutionObjectRepository, "create"
             ) as mock_create_resolution:
@@ -456,23 +456,23 @@ def test_create_location_record(test_db, test_toponym):
                 feature.id = feature_id
                 mock_get_feature.return_value = feature
 
-                location_id = uuid.uuid4()
-                location = MagicMock()
-                location.id = location_id
-                mock_create_location.return_value = location
+                referent_id = uuid.uuid4()
+                referent = MagicMock()
+                referent.id = referent_id
+                mock_create_referent.return_value = referent
 
                 # Call the method
-                result_id = orchestrator._create_location_record(
-                    test_db, test_toponym.id, "test_gazetteer", "loc1", module_id
+                result_id = orchestrator._create_referent_record(
+                    test_db, test_reference.id, "test_gazetteer", "loc1", module_id
                 )
 
                 # Verify calls
                 mock_get_feature.assert_called_once_with(
                     test_db, "test_gazetteer", "loc1"
                 )
-                mock_create_location.assert_called_once()
+                mock_create_referent.assert_called_once()
                 mock_create_resolution.assert_called_once()
-                assert result_id == location_id
+                assert result_id == referent_id
 
 
 def test_mark_document_processed(test_db, test_document):
@@ -489,15 +489,15 @@ def test_mark_document_processed(test_db, test_document):
         mock_create.assert_called_once()
 
 
-def test_mark_toponym_processed(test_db, test_toponym):
-    """Test _mark_toponym_processed."""
+def test_mark_reference_processed(test_db, test_reference):
+    """Test _mark_reference_processed."""
     orchestrator = Orchestrator()
     module_id = uuid.uuid4()
 
     # Mock database call
     with patch.object(ResolutionSubjectRepository, "create") as mock_create:
         # Call the method
-        orchestrator._mark_toponym_processed(test_db, test_toponym.id, module_id)
+        orchestrator._mark_reference_processed(test_db, test_reference.id, module_id)
 
         # Verify calls
         mock_create.assert_called_once()

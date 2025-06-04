@@ -4,44 +4,44 @@ from sqlmodel import Session
 
 from geoparser.db.crud import (
     DocumentRepository,
+    ReferenceRepository,
     ResolutionSubjectRepository,
-    ToponymRepository,
 )
 from geoparser.db.models import (
     Document,
     DocumentCreate,
+    Reference,
+    ReferenceCreate,
     ResolutionModule,
     ResolutionModuleCreate,
     ResolutionSubject,
     ResolutionSubjectCreate,
     ResolutionSubjectUpdate,
-    Toponym,
-    ToponymCreate,
 )
 
 
 def test_create(
     test_db: Session,
-    test_toponym: Toponym,
+    test_reference: Reference,
     test_resolution_module: ResolutionModule,
 ):
     """Test creating a resolution subject."""
     # Create a resolution subject using the create model with all required fields
     subject_create = ResolutionSubjectCreate(
-        module_id=test_resolution_module.id, toponym_id=test_toponym.id
+        module_id=test_resolution_module.id, reference_id=test_reference.id
     )
 
     # Create the resolution subject
     created_subject = ResolutionSubjectRepository.create(test_db, subject_create)
 
     assert created_subject.id is not None
-    assert created_subject.toponym_id == test_toponym.id
+    assert created_subject.reference_id == test_reference.id
     assert created_subject.module_id == test_resolution_module.id
 
     # Verify it was saved to the database
     db_subject = test_db.get(ResolutionSubject, created_subject.id)
     assert db_subject is not None
-    assert db_subject.toponym_id == test_toponym.id
+    assert db_subject.reference_id == test_reference.id
     assert db_subject.module_id == test_resolution_module.id
 
 
@@ -51,7 +51,7 @@ def test_get(test_db: Session, test_resolution_subject: ResolutionSubject):
     subject = ResolutionSubjectRepository.get(test_db, test_resolution_subject.id)
     assert subject is not None
     assert subject.id == test_resolution_subject.id
-    assert subject.toponym_id == test_resolution_subject.toponym_id
+    assert subject.reference_id == test_resolution_subject.reference_id
     assert subject.module_id == test_resolution_subject.module_id
 
     # Test with invalid ID
@@ -60,13 +60,13 @@ def test_get(test_db: Session, test_resolution_subject: ResolutionSubject):
     assert subject is None
 
 
-def test_get_by_toponym(
+def test_get_by_reference(
     test_db: Session,
-    test_toponym: Toponym,
+    test_reference: Reference,
     test_resolution_subject: ResolutionSubject,
     test_resolution_module: ResolutionModule,
 ):
-    """Test getting resolution subjects by toponym ID."""
+    """Test getting resolution subjects by reference ID."""
     # Create another resolution module
     config = {"gazetteer": "test-gazetteer"}
     module_create = ResolutionModuleCreate(
@@ -77,23 +77,23 @@ def test_get_by_toponym(
     test_db.commit()
     test_db.refresh(module)
 
-    # Create another resolution subject for the same toponym
+    # Create another resolution subject for the same reference
     subject_create = ResolutionSubjectCreate(
-        module_id=module.id, toponym_id=test_toponym.id
+        module_id=module.id, reference_id=test_reference.id
     )
 
     # Create the resolution subject
     ResolutionSubjectRepository.create(test_db, subject_create)
 
-    # Get resolution subjects by toponym
-    subjects = ResolutionSubjectRepository.get_by_toponym(test_db, test_toponym.id)
+    # Get resolution subjects by reference
+    subjects = ResolutionSubjectRepository.get_by_reference(test_db, test_reference.id)
     assert len(subjects) == 2
     assert any(s.module_id == test_resolution_module.id for s in subjects)
     assert any(s.module_id == module.id for s in subjects)
 
-    # Test with invalid toponym ID
+    # Test with invalid reference ID
     invalid_id = uuid.uuid4()
-    subjects = ResolutionSubjectRepository.get_by_toponym(test_db, invalid_id)
+    subjects = ResolutionSubjectRepository.get_by_reference(test_db, invalid_id)
     assert len(subjects) == 0
 
 
@@ -103,19 +103,19 @@ def test_get_by_module(
     test_resolution_module: ResolutionModule,
 ):
     """Test getting resolution subjects by module ID."""
-    # Create another toponym
-    toponym_create = ToponymCreate(
+    # Create another reference
+    reference_create = ReferenceCreate(
         start=10,
         end=14,
-        document_id=test_resolution_subject.toponym.document_id,  # "test"
+        document_id=test_resolution_subject.reference.document_id,  # "test"
     )
 
-    # Create the toponym
-    toponym = ToponymRepository.create(test_db, toponym_create)
+    # Create the reference
+    reference = ReferenceRepository.create(test_db, reference_create)
 
     # Create another resolution subject for the same module
     subject_create = ResolutionSubjectCreate(
-        module_id=test_resolution_module.id, toponym_id=toponym.id
+        module_id=test_resolution_module.id, reference_id=reference.id
     )
 
     # Create the resolution subject
@@ -138,7 +138,7 @@ def test_get_all(test_db: Session, test_resolution_subject: ResolutionSubject):
     # Create another resolution subject
     subject_create = ResolutionSubjectCreate(
         module_id=test_resolution_subject.module_id,
-        toponym_id=test_resolution_subject.toponym_id,
+        reference_id=test_resolution_subject.reference_id,
     )
 
     # Create the resolution subject
@@ -191,42 +191,42 @@ def test_delete(test_db: Session, test_resolution_subject: ResolutionSubject):
     assert db_subject is None
 
 
-def test_get_by_toponym_and_module(
+def test_get_by_reference_and_module(
     test_db: Session,
-    test_toponym: Toponym,
+    test_reference: Reference,
     test_resolution_module: ResolutionModule,
     test_resolution_subject: ResolutionSubject,
 ):
-    """Test getting a resolution subject by toponym and module."""
+    """Test getting a resolution subject by reference and module."""
     # Test with valid IDs
-    subject = ResolutionSubjectRepository.get_by_toponym_and_module(
-        test_db, test_toponym.id, test_resolution_module.id
+    subject = ResolutionSubjectRepository.get_by_reference_and_module(
+        test_db, test_reference.id, test_resolution_module.id
     )
     assert subject is not None
-    assert subject.toponym_id == test_toponym.id
+    assert subject.reference_id == test_reference.id
     assert subject.module_id == test_resolution_module.id
 
     # Test with invalid IDs
     invalid_id = uuid.uuid4()
-    subject = ResolutionSubjectRepository.get_by_toponym_and_module(
+    subject = ResolutionSubjectRepository.get_by_reference_and_module(
         test_db, invalid_id, test_resolution_module.id
     )
     assert subject is None
 
-    subject = ResolutionSubjectRepository.get_by_toponym_and_module(
-        test_db, test_toponym.id, invalid_id
+    subject = ResolutionSubjectRepository.get_by_reference_and_module(
+        test_db, test_reference.id, invalid_id
     )
     assert subject is None
 
 
-def test_get_unprocessed_toponyms(
+def test_get_unprocessed_references(
     test_db: Session,
     test_document: Document,
-    test_toponym: Toponym,
+    test_reference: Reference,
     test_resolution_module: ResolutionModule,
     test_resolution_subject: ResolutionSubject,
 ):
-    """Test getting unprocessed toponyms from a project."""
+    """Test getting unprocessed references from a project."""
     # Create another document in the same project
     doc_create = DocumentCreate(
         text="Another test document with Berlin and Paris.",
@@ -234,18 +234,18 @@ def test_get_unprocessed_toponyms(
     )
     another_document = DocumentRepository.create(test_db, doc_create)
 
-    # Create toponyms for the new document
-    toponym_create1 = ToponymCreate(
+    # Create references for the new document
+    reference_create1 = ReferenceCreate(
         start=27, end=33, document_id=another_document.id  # "Berlin"
     )
-    new_toponym1 = ToponymRepository.create(test_db, toponym_create1)
+    new_reference1 = ReferenceRepository.create(test_db, reference_create1)
 
-    toponym_create2 = ToponymCreate(
+    reference_create2 = ReferenceCreate(
         start=38, end=43, document_id=another_document.id  # "Paris"
     )
-    new_toponym2 = ToponymRepository.create(test_db, toponym_create2)
+    new_reference2 = ReferenceRepository.create(test_db, reference_create2)
 
-    # Process one of the new toponyms with a different module
+    # Process one of the new references with a different module
     config = {"gazetteer": "different-gazetteer"}
     new_module_create = ResolutionModuleCreate(
         name="different-resolution-module", config=config
@@ -258,38 +258,38 @@ def test_get_unprocessed_toponyms(
     test_db.refresh(new_module)
 
     subject_create = ResolutionSubjectCreate(
-        module_id=new_module.id, toponym_id=new_toponym1.id
+        module_id=new_module.id, reference_id=new_reference1.id
     )
     ResolutionSubjectRepository.create(test_db, subject_create)
 
-    # Get unprocessed toponyms for test_resolution_module
-    unprocessed_toponyms = ResolutionSubjectRepository.get_unprocessed_toponyms(
+    # Get unprocessed references for test_resolution_module
+    unprocessed_references = ResolutionSubjectRepository.get_unprocessed_references(
         test_db, test_document.project_id, test_resolution_module.id
     )
 
-    # Should return new_toponym1 and new_toponym2 (not processed by test_resolution_module)
-    assert len(unprocessed_toponyms) == 2
-    toponym_ids = [toponym.id for toponym in unprocessed_toponyms]
-    assert new_toponym1.id in toponym_ids
-    assert new_toponym2.id in toponym_ids
+    # Should return new_reference1 and new_reference2 (not processed by test_resolution_module)
+    assert len(unprocessed_references) == 2
+    reference_ids = [reference.id for reference in unprocessed_references]
+    assert new_reference1.id in reference_ids
+    assert new_reference2.id in reference_ids
     assert (
-        test_toponym.id not in toponym_ids
+        test_reference.id not in reference_ids
     )  # Already processed by test_resolution_module
 
-    # Get unprocessed toponyms for new_module
-    unprocessed_toponyms = ResolutionSubjectRepository.get_unprocessed_toponyms(
+    # Get unprocessed references for new_module
+    unprocessed_references = ResolutionSubjectRepository.get_unprocessed_references(
         test_db, test_document.project_id, new_module.id
     )
 
-    # Should return test_toponym and new_toponym2 (not processed by new_module)
-    assert len(unprocessed_toponyms) == 2
-    toponym_ids = [toponym.id for toponym in unprocessed_toponyms]
-    assert test_toponym.id in toponym_ids
-    assert new_toponym2.id in toponym_ids
-    assert new_toponym1.id not in toponym_ids  # Already processed by new_module
+    # Should return test_reference and new_reference2 (not processed by new_module)
+    assert len(unprocessed_references) == 2
+    reference_ids = [reference.id for reference in unprocessed_references]
+    assert test_reference.id in reference_ids
+    assert new_reference2.id in reference_ids
+    assert new_reference1.id not in reference_ids  # Already processed by new_module
 
     # Test with non-existent project ID
-    unprocessed_toponyms = ResolutionSubjectRepository.get_unprocessed_toponyms(
+    unprocessed_references = ResolutionSubjectRepository.get_unprocessed_references(
         test_db, uuid.uuid4(), test_resolution_module.id
     )
-    assert len(unprocessed_toponyms) == 0
+    assert len(unprocessed_references) == 0
