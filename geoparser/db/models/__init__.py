@@ -1,8 +1,6 @@
 from geoparser.db.models.document import Document, DocumentCreate, DocumentUpdate
 from geoparser.db.models.feature import Feature, FeatureCreate, FeatureUpdate
 from geoparser.db.models.gazetteer import Gazetteer, GazetteerCreate, GazetteerUpdate
-from geoparser.db.models.location import Location, LocationCreate, LocationUpdate
-from geoparser.db.models.name import Name, NameCreate, NameUpdate
 from geoparser.db.models.project import Project, ProjectCreate, ProjectUpdate
 from geoparser.db.models.recognition_module import (
     RecognitionModule,
@@ -19,6 +17,8 @@ from geoparser.db.models.recognition_subject import (
     RecognitionSubjectCreate,
     RecognitionSubjectUpdate,
 )
+from geoparser.db.models.reference import Reference, ReferenceCreate, ReferenceUpdate
+from geoparser.db.models.referent import Referent, ReferentCreate, ReferentUpdate
 from geoparser.db.models.resolution_module import (
     ResolutionModule,
     ResolutionModuleCreate,
@@ -41,14 +41,14 @@ for rebuild in [
     ProjectCreate,
     Document,
     DocumentCreate,
-    Toponym,
-    ToponymCreate,
-    Location,
-    LocationCreate,
+    Reference,
+    ReferenceCreate,
+    Referent,
+    ReferentCreate,
     Feature,
     FeatureCreate,
-    Name,
-    NameCreate,
+    Toponym,
+    ToponymCreate,
     RecognitionObject,
     RecognitionObjectCreate,
     ResolutionObject,

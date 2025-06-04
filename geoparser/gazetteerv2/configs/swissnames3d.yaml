@@ -259,22 +259,22 @@ features:
   - table: swissBOUNDARIES3D_1_5_TLM_KANTONSGEBIET
     identifier_column: UUID
 
-names:
+toponyms:
   - table: swissNAMES3D_PKT
     identifier_column: UUID
-    name_column: NAME
+    toponym_column: NAME
   - table: swissNAMES3D_LIN
     identifier_column: UUID
-    name_column: NAME
+    toponym_column: NAME
   - table: swissNAMES3D_PLY
     identifier_column: UUID
-    name_column: NAME
+    toponym_column: NAME
   - table: swissBOUNDARIES3D_1_5_TLM_HOHEITSGEBIET
     identifier_column: UUID
-    name_column: NAME
+    toponym_column: NAME
   - table: swissBOUNDARIES3D_1_5_TLM_BEZIRKSGEBIET
     identifier_column: UUID
-    name_column: NAME
+    toponym_column: NAME
   - table: swissBOUNDARIES3D_1_5_TLM_KANTONSGEBIET
     identifier_column: UUID
-    name_column: NAME
+    toponym_column: NAME

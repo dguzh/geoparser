@@ -10,7 +10,7 @@ from geoparser.db.models.validators import normalize_newlines
 if t.TYPE_CHECKING:
     from geoparser.db.models.project import Project
     from geoparser.db.models.recognition_subject import RecognitionSubject
-    from geoparser.db.models.toponym import Toponym
+    from geoparser.db.models.reference import Reference
 
 
 class DocumentBase(SQLModel):
@@ -25,9 +25,9 @@ class DocumentBase(SQLModel):
 
 class Document(DocumentBase, table=True):
     """
-    Represents a document to be processed for toponym recognition and resolution.
+    Represents a document to be processed for reference recognition and resolution.
 
-    A document belongs to a project and can contain multiple toponyms.
+    A document belongs to a project and can contain multiple references.
     """
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
@@ -37,10 +37,10 @@ class Document(DocumentBase, table=True):
         )
     )
     project: "Project" = Relationship(back_populates="documents")
-    toponyms: list["Toponym"] = Relationship(
+    references: list["Reference"] = Relationship(
         back_populates="document",
         sa_relationship_kwargs={
-            "order_by": "Toponym.start",
+            "order_by": "Reference.start",
             "cascade": "all, delete-orphan",
             "passive_deletes": True,
             "lazy": "joined",  # Enable eager loading

@@ -179,14 +179,14 @@ features:
   - table: allCountries
     identifier_column: geonameid
 
-names:
+toponyms:
   - table: allCountries
     identifier_column: geonameid
-    name_column: name
+    toponym_column: name
   - table: allCountries
     identifier_column: geonameid
-    name_column: asciiname
+    toponym_column: asciiname
   - table: allCountries
     identifier_column: geonameid
-    name_column: alternatenames
+    toponym_column: alternatenames
     separator: ","

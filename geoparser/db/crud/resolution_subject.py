@@ -5,7 +5,7 @@ from sqlalchemy import not_
 from sqlmodel import Session, select
 
 from geoparser.db.crud.base import BaseRepository
-from geoparser.db.models import Document, ResolutionSubject, Toponym
+from geoparser.db.models import Document, Reference, ResolutionSubject
 
 
 class ResolutionSubjectRepository(BaseRepository[ResolutionSubject]):
@@ -16,21 +16,21 @@ class ResolutionSubjectRepository(BaseRepository[ResolutionSubject]):
     model = ResolutionSubject
 
     @classmethod
-    def get_by_toponym(
-        cls, db: Session, toponym_id: uuid.UUID
+    def get_by_reference(
+        cls, db: Session, reference_id: uuid.UUID
     ) -> t.List[ResolutionSubject]:
         """
-        Get all resolution subjects for a toponym.
+        Get all resolution subjects for a reference.
 
         Args:
             db: Database session
-            toponym_id: ID of the toponym
+            reference_id: ID of the reference
 
         Returns:
             List of resolution subjects
         """
         statement = select(ResolutionSubject).where(
-            ResolutionSubject.toponym_id == toponym_id
+            ResolutionSubject.reference_id == reference_id
         )
         return db.exec(statement).unique().all()
 
@@ -54,53 +54,53 @@ class ResolutionSubjectRepository(BaseRepository[ResolutionSubject]):
         return db.exec(statement).unique().all()
 
     @classmethod
-    def get_by_toponym_and_module(
-        cls, db: Session, toponym_id: uuid.UUID, module_id: uuid.UUID
+    def get_by_reference_and_module(
+        cls, db: Session, reference_id: uuid.UUID, module_id: uuid.UUID
     ) -> t.Optional[ResolutionSubject]:
         """
-        Get a resolution subject for a specific toponym and module.
+        Get a resolution subject for a specific reference and module.
 
         Args:
             db: Database session
-            toponym_id: ID of the toponym
+            reference_id: ID of the reference
             module_id: ID of the resolution module
 
         Returns:
             ResolutionSubject if found, None otherwise
         """
         statement = select(ResolutionSubject).where(
-            ResolutionSubject.toponym_id == toponym_id,
+            ResolutionSubject.reference_id == reference_id,
             ResolutionSubject.module_id == module_id,
         )
         return db.exec(statement).unique().first()
 
     @classmethod
-    def get_unprocessed_toponyms(
+    def get_unprocessed_references(
         cls, db: Session, project_id: uuid.UUID, module_id: uuid.UUID
-    ) -> t.List[Toponym]:
+    ) -> t.List[Reference]:
         """
-        Get all toponyms from a project that have not been processed by a specific module.
+        Get all references from a project that have not been processed by a specific module.
 
-        This is done by retrieving all toponyms for the project and excluding those
+        This is done by retrieving all references for the project and excluding those
         that have a corresponding resolution subject record for the given module.
 
         Args:
             db: Database session
-            project_id: ID of the project containing the documents with toponyms
+            project_id: ID of the project containing the documents with references
             module_id: ID of the resolution module
 
         Returns:
-            List of unprocessed Toponym objects
+            List of unprocessed Reference objects
         """
-        # Get all toponyms for documents in the project that haven't been processed
+        # Get all references for documents in the project that haven't been processed
         statement = (
-            select(Toponym)
-            .join(Document, Toponym.document_id == Document.id)
+            select(Reference)
+            .join(Document, Reference.document_id == Document.id)
             .where(
                 Document.project_id == project_id,
                 not_(
-                    Toponym.id.in_(
-                        select(ResolutionSubject.toponym_id).where(
+                    Reference.id.in_(
+                        select(ResolutionSubject.reference_id).where(
                             ResolutionSubject.module_id == module_id
                         )
                     )

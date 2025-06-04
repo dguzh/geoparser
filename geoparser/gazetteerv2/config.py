@@ -109,12 +109,12 @@ class FeatureConfig(BaseModel):
     identifier_column: str
 
 
-class NameConfig(BaseModel):
-    """Configuration for extracting names from a gazetteer source."""
+class ToponymConfig(BaseModel):
+    """Configuration for extracting toponyms from a gazetteer source."""
 
     table: str
     identifier_column: str
-    name_column: str
+    toponym_column: str
     separator: t.Optional[str] = None
 
 
@@ -125,7 +125,7 @@ class GazetteerConfig(BaseModel):
     sources: t.List[SourceConfig]
     views: t.Optional[t.List[ViewConfig]] = []
     features: t.Optional[t.List[FeatureConfig]] = []
-    names: t.Optional[t.List[NameConfig]] = []
+    toponyms: t.Optional[t.List[ToponymConfig]] = []
 
     @field_validator("name")
     @classmethod
@@ -193,19 +193,19 @@ class GazetteerConfig(BaseModel):
         return self
 
     @model_validator(mode="after")
-    def validate_name_references(self) -> "GazetteerConfig":
-        """Validate that names reference existing sources or views."""
-        if not self.names:
+    def validate_toponym_references(self) -> "GazetteerConfig":
+        """Validate that toponyms reference existing sources or views."""
+        if not self.toponyms:
             return self
 
         source_names = {source.name for source in self.sources}
         view_names = {view.name for view in self.views} if self.views else set()
         all_names = source_names.union(view_names)
 
-        for name_config in self.names:
-            if name_config.table not in all_names:
+        for toponym_config in self.toponyms:
+            if toponym_config.table not in all_names:
                 raise ValueError(
-                    f"Name configuration references non-existent source/view: {name_config.table}"
+                    f"Toponym configuration references non-existent source/view: {toponym_config.table}"
                 )
 
         return self

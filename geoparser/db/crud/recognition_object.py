@@ -15,21 +15,21 @@ class RecognitionObjectRepository(BaseRepository[RecognitionObject]):
     model = RecognitionObject
 
     @classmethod
-    def get_by_toponym(
-        cls, db: Session, toponym_id: uuid.UUID
+    def get_by_reference(
+        cls, db: Session, reference_id: uuid.UUID
     ) -> t.List[RecognitionObject]:
         """
-        Get all recognition objects for a toponym.
+        Get all recognition objects for a reference.
 
         Args:
             db: Database session
-            toponym_id: ID of the toponym
+            reference_id: ID of the reference
 
         Returns:
             List of recognition objects
         """
         statement = select(RecognitionObject).where(
-            RecognitionObject.toponym_id == toponym_id
+            RecognitionObject.reference_id == reference_id
         )
         return db.exec(statement).unique().all()
 
@@ -53,22 +53,22 @@ class RecognitionObjectRepository(BaseRepository[RecognitionObject]):
         return db.exec(statement).unique().all()
 
     @classmethod
-    def get_by_toponym_and_module(
-        cls, db: Session, toponym_id: uuid.UUID, module_id: uuid.UUID
+    def get_by_reference_and_module(
+        cls, db: Session, reference_id: uuid.UUID, module_id: uuid.UUID
     ) -> t.Optional[RecognitionObject]:
         """
-        Get a recognition object for a specific toponym and module.
+        Get a recognition object for a specific reference and module.
 
         Args:
             db: Database session
-            toponym_id: ID of the toponym
+            reference_id: ID of the reference
             module_id: ID of the recognition module
 
         Returns:
             Recognition object if found, None otherwise
         """
         statement = select(RecognitionObject).where(
-            RecognitionObject.toponym_id == toponym_id,
+            RecognitionObject.reference_id == reference_id,
             RecognitionObject.module_id == module_id,
         )
         return db.exec(statement).unique().first()
