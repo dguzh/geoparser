@@ -156,34 +156,6 @@ sources:
       - name: description
         type: TEXT
 
-  - name: alternateNames
-    type: tabular
-    url: https://download.geonames.org/export/dump/alternateNames.zip
-    file: alternateNames.txt
-    separator: "\t"
-    attributes:
-      - name: alternateNameId
-        type: INTEGER
-        primary: true
-      - name: geonameid
-        type: INTEGER
-      - name: isolanguage
-        type: TEXT
-      - name: alternate_name
-        type: TEXT
-      - name: isPreferredName
-        type: INTEGER
-      - name: isShortName
-        type: INTEGER
-      - name: isColloquial
-        type: INTEGER
-      - name: isHistoric
-        type: INTEGER
-      - name: xfrom
-        type: TEXT
-      - name: xto
-        type: TEXT
-
 views:
   - name: allCountriesEnriched
     statement:
@@ -206,3 +178,15 @@ views:
 features:
   - table: allCountries
     identifier_column: geonameid
+
+names:
+  - table: allCountries
+    identifier_column: geonameid
+    name_column: name
+  - table: allCountries
+    identifier_column: geonameid
+    name_column: asciiname
+  - table: allCountries
+    identifier_column: geonameid
+    name_column: alternatenames
+    separator: ","
