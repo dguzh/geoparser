@@ -2,6 +2,7 @@ from geoparser.db.crud.document import DocumentRepository
 from geoparser.db.crud.feature import FeatureRepository
 from geoparser.db.crud.gazetteer import GazetteerRepository
 from geoparser.db.crud.location import LocationRepository
+from geoparser.db.crud.name import NameRepository
 from geoparser.db.crud.project import ProjectRepository
 from geoparser.db.crud.recognition_module import RecognitionModuleRepository
 from geoparser.db.crud.recognition_object import RecognitionObjectRepository

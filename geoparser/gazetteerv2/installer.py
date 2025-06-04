@@ -19,6 +19,7 @@ from geoparser.gazetteerv2.config import (
     DataType,
     FeatureConfig,
     GazetteerConfig,
+    NameConfig,
     SourceConfig,
     SourceType,
     ViewConfig,
@@ -93,6 +94,10 @@ class GazetteerInstaller:
         # Third pass: Register features if configured
         for feature_config in gazetteer_config.features:
             self._register_features(gazetteer_config, feature_config)
+
+        # Fourth pass: Register names if configured
+        for name_config in gazetteer_config.names:
+            self._register_names(gazetteer_config, name_config)
 
         # Clean up downloads if requested
         if not keep_downloads:
@@ -723,6 +728,137 @@ class GazetteerInstaller:
             FROM {source_name}
             WHERE {identifier_column} IS NOT NULL
             GROUP BY CAST({identifier_column} AS TEXT)
+        """
+
+        return sql
+
+    def _register_names(
+        self, gazetteer_config: GazetteerConfig, name_config: NameConfig
+    ) -> None:
+        """
+        Register names from a single source and populate the Name table.
+
+        Uses efficient INSERT INTO ... SELECT for performance with large datasets.
+
+        Args:
+            gazetteer_config: Gazetteer configuration
+            name_config: Configuration for this name source
+        """
+        source_name = name_config.table
+        name_column = name_config.name_column
+
+        with tqdm(
+            total=1,
+            desc=f"Registering {source_name}.{name_column}",
+            unit="source",
+        ) as pbar:
+            with engine.connect() as connection:
+                # Build the name registration SQL
+                if not name_config.separator:
+                    insert_sql = self._build_name_sql(gazetteer_config, name_config)
+                else:
+                    insert_sql = self._build_separated_name_sql(
+                        gazetteer_config, name_config
+                    )
+
+                connection.execute(sa.text(insert_sql))
+                connection.commit()
+
+            pbar.update(1)
+
+    def _build_name_sql(
+        self, gazetteer_config: GazetteerConfig, name_config: NameConfig
+    ) -> str:
+        """
+        Build SQL for registering simple (non-separated) names from a source.
+
+        Args:
+            gazetteer_config: Gazetteer configuration
+            name_config: Name configuration
+
+        Returns:
+            SQL for inserting names into the Name table
+        """
+        source_name = name_config.table
+        identifier_column = name_config.identifier_column
+        name_column = name_config.name_column
+        gazetteer_name = gazetteer_config.name
+
+        # Use INSERT INTO ... SELECT for performance
+        # Generate UUIDs in SQLite format (without hyphens) to match SQLAlchemy's storage
+        sql = f"""
+            INSERT OR IGNORE INTO name (id, name, feature_id)
+            SELECT 
+                lower(hex(randomblob(4))) || 
+                lower(hex(randomblob(2))) || 
+                '4' || substr(lower(hex(randomblob(2))),2) || 
+                substr('ab89', 1 + (abs(random()) % 4) , 1) ||
+                substr(lower(hex(randomblob(2))),2) || 
+                lower(hex(randomblob(6))) as id,
+                s.{name_column} as name,
+                f.id as feature_id
+            FROM {source_name} s
+            JOIN feature f ON f.gazetteer_name = '{gazetteer_name}' 
+                           AND f.identifier_value = CAST(s.{identifier_column} AS TEXT)
+            WHERE s.{name_column} IS NOT NULL AND s.{name_column} != ''
+        """
+
+        return sql
+
+    def _build_separated_name_sql(
+        self, gazetteer_config: GazetteerConfig, name_config: NameConfig
+    ) -> str:
+        """
+        Build SQL for registering separated names from a source using recursive CTE.
+
+        Args:
+            gazetteer_config: Gazetteer configuration
+            name_config: Name configuration
+
+        Returns:
+            SQL for inserting names into the Name table
+        """
+        source_name = name_config.table
+        identifier_column = name_config.identifier_column
+        name_column = name_config.name_column
+        separator = name_config.separator
+        gazetteer_name = gazetteer_config.name
+
+        # Use recursive CTE to split comma-separated values
+        sql = f"""
+            INSERT OR IGNORE INTO name (id, name, feature_id)
+            WITH RECURSIVE split_names(feature_id, name_value, remaining) AS (
+                -- Base case: start with the full name column
+                SELECT 
+                    f.id as feature_id,
+                    '' as name_value,
+                    s.{name_column} || '{separator}' as remaining
+                FROM {source_name} s
+                JOIN feature f ON f.gazetteer_name = '{gazetteer_name}' 
+                               AND f.identifier_value = CAST(s.{identifier_column} AS TEXT)
+                WHERE s.{name_column} IS NOT NULL AND s.{name_column} != ''
+                
+                UNION ALL
+                
+                -- Recursive case: extract next name from remaining string
+                SELECT 
+                    feature_id,
+                    TRIM(substr(remaining, 1, instr(remaining, '{separator}') - 1)) as name_value,
+                    substr(remaining, instr(remaining, '{separator}') + {len(separator)}) as remaining
+                FROM split_names 
+                WHERE remaining != '' AND instr(remaining, '{separator}') > 0
+            )
+            SELECT 
+                lower(hex(randomblob(4))) || 
+                lower(hex(randomblob(2))) || 
+                '4' || substr(lower(hex(randomblob(2))),2) || 
+                substr('ab89', 1 + (abs(random()) % 4) , 1) ||
+                substr(lower(hex(randomblob(2))),2) || 
+                lower(hex(randomblob(6))) as id,
+                name_value as name,
+                feature_id
+            FROM split_names 
+            WHERE name_value != '' AND name_value IS NOT NULL
         """
 
         return sql
