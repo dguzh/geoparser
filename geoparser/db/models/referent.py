@@ -1,7 +1,7 @@
 import typing as t
 import uuid
 
-from sqlalchemy import UUID, Column, ForeignKey
+from sqlalchemy import UUID, Column, ForeignKey, Integer
 from sqlmodel import Field, Relationship, SQLModel
 
 if t.TYPE_CHECKING:
@@ -32,9 +32,9 @@ class Referent(ReferentBase, table=True):
             UUID, ForeignKey("reference.id", ondelete="CASCADE"), nullable=False
         )
     )
-    feature_id: uuid.UUID = Field(
+    feature_id: int = Field(
         sa_column=Column(
-            UUID, ForeignKey("feature.id", ondelete="CASCADE"), nullable=False
+            Integer, ForeignKey("feature.id", ondelete="CASCADE"), nullable=False
         )
     )
     reference: "Reference" = Relationship(back_populates="referents")
@@ -87,7 +87,7 @@ class ReferentCreate(ReferentBase):
     """
 
     reference_id: uuid.UUID
-    feature_id: uuid.UUID
+    feature_id: int
 
 
 class ReferentUpdate(SQLModel):
@@ -95,4 +95,4 @@ class ReferentUpdate(SQLModel):
 
     id: uuid.UUID
     reference_id: t.Optional[uuid.UUID] = None
-    feature_id: t.Optional[uuid.UUID] = None
+    feature_id: t.Optional[int] = None

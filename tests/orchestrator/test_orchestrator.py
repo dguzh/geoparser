@@ -451,7 +451,7 @@ def test_create_referent_record(test_db, test_reference):
                 ResolutionObjectRepository, "create"
             ) as mock_create_resolution:
                 # Set up mocks
-                feature_id = uuid.uuid4()
+                feature_id = 123456
                 feature = MagicMock()
                 feature.id = feature_id
                 mock_get_feature.return_value = feature

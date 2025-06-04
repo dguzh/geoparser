@@ -1,5 +1,4 @@
 import typing as t
-import uuid
 
 from sqlalchemy import UniqueConstraint
 from sqlmodel import Field, SQLModel
@@ -9,7 +8,7 @@ class ToponymBase(SQLModel):
     """Base model for toponym data."""
 
     toponym: str = Field(index=True)
-    feature_id: uuid.UUID = Field(foreign_key="feature.id", index=True)
+    feature_id: int = Field(foreign_key="feature.id", index=True)
 
 
 class Toponym(ToponymBase, table=True):
@@ -24,7 +23,7 @@ class Toponym(ToponymBase, table=True):
         UniqueConstraint("toponym", "feature_id", name="uq_toponym_feature"),
     )
 
-    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    id: int = Field(primary_key=True)
 
 
 class ToponymCreate(ToponymBase):
@@ -34,6 +33,6 @@ class ToponymCreate(ToponymBase):
 class ToponymUpdate(SQLModel):
     """Model for updating an existing toponym."""
 
-    id: uuid.UUID
+    id: int
     toponym: t.Optional[str] = None
-    feature_id: t.Optional[uuid.UUID] = None
+    feature_id: t.Optional[int] = None

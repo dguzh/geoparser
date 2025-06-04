@@ -1,5 +1,4 @@
 import typing as t
-import uuid
 
 from sqlalchemy import UniqueConstraint
 from sqlmodel import Field, SQLModel, text
@@ -28,7 +27,7 @@ class Feature(FeatureBase, table=True):
         ),
     )
 
-    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    id: int = Field(primary_key=True)
 
     @property
     def data(self) -> t.Dict[str, t.Any]:
@@ -70,7 +69,7 @@ class FeatureCreate(FeatureBase):
 class FeatureUpdate(SQLModel):
     """Model for updating an existing feature."""
 
-    id: uuid.UUID
+    id: int
     gazetteer_name: t.Optional[str] = None
     table_name: t.Optional[str] = None
     identifier_name: t.Optional[str] = None

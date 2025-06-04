@@ -1,5 +1,3 @@
-import uuid
-
 from sqlmodel import Session
 
 from geoparser.db.crud import FeatureRepository
@@ -46,7 +44,7 @@ def test_get(test_db: Session, test_feature: Feature):
     assert feature.identifier_value == test_feature.identifier_value
 
     # Test with invalid ID
-    invalid_id = uuid.uuid4()
+    invalid_id = 999999
     feature = FeatureRepository.get(test_db, invalid_id)
     assert feature is None
 

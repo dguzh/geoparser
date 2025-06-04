@@ -1,5 +1,4 @@
 import typing as t
-import uuid
 
 from sqlmodel import Session, select
 
@@ -15,7 +14,7 @@ class ToponymRepository(BaseRepository[Toponym]):
     model = Toponym
 
     @classmethod
-    def get_by_feature(cls, db: Session, feature_id: uuid.UUID) -> t.List[Toponym]:
+    def get_by_feature(cls, db: Session, feature_id: int) -> t.List[Toponym]:
         """
         Get all toponyms for a feature.
 

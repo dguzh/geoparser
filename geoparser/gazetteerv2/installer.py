@@ -711,16 +711,10 @@ class GazetteerInstaller:
         gazetteer_name = gazetteer_config.name
 
         # Use INSERT INTO ... SELECT for performance
-        # Generate UUIDs in SQLite format (without hyphens) to match SQLAlchemy's storage
+        # Let SQLite handle autoincrement for the id column
         sql = f"""
-            INSERT OR IGNORE INTO feature (id, gazetteer_name, table_name, identifier_name, identifier_value)
+            INSERT OR IGNORE INTO feature (gazetteer_name, table_name, identifier_name, identifier_value)
             SELECT 
-                lower(hex(randomblob(4))) || 
-                lower(hex(randomblob(2))) || 
-                '4' || substr(lower(hex(randomblob(2))),2) || 
-                substr('ab89', 1 + (abs(random()) % 4) , 1) ||
-                substr(lower(hex(randomblob(2))),2) || 
-                lower(hex(randomblob(6))) as id,
                 '{gazetteer_name}' as gazetteer_name,
                 '{source_name}' as table_name,
                 '{identifier_column}' as identifier_name,
@@ -788,16 +782,10 @@ class GazetteerInstaller:
         gazetteer_name = gazetteer_config.name
 
         # Use INSERT INTO ... SELECT for performance
-        # Generate UUIDs in SQLite format (without hyphens) to match SQLAlchemy's storage
+        # Let SQLite handle autoincrement for the id column
         sql = f"""
-            INSERT OR IGNORE INTO toponym (id, toponym, feature_id)
+            INSERT OR IGNORE INTO toponym (toponym, feature_id)
             SELECT 
-                lower(hex(randomblob(4))) || 
-                lower(hex(randomblob(2))) || 
-                '4' || substr(lower(hex(randomblob(2))),2) || 
-                substr('ab89', 1 + (abs(random()) % 4) , 1) ||
-                substr(lower(hex(randomblob(2))),2) || 
-                lower(hex(randomblob(6))) as id,
                 s.{toponym_column} as toponym,
                 f.id as feature_id
             FROM {source_name} s
@@ -829,7 +817,7 @@ class GazetteerInstaller:
 
         # Use recursive CTE to split comma-separated values
         sql = f"""
-            INSERT OR IGNORE INTO toponym (id, toponym, feature_id)
+            INSERT OR IGNORE INTO toponym (toponym, feature_id)
             WITH RECURSIVE split_toponyms(feature_id, toponym_value, remaining) AS (
                 -- Base case: start with the full toponym column
                 SELECT 
@@ -852,12 +840,6 @@ class GazetteerInstaller:
                 WHERE remaining != '' AND instr(remaining, '{separator}') > 0
             )
             SELECT 
-                lower(hex(randomblob(4))) || 
-                lower(hex(randomblob(2))) || 
-                '4' || substr(lower(hex(randomblob(2))),2) || 
-                substr('ab89', 1 + (abs(random()) % 4) , 1) ||
-                substr(lower(hex(randomblob(2))),2) || 
-                lower(hex(randomblob(6))) as id,
                 toponym_value as toponym,
                 feature_id
             FROM split_toponyms 
