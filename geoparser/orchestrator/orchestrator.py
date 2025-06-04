@@ -6,25 +6,25 @@ from sqlmodel import Session
 
 from geoparser.db.crud import (
     FeatureRepository,
-    LocationRepository,
     RecognitionModuleRepository,
     RecognitionObjectRepository,
     RecognitionSubjectRepository,
+    ReferenceRepository,
+    ReferentRepository,
     ResolutionModuleRepository,
     ResolutionObjectRepository,
     ResolutionSubjectRepository,
-    ToponymRepository,
 )
 from geoparser.db.db import get_db
 from geoparser.db.models import (
-    LocationCreate,
     RecognitionModuleCreate,
     RecognitionObjectCreate,
     RecognitionSubjectCreate,
+    ReferenceCreate,
+    ReferentCreate,
     ResolutionModuleCreate,
     ResolutionObjectCreate,
     ResolutionSubjectCreate,
-    ToponymCreate,
 )
 from geoparser.modules.interfaces import (
     AbstractModule,
@@ -41,7 +41,7 @@ class Orchestrator:
     - Initializing modules in the database (retrieving or creating module records)
     - Executing modules on the appropriate data
     - Processing module predictions and persisting them to the database
-    - Tracking module execution state for processed documents and toponyms
+    - Tracking module execution state for processed documents and references
     """
 
     def __init__(self):
@@ -176,11 +176,11 @@ class Orchestrator:
         document_ids = [doc.id for doc in unprocessed_documents]
 
         # Get predictions from module
-        predicted_toponyms = module.predict_toponyms(document_texts)
+        predicted_references = module.predict_references(document_texts)
 
         # Process predictions and update database
-        self._process_toponym_predictions(
-            db, document_ids, predicted_toponyms, module_id
+        self._process_reference_predictions(
+            db, document_ids, predicted_references, module_id
         )
 
         logging.info(
@@ -205,32 +205,32 @@ class Orchestrator:
             db, project_id, module_id
         )
 
-    def _process_toponym_predictions(
+    def _process_reference_predictions(
         self,
         db: Session,
         document_ids: List[uuid.UUID],
-        predicted_toponyms: List[List[Tuple[int, int]]],
+        predicted_references: List[List[Tuple[int, int]]],
         module_id: uuid.UUID,
     ) -> None:
         """
-        Process toponym predictions and update the database.
+        Process reference predictions and update the database.
 
         Args:
             db: Database session
             document_ids: List of document IDs
-            predicted_toponyms: Nested list of predicted toponyms
+            predicted_references: Nested list of predicted references
             module_id: ID of the module that made the predictions
         """
-        # Process each document with its predicted toponyms
-        for doc_id, toponyms in zip(document_ids, predicted_toponyms):
-            # Create toponyms and recognition records
-            for start, end in toponyms:
-                self._create_toponym_record(db, doc_id, start, end, module_id)
+        # Process each document with its predicted references
+        for doc_id, references in zip(document_ids, predicted_references):
+            # Create references and recognition records
+            for start, end in references:
+                self._create_reference_record(db, doc_id, start, end, module_id)
 
             # Mark document as processed
             self._mark_document_processed(db, doc_id, module_id)
 
-    def _create_toponym_record(
+    def _create_reference_record(
         self,
         db: Session,
         document_id: uuid.UUID,
@@ -239,38 +239,38 @@ class Orchestrator:
         module_id: uuid.UUID,
     ) -> uuid.UUID:
         """
-        Create a toponym record and associate it with a recognition module.
+        Create a reference record and associate it with a recognition module.
 
         Args:
             db: Database session
-            document_id: ID of the document containing the toponym
-            start: Start position of the toponym
-            end: End position of the toponym
+            document_id: ID of the document containing the reference
+            start: Start position of the reference
+            end: End position of the reference
             module_id: ID of the recognition module
 
         Returns:
-            ID of the created toponym
+            ID of the created reference
         """
-        # Check if a toponym with the same span already exists for this document
-        toponym = ToponymRepository.get_by_document_and_span(
+        # Check if a reference with the same span already exists for this document
+        reference = ReferenceRepository.get_by_document_and_span(
             db, document_id, start, end
         )
 
-        # If not, create the toponym
-        if toponym is None:
-            # Create the toponym
-            toponym_create = ToponymCreate(
+        # If not, create the reference
+        if reference is None:
+            # Create the reference
+            reference_create = ReferenceCreate(
                 start=start, end=end, document_id=document_id
             )
-            toponym = ToponymRepository.create(db, toponym_create)
+            reference = ReferenceRepository.create(db, reference_create)
 
-        # Create the recognition object (link between toponym and module)
+        # Create the recognition object (link between reference and module)
         recognition_object_create = RecognitionObjectCreate(
-            toponym_id=toponym.id, module_id=module_id
+            reference_id=reference.id, module_id=module_id
         )
         RecognitionObjectRepository.create(db, recognition_object_create)
 
-        return toponym.id
+        return reference.id
 
     def _mark_document_processed(
         self, db: Session, document_id: uuid.UUID, module_id: uuid.UUID
@@ -295,7 +295,7 @@ class Orchestrator:
         project_id: uuid.UUID,
     ) -> None:
         """
-        Execute a resolution module on unprocessed toponyms.
+        Execute a resolution module on unprocessed references.
 
         Args:
             module: Resolution module to execute
@@ -304,46 +304,48 @@ class Orchestrator:
         """
         db = next(get_db())
 
-        # Get unprocessed toponyms
-        unprocessed_toponyms = self._get_unprocessed_toponyms(db, module_id, project_id)
+        # Get unprocessed references
+        unprocessed_references = self._get_unprocessed_references(
+            db, module_id, project_id
+        )
 
-        if not unprocessed_toponyms:
-            logging.info(f"No unprocessed toponyms found for module {str(module)}")
+        if not unprocessed_references:
+            logging.info(f"No unprocessed references found for module {str(module)}")
             return
 
         logging.info(
-            f"Processing {len(unprocessed_toponyms)} toponyms with module {str(module)} in project {project_id}."
+            f"Processing {len(unprocessed_references)} references with module {str(module)} in project {project_id}."
         )
 
         # Prepare input data for module
-        toponym_data = [
+        reference_data = [
             {
-                "start": toponym.start,
-                "end": toponym.end,
-                "text": toponym.text,
-                "document_text": toponym.document.text,
+                "start": reference.start,
+                "end": reference.end,
+                "text": reference.text,
+                "document_text": reference.document.text,
             }
-            for toponym in unprocessed_toponyms
+            for reference in unprocessed_references
         ]
-        toponym_ids = [toponym.id for toponym in unprocessed_toponyms]
+        reference_ids = [reference.id for reference in unprocessed_references]
 
         # Get predictions from module
-        predicted_locations = module.predict_locations(toponym_data)
+        predicted_referents = module.predict_referents(reference_data)
 
         # Process predictions and update database
-        self._process_location_predictions(
-            db, toponym_ids, predicted_locations, module_id
+        self._process_referent_predictions(
+            db, reference_ids, predicted_referents, module_id
         )
 
         logging.info(
-            f"Module {str(module)} completed processing {len(unprocessed_toponyms)} toponyms."
+            f"Module {str(module)} completed processing {len(unprocessed_references)} references."
         )
 
-    def _get_unprocessed_toponyms(
+    def _get_unprocessed_references(
         self, db: Session, module_id: uuid.UUID, project_id: uuid.UUID
     ):
         """
-        Get toponyms that haven't been processed by a specific resolution module.
+        Get references that haven't been processed by a specific resolution module.
 
         Args:
             db: Database session
@@ -351,89 +353,91 @@ class Orchestrator:
             project_id: UUID of the project to check against
 
         Returns:
-            List of unprocessed toponyms
+            List of unprocessed references
         """
-        return ResolutionSubjectRepository.get_unprocessed_toponyms(
+        return ResolutionSubjectRepository.get_unprocessed_references(
             db, project_id, module_id
         )
 
-    def _process_location_predictions(
+    def _process_referent_predictions(
         self,
         db: Session,
-        toponym_ids: List[uuid.UUID],
-        predicted_locations: List[List[Tuple[str, str]]],
+        reference_ids: List[uuid.UUID],
+        predicted_referents: List[List[Tuple[str, str]]],
         module_id: uuid.UUID,
     ) -> None:
         """
-        Process location predictions and update the database.
+        Process referent predictions and update the database.
 
         Args:
             db: Database session
-            toponym_ids: List of toponym IDs
-            predicted_locations: Nested list of predicted (gazetteer_name, identifier) tuples
+            reference_ids: List of reference IDs
+            predicted_referents: Nested list of predicted (gazetteer_name, identifier) tuples
             module_id: ID of the module that made the predictions
         """
-        # Process each toponym with its predicted locations
-        for toponym_id, locations in zip(toponym_ids, predicted_locations):
-            # Create location records for each prediction
-            for gazetteer_name, identifier in locations:
-                self._create_location_record(
-                    db, toponym_id, gazetteer_name, identifier, module_id
+        # Process each reference with its predicted referents
+        for reference_id, referents in zip(reference_ids, predicted_referents):
+            # Create referent records for each prediction
+            for gazetteer_name, identifier in referents:
+                self._create_referent_record(
+                    db, reference_id, gazetteer_name, identifier, module_id
                 )
 
-            # Mark toponym as processed
-            self._mark_toponym_processed(db, toponym_id, module_id)
+            # Mark reference as processed
+            self._mark_reference_processed(db, reference_id, module_id)
 
-    def _create_location_record(
+    def _create_referent_record(
         self,
         db: Session,
-        toponym_id: uuid.UUID,
+        reference_id: uuid.UUID,
         gazetteer_name: str,
         identifier: str,
         module_id: uuid.UUID,
     ) -> uuid.UUID:
         """
-        Create a location record and associate it with a resolution module.
+        Create a referent record and associate it with a resolution module.
 
         Args:
             db: Database session
-            toponym_id: ID of the toponym
+            reference_id: ID of the reference
             gazetteer_name: Name of the gazetteer
             identifier: Identifier value in the gazetteer
             module_id: ID of the resolution module
 
         Returns:
-            ID of the created location
+            ID of the created referent
         """
         # Look up the feature by gazetteer and identifier
         feature = FeatureRepository.get_by_gazetteer_and_identifier(
             db, gazetteer_name, identifier
         )
 
-        # Create the location
-        location_create = LocationCreate(toponym_id=toponym_id, feature_id=feature.id)
-        location = LocationRepository.create(db, location_create)
+        # Create the referent
+        referent_create = ReferentCreate(
+            reference_id=reference_id, feature_id=feature.id
+        )
+        referent = ReferentRepository.create(db, referent_create)
 
-        # Create the resolution object (link between location and module)
+        # Create the resolution object (link between referent and module)
         resolution_object_create = ResolutionObjectCreate(
-            location_id=location.id, module_id=module_id
+            referent_id=referent.id, module_id=module_id
         )
         ResolutionObjectRepository.create(db, resolution_object_create)
 
-        return location.id
+        return referent.id
 
-    def _mark_toponym_processed(
-        self, db: Session, toponym_id: uuid.UUID, module_id: uuid.UUID
+    def _mark_reference_processed(
+        self, db: Session, reference_id: uuid.UUID, module_id: uuid.UUID
     ) -> None:
         """
-        Mark a toponym as processed by a specific module.
+        Mark a reference as processed by a specific module.
 
         Args:
             db: Database session
-            toponym_id: ID of the toponym to mark
+            reference_id: ID of the reference to mark
             module_id: ID of the module that processed it
         """
         subject_create = ResolutionSubjectCreate(
-            toponym_id=toponym_id, module_id=module_id
+            reference_id=reference_id, module_id=module_id
         )
         ResolutionSubjectRepository.create(db, subject_create)

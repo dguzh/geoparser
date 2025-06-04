@@ -7,10 +7,10 @@ from geoparser.modules.interfaces import AbstractRecognitionModule
 
 class SpacyRecognitionModule(AbstractRecognitionModule):
     """
-    A recognition module that uses spaCy to identify toponyms in document text.
+    A recognition module that uses spaCy to identify references in document text.
 
     This module identifies location-based named entities like GPE (geopolitical entity),
-    LOC (location), and FAC (facility) as potential toponyms.
+    LOC (location), and FAC (facility) as potential references.
     """
 
     NAME = "SpacyRecognizer"
@@ -25,7 +25,7 @@ class SpacyRecognitionModule(AbstractRecognitionModule):
 
         Args:
             model_name: spaCy model to use (default: "en_core_web_sm")
-            entity_types: Set of spaCy entity types to consider as toponyms
+            entity_types: Set of spaCy entity types to consider as references
                           (default: {"GPE", "LOC", "FAC"})
         """
         # Initialize parent with the parameters
@@ -62,32 +62,32 @@ class SpacyRecognitionModule(AbstractRecognitionModule):
         nlp.disable_pipes(*[p for p in pipe_components if p in nlp.pipe_names])
         return nlp
 
-    def predict_toponyms(
+    def predict_references(
         self, document_texts: List[str]
     ) -> List[List[Tuple[int, int]]]:
         """
-        Identify toponyms (location entities) in multiple documents using spaCy.
+        Identify references (location entities) in multiple documents using spaCy.
 
         Args:
             document_texts: List of document texts to process
 
         Returns:
-            List of lists of tuples containing (start, end) positions of toponyms.
-            Each inner list corresponds to toponyms found in one document.
+            List of lists of tuples containing (start, end) positions of references.
+            Each inner list corresponds to references found in one document.
         """
         results = []
 
         # Process documents in batches using spaCy's nlp.pipe for efficiency
         docs = list(self.nlp.pipe(document_texts))
 
-        # Extract toponym offsets for each document
+        # Extract reference offsets for each document
         for doc in docs:
             # Find all entities that match our entity types of interest
-            toponyms = [
+            references = [
                 (ent.start_char, ent.end_char)
                 for ent in doc.ents
                 if ent.label_ in self.entity_types
             ]
-            results.append(toponyms)
+            results.append(references)
 
         return results

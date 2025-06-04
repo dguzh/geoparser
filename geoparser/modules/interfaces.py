@@ -76,9 +76,9 @@ class AbstractModule(ABC):
 
 class AbstractRecognitionModule(AbstractModule):
     """
-    Abstract class for modules that perform toponym recognition.
+    Abstract class for modules that perform reference recognition.
 
-    These modules identify potential toponyms in text.
+    These modules identify potential references (place names) in text.
     Recognition modules focus solely on the prediction logic without database interactions.
     """
 
@@ -95,11 +95,11 @@ class AbstractRecognitionModule(AbstractModule):
         super().__init__(**kwargs)
 
     @abstractmethod
-    def predict_toponyms(
+    def predict_references(
         self, document_texts: t.List[str]
     ) -> t.List[t.List[t.Tuple[int, int]]]:
         """
-        Predict toponyms in multiple documents.
+        Predict references in multiple documents.
 
         This abstract method must be implemented by child classes.
 
@@ -107,16 +107,16 @@ class AbstractRecognitionModule(AbstractModule):
             document_texts: List of document texts to process
 
         Returns:
-            List of lists of tuples containing (start, end) positions of toponyms.
-            Each inner list corresponds to toponyms found in one document at the same index in the input list.
+            List of lists of tuples containing (start, end) positions of references.
+            Each inner list corresponds to references found in one document at the same index in the input list.
         """
 
 
 class AbstractResolutionModule(AbstractModule):
     """
-    Abstract class for modules that perform toponym resolution.
+    Abstract class for modules that perform reference resolution.
 
-    These modules link recognized toponyms to specific locations in a gazetteer.
+    These modules link recognized references to specific referents in a gazetteer.
     Resolution modules focus solely on the prediction logic without database interactions.
     """
 
@@ -133,24 +133,24 @@ class AbstractResolutionModule(AbstractModule):
         super().__init__(**kwargs)
 
     @abstractmethod
-    def predict_locations(
-        self, toponym_data: t.List[dict]
+    def predict_referents(
+        self, reference_data: t.List[dict]
     ) -> t.List[t.List[t.Tuple[str, str]]]:
         """
-        Predict locations for multiple toponyms.
+        Predict referents for multiple references.
 
         This abstract method must be implemented by child classes.
 
         Args:
-            toponym_data: List of dictionaries containing toponym information:
+            reference_data: List of dictionaries containing reference information:
                           - start: start position in document
                           - end: end position in document
-                          - text: the actual toponym text
+                          - text: the actual reference text
                           - document_text: full document text
 
         Returns:
             List of lists of tuples containing (gazetteer_name, identifier).
-            Each inner list corresponds to locations found for one toponym at the same index in the input list.
+            Each inner list corresponds to referents found for one reference at the same index in the input list.
             The gazetteer_name identifies which gazetteer the identifier refers to,
-            and the identifier is the value used to identify the location in that gazetteer.
+            and the identifier is the value used to identify the referent in that gazetteer.
         """

@@ -93,18 +93,18 @@ class GeoparserV2:
         self, document_ids: t.Optional[List[uuid.UUID]] = None
     ) -> List[Document]:
         """
-        Retrieve documents with their associated toponyms and locations.
+        Retrieve documents with their associated references and referents.
 
         This method fetches document objects from the database along with their
-        related toponyms and locations, enabling traversal like:
-        documents[0].toponyms[0].locations[0]
+        related references and referents, enabling traversal like:
+        documents[0].references[0].referents[0]
 
         Args:
             document_ids: Optional list of document IDs to retrieve.
                           If None, retrieves all documents in the project.
 
         Returns:
-            List of Document objects with related toponyms and locations.
+            List of Document objects with related references and referents.
         """
         db = next(get_db())
 
@@ -147,7 +147,7 @@ class GeoparserV2:
             texts: Either a single document text or a list of texts
 
         Returns:
-            List of Document objects with processed toponyms and locations
+            List of Document objects with processed references and referents
         """
         # Add documents to the project and get their IDs
         document_ids = self.add_documents(texts)
