@@ -48,3 +48,30 @@ class FeatureRepository(BaseRepository[Feature]):
             Feature.identifier_value == identifier_value,
         )
         return db.exec(statement).unique().first()
+
+    @classmethod
+    def get_by_gazetteer_and_toponym(
+        cls, db: Session, gazetteer_name: str, toponym: str
+    ) -> t.List[Feature]:
+        """
+        Get all features for a gazetteer that have a specific toponym.
+
+        Args:
+            db: Database session
+            gazetteer_name: Name of the gazetteer
+            toponym: Toponym string to search for
+
+        Returns:
+            List of features that have this toponym
+        """
+        from geoparser.db.models.toponym import Toponym
+
+        statement = (
+            select(Feature)
+            .join(Toponym, Feature.id == Toponym.feature_id)
+            .where(
+                Feature.gazetteer_name == gazetteer_name,
+                Toponym.toponym == toponym,
+            )
+        )
+        return db.exec(statement).unique().all()
