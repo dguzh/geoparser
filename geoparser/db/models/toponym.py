@@ -1,6 +1,6 @@
 import typing as t
 
-from sqlalchemy import UniqueConstraint
+from sqlalchemy import UniqueConstraint, event, text
 from sqlmodel import Field, Relationship, SQLModel
 
 if t.TYPE_CHECKING:
@@ -20,6 +20,9 @@ class Toponym(ToponymBase, table=True):
 
     A toponym maps place names (strings) to feature IDs. Multiple toponyms can
     reference the same feature, and the same toponym can reference multiple features.
+
+    This model automatically creates an FTS (Full-Text Search) virtual table
+    for efficient partial matching of toponyms.
     """
 
     __table_args__ = (
@@ -40,3 +43,46 @@ class ToponymUpdate(SQLModel):
     id: int
     toponym: t.Optional[str] = None
     feature_id: t.Optional[int] = None
+
+
+# Event listener to create FTS table and triggers after toponym table creation
+@event.listens_for(Toponym.__table__, "after_create")
+def setup_fts(target, connection, **kw):
+    """
+    Create FTS virtual table and trigger for toponym full-text search.
+
+    This function is automatically called when the toponym table is created.
+    It sets up:
+    1. An FTS5 virtual table for efficient text searching
+    2. A trigger to keep the FTS table in sync with the main toponym table
+
+    Args:
+        target: The table that was created (toponym table)
+        connection: Database connection
+        **kw: Additional keyword arguments
+    """
+    # Create FTS5 virtual table for toponym search
+    connection.execute(
+        text(
+            """
+        CREATE VIRTUAL TABLE IF NOT EXISTS toponym_fts USING fts5(
+            toponym,
+            content='',
+            tokenize="unicode61 tokenchars '.'"
+        )
+    """
+        )
+    )
+
+    # Create trigger for INSERT operations
+    connection.execute(
+        text(
+            """
+        CREATE TRIGGER IF NOT EXISTS toponym_fts_insert 
+        AFTER INSERT ON toponym 
+        BEGIN
+            INSERT INTO toponym_fts(rowid, toponym) VALUES (new.id, new.toponym);
+        END
+    """
+        )
+    )
