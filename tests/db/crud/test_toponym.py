@@ -14,7 +14,7 @@ def test_create(test_db: Session, test_feature: Feature):
     """Test creating a toponym."""
     # Create a toponym using the create model with all required fields
     toponym_create = ToponymCreate(
-        toponym="Test Place",
+        text="Test Place",
         feature_id=test_feature.id,
     )
 
@@ -22,13 +22,13 @@ def test_create(test_db: Session, test_feature: Feature):
     created_toponym = ToponymRepository.create(test_db, toponym_create)
 
     assert created_toponym.id is not None
-    assert created_toponym.toponym == "Test Place"
+    assert created_toponym.text == "Test Place"
     assert created_toponym.feature_id == test_feature.id
 
     # Verify it was saved to the database
     db_toponym = test_db.get(Toponym, created_toponym.id)
     assert db_toponym is not None
-    assert db_toponym.toponym == "Test Place"
+    assert db_toponym.text == "Test Place"
     assert db_toponym.feature_id == test_feature.id
 
 
@@ -36,7 +36,7 @@ def test_get(test_db: Session, test_feature: Feature):
     """Test getting a toponym by ID."""
     # Create a toponym first
     toponym_create = ToponymCreate(
-        toponym="Test Place",
+        text="Test Place",
         feature_id=test_feature.id,
     )
     created_toponym = ToponymRepository.create(test_db, toponym_create)
@@ -45,7 +45,7 @@ def test_get(test_db: Session, test_feature: Feature):
     toponym = ToponymRepository.get(test_db, created_toponym.id)
     assert toponym is not None
     assert toponym.id == created_toponym.id
-    assert toponym.toponym == created_toponym.toponym
+    assert toponym.text == created_toponym.text
     assert toponym.feature_id == created_toponym.feature_id
 
     # Test with invalid ID
@@ -58,11 +58,11 @@ def test_get_by_feature(test_db: Session, test_feature: Feature):
     """Test getting toponyms by feature ID."""
     # Create multiple toponyms for the same feature
     toponym_create1 = ToponymCreate(
-        toponym="Primary Name",
+        text="Primary Name",
         feature_id=test_feature.id,
     )
     toponym_create2 = ToponymCreate(
-        toponym="Alternative Name",
+        text="Alternative Name",
         feature_id=test_feature.id,
     )
 
@@ -73,8 +73,8 @@ def test_get_by_feature(test_db: Session, test_feature: Feature):
     # Get toponyms by feature
     toponyms = ToponymRepository.get_by_feature(test_db, test_feature.id)
     assert len(toponyms) == 2
-    assert any(t.toponym == "Primary Name" for t in toponyms)
-    assert any(t.toponym == "Alternative Name" for t in toponyms)
+    assert any(t.text == "Primary Name" for t in toponyms)
+    assert any(t.text == "Alternative Name" for t in toponyms)
 
     # Test with non-existent feature ID
     toponyms = ToponymRepository.get_by_feature(test_db, 999999)
@@ -94,11 +94,11 @@ def test_get_by_toponym(test_db: Session, test_feature: Feature):
 
     # Create toponyms with the same text for different features
     toponym_create1 = ToponymCreate(
-        toponym="Common Name",
+        text="Common Name",
         feature_id=test_feature.id,
     )
     toponym_create2 = ToponymCreate(
-        toponym="Common Name",
+        text="Common Name",
         feature_id=another_feature.id,
     )
 
@@ -130,11 +130,11 @@ def test_get_all(test_db: Session, test_feature: Feature):
 
     # Create toponyms for different features
     toponym_create1 = ToponymCreate(
-        toponym="Place One",
+        text="Place One",
         feature_id=test_feature.id,
     )
     toponym_create2 = ToponymCreate(
-        toponym="Place Two",
+        text="Place Two",
         feature_id=another_feature.id,
     )
 
@@ -145,8 +145,8 @@ def test_get_all(test_db: Session, test_feature: Feature):
     # Get all toponyms
     toponyms = ToponymRepository.get_all(test_db)
     assert len(toponyms) == 2
-    assert any(t.toponym == "Place One" for t in toponyms)
-    assert any(t.toponym == "Place Two" for t in toponyms)
+    assert any(t.text == "Place One" for t in toponyms)
+    assert any(t.text == "Place Two" for t in toponyms)
 
 
 def test_update(test_db: Session, test_feature: Feature):
@@ -162,7 +162,7 @@ def test_update(test_db: Session, test_feature: Feature):
 
     # Create a toponym first
     toponym_create = ToponymCreate(
-        toponym="Original Name",
+        text="Original Name",
         feature_id=test_feature.id,
     )
     created_toponym = ToponymRepository.create(test_db, toponym_create)
@@ -170,7 +170,7 @@ def test_update(test_db: Session, test_feature: Feature):
     # Update the toponym
     toponym_update = ToponymUpdate(
         id=created_toponym.id,
-        toponym="Updated Name",
+        text="Updated Name",
         feature_id=updated_feature.id,
     )
     updated_toponym = ToponymRepository.update(
@@ -178,13 +178,13 @@ def test_update(test_db: Session, test_feature: Feature):
     )
 
     assert updated_toponym.id == created_toponym.id
-    assert updated_toponym.toponym == "Updated Name"
+    assert updated_toponym.text == "Updated Name"
     assert updated_toponym.feature_id == updated_feature.id
 
     # Verify it was updated in the database
     db_toponym = test_db.get(Toponym, created_toponym.id)
     assert db_toponym is not None
-    assert db_toponym.toponym == "Updated Name"
+    assert db_toponym.text == "Updated Name"
     assert db_toponym.feature_id == updated_feature.id
 
 
@@ -192,7 +192,7 @@ def test_delete(test_db: Session, test_feature: Feature):
     """Test deleting a toponym."""
     # Create a toponym first
     toponym_create = ToponymCreate(
-        toponym="To Be Deleted",
+        text="To Be Deleted",
         feature_id=test_feature.id,
     )
     created_toponym = ToponymRepository.create(test_db, toponym_create)

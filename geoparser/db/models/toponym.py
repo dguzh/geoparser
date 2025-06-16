@@ -10,7 +10,7 @@ if t.TYPE_CHECKING:
 class ToponymBase(SQLModel):
     """Base model for toponym data."""
 
-    toponym: str = Field(index=True)
+    text: str = Field(index=True)
     feature_id: int = Field(foreign_key="feature.id", index=True)
 
 
@@ -26,7 +26,7 @@ class Toponym(ToponymBase, table=True):
     """
 
     __table_args__ = (
-        UniqueConstraint("toponym", "feature_id", name="uq_toponym_feature"),
+        UniqueConstraint("text", "feature_id", name="uq_toponym_feature"),
     )
 
     id: int = Field(primary_key=True)
@@ -44,7 +44,7 @@ class ToponymFTS(SQLModel, table=True):
     __tablename__ = "toponym_fts"
 
     rowid: int = Field(primary_key=True)
-    toponym: str
+    text: str
 
 
 class ToponymCreate(ToponymBase):
@@ -55,7 +55,7 @@ class ToponymUpdate(SQLModel):
     """Model for updating an existing toponym."""
 
     id: int
-    toponym: t.Optional[str] = None
+    text: t.Optional[str] = None
     feature_id: t.Optional[int] = None
 
 
@@ -80,7 +80,7 @@ def setup_fts(target, connection, **kw):
         text(
             """
         CREATE VIRTUAL TABLE IF NOT EXISTS toponym_fts USING fts5(
-            toponym,
+            text,
             content='',
             tokenize="unicode61 tokenchars '.'"
         )
@@ -95,7 +95,7 @@ def setup_fts(target, connection, **kw):
         CREATE TRIGGER IF NOT EXISTS toponym_fts_insert 
         AFTER INSERT ON toponym 
         BEGIN
-            INSERT INTO toponym_fts(rowid, toponym) VALUES (new.id, new.toponym);
+            INSERT INTO toponym_fts(rowid, text) VALUES (new.id, new.text);
         END
     """
         )

@@ -73,7 +73,7 @@ class FeatureRepository(BaseRepository[Feature]):
             .join(ToponymFTS, Toponym.id == ToponymFTS.rowid)
             .where(
                 Feature.gazetteer_name == gazetteer_name,
-                ToponymFTS.toponym.match(f'"{toponym}"'),
+                ToponymFTS.text.match(f'"{toponym}"'),
             )
         )
         return db.exec(statement).unique().all()

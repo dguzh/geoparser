@@ -40,5 +40,5 @@ class ToponymRepository(BaseRepository[Toponym]):
         Returns:
             List of toponym records with this toponym
         """
-        statement = select(Toponym).where(Toponym.toponym == toponym)
+        statement = select(Toponym).where(Toponym.text == toponym)
         return db.exec(statement).unique().all()

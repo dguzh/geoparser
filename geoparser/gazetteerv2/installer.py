@@ -784,9 +784,9 @@ class GazetteerInstaller:
         # Use INSERT INTO ... SELECT for performance
         # Let SQLite handle autoincrement for the id column
         sql = f"""
-            INSERT OR IGNORE INTO toponym (toponym, feature_id)
+            INSERT OR IGNORE INTO toponym (text, feature_id)
             SELECT 
-                s.{toponym_column} as toponym,
+                s.{toponym_column} as text,
                 f.id as feature_id
             FROM {source_name} s
             JOIN feature f ON f.gazetteer_name = '{gazetteer_name}' 
@@ -817,7 +817,7 @@ class GazetteerInstaller:
 
         # Use recursive CTE to split comma-separated values
         sql = f"""
-            INSERT OR IGNORE INTO toponym (toponym, feature_id)
+            INSERT OR IGNORE INTO toponym (text, feature_id)
             WITH RECURSIVE split_toponyms(feature_id, toponym_value, remaining) AS (
                 -- Base case: start with the full toponym column
                 SELECT 
@@ -840,7 +840,7 @@ class GazetteerInstaller:
                 WHERE remaining != '' AND instr(remaining, '{separator}') > 0
             )
             SELECT 
-                toponym_value as toponym,
+                toponym_value as text,
                 feature_id
             FROM split_toponyms 
             WHERE toponym_value != '' AND toponym_value IS NOT NULL
