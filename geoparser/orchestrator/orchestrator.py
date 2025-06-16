@@ -26,11 +26,9 @@ from geoparser.db.models import (
     ResolutionObjectCreate,
     ResolutionSubjectCreate,
 )
-from geoparser.modules.interfaces import (
-    AbstractModule,
-    AbstractRecognitionModule,
-    AbstractResolutionModule,
-)
+from geoparser.modules.module import Module
+from geoparser.modules.recognizers.recognizer import Recognizer
+from geoparser.modules.resolvers.resolver import Resolver
 
 
 class Orchestrator:
@@ -49,7 +47,7 @@ class Orchestrator:
         Initialize an Orchestrator.
         """
 
-    def run_module(self, module: AbstractModule, project_id: uuid.UUID) -> None:
+    def run_module(self, module: Module, project_id: uuid.UUID) -> None:
         """
         Run a module on a specific project.
 
@@ -62,11 +60,11 @@ class Orchestrator:
         """
         try:
             # Execute based on module type
-            if isinstance(module, AbstractRecognitionModule):
+            if isinstance(module, Recognizer):
                 # Initialize and execute recognition module
                 module_id = self._initialize_recognition_module(module)
                 self._execute_recognition_module(module, module_id, project_id)
-            elif isinstance(module, AbstractResolutionModule):
+            elif isinstance(module, Resolver):
                 # Initialize and execute resolution module
                 module_id = self._initialize_resolution_module(module)
                 self._execute_resolution_module(module, module_id, project_id)
@@ -82,9 +80,7 @@ class Orchestrator:
             )
             raise
 
-    def _initialize_recognition_module(
-        self, module: AbstractRecognitionModule
-    ) -> uuid.UUID:
+    def _initialize_recognition_module(self, module: Recognizer) -> uuid.UUID:
         """
         Initialize a recognition module in the database.
 
@@ -112,9 +108,7 @@ class Orchestrator:
 
         return db_module.id
 
-    def _initialize_resolution_module(
-        self, module: AbstractResolutionModule
-    ) -> uuid.UUID:
+    def _initialize_resolution_module(self, module: Resolver) -> uuid.UUID:
         """
         Initialize a resolution module in the database.
 
@@ -144,7 +138,7 @@ class Orchestrator:
 
     def _execute_recognition_module(
         self,
-        module: AbstractRecognitionModule,
+        module: Recognizer,
         module_id: uuid.UUID,
         project_id: uuid.UUID,
     ) -> None:
@@ -290,7 +284,7 @@ class Orchestrator:
 
     def _execute_resolution_module(
         self,
-        module: AbstractResolutionModule,
+        module: Resolver,
         module_id: uuid.UUID,
         project_id: uuid.UUID,
     ) -> None:

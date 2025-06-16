@@ -2,10 +2,10 @@ from typing import List, Set, Tuple
 
 import spacy
 
-from geoparser.modules.interfaces import AbstractRecognitionModule
+from geoparser.modules.recognizers.recognizer import Recognizer
 
 
-class SpacyRecognitionModule(AbstractRecognitionModule):
+class SpacyRecognizer(Recognizer):
     """
     A recognition module that uses spaCy to identify references in document text.
 

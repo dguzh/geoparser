@@ -6,7 +6,7 @@ from typing import List, Optional, Union
 from geoparser.db.crud import DocumentRepository, ProjectRepository
 from geoparser.db.db import get_db
 from geoparser.db.models import Document, DocumentCreate, Project, ProjectCreate
-from geoparser.modules.interfaces import AbstractModule
+from geoparser.modules.module import Module
 from geoparser.orchestrator import Orchestrator
 
 
@@ -21,7 +21,7 @@ class GeoparserV2:
     def __init__(
         self,
         project_name: Optional[str] = None,
-        pipeline: Optional[List[AbstractModule]] = None,
+        pipeline: Optional[List[Module]] = None,
     ):
         """
         Initialize a GeoparserV2 instance.
@@ -118,7 +118,7 @@ class GeoparserV2:
         # Return the ORM objects directly
         return [doc for doc in documents if doc is not None]
 
-    def run_module(self, module: AbstractModule) -> None:
+    def run_module(self, module: Module) -> None:
         """
         Run a single processing module on the project's documents.
 
