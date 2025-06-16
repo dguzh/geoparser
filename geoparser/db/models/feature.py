@@ -1,7 +1,10 @@
 import typing as t
 
 from sqlalchemy import UniqueConstraint
-from sqlmodel import Field, SQLModel, text
+from sqlmodel import Field, Relationship, SQLModel, text
+
+if t.TYPE_CHECKING:
+    from geoparser.db.models.toponym import Toponym
 
 
 class FeatureBase(SQLModel):
@@ -28,6 +31,7 @@ class Feature(FeatureBase, table=True):
     )
 
     id: int = Field(primary_key=True)
+    toponyms: list["Toponym"] = Relationship(back_populates="feature")
 
     @property
     def data(self) -> t.Dict[str, t.Any]:

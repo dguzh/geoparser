@@ -1,7 +1,10 @@
 import typing as t
 
 from sqlalchemy import UniqueConstraint
-from sqlmodel import Field, SQLModel
+from sqlmodel import Field, Relationship, SQLModel
+
+if t.TYPE_CHECKING:
+    from geoparser.db.models.feature import Feature
 
 
 class ToponymBase(SQLModel):
@@ -24,6 +27,7 @@ class Toponym(ToponymBase, table=True):
     )
 
     id: int = Field(primary_key=True)
+    feature: "Feature" = Relationship(back_populates="toponyms")
 
 
 class ToponymCreate(ToponymBase):
