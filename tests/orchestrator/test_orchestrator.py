@@ -192,7 +192,7 @@ def test_run_module_unsupported_type(test_db, test_project):
     """Test run_module with an unsupported module type."""
     orchestrator = Orchestrator()
 
-    # Create unsupported module (not a AbstractRecognitionModule or AbstractResolutionModule)
+    # Create unsupported module (not a Recognizer or Resolver)
     unsupported_module = MagicMock()
 
     # Call run_module and expect error

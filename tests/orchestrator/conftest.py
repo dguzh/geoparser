@@ -13,10 +13,8 @@ from geoparser.db.models import (
     Reference,
     ReferenceCreate,
 )
-from geoparser.modules.interfaces import (
-    AbstractRecognitionModule,
-    AbstractResolutionModule,
-)
+from geoparser.modules.recognizers.recognizer import Recognizer
+from geoparser.modules.resolvers.resolver import Resolver
 from geoparser.orchestrator import Orchestrator
 
 
@@ -70,7 +68,7 @@ def test_reference(test_db, test_document):
 @pytest.fixture
 def mock_recognition_module():
     """Create a mock recognition module for testing."""
-    module = MagicMock(spec=AbstractRecognitionModule)
+    module = MagicMock(spec=Recognizer)
     module.name = "mock_recognition"
     module.config = {"param": "value"}
     module.predict_references.return_value = [[(29, 35), (41, 46)]]
@@ -80,7 +78,7 @@ def mock_recognition_module():
 @pytest.fixture
 def mock_resolution_module():
     """Create a mock resolution module for testing."""
-    module = MagicMock(spec=AbstractResolutionModule)
+    module = MagicMock(spec=Resolver)
     module.name = "mock_resolution"
     module.config = {"param": "value"}
     module.predict_referents.return_value = [
