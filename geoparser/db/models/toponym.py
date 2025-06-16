@@ -33,6 +33,20 @@ class Toponym(ToponymBase, table=True):
     feature: "Feature" = Relationship(back_populates="toponyms")
 
 
+class ToponymFTS(SQLModel, table=True):
+    """
+    Read-only mapping to the toponym_fts virtual table.
+
+    This provides access to the FTS5 virtual table for full-text search
+    operations on toponyms with case-insensitive matching and text normalization.
+    """
+
+    __tablename__ = "toponym_fts"
+
+    rowid: int = Field(primary_key=True)
+    toponym: str
+
+
 class ToponymCreate(ToponymBase):
     """Model for creating a new toponym."""
 

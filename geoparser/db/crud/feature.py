@@ -4,6 +4,7 @@ from sqlmodel import Session, select
 
 from geoparser.db.crud.base import BaseRepository
 from geoparser.db.models.feature import Feature
+from geoparser.db.models.toponym import Toponym, ToponymFTS
 
 
 class FeatureRepository(BaseRepository[Feature]):
@@ -56,6 +57,8 @@ class FeatureRepository(BaseRepository[Feature]):
         """
         Get all features for a gazetteer that have a specific toponym.
 
+        Uses the FTS table for case-insensitive exact matching.
+
         Args:
             db: Database session
             gazetteer_name: Name of the gazetteer
@@ -64,14 +67,13 @@ class FeatureRepository(BaseRepository[Feature]):
         Returns:
             List of features that have this toponym
         """
-        from geoparser.db.models.toponym import Toponym
-
         statement = (
             select(Feature)
             .join(Toponym, Feature.id == Toponym.feature_id)
+            .join(ToponymFTS, Toponym.id == ToponymFTS.rowid)
             .where(
                 Feature.gazetteer_name == gazetteer_name,
-                Toponym.toponym == toponym,
+                ToponymFTS.toponym.match(f'"{toponym}"'),
             )
         )
         return db.exec(statement).unique().all()
