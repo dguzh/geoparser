@@ -75,11 +75,14 @@ def setup_fts(target, connection, **kw):
         connection: Database connection
         **kw: Additional keyword arguments
     """
+    # Drop any existing toponym_fts table first (in case it was created by SQLModel)
+    connection.execute(text("DROP TABLE IF EXISTS toponym_fts"))
+
     # Create FTS5 virtual table for toponym search
     connection.execute(
         text(
             """
-        CREATE VIRTUAL TABLE IF NOT EXISTS toponym_fts USING fts5(
+        CREATE VIRTUAL TABLE toponym_fts USING fts5(
             text,
             content='',
             tokenize="unicode61 tokenchars '.'"

@@ -34,7 +34,12 @@ from geoparser.db.models.resolution_subject import (
     ResolutionSubjectCreate,
     ResolutionSubjectUpdate,
 )
-from geoparser.db.models.toponym import Toponym, ToponymCreate, ToponymUpdate
+from geoparser.db.models.toponym import (
+    Toponym,
+    ToponymCreate,
+    ToponymFTS,
+    ToponymUpdate,
+)
 
 for rebuild in [
     Project,
