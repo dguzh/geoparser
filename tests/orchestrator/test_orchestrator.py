@@ -29,9 +29,9 @@ def test_initialize_recognition_module_new(test_db, mock_recognition_module):
     orchestrator = Orchestrator()
 
     # Mock database calls for module creation
-    with patch(
-        "geoparser.orchestrator.orchestrator.get_db", return_value=iter([test_db])
-    ):
+    with patch("geoparser.orchestrator.orchestrator.Session") as mock_session:
+        mock_session.return_value.__enter__.return_value = test_db
+        mock_session.return_value.__exit__.return_value = None
         with patch.object(
             RecognitionModuleRepository, "get_by_name_and_config", return_value=None
         ) as mock_get:
@@ -66,9 +66,9 @@ def test_initialize_recognition_module_existing(test_db, mock_recognition_module
     )
 
     # Mock database calls
-    with patch(
-        "geoparser.orchestrator.orchestrator.get_db", return_value=iter([test_db])
-    ):
+    with patch("geoparser.orchestrator.orchestrator.Session") as mock_session:
+        mock_session.return_value.__enter__.return_value = test_db
+        mock_session.return_value.__exit__.return_value = None
         with patch.object(
             RecognitionModuleRepository,
             "get_by_name_and_config",
@@ -91,9 +91,9 @@ def test_initialize_resolution_module_new(test_db, mock_resolution_module):
     orchestrator = Orchestrator()
 
     # Mock database calls for module creation
-    with patch(
-        "geoparser.orchestrator.orchestrator.get_db", return_value=iter([test_db])
-    ):
+    with patch("geoparser.orchestrator.orchestrator.Session") as mock_session:
+        mock_session.return_value.__enter__.return_value = test_db
+        mock_session.return_value.__exit__.return_value = None
         with patch.object(
             ResolutionModuleRepository, "get_by_name_and_config", return_value=None
         ) as mock_get:
@@ -126,9 +126,9 @@ def test_initialize_resolution_module_existing(test_db, mock_resolution_module):
     )
 
     # Mock database calls
-    with patch(
-        "geoparser.orchestrator.orchestrator.get_db", return_value=iter([test_db])
-    ):
+    with patch("geoparser.orchestrator.orchestrator.Session") as mock_session:
+        mock_session.return_value.__enter__.return_value = test_db
+        mock_session.return_value.__exit__.return_value = None
         with patch.object(
             ResolutionModuleRepository,
             "get_by_name_and_config",
@@ -208,9 +208,9 @@ def test_execute_recognition_module(
     module_id = uuid.uuid4()
 
     # Mock private methods and database calls
-    with patch(
-        "geoparser.orchestrator.orchestrator.get_db", return_value=iter([test_db])
-    ):
+    with patch("geoparser.orchestrator.orchestrator.Session") as mock_session:
+        mock_session.return_value.__enter__.return_value = test_db
+        mock_session.return_value.__exit__.return_value = None
         with patch.object(orchestrator, "_get_unprocessed_documents") as mock_get_docs:
             with patch.object(
                 orchestrator, "_process_reference_predictions"
@@ -246,9 +246,9 @@ def test_execute_recognition_module_no_documents(
     module_id = uuid.uuid4()
 
     # Mock private methods and database calls
-    with patch(
-        "geoparser.orchestrator.orchestrator.get_db", return_value=iter([test_db])
-    ):
+    with patch("geoparser.orchestrator.orchestrator.Session") as mock_session:
+        mock_session.return_value.__enter__.return_value = test_db
+        mock_session.return_value.__exit__.return_value = None
         with patch.object(orchestrator, "_get_unprocessed_documents") as mock_get_docs:
             # Set up mocks
             mock_get_docs.return_value = []
@@ -274,9 +274,9 @@ def test_execute_resolution_module(
     test_reference.document = test_document
 
     # Mock private methods and database calls
-    with patch(
-        "geoparser.orchestrator.orchestrator.get_db", return_value=iter([test_db])
-    ):
+    with patch("geoparser.orchestrator.orchestrator.Session") as mock_session:
+        mock_session.return_value.__enter__.return_value = test_db
+        mock_session.return_value.__exit__.return_value = None
         with patch.object(orchestrator, "_get_unprocessed_references") as mock_get_refs:
             with patch.object(
                 orchestrator, "_process_referent_predictions"
@@ -313,9 +313,9 @@ def test_execute_resolution_module_no_references(
     module_id = uuid.uuid4()
 
     # Mock private methods and database calls
-    with patch(
-        "geoparser.orchestrator.orchestrator.get_db", return_value=iter([test_db])
-    ):
+    with patch("geoparser.orchestrator.orchestrator.Session") as mock_session:
+        mock_session.return_value.__enter__.return_value = test_db
+        mock_session.return_value.__exit__.return_value = None
         with patch.object(orchestrator, "_get_unprocessed_references") as mock_get_refs:
             # Set up mocks
             mock_get_refs.return_value = []

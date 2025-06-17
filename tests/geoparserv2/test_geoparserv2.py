@@ -21,9 +21,10 @@ def test_initialize_project_existing(test_db: Session, test_project: Project):
         return_value=test_project,
     ):
         with patch(
-            "geoparser.geoparserv2.geoparserv2.get_db",
-            return_value=iter([test_db]),
-        ):
+            "geoparser.geoparserv2.geoparserv2.Session",
+        ) as mock_session:
+            mock_session.return_value.__enter__.return_value = test_db
+            mock_session.return_value.__exit__.return_value = None
             project_id = geoparser._initialize_project(test_project.name)
 
             # Verify the correct project id was returned
@@ -48,9 +49,10 @@ def test_initialize_project_new(test_db: Session):
             return_value=new_project,
         ):
             with patch(
-                "geoparser.geoparserv2.geoparserv2.get_db",
-                return_value=iter([test_db]),
-            ):
+                "geoparser.geoparserv2.geoparserv2.Session",
+            ) as mock_session:
+                mock_session.return_value.__enter__.return_value = test_db
+                mock_session.return_value.__exit__.return_value = None
                 with patch(
                     "geoparser.geoparserv2.geoparserv2.logging.info"
                 ) as mock_log:
@@ -91,10 +93,10 @@ def test_init_with_new_project(geoparser_with_new_project, test_db):
 
 def test_init_with_no_project_name(test_db):
     """Test initializing GeoparserV2 without providing a project name."""
-    # Mock get_db to return the test database
-    with patch(
-        "geoparser.geoparserv2.geoparserv2.get_db", return_value=iter([test_db])
-    ):
+    # Mock Session to return the test database
+    with patch("geoparser.geoparserv2.geoparserv2.Session") as mock_session:
+        mock_session.return_value.__enter__.return_value = test_db
+        mock_session.return_value.__exit__.return_value = None
         with patch(
             "uuid.uuid4", return_value=uuid.UUID("12345678-1234-5678-1234-567812345678")
         ):
@@ -114,10 +116,10 @@ def test_add_documents_single(test_db, geoparser_with_existing_project):
     """Test adding a single document."""
     geoparser = geoparser_with_existing_project
 
-    # Patch the get_db function to return a fresh iterator each time
-    with patch(
-        "geoparser.geoparserv2.geoparserv2.get_db", return_value=iter([test_db])
-    ):
+    # Patch the Session function to return the test database
+    with patch("geoparser.geoparserv2.geoparserv2.Session") as mock_session:
+        mock_session.return_value.__enter__.return_value = test_db
+        mock_session.return_value.__exit__.return_value = None
         # Add a single document
         document_ids = geoparser.add_documents("This is a test document.")
 
@@ -135,10 +137,10 @@ def test_add_documents_multiple(test_db, geoparser_with_existing_project):
     """Test adding multiple documents."""
     geoparser = geoparser_with_existing_project
 
-    # Patch the get_db function to return a fresh iterator each time
-    with patch(
-        "geoparser.geoparserv2.geoparserv2.get_db", return_value=iter([test_db])
-    ):
+    # Patch the Session function to return the test database
+    with patch("geoparser.geoparserv2.geoparserv2.Session") as mock_session:
+        mock_session.return_value.__enter__.return_value = test_db
+        mock_session.return_value.__exit__.return_value = None
         # Add multiple documents
         texts = [
             "This is the first test document.",
@@ -167,9 +169,9 @@ def test_get_documents_all(test_db, geoparser_with_existing_project):
     geoparser = geoparser_with_existing_project
 
     # Add multiple documents with one mock
-    with patch(
-        "geoparser.geoparserv2.geoparserv2.get_db", return_value=iter([test_db])
-    ):
+    with patch("geoparser.geoparserv2.geoparserv2.Session") as mock_session:
+        mock_session.return_value.__enter__.return_value = test_db
+        mock_session.return_value.__exit__.return_value = None
         texts = [
             "This is the first test document.",
             "This is the second test document.",
@@ -177,9 +179,9 @@ def test_get_documents_all(test_db, geoparser_with_existing_project):
         geoparser.add_documents(texts)
 
     # Create a new mock for the get_documents call
-    with patch(
-        "geoparser.geoparserv2.geoparserv2.get_db", return_value=iter([test_db])
-    ):
+    with patch("geoparser.geoparserv2.geoparserv2.Session") as mock_session:
+        mock_session.return_value.__enter__.return_value = test_db
+        mock_session.return_value.__exit__.return_value = None
         # Retrieve all documents
         documents = geoparser.get_documents()
 
@@ -197,9 +199,9 @@ def test_get_documents_by_id(test_db, geoparser_with_existing_project):
     geoparser = geoparser_with_existing_project
 
     # Add documents with one mock
-    with patch(
-        "geoparser.geoparserv2.geoparserv2.get_db", return_value=iter([test_db])
-    ):
+    with patch("geoparser.geoparserv2.geoparserv2.Session") as mock_session:
+        mock_session.return_value.__enter__.return_value = test_db
+        mock_session.return_value.__exit__.return_value = None
         texts = [
             "This is the first test document.",
             "This is the second test document.",
@@ -208,9 +210,9 @@ def test_get_documents_by_id(test_db, geoparser_with_existing_project):
         document_ids = geoparser.add_documents(texts)
 
     # Create a new mock for the get_documents call
-    with patch(
-        "geoparser.geoparserv2.geoparserv2.get_db", return_value=iter([test_db])
-    ):
+    with patch("geoparser.geoparserv2.geoparserv2.Session") as mock_session:
+        mock_session.return_value.__enter__.return_value = test_db
+        mock_session.return_value.__exit__.return_value = None
         # Retrieve only specific documents by IDs
         selected_ids = [document_ids[0], document_ids[2]]  # First and third documents
         documents = geoparser.get_documents(selected_ids)
@@ -230,10 +232,10 @@ def test_get_documents_empty_project(test_db, geoparser_with_existing_project):
     """Test retrieving documents for an empty project."""
     geoparser = geoparser_with_existing_project
 
-    # Patch the get_db function with a fresh iterator
-    with patch(
-        "geoparser.geoparserv2.geoparserv2.get_db", return_value=iter([test_db])
-    ):
+    # Patch the Session function to return the test database
+    with patch("geoparser.geoparserv2.geoparserv2.Session") as mock_session:
+        mock_session.return_value.__enter__.return_value = test_db
+        mock_session.return_value.__exit__.return_value = None
         # Retrieve documents from empty project
         documents = geoparser.get_documents()
 
@@ -352,9 +354,10 @@ def test_parse_returns_documents(test_db, geoparser_with_existing_project):
         with patch.object(geoparser, "run_pipeline"):
             with patch.object(DocumentRepository, "get", return_value=document):
                 with patch(
-                    "geoparser.geoparserv2.geoparserv2.get_db",
-                    return_value=iter([test_db]),
-                ):
+                    "geoparser.geoparserv2.geoparserv2.Session",
+                ) as mock_session:
+                    mock_session.return_value.__enter__.return_value = test_db
+                    mock_session.return_value.__exit__.return_value = None
                     # Set up mock
                     doc_id = uuid.uuid4()
                     mock_add.return_value = [doc_id]

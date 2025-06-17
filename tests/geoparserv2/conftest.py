@@ -42,23 +42,21 @@ def test_project(test_db: Session):
 
 
 @pytest.fixture
-def mock_get_db(test_db):
-    """Mock the get_db function to return our test database session."""
-    with patch("geoparser.geoparserv2.geoparserv2.get_db") as mock:
-        mock.return_value = iter([test_db])
-        yield mock
-
-
-@pytest.fixture
-def geoparser_with_existing_project(mock_get_db, test_project):
+def geoparser_with_existing_project(test_db, test_project):
     """Create a GeoparserV2 instance with an existing project."""
-    return GeoparserV2(project_name=test_project.name)
+    with patch("geoparser.geoparserv2.geoparserv2.Session") as mock_session:
+        mock_session.return_value.__enter__.return_value = test_db
+        mock_session.return_value.__exit__.return_value = None
+        return GeoparserV2(project_name=test_project.name)
 
 
 @pytest.fixture
-def geoparser_with_new_project(mock_get_db):
+def geoparser_with_new_project(test_db):
     """Create a GeoparserV2 instance with a new project."""
-    return GeoparserV2(project_name="new-test-project")
+    with patch("geoparser.geoparserv2.geoparserv2.Session") as mock_session:
+        mock_session.return_value.__enter__.return_value = test_db
+        mock_session.return_value.__exit__.return_value = None
+        return GeoparserV2(project_name="new-test-project")
 
 
 @pytest.fixture
