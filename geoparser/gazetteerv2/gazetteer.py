@@ -5,29 +5,26 @@ from sqlmodel import Session
 from geoparser.db.crud.feature import FeatureRepository
 from geoparser.db.db import engine
 from geoparser.db.models.feature import Feature
-from geoparser.modules.retrievers.retriever import Retriever
 
 
-class ExactRetriever(Retriever):
+class Gazetteer:
     """
-    A retrieval module that performs exact matching of toponyms.
+    A gazetteer interface for querying geographic features.
 
-    This module searches for features that have toponyms exactly matching
-    the input strings within the specified gazetteer.
+    This class provides access to gazetteer data stored in the local database,
+    allowing retrieval of candidate features for toponym matching.
     """
-
-    NAME = "ExactRetriever"
 
     def __init__(self, gazetteer_name: str):
         """
-        Initialize the exact matching retrieval module.
+        Initialize the gazetteer interface.
 
         Args:
             gazetteer_name: Name of the gazetteer to query for candidates
         """
-        super().__init__(gazetteer_name=gazetteer_name)
+        self.gazetteer_name = gazetteer_name
 
-    def retrieve_candidates(self, toponyms: List[str]) -> List[List[Feature]]:
+    def get_candidates(self, toponyms: List[str]) -> List[List[Feature]]:
         """
         Retrieve candidate features by exact toponym matching.
 
