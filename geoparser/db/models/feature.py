@@ -3,8 +3,6 @@ import typing as t
 from sqlalchemy import UniqueConstraint
 from sqlmodel import Field, Relationship, Session, SQLModel, text
 
-from geoparser.db.db import engine
-
 if t.TYPE_CHECKING:
     from geoparser.db.models.toponym import Toponym
 
@@ -46,6 +44,9 @@ class Feature(FeatureBase, table=True):
         Returns:
             Dictionary containing all columns from the gazetteer row
         """
+
+        from geoparser.db.db import engine
+
         with Session(engine) as db:
             # Build query to get the complete row
             query = text(
