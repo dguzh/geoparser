@@ -1,7 +1,9 @@
 import typing as t
 
 from sqlalchemy import UniqueConstraint
-from sqlmodel import Field, Relationship, SQLModel, text
+from sqlmodel import Field, Relationship, Session, SQLModel, text
+
+from geoparser.db.db import engine
 
 if t.TYPE_CHECKING:
     from geoparser.db.models.toponym import Toponym
@@ -44,26 +46,23 @@ class Feature(FeatureBase, table=True):
         Returns:
             Dictionary containing all columns from the gazetteer row
         """
-        from geoparser.db.db import get_db
-
-        db = next(get_db())
-
-        # Build query to get the complete row
-        query = text(
-            f"SELECT * FROM {self.table_name} WHERE {self.identifier_name} = '{self.identifier_value}'"
-        )
-
-        result = db.execute(query)
-        row = result.fetchone()
-
-        if row is None:
-            raise ValueError(
-                f"Feature not found in table {self.table_name} "
-                f"with {self.identifier_name}={self.identifier_value}"
+        with Session(engine) as db:
+            # Build query to get the complete row
+            query = text(
+                f"SELECT * FROM {self.table_name} WHERE {self.identifier_name} = '{self.identifier_value}'"
             )
 
-        # Convert row to dictionary and return
-        return dict(row._mapping)
+            result = db.execute(query)
+            row = result.fetchone()
+
+            if row is None:
+                raise ValueError(
+                    f"Feature not found in table {self.table_name} "
+                    f"with {self.identifier_name}={self.identifier_value}"
+                )
+
+            # Convert row to dictionary and return
+            return dict(row._mapping)
 
 
 class FeatureCreate(FeatureBase):

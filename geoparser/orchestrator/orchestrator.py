@@ -15,7 +15,7 @@ from geoparser.db.crud import (
     ResolutionObjectRepository,
     ResolutionSubjectRepository,
 )
-from geoparser.db.db import get_db
+from geoparser.db.db import engine
 from geoparser.db.models import (
     RecognitionModuleCreate,
     RecognitionObjectCreate,
@@ -92,21 +92,20 @@ class Orchestrator:
         Returns:
             Database ID of the module
         """
-        db = next(get_db())
-
-        db_module = RecognitionModuleRepository.get_by_name_and_config(
-            db, module.name, module.config
-        )
-        if db_module is None:
-            module_create = RecognitionModuleCreate(
-                name=module.name, config=module.config
+        with Session(engine) as db:
+            db_module = RecognitionModuleRepository.get_by_name_and_config(
+                db, module.name, module.config
             )
-            db_module = RecognitionModuleRepository.create(db, module_create)
-            logging.info(f"Created new recognition module {str(module)}")
-        else:
-            logging.info(f"Using existing recognition module {str(module)}")
+            if db_module is None:
+                module_create = RecognitionModuleCreate(
+                    name=module.name, config=module.config
+                )
+                db_module = RecognitionModuleRepository.create(db, module_create)
+                logging.info(f"Created new recognition module {str(module)}")
+            else:
+                logging.info(f"Using existing recognition module {str(module)}")
 
-        return db_module.id
+            return db_module.id
 
     def _initialize_resolution_module(self, module: Resolver) -> uuid.UUID:
         """
@@ -120,21 +119,20 @@ class Orchestrator:
         Returns:
             Database ID of the module
         """
-        db = next(get_db())
-
-        db_module = ResolutionModuleRepository.get_by_name_and_config(
-            db, module.name, module.config
-        )
-        if db_module is None:
-            module_create = ResolutionModuleCreate(
-                name=module.name, config=module.config
+        with Session(engine) as db:
+            db_module = ResolutionModuleRepository.get_by_name_and_config(
+                db, module.name, module.config
             )
-            db_module = ResolutionModuleRepository.create(db, module_create)
-            logging.info(f"Created new resolution module {str(module)}")
-        else:
-            logging.info(f"Using existing resolution module {str(module)}")
+            if db_module is None:
+                module_create = ResolutionModuleCreate(
+                    name=module.name, config=module.config
+                )
+                db_module = ResolutionModuleRepository.create(db, module_create)
+                logging.info(f"Created new resolution module {str(module)}")
+            else:
+                logging.info(f"Using existing resolution module {str(module)}")
 
-        return db_module.id
+            return db_module.id
 
     def _execute_recognition_module(
         self,
@@ -150,36 +148,35 @@ class Orchestrator:
             module_id: Database ID of the module
             project_id: UUID of the project to run the module on
         """
-        db = next(get_db())
+        with Session(engine) as db:
+            # Get unprocessed documents
+            unprocessed_documents = self._get_unprocessed_documents(
+                db, module_id, project_id
+            )
 
-        # Get unprocessed documents
-        unprocessed_documents = self._get_unprocessed_documents(
-            db, module_id, project_id
-        )
+            if not unprocessed_documents:
+                logging.info(f"No unprocessed documents found for module {str(module)}")
+                return
 
-        if not unprocessed_documents:
-            logging.info(f"No unprocessed documents found for module {str(module)}")
-            return
+            logging.info(
+                f"Processing {len(unprocessed_documents)} documents with module {str(module)} in project {project_id}."
+            )
 
-        logging.info(
-            f"Processing {len(unprocessed_documents)} documents with module {str(module)} in project {project_id}."
-        )
+            # Prepare input data for module
+            document_texts = [doc.text for doc in unprocessed_documents]
+            document_ids = [doc.id for doc in unprocessed_documents]
 
-        # Prepare input data for module
-        document_texts = [doc.text for doc in unprocessed_documents]
-        document_ids = [doc.id for doc in unprocessed_documents]
+            # Get predictions from module
+            predicted_references = module.predict_references(document_texts)
 
-        # Get predictions from module
-        predicted_references = module.predict_references(document_texts)
+            # Process predictions and update database
+            self._process_reference_predictions(
+                db, document_ids, predicted_references, module_id
+            )
 
-        # Process predictions and update database
-        self._process_reference_predictions(
-            db, document_ids, predicted_references, module_id
-        )
-
-        logging.info(
-            f"Module {str(module)} completed processing {len(unprocessed_documents)} documents."
-        )
+            logging.info(
+                f"Module {str(module)} completed processing {len(unprocessed_documents)} documents."
+            )
 
     def _get_unprocessed_documents(
         self, db: Session, module_id: uuid.UUID, project_id: uuid.UUID
@@ -296,44 +293,45 @@ class Orchestrator:
             module_id: Database ID of the module
             project_id: UUID of the project to run the module on
         """
-        db = next(get_db())
+        with Session(engine) as db:
+            # Get unprocessed references
+            unprocessed_references = self._get_unprocessed_references(
+                db, module_id, project_id
+            )
 
-        # Get unprocessed references
-        unprocessed_references = self._get_unprocessed_references(
-            db, module_id, project_id
-        )
+            if not unprocessed_references:
+                logging.info(
+                    f"No unprocessed references found for module {str(module)}"
+                )
+                return
 
-        if not unprocessed_references:
-            logging.info(f"No unprocessed references found for module {str(module)}")
-            return
+            logging.info(
+                f"Processing {len(unprocessed_references)} references with module {str(module)} in project {project_id}."
+            )
 
-        logging.info(
-            f"Processing {len(unprocessed_references)} references with module {str(module)} in project {project_id}."
-        )
+            # Prepare input data for module
+            reference_data = [
+                {
+                    "start": reference.start,
+                    "end": reference.end,
+                    "text": reference.text,
+                    "document_text": reference.document.text,
+                }
+                for reference in unprocessed_references
+            ]
+            reference_ids = [reference.id for reference in unprocessed_references]
 
-        # Prepare input data for module
-        reference_data = [
-            {
-                "start": reference.start,
-                "end": reference.end,
-                "text": reference.text,
-                "document_text": reference.document.text,
-            }
-            for reference in unprocessed_references
-        ]
-        reference_ids = [reference.id for reference in unprocessed_references]
+            # Get predictions from module
+            predicted_referents = module.predict_referents(reference_data)
 
-        # Get predictions from module
-        predicted_referents = module.predict_referents(reference_data)
+            # Process predictions and update database
+            self._process_referent_predictions(
+                db, reference_ids, predicted_referents, module_id
+            )
 
-        # Process predictions and update database
-        self._process_referent_predictions(
-            db, reference_ids, predicted_referents, module_id
-        )
-
-        logging.info(
-            f"Module {str(module)} completed processing {len(unprocessed_references)} references."
-        )
+            logging.info(
+                f"Module {str(module)} completed processing {len(unprocessed_references)} references."
+            )
 
     def _get_unprocessed_references(
         self, db: Session, module_id: uuid.UUID, project_id: uuid.UUID

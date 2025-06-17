@@ -10,10 +10,11 @@ import pyogrio
 import requests
 import sqlalchemy as sa
 from appdirs import user_data_dir
+from sqlmodel import Session
 from tqdm.auto import tqdm
 
 from geoparser.db.crud.gazetteer import GazetteerRepository
-from geoparser.db.db import engine, get_db
+from geoparser.db.db import engine
 from geoparser.db.models.gazetteer import GazetteerCreate
 from geoparser.gazetteerv2.config import (
     DataType,
@@ -114,18 +115,18 @@ class GazetteerInstaller:
         Returns:
             Created Gazetteer object
         """
-        db = next(get_db())
-        name = gazetteer_config.name
+        with Session(engine) as db:
+            name = gazetteer_config.name
 
-        # Get all existing gazetteers with this name
-        existing_gazetteers = GazetteerRepository.get_by_name(db, name)
+            # Get all existing gazetteers with this name
+            existing_gazetteers = GazetteerRepository.get_by_name(db, name)
 
-        # Delete each existing gazetteer
-        for gazetteer in existing_gazetteers:
-            GazetteerRepository.delete(db, id=gazetteer.id)
+            # Delete each existing gazetteer
+            for gazetteer in existing_gazetteers:
+                GazetteerRepository.delete(db, id=gazetteer.id)
 
-        # Create a new gazetteer record
-        return GazetteerRepository.create(db, GazetteerCreate(name=name))
+            # Create a new gazetteer record
+            return GazetteerRepository.create(db, GazetteerCreate(name=name))
 
     def _download_file(self, source_config: SourceConfig, downloads_dir: Path) -> Path:
         """

@@ -3,8 +3,10 @@ import typing as t
 import uuid
 from typing import List, Optional, Union
 
+from sqlmodel import Session
+
 from geoparser.db.crud import DocumentRepository, ProjectRepository
-from geoparser.db.db import get_db
+from geoparser.db.db import engine
 from geoparser.db.models import Document, DocumentCreate, Project, ProjectCreate
 from geoparser.modules.module import Module
 from geoparser.orchestrator import Orchestrator
@@ -49,21 +51,20 @@ class GeoparserV2:
         Returns:
             Project ID that was loaded or created
         """
-        db = next(get_db())
+        with Session(engine) as db:
+            # Try to load existing project
+            project = ProjectRepository.get_by_name(db, project_name)
 
-        # Try to load existing project
-        project = ProjectRepository.get_by_name(db, project_name)
+            # Create new project if it doesn't exist
+            if project is None:
+                logging.info(
+                    f"No project found with name '{project_name}'; creating a new one."
+                )
+                project_create = ProjectCreate(name=project_name)
+                project = Project(name=project_create.name)
+                project = ProjectRepository.create(db, project)
 
-        # Create new project if it doesn't exist
-        if project is None:
-            logging.info(
-                f"No project found with name '{project_name}'; creating a new one."
-            )
-            project_create = ProjectCreate(name=project_name)
-            project = Project(name=project_create.name)
-            project = ProjectRepository.create(db, project)
-
-        return project.id
+            return project.id
 
     def add_documents(self, texts: Union[str, List[str]]) -> List[uuid.UUID]:
         """
@@ -75,19 +76,18 @@ class GeoparserV2:
         Returns:
             List of UUIDs of the created documents
         """
-        db = next(get_db())
+        with Session(engine) as db:
+            # Convert single string to list for uniform processing
+            if isinstance(texts, str):
+                texts = [texts]
 
-        # Convert single string to list for uniform processing
-        if isinstance(texts, str):
-            texts = [texts]
+            document_ids = []
+            for text in texts:
+                document_create = DocumentCreate(text=text, project_id=self.project_id)
+                document = DocumentRepository.create(db, document_create)
+                document_ids.append(document.id)
 
-        document_ids = []
-        for text in texts:
-            document_create = DocumentCreate(text=text, project_id=self.project_id)
-            document = DocumentRepository.create(db, document_create)
-            document_ids.append(document.id)
-
-        return document_ids
+            return document_ids
 
     def get_documents(
         self, document_ids: t.Optional[List[uuid.UUID]] = None
@@ -106,17 +106,18 @@ class GeoparserV2:
         Returns:
             List of Document objects with related references and referents.
         """
-        db = next(get_db())
+        with Session(engine) as db:
+            if document_ids:
+                # Retrieve specific documents by their IDs
+                documents = [
+                    DocumentRepository.get(db, doc_id) for doc_id in document_ids
+                ]
+            else:
+                # Retrieve all documents for the project
+                documents = DocumentRepository.get_by_project(db, self.project_id)
 
-        if document_ids:
-            # Retrieve specific documents by their IDs
-            documents = [DocumentRepository.get(db, doc_id) for doc_id in document_ids]
-        else:
-            # Retrieve all documents for the project
-            documents = DocumentRepository.get_by_project(db, self.project_id)
-
-        # Return the ORM objects directly
-        return [doc for doc in documents if doc is not None]
+            # Return the ORM objects directly
+            return [doc for doc in documents if doc is not None]
 
     def run_module(self, module: Module) -> None:
         """
