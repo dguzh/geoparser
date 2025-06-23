@@ -12,7 +12,8 @@ class Gazetteer:
     A gazetteer interface for querying geographic features.
 
     This class provides access to gazetteer data stored in the local database,
-    allowing retrieval of candidate features for toponym matching.
+    allowing retrieval of candidate features for toponym matching using different
+    search strategies: exact, partial, and fuzzy matching.
     """
 
     def __init__(self, gazetteer_name: str):
@@ -24,25 +25,67 @@ class Gazetteer:
         """
         self.gazetteer_name = gazetteer_name
 
-    def get_candidates(self, toponyms: List[str]) -> List[List[Feature]]:
+    def search_exact(self, toponym: str, limit: int = 1000) -> List[Feature]:
         """
-        Retrieve candidate features by exact toponym matching.
+        Search for features with exactly matching toponyms.
+
+        Only returns features where the toponym text has exactly the same length
+        as the search query and matches case-insensitively.
 
         Args:
-            toponyms: List of toponym strings to find exact matches for
+            toponym: Toponym string to search for
+            limit: Maximum number of results to return (default: 1000)
 
         Returns:
-            List of lists of Feature objects. Each inner list contains
-            all features that have an exactly matching toponym in the gazetteer.
+            List of Feature objects that have this exact toponym
         """
         with Session(engine) as db:
-            results = []
+            return FeatureRepository.get_by_gazetteer_and_toponym_exact(
+                db, self.gazetteer_name, toponym, limit
+            )
 
-            for toponym in toponyms:
-                # Use the FeatureRepository to get features with exact toponym match
-                features = FeatureRepository.get_by_gazetteer_and_toponym(
-                    db, self.gazetteer_name, toponym
-                )
-                results.append(features)
+    def search_partial(
+        self, toponym: str, limit: int = 1000, ranks: int = 1
+    ) -> List[Feature]:
+        """
+        Search for features with toponyms containing the search term.
 
-            return results
+        Returns features where the toponym text contains the search query as a substring,
+        using BM25 ranking for relevance scoring.
+
+        Args:
+            toponym: Toponym string to search for
+            limit: Maximum number of results to return (default: 1000)
+            ranks: Number of rank groups to include in results (default: 1)
+
+        Returns:
+            List of Feature objects that have toponyms containing this text,
+            ordered by relevance (highest rank first)
+        """
+        with Session(engine) as db:
+            return FeatureRepository.get_by_gazetteer_and_toponym_partial(
+                db, self.gazetteer_name, toponym, limit, ranks
+            )
+
+    def search_fuzzy(
+        self, toponym: str, limit: int = 1000, ranks: int = 1
+    ) -> List[Feature]:
+        """
+        Search for features with toponyms fuzzy matching the search term.
+
+        Uses trigram-based fuzzy matching for approximate string matching,
+        allowing for typos and partial character matches with BM25 ranking.
+
+        Args:
+            toponym: Toponym string to search for
+            limit: Maximum number of results to return (default: 1000)
+            ranks: Number of rank groups to include in results (default: 1)
+
+        Returns:
+            List of Feature objects that have toponyms fuzzy matching this text,
+            ordered by relevance (highest rank first)
+        """
+        with Session(engine) as db:
+            return FeatureRepository.get_by_gazetteer_and_toponym_fuzzy(
+                db, self.gazetteer_name, toponym, limit, ranks
+            )
