@@ -67,7 +67,7 @@ def setup_fts(target, connection, **kw):
 
     This function is automatically called when the toponym table is created.
     It sets up:
-    1. An FTS5 virtual table for efficient text searching
+    1. An FTS5 virtual table with trigram tokenization for efficient text searching
     2. A trigger to keep the FTS table in sync with the main toponym table
 
     Args:
@@ -78,14 +78,14 @@ def setup_fts(target, connection, **kw):
     # Drop any existing toponym_fts table first (in case it was created by SQLModel)
     connection.execute(text("DROP TABLE IF EXISTS toponym_fts"))
 
-    # Create FTS5 virtual table for toponym search
+    # Create FTS5 virtual table for toponym search with trigram tokenizer
     connection.execute(
         text(
             """
         CREATE VIRTUAL TABLE toponym_fts USING fts5(
             text,
             content='',
-            tokenize="unicode61 tokenchars '.'"
+            tokenize='trigram'
         )
     """
         )
