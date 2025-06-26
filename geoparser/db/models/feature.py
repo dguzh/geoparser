@@ -50,7 +50,7 @@ class Feature(FeatureBase, table=True):
         with Session(engine) as db:
             # Build query to get the complete row
             query = text(
-                f"SELECT * FROM {self.table_name} WHERE {self.identifier_name} = '{self.identifier_value}'"
+                f"SELECT * FROM {self.table_name} WHERE {self.identifier_name} = '{self.identifier_value}' ORDER BY rowid"
             )
 
             result = db.execute(query)
