@@ -231,7 +231,7 @@ def test_execute_recognition_module(
                     test_db, module_id, test_project.id
                 )
                 mock_recognition_module.predict_references.assert_called_once_with(
-                    [test_document.text]
+                    [test_document]
                 )
                 mock_process.assert_called_once_with(
                     test_db, [test_document.id], [[(0, 5), (10, 15)]], module_id

@@ -79,14 +79,14 @@ def test_recognition_module_abstract():
 
 
 def test_recognition_module_implementation():
-    """Test a valid implementation of Recognizer."""
+    """Test a valid implementation of Recognizer with Document ORM objects."""
 
-    # Create a valid implementation
+    # Create a valid implementation that works with Document ORM objects
     class ValidRecognitionModule(Recognizer):
         NAME = "valid_recognition"
 
-        def predict_references(self, document_texts):
-            return [[(0, 5), (10, 15)] for _ in document_texts]
+        def predict_references(self, documents):
+            return [[(0, 5), (10, 15)] for _ in documents]
 
     # Should instantiate without errors
     module = ValidRecognitionModule()
@@ -96,8 +96,16 @@ def test_recognition_module_implementation():
     module = ValidRecognitionModule(custom_param="test")
     assert module.config == {"custom_param": "test"}
 
-    # Should produce expected output
-    documents = ["Test document 1", "Test document 2"]
+    # Should produce expected output with mock Document objects
+    from unittest.mock import MagicMock
+
+    # Create mock Document objects
+    doc1 = MagicMock()
+    doc1.text = "Test document 1"
+    doc2 = MagicMock()
+    doc2.text = "Test document 2"
+    documents = [doc1, doc2]
+
     result = module.predict_references(documents)
     assert len(result) == 2
     assert result[0] == [(0, 5), (10, 15)]
@@ -117,16 +125,16 @@ def test_resolution_module_abstract():
 
 
 def test_resolution_module_implementation():
-    """Test a valid implementation of Resolver."""
+    """Test a valid implementation of Resolver with Reference ORM objects."""
 
-    # Create a valid implementation
+    # Create a valid implementation that works with Reference ORM objects
     class ValidResolutionModule(Resolver):
         NAME = "valid_resolution"
 
-        def predict_referents(self, reference_data):
+        def predict_referents(self, references):
             return [
                 [("test_gazetteer", "loc1"), ("test_gazetteer", "loc2")]
-                for _ in reference_data
+                for _ in references
             ]
 
     # Should instantiate without errors
@@ -137,11 +145,24 @@ def test_resolution_module_implementation():
     module = ValidResolutionModule(model="test_model", threshold=0.5)
     assert module.config == {"model": "test_model", "threshold": 0.5}
 
-    # Should produce expected output
-    references = [
-        {"start": 0, "end": 5, "document_text": "Test document 1", "text": "Test"},
-        {"start": 10, "end": 15, "document_text": "Test document 2", "text": "docum"},
-    ]
+    # Should produce expected output with mock Reference objects
+    from unittest.mock import MagicMock
+
+    # Create mock Reference objects with Document relationships
+    ref1 = MagicMock()
+    ref1.start = 0
+    ref1.end = 5
+    ref1.text = "Test"
+    ref1.document.text = "Test document 1"
+
+    ref2 = MagicMock()
+    ref2.start = 10
+    ref2.end = 15
+    ref2.text = "docum"
+    ref2.document.text = "Test document 2"
+
+    references = [ref1, ref2]
+
     result = module.predict_referents(references)
     assert len(result) == 2
     assert result[0] == [("test_gazetteer", "loc1"), ("test_gazetteer", "loc2")]
