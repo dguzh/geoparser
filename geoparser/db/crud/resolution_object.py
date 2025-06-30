@@ -15,21 +15,21 @@ class ResolutionObjectRepository(BaseRepository[ResolutionObject]):
     model = ResolutionObject
 
     @classmethod
-    def get_by_location(
-        cls, db: Session, location_id: uuid.UUID
+    def get_by_referent(
+        cls, db: Session, referent_id: uuid.UUID
     ) -> t.List[ResolutionObject]:
         """
-        Get all resolution objects for a location.
+        Get all resolution objects for a referent.
 
         Args:
             db: Database session
-            location_id: ID of the location
+            referent_id: ID of the referent
 
         Returns:
             List of resolution objects
         """
         statement = select(ResolutionObject).where(
-            ResolutionObject.location_id == location_id
+            ResolutionObject.referent_id == referent_id
         )
         return db.exec(statement).unique().all()
 
@@ -53,22 +53,22 @@ class ResolutionObjectRepository(BaseRepository[ResolutionObject]):
         return db.exec(statement).unique().all()
 
     @classmethod
-    def get_by_location_and_module(
-        cls, db: Session, location_id: uuid.UUID, module_id: uuid.UUID
+    def get_by_referent_and_module(
+        cls, db: Session, referent_id: uuid.UUID, module_id: uuid.UUID
     ) -> t.Optional[ResolutionObject]:
         """
-        Get a resolution object for a specific location and module.
+        Get a resolution object for a specific referent and module.
 
         Args:
             db: Database session
-            location_id: ID of the location
+            referent_id: ID of the referent
             module_id: ID of the resolution module
 
         Returns:
             Resolution object if found, None otherwise
         """
         statement = select(ResolutionObject).where(
-            ResolutionObject.location_id == location_id,
+            ResolutionObject.referent_id == referent_id,
             ResolutionObject.module_id == module_id,
         )
         return db.exec(statement).unique().first()

@@ -1,17 +1,15 @@
 import pytest
 
-from geoparser.modules.interfaces import (
-    AbstractModule,
-    AbstractRecognitionModule,
-    AbstractResolutionModule,
-)
+from geoparser.modules.module import Module
+from geoparser.modules.recognizers.recognizer import Recognizer
+from geoparser.modules.resolvers.resolver import Resolver
 
 
 def test_base_module_init():
-    """Test initialization of AbstractModule with proper NAME attribute."""
+    """Test initialization of Module with proper NAME attribute."""
 
-    # Create a concrete subclass of AbstractModule with a NAME
-    class TestModule(AbstractModule):
+    # Create a concrete subclass of Module with a NAME
+    class TestModule(Module):
         NAME = "test_module"
 
     # Initialize with no config
@@ -26,10 +24,10 @@ def test_base_module_init():
 
 
 def test_base_module_init_missing_name():
-    """Test initialization of AbstractModule fails when NAME is not defined."""
+    """Test initialization of Module fails when NAME is not defined."""
 
-    # Create a concrete subclass of AbstractModule without a NAME
-    class InvalidModule(AbstractModule):
+    # Create a concrete subclass of Module without a NAME
+    class InvalidModule(Module):
         pass
 
     # Initialize should raise ValueError
@@ -38,10 +36,10 @@ def test_base_module_init_missing_name():
 
 
 def test_base_module_repr():
-    """Test the representation of a AbstractModule."""
+    """Test the representation of a Module."""
 
-    # Create a concrete subclass of AbstractModule with a NAME
-    class TestModule(AbstractModule):
+    # Create a concrete subclass of Module with a NAME
+    class TestModule(Module):
         NAME = "test_module"
 
     # Initialize with config parameters and check representation
@@ -56,8 +54,8 @@ def test_base_module_repr():
 def test_config_order_invariance():
     """Test that different order of parameters produces the same config hash."""
 
-    # Create a concrete subclass of AbstractModule with a NAME
-    class TestModule(AbstractModule):
+    # Create a concrete subclass of Module with a NAME
+    class TestModule(Module):
         NAME = "test_module"
 
     # Initialize with parameters in different orders
@@ -69,25 +67,25 @@ def test_config_order_invariance():
 
 
 def test_recognition_module_abstract():
-    """Test that AbstractRecognitionModule is abstract and requires implementation."""
+    """Test that Recognizer is abstract and requires implementation."""
 
     # Create a concrete subclass that doesn't implement required methods
-    class InvalidRecognitionModule(AbstractRecognitionModule):
+    class InvalidRecognitionModule(Recognizer):
         NAME = "invalid_recognition"
 
     # Should raise TypeError when instantiated due to abstract methods
-    with pytest.raises(TypeError, match="predict_toponyms"):
+    with pytest.raises(TypeError, match="predict_references"):
         InvalidRecognitionModule()
 
 
 def test_recognition_module_implementation():
-    """Test a valid implementation of AbstractRecognitionModule."""
+    """Test a valid implementation of Recognizer."""
 
     # Create a valid implementation
-    class ValidRecognitionModule(AbstractRecognitionModule):
+    class ValidRecognitionModule(Recognizer):
         NAME = "valid_recognition"
 
-        def predict_toponyms(self, document_texts):
+        def predict_references(self, document_texts):
             return [[(0, 5), (10, 15)] for _ in document_texts]
 
     # Should instantiate without errors
@@ -100,33 +98,36 @@ def test_recognition_module_implementation():
 
     # Should produce expected output
     documents = ["Test document 1", "Test document 2"]
-    result = module.predict_toponyms(documents)
+    result = module.predict_references(documents)
     assert len(result) == 2
     assert result[0] == [(0, 5), (10, 15)]
     assert result[1] == [(0, 5), (10, 15)]
 
 
 def test_resolution_module_abstract():
-    """Test that AbstractResolutionModule is abstract and requires implementation."""
+    """Test that Resolver is abstract and requires implementation."""
 
     # Create a concrete subclass that doesn't implement required methods
-    class InvalidResolutionModule(AbstractResolutionModule):
+    class InvalidResolutionModule(Resolver):
         NAME = "invalid_resolution"
 
     # Should raise TypeError when instantiated due to abstract methods
-    with pytest.raises(TypeError, match="predict_locations"):
+    with pytest.raises(TypeError, match="predict_referents"):
         InvalidResolutionModule()
 
 
 def test_resolution_module_implementation():
-    """Test a valid implementation of AbstractResolutionModule."""
+    """Test a valid implementation of Resolver."""
 
     # Create a valid implementation
-    class ValidResolutionModule(AbstractResolutionModule):
+    class ValidResolutionModule(Resolver):
         NAME = "valid_resolution"
 
-        def predict_locations(self, toponym_data):
-            return [[("loc1", 0.8), ("loc2", 0.6)] for _ in toponym_data]
+        def predict_referents(self, reference_data):
+            return [
+                [("test_gazetteer", "loc1"), ("test_gazetteer", "loc2")]
+                for _ in reference_data
+            ]
 
     # Should instantiate without errors
     module = ValidResolutionModule()
@@ -137,11 +138,11 @@ def test_resolution_module_implementation():
     assert module.config == {"model": "test_model", "threshold": 0.5}
 
     # Should produce expected output
-    toponyms = [
+    references = [
         {"start": 0, "end": 5, "document_text": "Test document 1", "text": "Test"},
         {"start": 10, "end": 15, "document_text": "Test document 2", "text": "docum"},
     ]
-    result = module.predict_locations(toponyms)
+    result = module.predict_referents(references)
     assert len(result) == 2
-    assert result[0] == [("loc1", 0.8), ("loc2", 0.6)]
-    assert result[1] == [("loc1", 0.8), ("loc2", 0.6)]
+    assert result[0] == [("test_gazetteer", "loc1"), ("test_gazetteer", "loc2")]
+    assert result[1] == [("test_gazetteer", "loc1"), ("test_gazetteer", "loc2")]

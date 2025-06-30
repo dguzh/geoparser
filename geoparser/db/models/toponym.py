@@ -1,115 +1,105 @@
 import typing as t
-import uuid
 
-from sqlalchemy import UUID, Column, ForeignKey
+from sqlalchemy import UniqueConstraint, event, text
 from sqlmodel import Field, Relationship, SQLModel
 
 if t.TYPE_CHECKING:
-    from geoparser.db.models.document import Document
-    from geoparser.db.models.location import Location, LocationRead
-    from geoparser.db.models.recognition_module import RecognitionModuleRead
-    from geoparser.db.models.recognition_object import RecognitionObject
-    from geoparser.db.models.resolution_subject import ResolutionSubject
+    from geoparser.db.models.feature import Feature
 
 
 class ToponymBase(SQLModel):
     """Base model for toponym data."""
 
-    start: int  # Start position of the toponym in the document text
-    end: int  # End position of the toponym in the document text
-    text: t.Optional[str] = None  # The actual text of the toponym
+    text: str = Field(index=True)
+    feature_id: int = Field(foreign_key="feature.id", index=True)
 
 
 class Toponym(ToponymBase, table=True):
     """
-    Represents a toponym (place name) identified in a document.
+    Represents a toponym associated with a gazetteer feature.
 
-    A toponym is a place name found in text, defined by its start and end positions.
-    It can have multiple potential location interpretations (resolved locations).
+    A toponym maps place names (strings) to feature IDs. Multiple toponyms can
+    reference the same feature, and the same toponym can reference multiple features.
+
+    This model automatically creates an FTS (Full-Text Search) virtual table
+    for efficient partial matching of toponyms.
     """
 
-    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-    document_id: uuid.UUID = Field(
-        sa_column=Column(
-            UUID, ForeignKey("document.id", ondelete="CASCADE"), nullable=False
-        )
+    __table_args__ = (
+        UniqueConstraint("text", "feature_id", name="uq_toponym_feature"),
     )
-    document: "Document" = Relationship(back_populates="toponyms")
-    locations: list["Location"] = Relationship(
-        back_populates="toponym",
-        sa_relationship_kwargs={
-            "cascade": "all, delete-orphan",
-            "passive_deletes": True,
-            "lazy": "joined",  # Enable eager loading
-        },
-    )
-    recognition_objects: list["RecognitionObject"] = Relationship(
-        back_populates="toponym",
-        sa_relationship_kwargs={
-            "cascade": "all, delete-orphan",
-            "passive_deletes": True,
-            "lazy": "joined",
-        },
-    )
-    resolution_subjects: list["ResolutionSubject"] = Relationship(
-        back_populates="toponym",
-        sa_relationship_kwargs={
-            "cascade": "all, delete-orphan",
-            "passive_deletes": True,
-        },
-    )
+
+    id: int = Field(primary_key=True)
+    feature: "Feature" = Relationship(back_populates="toponyms")
+
+
+class ToponymFTS(SQLModel, table=True):
+    """
+    Read-only mapping to the toponym_fts virtual table.
+
+    This provides access to the FTS5 virtual table for full-text search
+    operations on toponyms with case-insensitive matching and text normalization.
+    """
+
+    __tablename__ = "toponym_fts"
+
+    rowid: int = Field(primary_key=True)
+    text: str
 
 
 class ToponymCreate(ToponymBase):
-    """
-    Model for creating a new toponym.
-
-    Includes the document_id to associate the toponym with a document.
-    """
-
-    document_id: uuid.UUID
+    """Model for creating a new toponym."""
 
 
 class ToponymUpdate(SQLModel):
     """Model for updating an existing toponym."""
 
-    id: uuid.UUID
-    document_id: t.Optional[uuid.UUID] = None
-    start: t.Optional[int] = None
-    end: t.Optional[int] = None
-
-
-class ToponymRead(SQLModel):
-    """
-    Model for reading toponym data.
-
-    Only exposes the id, document_id, start, end, text and locations of a toponym.
-    """
-
-    id: uuid.UUID
-    document_id: uuid.UUID
-    start: int
-    end: int
+    id: int
     text: t.Optional[str] = None
-    locations: list["LocationRead"] = []
-    modules: list["RecognitionModuleRead"] = []
+    feature_id: t.Optional[int] = None
 
-    model_config = {"from_attributes": True}
 
-    def __str__(self) -> str:
-        """
-        Return a string representation of the toponym.
+# Event listener to create FTS table and triggers after toponym table creation
+@event.listens_for(Toponym.__table__, "after_create")
+def setup_fts(target, connection, **kw):
+    """
+    Create FTS virtual table and trigger for toponym full-text search.
 
-        Returns:
-            String with toponym indicator and text content
-        """
-        return f'Toponym("{self.text}")' if self.text else 'Toponym("<unnamed>")'
+    This function is automatically called when the toponym table is created.
+    It sets up:
+    1. An FTS5 virtual table with trigram tokenization for efficient text searching
+    2. A trigger to keep the FTS table in sync with the main toponym table
 
-    def __repr__(self) -> str:
-        """
-        Return a developer representation of the toponym.
+    Args:
+        target: The table that was created (toponym table)
+        connection: Database connection
+        **kw: Additional keyword arguments
+    """
+    # Drop any existing toponym_fts table first (in case it was created by SQLModel)
+    connection.execute(text("DROP TABLE IF EXISTS toponym_fts"))
 
-        Returns:
-            Same as __str__ method
-        """
-        return self.__str__()
+    # Create FTS5 virtual table for toponym search with trigram tokenizer
+    connection.execute(
+        text(
+            """
+        CREATE VIRTUAL TABLE toponym_fts USING fts5(
+            text,
+            content='',
+            tokenize='trigram'
+        )
+    """
+        )
+    )
+
+    # Create trigger for INSERT operations
+    connection.execute(
+        text(
+            """
+        CREATE TRIGGER IF NOT EXISTS toponym_fts_insert 
+        AFTER INSERT ON toponym 
+        BEGIN
+            INSERT INTO toponym_fts(rowid, text) VALUES (new.id, new.text);
+        END
+    """
+        )
+    )

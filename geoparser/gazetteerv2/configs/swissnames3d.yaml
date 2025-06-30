@@ -1,0 +1,280 @@
+name: swissnames3d
+sources:
+  - name: swissNAMES3D_PKT
+    type: spatial
+    url: https://data.geo.admin.ch/ch.swisstopo.swissnames3d/swissnames3d_2024/swissnames3d_2024_2056.shp.zip
+    file: swissNAMES3D_PKT.shp
+    attributes:
+      - name: UUID
+        type: TEXT
+        primary: true
+      - name: OBJEKTART
+        type: TEXT
+      - name: OBJEKTKLAS
+        type: TEXT
+      - name: HOEHE
+        type: REAL
+      - name: GEBAEUDENU
+        type: INTEGER
+      - name: NAME_UUID
+        type: TEXT
+        primary: true
+      - name: NAME
+        type: TEXT
+      - name: STATUS
+        type: TEXT
+      - name: SPRACHCODE
+        type: TEXT
+      - name: NAMEN_TYP
+        type: TEXT
+      - name: NAMENGRUPP
+        type: TEXT
+      - name: geometry
+        type: TEXT
+
+  - name: swissNAMES3D_LIN
+    type: spatial
+    url: https://data.geo.admin.ch/ch.swisstopo.swissnames3d/swissnames3d_2024/swissnames3d_2024_2056.shp.zip
+    file: swissNAMES3D_LIN.shp
+    attributes:
+      - name: UUID
+        type: TEXT
+        primary: true
+      - name: OBJEKTART
+        type: TEXT
+      - name: OBJEKTKLAS
+        type: TEXT
+      - name: KUNSTBAUTE
+        type: TEXT
+      - name: NAME_UUID
+        type: TEXT
+        primary: true
+      - name: NAME
+        type: TEXT
+      - name: STATUS
+        type: TEXT
+      - name: SPRACHCODE
+        type: TEXT
+      - name: NAMEN_TYP
+        type: TEXT
+      - name: NAMENGRUPP
+        type: TEXT
+      - name: geometry
+        type: TEXT
+
+  - name: swissNAMES3D_PLY
+    type: spatial
+    url: https://data.geo.admin.ch/ch.swisstopo.swissnames3d/swissnames3d_2024/swissnames3d_2024_2056.shp.zip
+    file: swissNAMES3D_PLY.shp
+    attributes:
+      - name: UUID
+        type: TEXT
+        primary: true
+      - name: OBJEKTART
+        type: TEXT
+      - name: OBJEKTKLAS
+        type: TEXT
+      - name: EINWOHNERK
+        type: INTEGER
+      - name: NAME_UUID
+        type: TEXT
+        primary: true
+      - name: NAME
+        type: TEXT
+      - name: STATUS
+        type: TEXT
+      - name: SPRACHCODE
+        type: TEXT
+      - name: NAMEN_TYP
+        type: TEXT
+      - name: NAMENGRUPP
+        type: TEXT
+      - name: ISCED
+        type: TEXT
+      - name: geometry
+        type: TEXT
+
+  - name: swissBOUNDARIES3D_1_5_TLM_HOHEITSGEBIET
+    type: spatial
+    url: https://data.geo.admin.ch/ch.swisstopo.swissboundaries3d/swissboundaries3d_2024-01/swissboundaries3d_2024-01_2056_5728.shp.zip
+    file: swissBOUNDARIES3D_1_5_TLM_HOHEITSGEBIET.shp
+    attributes:
+      - name: UUID
+        type: TEXT
+        primary: true
+      - name: DATUM_AEND
+        type: TEXT
+      - name: DATUM_ERST
+        type: TEXT
+      - name: ERSTELL_J
+        type: INTEGER
+      - name: ERSTELL_M
+        type: INTEGER
+      - name: GRUND_AEND
+        type: TEXT
+      - name: HERKUNFT
+        type: TEXT
+      - name: HERKUNFT_J
+        type: INTEGER
+      - name: HERKUNFT_M
+        type: INTEGER
+      - name: REVISION_J
+        type: INTEGER
+      - name: REVISION_M
+        type: INTEGER
+      - name: REVISION_Q
+        type: INTEGER
+      - name: OBJEKTART
+        type: TEXT
+      - name: BFS_NUMMER
+        type: INTEGER
+      - name: BEZIRKSNUM
+        type: INTEGER
+      - name: KANTONSNUM
+        type: INTEGER
+      - name: NAME
+        type: TEXT
+      - name: GEM_FLAECH
+        type: REAL
+      - name: SEE_FLAECH
+        type: REAL
+      - name: ICC
+        type: TEXT
+      - name: SHN
+        type: TEXT
+      - name: EINWOHNERZ
+        type: INTEGER
+      - name: HIST_NR
+        type: INTEGER
+      - name: geometry
+        type: TEXT
+
+  - name: swissBOUNDARIES3D_1_5_TLM_BEZIRKSGEBIET
+    type: spatial
+    url: https://data.geo.admin.ch/ch.swisstopo.swissboundaries3d/swissboundaries3d_2024-01/swissboundaries3d_2024-01_2056_5728.shp.zip
+    file: swissBOUNDARIES3D_1_5_TLM_BEZIRKSGEBIET.shp
+    attributes:
+      - name: UUID
+        type: TEXT
+        primary: true
+      - name: DATUM_AEND
+        type: TEXT
+      - name: DATUM_ERST
+        type: TEXT
+      - name: ERSTELL_J
+        type: INTEGER
+      - name: ERSTELL_M
+        type: INTEGER
+      - name: GRUND_AEND
+        type: TEXT
+      - name: HERKUNFT
+        type: TEXT
+      - name: HERKUNFT_J
+        type: INTEGER
+      - name: HERKUNFT_M
+        type: INTEGER
+      - name: REVISION_J
+        type: INTEGER
+      - name: REVISION_M
+        type: INTEGER
+      - name: REVISION_Q
+        type: INTEGER
+      - name: OBJEKTART
+        type: TEXT
+      - name: BEZIRKSNUM
+        type: INTEGER
+      - name: SEE_FLAECH
+        type: REAL
+      - name: BEZIRKSFLA
+        type: REAL
+      - name: NAME
+        type: TEXT
+      - name: KANTONSNUM
+        type: INTEGER
+      - name: ICC
+        type: TEXT
+      - name: EINWOHNERZ
+        type: INTEGER
+      - name: geometry
+        type: TEXT
+
+  - name: swissBOUNDARIES3D_1_5_TLM_KANTONSGEBIET
+    type: spatial
+    url: https://data.geo.admin.ch/ch.swisstopo.swissboundaries3d/swissboundaries3d_2024-01/swissboundaries3d_2024-01_2056_5728.shp.zip
+    file: swissBOUNDARIES3D_1_5_TLM_KANTONSGEBIET.shp
+    attributes:
+      - name: UUID
+        type: TEXT
+        primary: true
+      - name: DATUM_AEND
+        type: TEXT
+      - name: DATUM_ERST
+        type: TEXT
+      - name: ERSTELL_J
+        type: INTEGER
+      - name: ERSTELL_M
+        type: INTEGER
+      - name: GRUND_AEND
+        type: TEXT
+      - name: HERKUNFT
+        type: TEXT
+      - name: HERKUNFT_J
+        type: INTEGER
+      - name: HERKUNFT_M
+        type: INTEGER
+      - name: REVISION_J
+        type: INTEGER
+      - name: REVISION_M
+        type: INTEGER
+      - name: REVISION_Q
+        type: INTEGER
+      - name: OBJEKTART
+        type: TEXT
+      - name: KANTONSNUM
+        type: INTEGER
+      - name: SEE_FLAECH
+        type: REAL
+      - name: KANTONSFLA
+        type: REAL
+      - name: NAME
+        type: TEXT
+      - name: ICC
+        type: TEXT
+      - name: EINWOHNERZ
+        type: INTEGER
+      - name: geometry
+        type: TEXT 
+
+features:
+  - table: swissNAMES3D_PKT
+    identifier_column: UUID
+  - table: swissNAMES3D_LIN
+    identifier_column: UUID
+  - table: swissNAMES3D_PLY
+    identifier_column: UUID
+  - table: swissBOUNDARIES3D_1_5_TLM_HOHEITSGEBIET
+    identifier_column: UUID
+  - table: swissBOUNDARIES3D_1_5_TLM_BEZIRKSGEBIET
+    identifier_column: UUID
+  - table: swissBOUNDARIES3D_1_5_TLM_KANTONSGEBIET
+    identifier_column: UUID
+
+toponyms:
+  - table: swissNAMES3D_PKT
+    identifier_column: UUID
+    toponym_column: NAME
+  - table: swissNAMES3D_LIN
+    identifier_column: UUID
+    toponym_column: NAME
+  - table: swissNAMES3D_PLY
+    identifier_column: UUID
+    toponym_column: NAME
+  - table: swissBOUNDARIES3D_1_5_TLM_HOHEITSGEBIET
+    identifier_column: UUID
+    toponym_column: NAME
+  - table: swissBOUNDARIES3D_1_5_TLM_BEZIRKSGEBIET
+    identifier_column: UUID
+    toponym_column: NAME
+  - table: swissBOUNDARIES3D_1_5_TLM_KANTONSGEBIET
+    identifier_column: UUID
+    toponym_column: NAME

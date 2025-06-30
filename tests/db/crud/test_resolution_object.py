@@ -2,10 +2,15 @@ import uuid
 
 from sqlmodel import Session
 
-from geoparser.db.crud import LocationRepository, ResolutionObjectRepository
+from geoparser.db.crud import (
+    FeatureRepository,
+    ReferentRepository,
+    ResolutionObjectRepository,
+)
 from geoparser.db.models import (
-    Location,
-    LocationCreate,
+    FeatureCreate,
+    Referent,
+    ReferentCreate,
     ResolutionModule,
     ResolutionModuleCreate,
     ResolutionObject,
@@ -16,26 +21,26 @@ from geoparser.db.models import (
 
 def test_create(
     test_db: Session,
-    test_location: Location,
+    test_referent: Referent,
     test_resolution_module: ResolutionModule,
 ):
     """Test creating a resolution object."""
     # Create a resolution object using the create model with all required fields
     resolution_create = ResolutionObjectCreate(
-        module_id=test_resolution_module.id, location_id=test_location.id
+        module_id=test_resolution_module.id, referent_id=test_referent.id
     )
 
     # Create the resolution object
     created_resolution = ResolutionObjectRepository.create(test_db, resolution_create)
 
     assert created_resolution.id is not None
-    assert created_resolution.location_id == test_location.id
+    assert created_resolution.referent_id == test_referent.id
     assert created_resolution.module_id == test_resolution_module.id
 
     # Verify it was saved to the database
     db_resolution = test_db.get(ResolutionObject, created_resolution.id)
     assert db_resolution is not None
-    assert db_resolution.location_id == test_location.id
+    assert db_resolution.referent_id == test_referent.id
     assert db_resolution.module_id == test_resolution_module.id
 
 
@@ -45,7 +50,7 @@ def test_get(test_db: Session, test_resolution_object: ResolutionObject):
     resolution = ResolutionObjectRepository.get(test_db, test_resolution_object.id)
     assert resolution is not None
     assert resolution.id == test_resolution_object.id
-    assert resolution.location_id == test_resolution_object.location_id
+    assert resolution.referent_id == test_resolution_object.referent_id
     assert resolution.module_id == test_resolution_object.module_id
 
     # Test with invalid ID
@@ -54,13 +59,13 @@ def test_get(test_db: Session, test_resolution_object: ResolutionObject):
     assert resolution is None
 
 
-def test_get_by_location(
+def test_get_by_referent(
     test_db: Session,
-    test_location: Location,
+    test_referent: Referent,
     test_resolution_object: ResolutionObject,
     test_resolution_module: ResolutionModule,
 ):
-    """Test getting resolution objects by location ID."""
+    """Test getting resolution objects by referent ID."""
     # Create another resolution module
     config = {"gazetteer": "test-gazetteer"}
     module_create = ResolutionModuleCreate(
@@ -71,23 +76,23 @@ def test_get_by_location(
     test_db.commit()
     test_db.refresh(module)
 
-    # Create another resolution object for the same location
+    # Create another resolution object for the same referent
     resolution_create = ResolutionObjectCreate(
-        module_id=module.id, location_id=test_location.id
+        module_id=module.id, referent_id=test_referent.id
     )
 
     # Create the resolution object
     ResolutionObjectRepository.create(test_db, resolution_create)
 
-    # Get resolution objects by location
-    resolutions = ResolutionObjectRepository.get_by_location(test_db, test_location.id)
+    # Get resolution objects by referent
+    resolutions = ResolutionObjectRepository.get_by_referent(test_db, test_referent.id)
     assert len(resolutions) == 2
     assert any(r.module_id == test_resolution_module.id for r in resolutions)
     assert any(r.module_id == module.id for r in resolutions)
 
-    # Test with invalid location ID
+    # Test with invalid referent ID
     invalid_id = uuid.uuid4()
-    resolutions = ResolutionObjectRepository.get_by_location(test_db, invalid_id)
+    resolutions = ResolutionObjectRepository.get_by_referent(test_db, invalid_id)
     assert len(resolutions) == 0
 
 
@@ -97,19 +102,27 @@ def test_get_by_module(
     test_resolution_module: ResolutionModule,
 ):
     """Test getting resolution objects by module ID."""
-    # Create another location
-    location_create = LocationCreate(
-        location_id="another-location",
-        confidence=0.7,
-        toponym_id=test_resolution_object.location.toponym_id,
+    # Create another feature
+    feature_create = FeatureCreate(
+        gazetteer_name="another-gazetteer",
+        table_name="another_table",
+        identifier_name="another_id",
+        identifier_value="another-referent",
+    )
+    another_feature = FeatureRepository.create(test_db, feature_create)
+
+    # Create another referent
+    referent_create = ReferentCreate(
+        reference_id=test_resolution_object.referent.reference_id,
+        feature_id=another_feature.id,
     )
 
-    # Create the location
-    location = LocationRepository.create(test_db, location_create)
+    # Create the referent
+    referent = ReferentRepository.create(test_db, referent_create)
 
     # Create another resolution object for the same module
     resolution_create = ResolutionObjectCreate(
-        module_id=test_resolution_module.id, location_id=location.id
+        module_id=test_resolution_module.id, referent_id=referent.id
     )
 
     # Create the resolution object
@@ -132,7 +145,7 @@ def test_get_all(test_db: Session, test_resolution_object: ResolutionObject):
     # Create another resolution object
     resolution_create = ResolutionObjectCreate(
         module_id=test_resolution_object.module_id,
-        location_id=test_resolution_object.location_id,
+        referent_id=test_resolution_object.referent_id,
     )
 
     # Create the resolution object

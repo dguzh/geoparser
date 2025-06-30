@@ -10,7 +10,7 @@ from geoparser.db.models.validators import normalize_newlines
 if t.TYPE_CHECKING:
     from geoparser.db.models.project import Project
     from geoparser.db.models.recognition_subject import RecognitionSubject
-    from geoparser.db.models.toponym import Toponym, ToponymRead
+    from geoparser.db.models.reference import Reference
 
 
 class DocumentBase(SQLModel):
@@ -25,9 +25,9 @@ class DocumentBase(SQLModel):
 
 class Document(DocumentBase, table=True):
     """
-    Represents a document to be processed for toponym recognition and resolution.
+    Represents a document to be processed for reference recognition and resolution.
 
-    A document belongs to a project and can contain multiple toponyms.
+    A document belongs to a project and can contain multiple references.
     """
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
@@ -37,10 +37,10 @@ class Document(DocumentBase, table=True):
         )
     )
     project: "Project" = Relationship(back_populates="documents")
-    toponyms: list["Toponym"] = Relationship(
+    references: list["Reference"] = Relationship(
         back_populates="document",
         sa_relationship_kwargs={
-            "order_by": "Toponym.start",
+            "order_by": "Reference.start",
             "cascade": "all, delete-orphan",
             "passive_deletes": True,
             "lazy": "joined",  # Enable eager loading
@@ -53,38 +53,6 @@ class Document(DocumentBase, table=True):
             "passive_deletes": True,
         },
     )
-
-
-class DocumentCreate(DocumentBase):
-    """
-    Model for creating a new document.
-
-    Includes the project_id to associate the document with a project.
-    """
-
-    project_id: uuid.UUID
-
-
-class DocumentUpdate(SQLModel):
-    """Model for updating an existing document."""
-
-    id: uuid.UUID
-    project_id: t.Optional[uuid.UUID] = None
-    text: t.Optional[str] = None
-
-
-class DocumentRead(SQLModel):
-    """
-    Model for reading document data.
-
-    Only exposes the id, text and toponyms of a document.
-    """
-
-    id: uuid.UUID
-    text: str
-    toponyms: list["ToponymRead"] = []
-
-    model_config = {"from_attributes": True}
 
     def __str__(self) -> str:
         """
@@ -103,3 +71,21 @@ class DocumentRead(SQLModel):
             Same as __str__ method
         """
         return self.__str__()
+
+
+class DocumentCreate(DocumentBase):
+    """
+    Model for creating a new document.
+
+    Includes the project_id to associate the document with a project.
+    """
+
+    project_id: uuid.UUID
+
+
+class DocumentUpdate(SQLModel):
+    """Model for updating an existing document."""
+
+    id: uuid.UUID
+    project_id: t.Optional[uuid.UUID] = None
+    text: t.Optional[str] = None

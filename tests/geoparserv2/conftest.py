@@ -10,14 +10,12 @@ from geoparser.db.models import (
     DocumentCreate,
     Project,
     ProjectCreate,
-    Toponym,
-    ToponymCreate,
+    Reference,
+    ReferenceCreate,
 )
 from geoparser.geoparserv2.geoparserv2 import GeoparserV2
-from geoparser.modules.interfaces import (
-    AbstractRecognitionModule,
-    AbstractResolutionModule,
-)
+from geoparser.modules.recognizers.recognizer import Recognizer
+from geoparser.modules.resolvers.resolver import Resolver
 from geoparser.orchestrator import Orchestrator
 
 
@@ -44,23 +42,21 @@ def test_project(test_db: Session):
 
 
 @pytest.fixture
-def mock_get_db(test_db):
-    """Mock the get_db function to return our test database session."""
-    with patch("geoparser.geoparserv2.geoparserv2.get_db") as mock:
-        mock.return_value = iter([test_db])
-        yield mock
-
-
-@pytest.fixture
-def geoparser_with_existing_project(mock_get_db, test_project):
+def geoparser_with_existing_project(test_db, test_project):
     """Create a GeoparserV2 instance with an existing project."""
-    return GeoparserV2(project_name=test_project.name)
+    with patch("geoparser.geoparserv2.geoparserv2.Session") as mock_session:
+        mock_session.return_value.__enter__.return_value = test_db
+        mock_session.return_value.__exit__.return_value = None
+        return GeoparserV2(project_name=test_project.name)
 
 
 @pytest.fixture
-def geoparser_with_new_project(mock_get_db):
+def geoparser_with_new_project(test_db):
     """Create a GeoparserV2 instance with a new project."""
-    return GeoparserV2(project_name="new-test-project")
+    with patch("geoparser.geoparserv2.geoparserv2.Session") as mock_session:
+        mock_session.return_value.__enter__.return_value = test_db
+        mock_session.return_value.__exit__.return_value = None
+        return GeoparserV2(project_name="new-test-project")
 
 
 @pytest.fixture
@@ -78,33 +74,33 @@ def test_document(test_db, test_project):
 
 
 @pytest.fixture
-def test_toponym(test_db, test_document):
-    """Create a test toponym in the test document."""
-    toponym_create = ToponymCreate(start=29, end=35, document_id=test_document.id)
-    toponym = Toponym.model_validate(toponym_create)
-    test_db.add(toponym)
+def test_reference(test_db, test_document):
+    """Create a test reference in the test document."""
+    reference_create = ReferenceCreate(start=29, end=35, document_id=test_document.id)
+    reference = Reference.model_validate(reference_create)
+    test_db.add(reference)
     test_db.commit()
-    test_db.refresh(toponym)
-    return toponym
+    test_db.refresh(reference)
+    return reference
 
 
 @pytest.fixture
 def mock_recognition_module():
     """Create a mock recognition module for testing."""
-    module = MagicMock(spec=AbstractRecognitionModule)
+    module = MagicMock(spec=Recognizer)
     module.name = "mock_recognition"
     module.config = {"param": "value"}
-    module.predict_toponyms.return_value = [[(29, 35), (41, 46)]]
+    module.predict_references.return_value = [[(29, 35), (41, 46)]]
     return module
 
 
 @pytest.fixture
 def mock_resolution_module():
     """Create a mock resolution module for testing."""
-    module = MagicMock(spec=AbstractResolutionModule)
+    module = MagicMock(spec=Resolver)
     module.name = "mock_resolution"
     module.config = {"param": "value"}
-    module.predict_locations.return_value = [[("loc1", 0.8), ("loc2", 0.6)]]
+    module.predict_referents.return_value = [[("loc1", 0.8), ("loc2", 0.6)]]
     return module
 
 

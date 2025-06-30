@@ -3,22 +3,12 @@ import typing as t
 import uuid
 from typing import List, Optional, Union
 
+from sqlmodel import Session
+
 from geoparser.db.crud import DocumentRepository, ProjectRepository
-from geoparser.db.db import get_db
-from geoparser.db.models import (
-    Document,
-    DocumentCreate,
-    DocumentRead,
-    Location,
-    LocationRead,
-    Project,
-    ProjectCreate,
-    RecognitionModuleRead,
-    ResolutionModuleRead,
-    Toponym,
-    ToponymRead,
-)
-from geoparser.modules.interfaces import AbstractModule
+from geoparser.db.db import engine
+from geoparser.db.models import Document, DocumentCreate, Project, ProjectCreate
+from geoparser.modules.module import Module
 from geoparser.orchestrator import Orchestrator
 
 
@@ -33,7 +23,7 @@ class GeoparserV2:
     def __init__(
         self,
         project_name: Optional[str] = None,
-        pipeline: Optional[List[AbstractModule]] = None,
+        pipeline: Optional[List[Module]] = None,
     ):
         """
         Initialize a GeoparserV2 instance.
@@ -61,21 +51,20 @@ class GeoparserV2:
         Returns:
             Project ID that was loaded or created
         """
-        db = next(get_db())
+        with Session(engine) as db:
+            # Try to load existing project
+            project = ProjectRepository.get_by_name(db, project_name)
 
-        # Try to load existing project
-        project = ProjectRepository.get_by_name(db, project_name)
+            # Create new project if it doesn't exist
+            if project is None:
+                logging.info(
+                    f"No project found with name '{project_name}'; creating a new one."
+                )
+                project_create = ProjectCreate(name=project_name)
+                project = Project(name=project_create.name)
+                project = ProjectRepository.create(db, project)
 
-        # Create new project if it doesn't exist
-        if project is None:
-            logging.info(
-                f"No project found with name '{project_name}'; creating a new one."
-            )
-            project_create = ProjectCreate(name=project_name)
-            project = Project(name=project_create.name)
-            project = ProjectRepository.create(db, project)
-
-        return project.id
+            return project.id
 
     def add_documents(self, texts: Union[str, List[str]]) -> List[uuid.UUID]:
         """
@@ -87,109 +76,50 @@ class GeoparserV2:
         Returns:
             List of UUIDs of the created documents
         """
-        db = next(get_db())
+        with Session(engine) as db:
+            # Convert single string to list for uniform processing
+            if isinstance(texts, str):
+                texts = [texts]
 
-        # Convert single string to list for uniform processing
-        if isinstance(texts, str):
-            texts = [texts]
+            document_ids = []
+            for text in texts:
+                document_create = DocumentCreate(text=text, project_id=self.project_id)
+                document = DocumentRepository.create(db, document_create)
+                document_ids.append(document.id)
 
-        document_ids = []
-        for text in texts:
-            document_create = DocumentCreate(text=text, project_id=self.project_id)
-            document = DocumentRepository.create(db, document_create)
-            document_ids.append(document.id)
-
-        return document_ids
+            return document_ids
 
     def get_documents(
         self, document_ids: t.Optional[List[uuid.UUID]] = None
-    ) -> List[DocumentRead]:
+    ) -> List[Document]:
         """
-        Retrieve documents with their associated toponyms and locations.
+        Retrieve documents with their associated references and referents.
 
         This method fetches document objects from the database along with their
-        related toponyms and locations, enabling traversal like:
-        documents[0].toponyms[0].locations[0]
+        related references and referents, enabling traversal like:
+        documents[0].references[0].referents[0]
 
         Args:
             document_ids: Optional list of document IDs to retrieve.
                           If None, retrieves all documents in the project.
 
         Returns:
-            List of DocumentRead objects with related toponyms and locations.
+            List of Document objects with related references and referents.
         """
-        db = next(get_db())
+        with Session(engine) as db:
+            if document_ids:
+                # Retrieve specific documents by their IDs
+                documents = [
+                    DocumentRepository.get(db, doc_id) for doc_id in document_ids
+                ]
+            else:
+                # Retrieve all documents for the project
+                documents = DocumentRepository.get_by_project(db, self.project_id)
 
-        if document_ids:
-            # Retrieve specific documents by their IDs
-            documents = [DocumentRepository.get(db, doc_id) for doc_id in document_ids]
-        else:
-            # Retrieve all documents for the project
-            documents = DocumentRepository.get_by_project(db, self.project_id)
+            # Return the ORM objects directly
+            return [doc for doc in documents if doc is not None]
 
-        # Convert ORM objects to read models
-        return [self._convert_to_document_read(doc) for doc in documents]
-
-    def _convert_to_document_read(self, document: "Document") -> DocumentRead:
-        """
-        Convert a Document ORM object to a DocumentRead model, including all related objects.
-
-        Args:
-            document: The Document ORM object to convert
-
-        Returns:
-            A DocumentRead object with nested ToponymRead and LocationRead objects
-        """
-        doc_read = DocumentRead.model_validate(document)
-        doc_read.toponyms = [
-            self._convert_to_toponym_read(toponym) for toponym in document.toponyms
-        ]
-        return doc_read
-
-    def _convert_to_toponym_read(self, toponym: "Toponym") -> ToponymRead:
-        """
-        Convert a Toponym ORM object to a ToponymRead model, including all related objects.
-
-        Args:
-            toponym: The Toponym ORM object to convert
-
-        Returns:
-            A ToponymRead object with nested LocationRead objects
-        """
-        toponym_read = ToponymRead.model_validate(toponym)
-
-        toponym_read.locations = [
-            self._convert_to_location_read(location) for location in toponym.locations
-        ]
-
-        toponym_read.modules = [
-            RecognitionModuleRead.model_validate(recog_obj.module)
-            for recog_obj in toponym.recognition_objects
-        ]
-
-        return toponym_read
-
-    def _convert_to_location_read(self, location: "Location") -> LocationRead:
-        """
-        Convert a Location ORM object to a LocationRead model, including all related objects.
-
-        Args:
-            location: The Location ORM object to convert
-
-        Returns:
-            A LocationRead object with related module information
-        """
-        location_read = LocationRead.model_validate(location)
-
-        # Extract and convert the modules from resolution_objects
-        location_read.modules = [
-            ResolutionModuleRead.model_validate(resol_obj.module)
-            for resol_obj in location.resolution_objects
-        ]
-
-        return location_read
-
-    def run_module(self, module: AbstractModule) -> None:
+    def run_module(self, module: Module) -> None:
         """
         Run a single processing module on the project's documents.
 
@@ -207,7 +137,7 @@ class GeoparserV2:
         for module in self.pipeline:
             self.run_module(module)
 
-    def parse(self, texts: Union[str, List[str]]) -> List[DocumentRead]:
+    def parse(self, texts: Union[str, List[str]]) -> List[Document]:
         """
         Parse one or more texts with the configured pipeline.
 
@@ -218,7 +148,7 @@ class GeoparserV2:
             texts: Either a single document text or a list of texts
 
         Returns:
-            List of DocumentRead objects with processed toponyms and locations
+            List of Document objects with processed references and referents
         """
         # Add documents to the project and get their IDs
         document_ids = self.add_documents(texts)

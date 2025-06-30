@@ -39,32 +39,6 @@ class ResolutionModule(ResolutionModuleBase, table=True):
         },
     )
 
-
-class ResolutionModuleCreate(ResolutionModuleBase):
-    """Model for creating a new resolution module record."""
-
-
-class ResolutionModuleUpdate(SQLModel):
-    """Model for updating a resolution module record."""
-
-    id: uuid.UUID
-    name: t.Optional[str] = None
-    config: t.Optional[t.Dict[str, t.Any]] = None
-
-
-class ResolutionModuleRead(SQLModel):
-    """
-    Model for reading resolution module data.
-
-    Only exposes the id, name and config of a resolution module.
-    """
-
-    id: uuid.UUID
-    name: str
-    config: t.Dict[str, t.Any]
-
-    model_config = {"from_attributes": True}
-
     def __str__(self) -> str:
         """
         Return a string representation of the resolution module.
@@ -83,3 +57,15 @@ class ResolutionModuleRead(SQLModel):
             Same as __str__ method
         """
         return self.__str__()
+
+
+class ResolutionModuleCreate(ResolutionModuleBase):
+    """Model for creating a new resolution module record."""
+
+
+class ResolutionModuleUpdate(SQLModel):
+    """Model for updating a resolution module record."""
+
+    id: uuid.UUID
+    name: t.Optional[str] = None
+    config: t.Optional[t.Dict[str, t.Any]] = None

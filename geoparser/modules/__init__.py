@@ -4,7 +4,7 @@ from types import ModuleType
 
 # Define a mapping of module classes to their import paths
 _MODULE_PATHS = {
-    "SpacyRecognitionModule": "geoparser.modules.spacy_recognizer",
+    "SpacyRecognizer": "geoparser.modules.recognizers.spacy",
 }
 
 

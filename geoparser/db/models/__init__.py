@@ -1,20 +1,10 @@
-from geoparser.db.models.document import (
-    Document,
-    DocumentCreate,
-    DocumentRead,
-    DocumentUpdate,
-)
-from geoparser.db.models.location import (
-    Location,
-    LocationCreate,
-    LocationRead,
-    LocationUpdate,
-)
+from geoparser.db.models.document import Document, DocumentCreate, DocumentUpdate
+from geoparser.db.models.feature import Feature, FeatureCreate, FeatureUpdate
+from geoparser.db.models.gazetteer import Gazetteer, GazetteerCreate, GazetteerUpdate
 from geoparser.db.models.project import Project, ProjectCreate, ProjectUpdate
 from geoparser.db.models.recognition_module import (
     RecognitionModule,
     RecognitionModuleCreate,
-    RecognitionModuleRead,
     RecognitionModuleUpdate,
 )
 from geoparser.db.models.recognition_object import (
@@ -27,10 +17,11 @@ from geoparser.db.models.recognition_subject import (
     RecognitionSubjectCreate,
     RecognitionSubjectUpdate,
 )
+from geoparser.db.models.reference import Reference, ReferenceCreate, ReferenceUpdate
+from geoparser.db.models.referent import Referent, ReferentCreate, ReferentUpdate
 from geoparser.db.models.resolution_module import (
     ResolutionModule,
     ResolutionModuleCreate,
-    ResolutionModuleRead,
     ResolutionModuleUpdate,
 )
 from geoparser.db.models.resolution_object import (
@@ -46,7 +37,7 @@ from geoparser.db.models.resolution_subject import (
 from geoparser.db.models.toponym import (
     Toponym,
     ToponymCreate,
-    ToponymRead,
+    ToponymFTS,
     ToponymUpdate,
 )
 
@@ -55,26 +46,28 @@ for rebuild in [
     ProjectCreate,
     Document,
     DocumentCreate,
-    DocumentRead,
+    Reference,
+    ReferenceCreate,
+    Referent,
+    ReferentCreate,
+    Feature,
+    FeatureCreate,
     Toponym,
     ToponymCreate,
-    ToponymRead,
-    Location,
-    LocationCreate,
-    LocationRead,
     RecognitionObject,
     RecognitionObjectCreate,
     ResolutionObject,
     ResolutionObjectCreate,
     RecognitionModule,
     RecognitionModuleCreate,
-    RecognitionModuleRead,
     ResolutionModule,
     ResolutionModuleCreate,
-    ResolutionModuleRead,
     RecognitionSubject,
     RecognitionSubjectCreate,
     ResolutionSubject,
     ResolutionSubjectCreate,
+    Gazetteer,
+    GazetteerCreate,
+    GazetteerUpdate,
 ]:
     rebuild.model_rebuild()
