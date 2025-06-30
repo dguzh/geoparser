@@ -1,0 +1,97 @@
+{
+    "session_id": "6d760718999e4e59a4d3802ad3a3b21d",
+    "created_at": "2025-03-02T13:33:20.370462",
+    "last_updated": "2025-03-02T13:33:27.484424",
+    "gazetteer": "geonames",
+    "settings": {
+        "one_sense_per_discourse": false,
+        "auto_close_annotation_modal": false
+    },
+    "documents": [
+        {
+            "filename": "31767483.txt",
+            "spacy_model": "en_core_web_sm",
+            "text": "'Syria pressuring Cyprus over Iranian arms ship'. The EU and Syria are engaged in a tug-of-war over an intercepted ship suspected of transporting explosives from Iran to Palestinian terrorists in Gaza, European diplomats said Wednesday. The Cypriot-flagged Iranian arms ship Monchegorsk anchors off the Cypriot port of Limassol. Photo: AP The US military said it could not legally detain the ship, which it said was headed for Syria. The vessel continued on to Port Said, Egypt, and then on January 29 docked in Cyprus, where its cargo - described by Cypriot officials as material that could be used to manufacture munitions - was offloaded. The Cypriot government says the ship breached a UN ban on Iranian arms exports. A government official from a country in the region told the AP that Ghufari's delegation \"was instructed to reach secret agreements with Cyprus\" that would allow the Syrians to receive at least part of the cargo at the Syrian port of Latakia. Two Cypriot government employees familiar with Ghufari's visit could not confirm that, saying the subject was not broached at least in formal meetings the Syrian official had with his Cypriot hosts. Cyprus, with its nearest coastal point only less than 100 kilometers west of Syria, has traditionally been close to the Arab world. But the Greek-majority island is geographically part of Europe and joined the European Union in 2004, a move formally aligning it with the 26 other nations of the bloc.",
+            "toponyms": [
+                {
+                    "text": "Syria",
+                    "start": 1,
+                    "end": 6,
+                    "loc_id": "4277822"
+                },
+                {
+                    "text": "Syria",
+                    "start": 61,
+                    "end": 66,
+                    "loc_id": ""
+                },
+                {
+                    "text": "Iran",
+                    "start": 162,
+                    "end": 166,
+                    "loc_id": ""
+                },
+                {
+                    "text": "Gaza",
+                    "start": 196,
+                    "end": 200,
+                    "loc_id": ""
+                },
+                {
+                    "text": "Limassol",
+                    "start": 319,
+                    "end": 327,
+                    "loc_id": ""
+                },
+                {
+                    "text": "US",
+                    "start": 343,
+                    "end": 345,
+                    "loc_id": ""
+                },
+                {
+                    "text": "Syria",
+                    "start": 427,
+                    "end": 432,
+                    "loc_id": ""
+                },
+                {
+                    "text": "Port Said",
+                    "start": 461,
+                    "end": 470,
+                    "loc_id": ""
+                },
+                {
+                    "text": "Egypt",
+                    "start": 472,
+                    "end": 477,
+                    "loc_id": ""
+                },
+                {
+                    "text": "Cyprus",
+                    "start": 512,
+                    "end": 518,
+                    "loc_id": ""
+                },
+                {
+                    "text": "Latakia",
+                    "start": 956,
+                    "end": 963,
+                    "loc_id": ""
+                },
+                {
+                    "text": "Syria",
+                    "start": 1241,
+                    "end": 1246,
+                    "loc_id": ""
+                },
+                {
+                    "text": "Europe",
+                    "start": 1352,
+                    "end": 1358,
+                    "loc_id": ""
+                }
+            ]
+        }
+    ]
+}

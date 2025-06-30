@@ -1,8 +1,10 @@
 import io
 import json
 import re
+import tempfile
 import typing as t
 import uuid
+from pathlib import Path
 
 import pytest
 from fastapi.encoders import jsonable_encoder
@@ -19,6 +21,7 @@ from geoparser.annotator.models.api import (
     ProgressResponse,
 )
 from geoparser.db.crud import (
+    DocumentRepository,
     SessionRepository,
     SessionSettingsRepository,
     ToponymRepository,
@@ -102,13 +105,20 @@ def test_continue_session(client: TestClient):
 
 @pytest.mark.parametrize("valid_session", [True, False])
 @pytest.mark.parametrize("doc_index", [0, 1])
+@pytest.mark.parametrize("doc_exists", [True, False])
 def test_annotate(
-    test_db: DBSession, client: TestClient, valid_session: bool, doc_index: int
+    test_db: DBSession,
+    client: TestClient,
+    valid_session: bool,
+    doc_index: int,
+    doc_exists: bool,
 ):
     session_id = uuid.uuid4()
     if valid_session:
         session = set_session(test_db)
         session_id = session.id
+    if valid_session and not doc_exists:
+        DocumentRepository.delete(test_db, session.documents[0].id)
     response = client.get(
         f"/session/{session_id}/document/{doc_index}/annotate", follow_redirects=False
     )
@@ -123,8 +133,11 @@ def test_annotate(
             r"http:\/\/testserver\/session\/.*\/document\/0\/annotate",
             str(response.next_request.url),
         )
-    # vaild doc_index returns the annotate page
-    elif valid_session and doc_index == 0:
+
+    # there are two cases where we redirect to 0:
+    # 1) valid doc_index
+    # 2) no existing documents
+    elif (valid_session and doc_index == 0) or (valid_session and not doc_exists):
         assert response.status_code == 200
 
 
@@ -145,6 +158,79 @@ def test_create_session(client: TestClient):
         r"http:\/\/testserver\/session\/.*\/document\/0\/annotate",
         str(response.next_request.url),
     )
+
+
+@pytest.mark.parametrize(
+    "static_files,expected_loaded,expected_failed",
+    [
+        (  # No file
+            [],
+            0,
+            0,
+        ),
+        (  # Single valid file
+            ["annotator/legacy_valid.json"],
+            1,
+            0,
+        ),
+        (  # Single invalid file
+            ["annotator/legacy_invalid.json"],
+            0,
+            1,
+        ),
+        (  # Single empty file
+            ["annotator/legacy_empty.json"],
+            0,
+            1,
+        ),
+        (  # Valid + invalid file together
+            ["annotator/legacy_valid.json", "annotator/legacy_invalid.json"],
+            1,
+            1,
+        ),
+        (  # Valid + empty file
+            ["annotator/legacy_valid.json", "annotator/legacy_empty.json"],
+            1,
+            1,
+        ),
+        (  # All three files together
+            [
+                "annotator/legacy_valid.json",
+                "annotator/legacy_invalid.json",
+                "annotator/legacy_empty.json",
+            ],
+            1,
+            2,
+        ),
+    ],
+)
+def test_create_from_legacy_files(
+    client: TestClient,
+    static_files: list,
+    expected_loaded: int,
+    expected_failed: int,
+    monkeypatch,
+):
+    # monkeypatch old cache dir
+    temp_dir = Path(tempfile.mkdtemp())
+    patched_db_location = temp_dir / "annotator.db"
+    monkeypatch.setattr("geoparser.annotator.app.db_location", patched_db_location)
+    # add files to old cache dir
+    test_files = []
+    for static_file in static_files:
+        test_file = temp_dir / Path(static_file).name
+        test_file.parent.mkdir(exist_ok=True, parents=True)
+        test_file.write_text(get_static_test_file(static_file).read_text())
+        test_files.append(test_file.name)
+    # read legacy files from old cache dir
+    response = client.post("/session/read/legacy-files")
+    data = response.json()
+    assert response.status_code == 200
+    assert data["files_found"] == len(static_files)
+    assert data["files_loaded"] == expected_loaded
+    assert len(data["files_failed"]) == expected_failed
+    if expected_failed:
+        assert set(data["files_failed"]) == set(test_files[-expected_failed:])
 
 
 @pytest.mark.parametrize("valid_session", [True, False])

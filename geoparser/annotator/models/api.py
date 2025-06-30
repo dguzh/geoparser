@@ -26,6 +26,12 @@ class BaseResponse(BaseModel):
     message: t.Optional[str] = None
 
 
+class LegacyFilesResponse(BaseResponse):
+    files_found: int = 0
+    files_loaded: int = 0
+    files_failed: list[str] = []
+
+
 class ParsingResponse(BaseResponse):
     parsed: bool
 

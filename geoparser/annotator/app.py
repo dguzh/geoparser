@@ -34,6 +34,7 @@ from geoparser.annotator.models.api import (
     AnnotationEdit,
     BaseResponse,
     CandidatesGet,
+    LegacyFilesResponse,
     ParsingResponse,
     PreAnnotatedTextResponse,
     ProgressResponse,
@@ -130,11 +131,31 @@ def annotate(
     try:
         doc = get_document(session, doc_index)
     except DocumentNotFoundException:
-        # If the document index is out of range, redirect to the first document
-        return RedirectResponse(
-            url=app.url_path_for("annotate", session_id=session.id, doc_index=0),
-            status_code=status.HTTP_302_FOUND,
-        )
+        if doc_index > 0:
+            # If the document index is out of range, redirect to the first document
+            return RedirectResponse(
+                url=app.url_path_for("annotate", session_id=session.id, doc_index=0),
+                status_code=status.HTTP_302_FOUND,
+            )
+        else:
+            # If there is no document to begin with, render without documents
+            return templates.TemplateResponse(
+                request=request,
+                name="html/annotate.html",
+                context={
+                    "doc": None,
+                    "doc_index": None,
+                    "pre_annotated_text": None,
+                    "total_docs": 0,
+                    "gazetteer": geoparser.gazetteer,
+                    "documents": [],
+                    "total_toponyms": 0,
+                    "annotated_toponyms": 0,
+                    "session_id": session.id,
+                    "spacy_models": spacy_models,
+                },
+            )
+
     # Prepare pre-annotated text
     pre_annotated_text = DocumentRepository.get_pre_annotated_text(db, doc.id)
     # Prepare documents list with progress
@@ -178,6 +199,32 @@ def create_session(
     )
 
 
+@app.post("/session/read/legacy-files", tags=["session"])
+def create_from_legacy_files(
+    db: t.Annotated[DBSession, Depends(get_db)],
+):
+    legacy_cache_dir = db_location.parent
+    legacy_files = list(legacy_cache_dir.glob("*.json"))
+    if not legacy_files:
+        return LegacyFilesResponse()
+    files_loaded = 0
+    files_failed = []
+    for legacy_file in legacy_files:
+        try:
+            with open(legacy_file, "r") as infile:
+                content = infile.read()
+            SessionRepository.create_from_json(db, content, keep_id=True)
+            legacy_file.unlink()
+            files_loaded += 1
+        except (json.decoder.JSONDecodeError, KeyError):
+            files_failed.append(legacy_file.name)
+    return LegacyFilesResponse(
+        files_found=len(legacy_files),
+        files_loaded=files_loaded,
+        files_failed=files_failed,
+    )
+
+
 @app.post("/session/continue/cached", tags=["session"])
 def continue_session_cached(
     db: t.Annotated[DBSession, Depends(get_db)],
@@ -208,7 +255,7 @@ def continue_session_file(
     if session_file and session_file.filename:
         # Save session to cache
         session = SessionRepository.create_from_json(
-            db, session_file.file.read().decode()
+            db, session_file.file.read().decode(), keep_id=False
         )
         # Re-initialize gazetteer
         geoparser.gazetteer = geoparser.setup_gazetteer(session.gazetteer)
