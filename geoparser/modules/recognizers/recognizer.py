@@ -3,6 +3,9 @@ from abc import abstractmethod
 
 from geoparser.modules.module import Module
 
+if t.TYPE_CHECKING:
+    from geoparser.db.models import Document
+
 
 class Recognizer(Module):
     """
@@ -26,7 +29,7 @@ class Recognizer(Module):
 
     @abstractmethod
     def predict_references(
-        self, document_texts: t.List[str]
+        self, documents: t.List["Document"]
     ) -> t.List[t.List[t.Tuple[int, int]]]:
         """
         Predict references in multiple documents.
@@ -34,7 +37,7 @@ class Recognizer(Module):
         This abstract method must be implemented by child classes.
 
         Args:
-            document_texts: List of document texts to process
+            documents: List of Document ORM objects to process
 
         Returns:
             List of lists of tuples containing (start, end) positions of references.

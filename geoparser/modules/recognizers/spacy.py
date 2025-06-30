@@ -1,8 +1,12 @@
+import typing as t
 from typing import List, Set, Tuple
 
 import spacy
 
 from geoparser.modules.recognizers.recognizer import Recognizer
+
+if t.TYPE_CHECKING:
+    from geoparser.db.models import Document
 
 
 class SpacyRecognizer(Recognizer):
@@ -63,19 +67,22 @@ class SpacyRecognizer(Recognizer):
         return nlp
 
     def predict_references(
-        self, document_texts: List[str]
+        self, documents: List["Document"]
     ) -> List[List[Tuple[int, int]]]:
         """
         Identify references (location entities) in multiple documents using spaCy.
 
         Args:
-            document_texts: List of document texts to process
+            documents: List of Document ORM objects to process
 
         Returns:
             List of lists of tuples containing (start, end) positions of references.
             Each inner list corresponds to references found in one document.
         """
         results = []
+
+        # Extract document texts for batch processing
+        document_texts = [doc.text for doc in documents]
 
         # Process documents in batches using spaCy's nlp.pipe for efficiency
         docs = list(self.nlp.pipe(document_texts))
