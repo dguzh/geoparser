@@ -34,7 +34,6 @@ class Gazetteer(ABC):
         Returns:
             str: Textual description of the location.
         """
-        pass
 
     def get_location_description(self, location: t.Dict[str, t.Any]) -> str:
         """
@@ -319,7 +318,6 @@ class LocalDBGazetteer(Gazetteer):
         Yields:
             Iterator[pd.DataFrame]: Iterator over DataFrame chunks.
         """
-        pass
 
     @close
     @commit
@@ -527,7 +525,6 @@ class LocalDBGazetteer(Gazetteer):
         """
         Populate the 'locations' table with location data.
         """
-        pass
 
     @close
     @commit

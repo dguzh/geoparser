@@ -4,10 +4,10 @@ import uuid
 from fastapi import Depends
 from sqlmodel import Session as DBSession
 
-from geoparser.annotator.db.crud import SessionRepository
-from geoparser.annotator.db.db import get_db
-from geoparser.annotator.db.models import Document, Session
 from geoparser.annotator.exceptions import DocumentNotFoundException
+from geoparser.db.crud import SessionRepository
+from geoparser.db.db import get_db
+from geoparser.db.models import Document, Session
 
 
 def get_session(

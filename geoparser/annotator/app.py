@@ -16,25 +16,6 @@ from spacy.util import get_installed_models
 from sqlmodel import Session as DBSession
 
 from geoparser import Geoparser
-from geoparser.annotator.db.crud import (
-    DocumentRepository,
-    SessionRepository,
-    SessionSettingsRepository,
-    ToponymRepository,
-)
-from geoparser.annotator.db.db import create_db_and_tables, db_location, engine, get_db
-from geoparser.annotator.db.models import (
-    Document,
-    SessionCreate,
-    SessionForTemplate,
-    SessionSettings,
-    SessionSettingsBase,
-    SessionSettingsUpdate,
-    SessionUpdate,
-    ToponymBase,
-    ToponymCreate,
-    ToponymUpdate,
-)
 from geoparser.annotator.dependencies import get_document, get_session
 from geoparser.annotator.exceptions import (
     DocumentNotFoundException,
@@ -59,6 +40,25 @@ from geoparser.annotator.models.api import (
     ProgressResponse,
 )
 from geoparser.constants import GAZETTEERS
+from geoparser.db.crud import (
+    DocumentRepository,
+    SessionRepository,
+    SessionSettingsRepository,
+    ToponymRepository,
+)
+from geoparser.db.db import create_db_and_tables, engine, get_db
+from geoparser.db.models import (
+    Document,
+    SessionCreate,
+    SessionForTemplate,
+    SessionSettings,
+    SessionSettingsBase,
+    SessionSettingsUpdate,
+    SessionUpdate,
+    ToponymBase,
+    ToponymCreate,
+    ToponymUpdate,
+)
 
 app = FastAPI(
     title="Irchel Geoparser",
