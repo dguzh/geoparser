@@ -160,13 +160,30 @@ views:
   - name: allCountriesEnriched
     statement:
       select:
-        - allCountries.*
-        - "countryInfo.Country AS country_name"
-        - "countryInfo.Continent AS continent"
-        - "admin1.name AS admin1_name"
-        - "admin2.name AS admin2_name"
+        - "allCountries.geonameid"
+        - "allCountries.name"
+        - "allCountries.asciiname"
+        - "allCountries.alternatenames"
+        - "allCountries.latitude"
+        - "allCountries.longitude"
+        - "allCountries.feature_class"
+        - "allCountries.feature_code"
         - "features.name AS feature_name"
-        - "features.description AS feature_description"
+        - "allCountries.country_code"
+        - "countryInfo.Country AS country_name"
+        - "allCountries.cc2"
+        - "allCountries.admin1_code"
+        - "admin1.name AS admin1_name"
+        - "allCountries.admin2_code"
+        - "admin2.name AS admin2_name"
+        - "allCountries.admin3_code"
+        - "allCountries.admin4_code"
+        - "allCountries.population"
+        - "allCountries.elevation"
+        - "allCountries.dem"
+        - "allCountries.timezone"
+        - "allCountries.modification_date"
+        - "allCountries.geometry"
       from:
         - allCountries
       join:
@@ -176,7 +193,7 @@ views:
         - "LEFT JOIN featureCodes AS features ON allCountries.feature_code_full = features.code"
 
 features:
-  - table: allCountries
+  - table: allCountriesEnriched
     identifier_column: geonameid
 
 toponyms:

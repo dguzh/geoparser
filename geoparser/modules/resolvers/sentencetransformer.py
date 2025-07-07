@@ -29,10 +29,10 @@ class SentenceTransformerResolver(Resolver):
     GAZETTEER_ATTRIBUTE_MAP = {
         "geonames": {
             "name": "name",
-            "feature_type": "feature_code_full",
-            "admin1": "admin1_code",
-            "admin2": "admin2_code",
-            "country": "admin3_code",
+            "feature_type": "feature_name",
+            "admin1": "admin1_name",
+            "admin2": "admin2_name",
+            "country": "country_name",
         },
         "swissnames3d": {
             "name": "NAME",
