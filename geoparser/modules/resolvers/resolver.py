@@ -3,6 +3,9 @@ from abc import abstractmethod
 
 from geoparser.modules.module import Module
 
+if t.TYPE_CHECKING:
+    from geoparser.db.models import Reference
+
 
 class Resolver(Module):
     """
@@ -26,7 +29,7 @@ class Resolver(Module):
 
     @abstractmethod
     def predict_referents(
-        self, reference_data: t.List[dict]
+        self, references: t.List["Reference"]
     ) -> t.List[t.List[t.Tuple[str, str]]]:
         """
         Predict referents for multiple references.
@@ -34,11 +37,12 @@ class Resolver(Module):
         This abstract method must be implemented by child classes.
 
         Args:
-            reference_data: List of dictionaries containing reference information:
-                          - start: start position in document
-                          - end: end position in document
-                          - text: the actual reference text
-                          - document_text: full document text
+            references: List of Reference ORM objects to process.
+                       Each Reference object provides access to:
+                       - reference.text: the actual reference text
+                       - reference.start/end: positions in document
+                       - reference.document: full Document object
+                       - reference.document.text: full document text
 
         Returns:
             List of lists of tuples containing (gazetteer_name, identifier).

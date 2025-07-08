@@ -162,12 +162,11 @@ class Orchestrator:
                 f"Processing {len(unprocessed_documents)} documents with module {str(module)} in project {project_id}."
             )
 
-            # Prepare input data for module
-            document_texts = [doc.text for doc in unprocessed_documents]
-            document_ids = [doc.id for doc in unprocessed_documents]
+            # Get predictions from module using Document ORM objects directly
+            predicted_references = module.predict_references(unprocessed_documents)
 
-            # Get predictions from module
-            predicted_references = module.predict_references(document_texts)
+            # Extract document IDs for database operations
+            document_ids = [doc.id for doc in unprocessed_documents]
 
             # Process predictions and update database
             self._process_reference_predictions(
@@ -309,20 +308,11 @@ class Orchestrator:
                 f"Processing {len(unprocessed_references)} references with module {str(module)} in project {project_id}."
             )
 
-            # Prepare input data for module
-            reference_data = [
-                {
-                    "start": reference.start,
-                    "end": reference.end,
-                    "text": reference.text,
-                    "document_text": reference.document.text,
-                }
-                for reference in unprocessed_references
-            ]
-            reference_ids = [reference.id for reference in unprocessed_references]
+            # Get predictions from module using Reference ORM objects directly
+            predicted_referents = module.predict_referents(unprocessed_references)
 
-            # Get predictions from module
-            predicted_referents = module.predict_referents(reference_data)
+            # Extract reference IDs for database operations
+            reference_ids = [reference.id for reference in unprocessed_references]
 
             # Process predictions and update database
             self._process_referent_predictions(
