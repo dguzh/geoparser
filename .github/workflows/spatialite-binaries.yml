@@ -1,8 +1,10 @@
-name: Collect SpatiaLite Binaries
+name: SpatiaLite Binaries
 
 on:
   push:
-  pull_request:
+    branches:
+      - development
+      - feature/spatialite
   workflow_dispatch:
 
 jobs:
