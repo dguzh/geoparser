@@ -6,6 +6,11 @@ __pycache__/
 # C extensions
 *.so
 
+# Allow spatialite binaries
+!geoparser/db/spatialite/**/*.so
+!geoparser/db/spatialite/**/*.dylib
+!geoparser/db/spatialite/**/*.dll
+
 # Distribution / packaging
 .Python
 build/

@@ -7,7 +7,7 @@ on:
 
 jobs:
   collect-binaries:
-    name: Collect SpatiaLite binaries
+    name: ${{ matrix.platform }}-${{ matrix.arch }}
     strategy:
       matrix:
         include:
@@ -56,8 +56,8 @@ jobs:
             arch: amd64
             install_cmd: |
               curl -L -o spatialite.7z https://www.gaia-gis.it/gaia-sins/windows-bin-amd64/mod_spatialite-5.1.0-win-amd64.7z
-              7z x spatialite.7z
-            binary_path: ./mod_spatialite.dll
+              7z x spatialite.7z -o./spatialite-extract
+            binary_path: ./spatialite-extract/mod_spatialite.dll
             filename: mod_spatialite.dll
 
     runs-on: ${{ matrix.os }}
@@ -121,6 +121,15 @@ jobs:
                 fi
               done
               ;;
+            "win")
+              # Try alternative Windows paths
+              for path in ./spatialite-extract/mod_spatialite.dll ./mod_spatialite.dll; do
+                if [ -f "$path" ]; then
+                  ACTUAL_PATH="$path"
+                  break
+                fi
+              done
+              ;;
           esac
         fi
         
@@ -130,6 +139,12 @@ jobs:
           ls -la "$BINARY_FILE"
         else
           echo "✗ Binary not found at expected location: $ACTUAL_PATH"
+          echo "Contents of current directory:"
+          ls -la .
+          if [ "${{ matrix.platform }}" = "win" ]; then
+            echo "Contents of spatialite-extract directory:"
+            ls -la ./spatialite-extract/ || echo "spatialite-extract directory not found"
+          fi
           exit 1
         fi
 
@@ -149,34 +164,84 @@ jobs:
           exit 1
         fi
 
-    - name: Commit binary if new
+    - name: Upload binary as artifact
       if: steps.check_binary.outputs.exists == 'false'
-      shell: bash
+      uses: actions/upload-artifact@v4
+      with:
+        name: spatialite-${{ matrix.platform }}-${{ matrix.arch }}
+        path: geoparser/db/spatialite/${{ matrix.platform }}-${{ matrix.arch }}/${{ matrix.filename }}
+
+  commit-binaries:
+    name: Commit all binaries
+    needs: collect-binaries
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Download all artifacts
+      uses: actions/download-artifact@v4
+      with:
+        path: artifacts
+
+    - name: Copy binaries to correct locations
       run: |
-        BINARY_FILE="geoparser/db/spatialite/${{ matrix.platform }}-${{ matrix.arch }}/${{ matrix.filename }}"
+        # Create directory structure
+        mkdir -p geoparser/db/spatialite/{linux-x86_64,linux-aarch64,darwin-x86_64,darwin-arm64,win-amd64}
         
+        # Copy binaries from artifacts
+        if [ -d "artifacts/spatialite-linux-x86_64" ]; then
+          cp artifacts/spatialite-linux-x86_64/* geoparser/db/spatialite/linux-x86_64/
+        fi
+        if [ -d "artifacts/spatialite-linux-aarch64" ]; then
+          cp artifacts/spatialite-linux-aarch64/* geoparser/db/spatialite/linux-aarch64/
+        fi
+        if [ -d "artifacts/spatialite-darwin-x86_64" ]; then
+          cp artifacts/spatialite-darwin-x86_64/* geoparser/db/spatialite/darwin-x86_64/
+        fi
+        if [ -d "artifacts/spatialite-darwin-arm64" ]; then
+          cp artifacts/spatialite-darwin-arm64/* geoparser/db/spatialite/darwin-arm64/
+        fi
+        if [ -d "artifacts/spatialite-win-amd64" ]; then
+          cp artifacts/spatialite-win-amd64/* geoparser/db/spatialite/win-amd64/
+        fi
+
+    - name: Check what binaries were collected
+      run: |
+        echo "=== Binaries collected in this run ==="
+        find geoparser/db/spatialite -name "mod_spatialite.*" -type f | sort
+        
+        echo "=== File sizes ==="
+        find geoparser/db/spatialite -name "mod_spatialite.*" -type f -exec ls -lh {} \;
+
+    - name: Commit and push binaries
+      run: |
         git config --local user.email "action@github.com"
         git config --local user.name "GitHub Action"
         
-        git add "$BINARY_FILE"
+        # Add all spatialite binaries
+        git add geoparser/db/spatialite/
         
         if git diff --staged --quiet; then
-          echo "No changes to commit"
+          echo "No new binaries to commit"
         else
-          git commit -m "Add SpatiaLite binary for ${{ matrix.platform }}-${{ matrix.arch }}"
-          echo "✓ Committed binary: $BINARY_FILE"
-        fi
+          git commit -m "Add/update SpatiaLite binaries
 
-    - name: Push changes
-      if: steps.check_binary.outputs.exists == 'false' && github.event_name == 'push'
-      uses: ad-m/github-push-action@master
-      with:
-        github_token: ${{ secrets.GITHUB_TOKEN }}
-        branch: ${{ github.ref }}
+          Collected binaries for multiple platforms:
+          $(find geoparser/db/spatialite -name "mod_spatialite.*" -type f | sort | sed 's/^/- /')"
+          
+          # Push changes
+          git push origin ${{ github.ref_name }}
+          echo "✓ Successfully pushed SpatiaLite binaries"
+        fi
 
   summary:
     name: Binary Collection Summary
-    needs: collect-binaries
+    needs: [collect-binaries, commit-binaries]
     runs-on: ubuntu-latest
     if: always()
     
