@@ -272,13 +272,14 @@ jobs:
           IFS=':' read -r platform filename <<< "$platform_file"
           binary_path="geoparser/db/spatialite/$platform/$filename"
           
+          echo "Checking: $binary_path"
           if [ -f "$binary_path" ]; then
-            size=$(stat -c%s "$binary_path" 2>/dev/null || echo "unknown")
+            size=$(stat -c%s "$binary_path" 2>/dev/null || stat -f%z "$binary_path" 2>/dev/null || echo "unknown")
             echo "✓ $platform: $filename ($size bytes)"
-            ((PRESENT++))
+            PRESENT=$((PRESENT + 1))
           else
             echo "✗ $platform: $filename (missing)"
-            ((MISSING++))
+            MISSING=$((MISSING + 1))
           fi
         done
         
