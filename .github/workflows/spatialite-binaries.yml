@@ -237,11 +237,26 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
       with:
-        ref: ${{ github.ref }}
+        ref: ${{ github.ref_name }}
+        fetch-depth: 0
+        
+    - name: Pull latest changes
+      if: needs.commit-binaries.result == 'success'
+      run: |
+        git pull origin ${{ github.ref_name }}
         
     - name: Check all binaries
       run: |
         echo "=== SpatiaLite Binary Collection Summary ==="
+        echo "Current working directory: $(pwd)"
+        echo "Git status:"
+        git status --porcelain
+        echo "Latest commit:"
+        git log -1 --oneline
+        echo ""
+        echo "Files in spatialite directory:"
+        find geoparser/db/spatialite -type f -name "mod_spatialite.*" | sort
+        echo ""
         
         PLATFORMS=(
           "linux-x86_64:mod_spatialite.so"
@@ -272,6 +287,9 @@ jobs:
         
         if [ $MISSING -eq 0 ]; then
           echo "🎉 All SpatiaLite binaries are available!"
+          exit 0
         else
           echo "⚠️  Some binaries are still missing"
+          echo "This is expected if binaries are still being collected/committed."
+          exit 1
         fi
