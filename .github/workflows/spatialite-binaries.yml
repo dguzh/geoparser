@@ -57,7 +57,7 @@ jobs:
             install_cmd: |
               curl -L -o spatialite.7z https://www.gaia-gis.it/gaia-sins/windows-bin-amd64/mod_spatialite-5.1.0-win-amd64.7z
               7z x spatialite.7z -o./spatialite-extract
-            binary_path: ./spatialite-extract/mod_spatialite.dll
+            binary_path: ./spatialite-extract/mod_spatialite-5.1.0-win-amd64/mod_spatialite.dll
             filename: mod_spatialite.dll
 
     runs-on: ${{ matrix.os }}
@@ -123,7 +123,7 @@ jobs:
               ;;
             "win")
               # Try alternative Windows paths
-              for path in ./spatialite-extract/mod_spatialite.dll ./mod_spatialite.dll; do
+              for path in ./spatialite-extract/mod_spatialite-5.1.0-win-amd64/mod_spatialite.dll ./spatialite-extract/mod_spatialite.dll ./mod_spatialite.dll; do
                 if [ -f "$path" ]; then
                   ACTUAL_PATH="$path"
                   break
