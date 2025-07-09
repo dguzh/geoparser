@@ -12,7 +12,12 @@ def get_spatialite_path() -> Optional[Path]:
     if machine in ("x86_64", "amd64"):
         arch = "x86_64" if system != "windows" else "amd64"
     elif machine in ("arm64", "aarch64"):
-        arch = "arm64" if system == "darwin" else "aarch64"
+        # Only support ARM64 on macOS (Apple Silicon)
+        if system == "darwin":
+            arch = "arm64"
+        else:
+            # Linux ARM64 not supported - return None
+            return None
     else:
         return None
 

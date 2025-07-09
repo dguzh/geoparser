@@ -21,17 +21,7 @@ jobs:
             binary_path: /usr/lib/x86_64-linux-gnu/mod_spatialite.so
             filename: mod_spatialite.so
           
-          # Linux ARM64 (cross-compilation)
-          - os: ubuntu-22.04  # Use 22.04 for better ARM64 support
-            platform: linux
-            arch: aarch64
-            install_cmd: |
-              sudo dpkg --add-architecture arm64
-              sudo apt-get update
-              sudo apt-get install -y libsqlite3-mod-spatialite:arm64
-            binary_path: /usr/lib/aarch64-linux-gnu/mod_spatialite.so
-            filename: mod_spatialite.so
-          
+
           # macOS Intel
           - os: macos-13  # Intel runners
             platform: darwin
@@ -144,6 +134,7 @@ jobs:
           if [ "${{ matrix.platform }}" = "win" ]; then
             echo "Contents of spatialite-extract directory:"
             ls -la ./spatialite-extract/ || echo "spatialite-extract directory not found"
+
           fi
           exit 1
         fi
@@ -191,14 +182,11 @@ jobs:
     - name: Copy binaries to correct locations
       run: |
         # Create directory structure
-        mkdir -p geoparser/db/spatialite/{linux-x86_64,linux-aarch64,darwin-x86_64,darwin-arm64,win-amd64}
+        mkdir -p geoparser/db/spatialite/{linux-x86_64,darwin-x86_64,darwin-arm64,win-amd64}
         
         # Copy binaries from artifacts
         if [ -d "artifacts/spatialite-linux-x86_64" ]; then
           cp artifacts/spatialite-linux-x86_64/* geoparser/db/spatialite/linux-x86_64/
-        fi
-        if [ -d "artifacts/spatialite-linux-aarch64" ]; then
-          cp artifacts/spatialite-linux-aarch64/* geoparser/db/spatialite/linux-aarch64/
         fi
         if [ -d "artifacts/spatialite-darwin-x86_64" ]; then
           cp artifacts/spatialite-darwin-x86_64/* geoparser/db/spatialite/darwin-x86_64/
@@ -257,7 +245,6 @@ jobs:
         
         PLATFORMS=(
           "linux-x86_64:mod_spatialite.so"
-          "linux-aarch64:mod_spatialite.so"
           "darwin-x86_64:mod_spatialite.dylib"
           "darwin-arm64:mod_spatialite.dylib"
           "win-amd64:mod_spatialite.dll"
