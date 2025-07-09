@@ -22,7 +22,7 @@ jobs:
             filename: mod_spatialite.so
           
           # Linux ARM64 (cross-compilation)
-          - os: ubuntu-latest
+          - os: ubuntu-22.04  # Use 22.04 for better ARM64 support
             platform: linux
             arch: aarch64
             install_cmd: |
