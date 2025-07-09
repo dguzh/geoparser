@@ -1,0 +1,225 @@
+name: Collect SpatiaLite Binaries
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  collect-binaries:
+    name: Collect SpatiaLite binaries
+    strategy:
+      matrix:
+        include:
+          # Linux x86_64
+          - os: ubuntu-latest
+            platform: linux
+            arch: x86_64
+            install_cmd: |
+              sudo apt-get update
+              sudo apt-get install -y libsqlite3-mod-spatialite
+            binary_path: /usr/lib/x86_64-linux-gnu/mod_spatialite.so
+            filename: mod_spatialite.so
+          
+          # Linux ARM64 (cross-compilation)
+          - os: ubuntu-latest
+            platform: linux
+            arch: aarch64
+            install_cmd: |
+              sudo dpkg --add-architecture arm64
+              sudo apt-get update
+              sudo apt-get install -y libsqlite3-mod-spatialite:arm64
+            binary_path: /usr/lib/aarch64-linux-gnu/mod_spatialite.so
+            filename: mod_spatialite.so
+          
+          # macOS Intel
+          - os: macos-13  # Intel runners
+            platform: darwin
+            arch: x86_64
+            install_cmd: |
+              brew install libspatialite
+            binary_path: /usr/local/lib/mod_spatialite.dylib
+            filename: mod_spatialite.dylib
+          
+          # macOS ARM64 (Apple Silicon)
+          - os: macos-latest  # ARM64 runners
+            platform: darwin
+            arch: arm64
+            install_cmd: |
+              brew install libspatialite
+            binary_path: /opt/homebrew/lib/mod_spatialite.dylib
+            filename: mod_spatialite.dylib
+          
+          # Windows AMD64
+          - os: windows-latest
+            platform: win
+            arch: amd64
+            install_cmd: |
+              curl -L -o spatialite.7z https://www.gaia-gis.it/gaia-sins/windows-bin-amd64/mod_spatialite-5.1.0-win-amd64.7z
+              7z x spatialite.7z
+            binary_path: ./mod_spatialite.dll
+            filename: mod_spatialite.dll
+
+    runs-on: ${{ matrix.os }}
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Check if binary already exists
+      id: check_binary
+      shell: bash
+      run: |
+        BINARY_DIR="geoparser/db/spatialite/${{ matrix.platform }}-${{ matrix.arch }}"
+        BINARY_FILE="$BINARY_DIR/${{ matrix.filename }}"
+        
+        if [ -f "$BINARY_FILE" ]; then
+          echo "Binary already exists: $BINARY_FILE"
+          echo "exists=true" >> $GITHUB_OUTPUT
+        else
+          echo "Binary missing: $BINARY_FILE"
+          echo "exists=false" >> $GITHUB_OUTPUT
+          mkdir -p "$BINARY_DIR"
+        fi
+
+    - name: Install SpatiaLite
+      if: steps.check_binary.outputs.exists == 'false'
+      shell: bash
+      run: |
+        ${{ matrix.install_cmd }}
+
+    - name: Copy binary to project directory
+      if: steps.check_binary.outputs.exists == 'false'
+      shell: bash
+      run: |
+        BINARY_DIR="geoparser/db/spatialite/${{ matrix.platform }}-${{ matrix.arch }}"
+        BINARY_FILE="$BINARY_DIR/${{ matrix.filename }}"
+        
+        # Find the actual binary path (may vary slightly)
+        ACTUAL_PATH="${{ matrix.binary_path }}"
+        
+        # Try alternative paths if primary doesn't exist
+        if [ ! -f "$ACTUAL_PATH" ]; then
+          case "${{ matrix.platform }}" in
+            "linux")
+              # Try alternative Linux paths
+              for path in /usr/lib/*/mod_spatialite.so /usr/lib64/mod_spatialite.so; do
+                if [ -f "$path" ]; then
+                  ACTUAL_PATH="$path"
+                  break
+                fi
+              done
+              ;;
+            "darwin")
+              # Try alternative macOS paths
+              for path in /usr/local/lib/mod_spatialite.dylib /opt/homebrew/lib/mod_spatialite.dylib; do
+                if [ -f "$path" ]; then
+                  ACTUAL_PATH="$path"
+                  break
+                fi
+              done
+              ;;
+          esac
+        fi
+        
+        if [ -f "$ACTUAL_PATH" ]; then
+          cp "$ACTUAL_PATH" "$BINARY_FILE"
+          echo "✓ Copied binary: $ACTUAL_PATH → $BINARY_FILE"
+          ls -la "$BINARY_FILE"
+        else
+          echo "✗ Binary not found at expected location: $ACTUAL_PATH"
+          exit 1
+        fi
+
+    - name: Verify binary
+      if: steps.check_binary.outputs.exists == 'false'
+      shell: bash
+      run: |
+        BINARY_FILE="geoparser/db/spatialite/${{ matrix.platform }}-${{ matrix.arch }}/${{ matrix.filename }}"
+        
+        if [ -f "$BINARY_FILE" ]; then
+          echo "✓ Binary verification:"
+          echo "  File: $BINARY_FILE"
+          echo "  Size: $(stat -c%s "$BINARY_FILE" 2>/dev/null || stat -f%z "$BINARY_FILE" 2>/dev/null || echo "unknown") bytes"
+          echo "  Type: $(file "$BINARY_FILE" 2>/dev/null || echo "file command not available")"
+        else
+          echo "✗ Binary verification failed: $BINARY_FILE does not exist"
+          exit 1
+        fi
+
+    - name: Commit binary if new
+      if: steps.check_binary.outputs.exists == 'false'
+      shell: bash
+      run: |
+        BINARY_FILE="geoparser/db/spatialite/${{ matrix.platform }}-${{ matrix.arch }}/${{ matrix.filename }}"
+        
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        
+        git add "$BINARY_FILE"
+        
+        if git diff --staged --quiet; then
+          echo "No changes to commit"
+        else
+          git commit -m "Add SpatiaLite binary for ${{ matrix.platform }}-${{ matrix.arch }}"
+          echo "✓ Committed binary: $BINARY_FILE"
+        fi
+
+    - name: Push changes
+      if: steps.check_binary.outputs.exists == 'false' && github.event_name == 'push'
+      uses: ad-m/github-push-action@master
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        branch: ${{ github.ref }}
+
+  summary:
+    name: Binary Collection Summary
+    needs: collect-binaries
+    runs-on: ubuntu-latest
+    if: always()
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        ref: ${{ github.ref }}
+        
+    - name: Check all binaries
+      run: |
+        echo "=== SpatiaLite Binary Collection Summary ==="
+        
+        PLATFORMS=(
+          "linux-x86_64:mod_spatialite.so"
+          "linux-aarch64:mod_spatialite.so"
+          "darwin-x86_64:mod_spatialite.dylib"
+          "darwin-arm64:mod_spatialite.dylib"
+          "win-amd64:mod_spatialite.dll"
+        )
+        
+        MISSING=0
+        PRESENT=0
+        
+        for platform_file in "${PLATFORMS[@]}"; do
+          IFS=':' read -r platform filename <<< "$platform_file"
+          binary_path="geoparser/db/spatialite/$platform/$filename"
+          
+          if [ -f "$binary_path" ]; then
+            size=$(stat -c%s "$binary_path" 2>/dev/null || echo "unknown")
+            echo "✓ $platform: $filename ($size bytes)"
+            ((PRESENT++))
+          else
+            echo "✗ $platform: $filename (missing)"
+            ((MISSING++))
+          fi
+        done
+        
+        echo ""
+        echo "Summary: $PRESENT present, $MISSING missing"
+        
+        if [ $MISSING -eq 0 ]; then
+          echo "🎉 All SpatiaLite binaries are available!"
+        else
+          echo "⚠️  Some binaries are still missing"
+        fi
