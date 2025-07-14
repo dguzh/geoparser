@@ -48,7 +48,9 @@ sources:
         type: TEXT
     derivations:
       - name: geometry
-        type: TEXT
+        type: GEOMETRY
+        index: true
+        srid: 4326
         expression: "'POINT(' || longitude || ' ' || latitude || ')'"
       - name: feature_code_full
         type: TEXT
