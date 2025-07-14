@@ -288,16 +288,27 @@ class GazetteerInstaller:
         columns = []
         primary_keys = []
 
+        # Find geometry column and get its SRID
+        geometry_item = self._find_geometry_item(source_config)
+
         # Add columns for attributes (that aren't dropped)
         for attr in source_config.attributes:
             if not attr.drop:
-                columns.append(f"{attr.name} {attr.type.value}")
-                if attr.primary:
-                    primary_keys.append(attr.name)
+                if attr.type == DataType.GEOMETRY:
+                    # Skip geometry columns - they'll be added via SpatiaLite
+                    continue
+                else:
+                    columns.append(f"{attr.name} {attr.type.value}")
+                    if attr.primary:
+                        primary_keys.append(attr.name)
 
         # Add columns for derivations
         for derivation in source_config.derivations:
-            columns.append(f"{derivation.name} {derivation.type.value}")
+            if derivation.type == DataType.GEOMETRY:
+                # Skip geometry derivations - they'll be added via SpatiaLite
+                continue
+            else:
+                columns.append(f"{derivation.name} {derivation.type.value}")
 
         # If no primary keys defined, don't add a primary key constraint
         pk_clause = ""
@@ -311,6 +322,12 @@ class GazetteerInstaller:
 
         with engine.connect() as connection:
             connection.execute(sa.text(create_table_sql))
+
+            # Add geometry column using SpatiaLite functions if needed
+            if geometry_item is not None:
+                add_geometry_sql = f"SELECT AddGeometryColumn('{table_name}', 'geometry', {geometry_item.srid}, 'GEOMETRY', 'XY')"
+                connection.execute(sa.text(add_geometry_sql))
+
             connection.commit()
 
         # Dispose the engine to clear connection pool and cached schema information
@@ -409,8 +426,25 @@ class GazetteerInstaller:
         keep_columns = [attr.name for attr in source_config.attributes if not attr.drop]
         chunk = chunk[keep_columns]
 
-        # Load processed chunk to database with append strategy
-        chunk.to_sql(table_name, engine, index=False, if_exists="append")
+        # Check if there's a geometry column (always named "geometry" if it exists)
+        if "geometry" in chunk.columns:
+            # Convert WKT string column to geometry using geopandas
+            chunk["geometry"] = gpd.GeoSeries.from_wkt(chunk["geometry"])
+
+            # Convert to GeoDataFrame with geometry column as the active geometry
+            gdf = gpd.GeoDataFrame(chunk, geometry="geometry")
+
+            # Use geopandas to_file for SpatiaLite insertion
+            gdf.to_file(
+                f"sqlite:///{engine.url.database}",
+                layer=table_name,
+                driver="SQLite",
+                if_exists="append",
+                spatialite=True,
+            )
+        else:
+            # No geometry columns, use regular pandas insert
+            chunk.to_sql(table_name, engine, index=False, if_exists="append")
 
     def _load_spatial_file(
         self,
@@ -495,12 +529,14 @@ class GazetteerInstaller:
         # Keep only the specified columns
         chunk = chunk[keep_columns]
 
-        # Convert geometry to WKT for storage in SQLite
-        if "geometry" in chunk.columns:
-            chunk["geometry"] = chunk.geometry.to_wkt()
-
-        # Convert to DataFrame and load to database
-        pd.DataFrame(chunk).to_sql(table_name, engine, index=False, if_exists="append")
+        # Use geopandas to_file for efficient SpatiaLite insertion
+        chunk.to_file(
+            f"sqlite:///{engine.url.database}",
+            layer=table_name,
+            driver="SQLite",
+            if_exists="append",
+            spatialite=True,
+        )
 
     def _create_derivations(self, source_config: SourceConfig, table_name: str) -> None:
         """
@@ -517,11 +553,19 @@ class GazetteerInstaller:
 
         with engine.connect() as connection:
             for derivation in source_config.derivations:
-                # Create an UPDATE statement to set the derived column
-                update_sql = (
-                    f"UPDATE {table_name} "
-                    f"SET {derivation.name} = {derivation.expression}"
-                )
+                # Handle geometry derivations with SpatiaLite functions
+                if derivation.type == DataType.GEOMETRY:
+                    # For geometry derivations, use GeomFromText with SRID
+                    update_sql = (
+                        f"UPDATE {table_name} "
+                        f"SET geometry = GeomFromText({derivation.expression}, {derivation.srid})"
+                    )
+                else:
+                    # Regular derivation
+                    update_sql = (
+                        f"UPDATE {table_name} "
+                        f"SET {derivation.name} = {derivation.expression}"
+                    )
 
                 # Execute the update with a progress bar
                 with tqdm(
@@ -543,40 +587,41 @@ class GazetteerInstaller:
             source_config: Source configuration
             table_name: Name of the table to create indices for
         """
-        # Collect all columns that need indices
-        indexed_columns: List[str] = []
+        # Collect all columns that need indices with their types
+        indexed_columns: List[tuple] = []
 
         # Check regular attributes
         for attr in source_config.attributes:
             if attr.index and not attr.drop:
-                indexed_columns.append(attr.name)
+                indexed_columns.append((attr.name, attr.type))
 
         # Check derivations
         for derivation in source_config.derivations:
             if derivation.index:
-                indexed_columns.append(derivation.name)
+                indexed_columns.append((derivation.name, derivation.type))
 
         if not indexed_columns:
             return
 
         with engine.connect() as connection:
-            for column_name in indexed_columns:
-                index_name = f"idx_{table_name}_{column_name}"
+            for column_name, column_type in indexed_columns:
+                if column_type == DataType.GEOMETRY:
+                    # Create spatial index for geometry column
+                    index_sql = f"SELECT CreateSpatialIndex('{table_name}', 'geometry')"
+                else:
+                    # Create regular B-tree index for other columns
+                    index_name = f"idx_{table_name}_{column_name}"
+                    index_sql = (
+                        f"CREATE INDEX {index_name} ON {table_name}({column_name})"
+                    )
 
-                # Create index with a progress bar
+                # Create index with progress bar
                 with tqdm(
                     total=1,
                     desc=f"Indexing {table_name}.{column_name}",
                     unit="index",
                 ) as pbar:
-                    # Drop the index if it exists
-                    connection.execute(sa.text(f"DROP INDEX IF EXISTS {index_name}"))
-
-                    # Create the index
-                    create_index_sql = (
-                        f"CREATE INDEX {index_name} ON {table_name}({column_name})"
-                    )
-                    connection.execute(sa.text(create_index_sql))
+                    connection.execute(sa.text(index_sql))
                     pbar.update(1)
 
             # Commit all the index creations
@@ -598,6 +643,10 @@ class GazetteerInstaller:
         """
         dtype_map = {}
         for attr in source_config.attributes:
+            # Skip geometry columns - they're handled specially
+            if attr.type == DataType.GEOMETRY:
+                continue
+
             # Map our DataType to pandas dtype
             if attr.type == DataType.TEXT:
                 dtype_map[attr.name] = "str"
@@ -608,6 +657,24 @@ class GazetteerInstaller:
             # BLOB type doesn't have a direct pandas equivalent, will be handled as object
 
         return dtype_map
+
+    def _find_geometry_item(self, source_config: SourceConfig):
+        """Find the geometry attribute or derivation (if any) in the source config.
+
+        Returns:
+            The geometry attribute/derivation object, or None if no geometry column exists
+        """
+        # Check attributes first
+        for attr in source_config.attributes:
+            if attr.type == DataType.GEOMETRY and not attr.drop:
+                return attr
+
+        # Check derivations
+        for deriv in source_config.derivations:
+            if deriv.type == DataType.GEOMETRY:
+                return deriv
+
+        return None
 
     def _create_view(self, view_config: ViewConfig) -> None:
         """

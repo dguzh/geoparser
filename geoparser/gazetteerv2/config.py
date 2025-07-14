@@ -20,6 +20,7 @@ class DataType(str, Enum):
     INTEGER = "INTEGER"
     REAL = "REAL"
     BLOB = "BLOB"
+    GEOMETRY = "GEOMETRY"
 
 
 class AttributeConfig(BaseModel):
@@ -30,12 +31,22 @@ class AttributeConfig(BaseModel):
     index: bool = False
     primary: bool = False
     drop: bool = False
+    srid: t.Optional[int] = None
 
     @model_validator(mode="after")
     def validate_primary_and_drop(self) -> "AttributeConfig":
         """Validate that a primary attribute cannot be dropped."""
         if self.primary and self.drop:
             raise ValueError("A primary key attribute cannot be dropped")
+        return self
+
+    @model_validator(mode="after")
+    def validate_geometry_srid(self) -> "AttributeConfig":
+        """Validate that geometry columns have SRID specified."""
+        if self.type == DataType.GEOMETRY and self.srid is None:
+            raise ValueError("Geometry columns must specify an SRID")
+        if self.type != DataType.GEOMETRY and self.srid is not None:
+            raise ValueError("SRID can only be specified for geometry columns")
         return self
 
 
@@ -46,6 +57,16 @@ class DerivationConfig(BaseModel):
     type: DataType
     index: bool = False
     expression: str
+    srid: t.Optional[int] = None
+
+    @model_validator(mode="after")
+    def validate_geometry_srid(self) -> "DerivationConfig":
+        """Validate that geometry derivations have SRID specified."""
+        if self.type == DataType.GEOMETRY and self.srid is None:
+            raise ValueError("Geometry derivations must specify an SRID")
+        if self.type != DataType.GEOMETRY and self.srid is not None:
+            raise ValueError("SRID can only be specified for geometry derivations")
+        return self
 
 
 class StatementConfig(BaseModel):
@@ -86,11 +107,43 @@ class SourceConfig(BaseModel):
             if self.skiprows != 0:
                 raise ValueError("Skiprows can not be specified for spatial sources")
 
-            # For spatial sources, check if the last column is named "geometry"
-            if self.attributes and self.attributes[-1].name.lower() != "geometry":
+            # For spatial sources, must have exactly one geometry column
+            geometry_columns = [
+                attr for attr in self.attributes if attr.type == DataType.GEOMETRY
+            ]
+            geometry_derivations = [
+                deriv for deriv in self.derivations if deriv.type == DataType.GEOMETRY
+            ]
+            if len(geometry_columns) + len(geometry_derivations) != 1:
                 raise ValueError(
-                    "For spatial sources, the last attribute must be named 'geometry'"
+                    "Spatial sources must have exactly one geometry column"
                 )
+
+        return self
+
+    @model_validator(mode="after")
+    def validate_geometry_columns(self) -> "SourceConfig":
+        """Validate that there is at most one geometry column named 'geometry'."""
+        # Collect all geometry columns from attributes and derivations
+        geometry_columns = []
+
+        # Check attributes
+        for attr in self.attributes:
+            if attr.type == DataType.GEOMETRY:
+                geometry_columns.append(("attribute", attr.name))
+
+        # Check derivations
+        for deriv in self.derivations:
+            if deriv.type == DataType.GEOMETRY:
+                geometry_columns.append(("derivation", deriv.name))
+
+        # Check that there's at most one geometry column
+        if len(geometry_columns) > 1:
+            raise ValueError("Sources can have at most one geometry column")
+
+        # Check that any geometry column is named "geometry"
+        if geometry_columns and geometry_columns[0][1] != "geometry":
+            raise ValueError("The geometry column must be named 'geometry'")
 
         return self
 
