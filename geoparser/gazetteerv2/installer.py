@@ -85,6 +85,9 @@ class GazetteerInstaller:
             # Apply derivations after loading the data
             self._create_derivations(source_config, table_name)
 
+            # Convert WKT text to proper SpatiaLite geometries
+            self._build_geometry(source_config, table_name)
+
             # Create indices for indexed columns
             self._create_indices(source_config, table_name)
 
@@ -279,9 +282,19 @@ class GazetteerInstaller:
         """
         table_name = source_config.name
 
-        # Drop the existing table if it exists
+        # Drop the existing table if it exists using SpatiaLite's proper cleanup function
+        # This ensures all SpatiaLite metadata (geometry_columns, spatial indexes, etc.) are cleaned up
         with engine.connect() as connection:
-            connection.execute(sa.text(f"DROP TABLE IF EXISTS {table_name}"))
+            # Use DropTable() instead of raw DROP TABLE to properly clean up SpatiaLite metadata
+            # The third parameter (1) enables permissive mode, so it won't fail if table doesn't exist
+            try:
+                connection.execute(
+                    sa.text(f"SELECT DropTable(NULL, '{table_name}', 1)")
+                )
+            except Exception:
+                # If DropTable fails for any reason, fall back to regular DROP TABLE
+                # This can happen if the table exists but isn't a proper SpatiaLite table
+                connection.execute(sa.text(f"DROP TABLE IF EXISTS {table_name}"))
             connection.commit()
 
         # Build column definitions
@@ -295,8 +308,8 @@ class GazetteerInstaller:
         for attr in source_config.attributes:
             if not attr.drop:
                 if attr.type == DataType.GEOMETRY:
-                    # Skip geometry columns - they'll be added via SpatiaLite
-                    continue
+                    # Create geometry columns as TEXT initially with _wkt suffix
+                    columns.append(f"{attr.name}_wkt TEXT")
                 else:
                     columns.append(f"{attr.name} {attr.type.value}")
                     if attr.primary:
@@ -305,8 +318,8 @@ class GazetteerInstaller:
         # Add columns for derivations
         for derivation in source_config.derivations:
             if derivation.type == DataType.GEOMETRY:
-                # Skip geometry derivations - they'll be added via SpatiaLite
-                continue
+                # Create geometry derivations as TEXT initially with _wkt suffix
+                columns.append(f"{derivation.name}_wkt TEXT")
             else:
                 columns.append(f"{derivation.name} {derivation.type.value}")
 
@@ -322,12 +335,6 @@ class GazetteerInstaller:
 
         with engine.connect() as connection:
             connection.execute(sa.text(create_table_sql))
-
-            # Add geometry column using SpatiaLite functions if needed
-            if geometry_item is not None:
-                add_geometry_sql = f"SELECT AddGeometryColumn('{table_name}', 'geometry', {geometry_item.srid}, 'GEOMETRY', 'XY')"
-                connection.execute(sa.text(add_geometry_sql))
-
             connection.commit()
 
         # Dispose the engine to clear connection pool and cached schema information
@@ -426,25 +433,9 @@ class GazetteerInstaller:
         keep_columns = [attr.name for attr in source_config.attributes if not attr.drop]
         chunk = chunk[keep_columns]
 
-        # Check if there's a geometry column (always named "geometry" if it exists)
-        if "geometry" in chunk.columns:
-            # Convert WKT string column to geometry using geopandas
-            chunk["geometry"] = gpd.GeoSeries.from_wkt(chunk["geometry"])
-
-            # Convert to GeoDataFrame with geometry column as the active geometry
-            gdf = gpd.GeoDataFrame(chunk, geometry="geometry")
-
-            # Use geopandas to_file for SpatiaLite insertion
-            gdf.to_file(
-                f"sqlite:///{engine.url.database}",
-                layer=table_name,
-                driver="SQLite",
-                if_exists="append",
-                spatialite=True,
-            )
-        else:
-            # No geometry columns, use regular pandas insert
-            chunk.to_sql(table_name, engine, index=False, if_exists="append")
+        # For geometry columns, keep them as WKT text for now
+        # They will be converted to proper geometries later
+        chunk.to_sql(table_name, engine, index=False, if_exists="append")
 
     def _load_spatial_file(
         self,
@@ -529,14 +520,57 @@ class GazetteerInstaller:
         # Keep only the specified columns
         chunk = chunk[keep_columns]
 
-        # Use geopandas to_file for efficient SpatiaLite insertion
-        chunk.to_file(
-            f"sqlite:///{engine.url.database}",
-            layer=table_name,
-            driver="SQLite",
-            if_exists="append",
-            spatialite=True,
-        )
+        # Convert geometry to WKT for insertion as text
+        geometry_item = self._find_geometry_item(source_config)
+        if geometry_item is not None and geometry_item.name in chunk.columns:
+            chunk[f"{geometry_item.name}_wkt"] = chunk[geometry_item.name].to_wkt()
+            # Remove the original geometry column since we only want the WKT version for now
+            chunk = chunk.drop(columns=[geometry_item.name])
+
+        # Convert to regular DataFrame and use pandas to_sql
+        pd.DataFrame(chunk).to_sql(table_name, engine, index=False, if_exists="append")
+
+    def _build_geometry(self, source_config: SourceConfig, table_name: str) -> None:
+        """
+        Convert WKT text in geometry column to proper SpatiaLite geometries.
+
+        This function converts the TEXT geometry column to a proper SpatiaLite
+        geometry column with appropriate constraints.
+
+        Args:
+            source_config: Source configuration
+            table_name: Name of the table to update
+        """
+        # Find the geometry item (attribute or derivation) to get the SRID
+        geometry_item = self._find_geometry_item(source_config)
+
+        if geometry_item is None:
+            # No geometry column, nothing to convert
+            return
+
+        with engine.connect() as connection:
+            # Step 1: Add a new SpatiaLite geometry column with the proper name
+            add_geometry_sql = f"SELECT AddGeometryColumn('{table_name}', '{geometry_item.name}', {geometry_item.srid}, 'GEOMETRY', 'XY')"
+            connection.execute(sa.text(add_geometry_sql))
+
+            # Step 2: Populate the new geometry column from the WKT text column
+            update_sql = (
+                f"UPDATE {table_name} "
+                f"SET {geometry_item.name} = GeomFromText({geometry_item.name}_wkt, {geometry_item.srid}) "
+                f"WHERE {geometry_item.name}_wkt IS NOT NULL"
+            )
+
+            # Execute all steps with a progress bar
+            with tqdm(
+                total=1,
+                desc=f"Building {table_name}.{geometry_item.name}",
+                unit="column",
+            ) as pbar:
+                connection.execute(sa.text(update_sql))
+                pbar.update(1)
+
+            # Commit all changes
+            connection.commit()
 
     def _create_derivations(self, source_config: SourceConfig, table_name: str) -> None:
         """
@@ -553,12 +587,13 @@ class GazetteerInstaller:
 
         with engine.connect() as connection:
             for derivation in source_config.derivations:
-                # Handle geometry derivations with SpatiaLite functions
+                # Handle geometry derivations - store as WKT text
                 if derivation.type == DataType.GEOMETRY:
-                    # For geometry derivations, use GeomFromText with SRID
+                    # For geometry derivations, store the WKT expression as text
+                    # (will be converted to proper geometry later in _build_geometry)
                     update_sql = (
                         f"UPDATE {table_name} "
-                        f"SET geometry = GeomFromText({derivation.expression}, {derivation.srid})"
+                        f"SET {derivation.name}_wkt = {derivation.expression}"
                     )
                 else:
                     # Regular derivation
@@ -607,7 +642,9 @@ class GazetteerInstaller:
             for column_name, column_type in indexed_columns:
                 if column_type == DataType.GEOMETRY:
                     # Create spatial index for geometry column
-                    index_sql = f"SELECT CreateSpatialIndex('{table_name}', 'geometry')"
+                    index_sql = (
+                        f"SELECT CreateSpatialIndex('{table_name}', '{column_name}')"
+                    )
                 else:
                     # Create regular B-tree index for other columns
                     index_name = f"idx_{table_name}_{column_name}"

@@ -30,7 +30,9 @@ sources:
       - name: NAMENGRUPP
         type: TEXT
       - name: geometry
-        type: TEXT
+        type: GEOMETRY
+        index: true
+        srid: 2056
 
   - name: swissNAMES3D_LIN
     type: spatial
@@ -60,7 +62,9 @@ sources:
       - name: NAMENGRUPP
         type: TEXT
       - name: geometry
-        type: TEXT
+        type: GEOMETRY
+        index: true
+        srid: 2056
 
   - name: swissNAMES3D_PLY
     type: spatial
@@ -92,7 +96,9 @@ sources:
       - name: ISCED
         type: TEXT
       - name: geometry
-        type: TEXT
+        type: GEOMETRY
+        index: true
+        srid: 2056
 
   - name: swissBOUNDARIES3D_1_5_TLM_HOHEITSGEBIET
     type: spatial
@@ -147,7 +153,9 @@ sources:
       - name: HIST_NR
         type: INTEGER
       - name: geometry
-        type: TEXT
+        type: GEOMETRY
+        index: true
+        srid: 2056
 
   - name: swissBOUNDARIES3D_1_5_TLM_BEZIRKSGEBIET
     type: spatial
@@ -196,7 +204,9 @@ sources:
       - name: EINWOHNERZ
         type: INTEGER
       - name: geometry
-        type: TEXT
+        type: GEOMETRY
+        index: true
+        srid: 2056
 
   - name: swissBOUNDARIES3D_1_5_TLM_KANTONSGEBIET
     type: spatial
@@ -243,36 +253,144 @@ sources:
       - name: EINWOHNERZ
         type: INTEGER
       - name: geometry
-        type: TEXT 
+        type: GEOMETRY
+        index: true
+        srid: 2056 
+
+views:
+  - name: swissNAMES3D_PKT_enriched
+    statement:
+      select:
+        - "swissNAMES3D_PKT.UUID"
+        - "swissNAMES3D_PKT.OBJEKTART"
+        - "swissNAMES3D_PKT.OBJEKTKLAS"
+        - "swissNAMES3D_PKT.HOEHE"
+        - "swissNAMES3D_PKT.GEBAEUDENU"
+        - "swissNAMES3D_PKT.NAME_UUID"
+        - "swissNAMES3D_PKT.NAME"
+        - "swissNAMES3D_PKT.STATUS"
+        - "swissNAMES3D_PKT.SPRACHCODE"
+        - "swissNAMES3D_PKT.NAMEN_TYP"
+        - "swissNAMES3D_PKT.NAMENGRUPP"
+        - "swissNAMES3D_PKT.geometry"
+        - "swissBOUNDARIES3D_1_5_TLM_HOHEITSGEBIET.NAME AS GEMEINDE_NAME"
+        - "swissBOUNDARIES3D_1_5_TLM_HOHEITSGEBIET.BFS_NUMMER AS GEMEINDE_BFS_NUMMER"
+        - "swissBOUNDARIES3D_1_5_TLM_BEZIRKSGEBIET.NAME AS BEZIRK_NAME"
+        - "swissBOUNDARIES3D_1_5_TLM_BEZIRKSGEBIET.BEZIRKSNUM AS BEZIRKSNUM"
+        - "swissBOUNDARIES3D_1_5_TLM_KANTONSGEBIET.NAME AS KANTON_NAME"
+        - "swissBOUNDARIES3D_1_5_TLM_KANTONSGEBIET.KANTONSNUM AS KANTONSNUM"
+      from:
+        - swissNAMES3D_PKT
+      join:
+        - "LEFT JOIN swissBOUNDARIES3D_1_5_TLM_HOHEITSGEBIET ON ST_Within(swissNAMES3D_PKT.geometry, swissBOUNDARIES3D_1_5_TLM_HOHEITSGEBIET.geometry)"
+        - "LEFT JOIN swissBOUNDARIES3D_1_5_TLM_BEZIRKSGEBIET ON swissBOUNDARIES3D_1_5_TLM_HOHEITSGEBIET.BEZIRKSNUM = swissBOUNDARIES3D_1_5_TLM_BEZIRKSGEBIET.BEZIRKSNUM"
+        - "LEFT JOIN swissBOUNDARIES3D_1_5_TLM_KANTONSGEBIET ON swissBOUNDARIES3D_1_5_TLM_BEZIRKSGEBIET.KANTONSNUM = swissBOUNDARIES3D_1_5_TLM_KANTONSGEBIET.KANTONSNUM"
+
+  - name: swissNAMES3D_LIN_enriched
+    statement:
+      select:
+        - "swissNAMES3D_LIN.UUID"
+        - "swissNAMES3D_LIN.OBJEKTART"
+        - "swissNAMES3D_LIN.OBJEKTKLAS"
+        - "swissNAMES3D_LIN.KUNSTBAUTE"
+        - "swissNAMES3D_LIN.NAME_UUID"
+        - "swissNAMES3D_LIN.NAME"
+        - "swissNAMES3D_LIN.STATUS"
+        - "swissNAMES3D_LIN.SPRACHCODE"
+        - "swissNAMES3D_LIN.NAMEN_TYP"
+        - "swissNAMES3D_LIN.NAMENGRUPP"
+        - "swissNAMES3D_LIN.geometry"
+        - "swissBOUNDARIES3D_1_5_TLM_HOHEITSGEBIET.NAME AS GEMEINDE_NAME"
+        - "swissBOUNDARIES3D_1_5_TLM_HOHEITSGEBIET.BFS_NUMMER AS GEMEINDE_BFS_NUMMER"
+        - "swissBOUNDARIES3D_1_5_TLM_BEZIRKSGEBIET.NAME AS BEZIRK_NAME"
+        - "swissBOUNDARIES3D_1_5_TLM_BEZIRKSGEBIET.BEZIRKSNUM AS BEZIRKSNUM"
+        - "swissBOUNDARIES3D_1_5_TLM_KANTONSGEBIET.NAME AS KANTON_NAME"
+        - "swissBOUNDARIES3D_1_5_TLM_KANTONSGEBIET.KANTONSNUM AS KANTONSNUM"
+      from:
+        - swissNAMES3D_LIN
+      join:
+        - "LEFT JOIN swissBOUNDARIES3D_1_5_TLM_HOHEITSGEBIET ON ST_Within(ST_Centroid(swissNAMES3D_LIN.geometry), swissBOUNDARIES3D_1_5_TLM_HOHEITSGEBIET.geometry)"
+        - "LEFT JOIN swissBOUNDARIES3D_1_5_TLM_BEZIRKSGEBIET ON swissBOUNDARIES3D_1_5_TLM_HOHEITSGEBIET.BEZIRKSNUM = swissBOUNDARIES3D_1_5_TLM_BEZIRKSGEBIET.BEZIRKSNUM"
+        - "LEFT JOIN swissBOUNDARIES3D_1_5_TLM_KANTONSGEBIET ON swissBOUNDARIES3D_1_5_TLM_BEZIRKSGEBIET.KANTONSNUM = swissBOUNDARIES3D_1_5_TLM_KANTONSGEBIET.KANTONSNUM"
+
+  - name: swissNAMES3D_PLY_enriched
+    statement:
+      select:
+        - "swissNAMES3D_PLY.UUID"
+        - "swissNAMES3D_PLY.OBJEKTART"
+        - "swissNAMES3D_PLY.OBJEKTKLAS"
+        - "swissNAMES3D_PLY.EINWOHNERK"
+        - "swissNAMES3D_PLY.NAME_UUID"
+        - "swissNAMES3D_PLY.NAME"
+        - "swissNAMES3D_PLY.STATUS"
+        - "swissNAMES3D_PLY.SPRACHCODE"
+        - "swissNAMES3D_PLY.NAMEN_TYP"
+        - "swissNAMES3D_PLY.NAMENGRUPP"
+        - "swissNAMES3D_PLY.ISCED"
+        - "swissNAMES3D_PLY.geometry"
+        - "swissBOUNDARIES3D_1_5_TLM_HOHEITSGEBIET.NAME AS GEMEINDE_NAME"
+        - "swissBOUNDARIES3D_1_5_TLM_HOHEITSGEBIET.BFS_NUMMER AS GEMEINDE_BFS_NUMMER"
+        - "swissBOUNDARIES3D_1_5_TLM_BEZIRKSGEBIET.NAME AS BEZIRK_NAME"
+        - "swissBOUNDARIES3D_1_5_TLM_BEZIRKSGEBIET.BEZIRKSNUM AS BEZIRKSNUM"
+        - "swissBOUNDARIES3D_1_5_TLM_KANTONSGEBIET.NAME AS KANTON_NAME"
+        - "swissBOUNDARIES3D_1_5_TLM_KANTONSGEBIET.KANTONSNUM AS KANTONSNUM"
+      from:
+        - swissNAMES3D_PLY
+      join:
+        - "LEFT JOIN swissBOUNDARIES3D_1_5_TLM_HOHEITSGEBIET ON ST_Within(ST_Centroid(swissNAMES3D_PLY.geometry), swissBOUNDARIES3D_1_5_TLM_HOHEITSGEBIET.geometry)"
+        - "LEFT JOIN swissBOUNDARIES3D_1_5_TLM_BEZIRKSGEBIET ON swissBOUNDARIES3D_1_5_TLM_HOHEITSGEBIET.BEZIRKSNUM = swissBOUNDARIES3D_1_5_TLM_BEZIRKSGEBIET.BEZIRKSNUM"
+        - "LEFT JOIN swissBOUNDARIES3D_1_5_TLM_KANTONSGEBIET ON swissBOUNDARIES3D_1_5_TLM_BEZIRKSGEBIET.KANTONSNUM = swissBOUNDARIES3D_1_5_TLM_KANTONSGEBIET.KANTONSNUM"
+
+  - name: swissBOUNDARIES3D_HOHEITSGEBIET_enriched
+    statement:
+      select:
+        - "swissBOUNDARIES3D_1_5_TLM_HOHEITSGEBIET.*"
+        - "swissBOUNDARIES3D_1_5_TLM_BEZIRKSGEBIET.NAME AS BEZIRK_NAME"
+        - "swissBOUNDARIES3D_1_5_TLM_KANTONSGEBIET.NAME AS KANTON_NAME"
+      from:
+        - swissBOUNDARIES3D_1_5_TLM_HOHEITSGEBIET
+      join:
+        - "LEFT JOIN swissBOUNDARIES3D_1_5_TLM_BEZIRKSGEBIET ON swissBOUNDARIES3D_1_5_TLM_HOHEITSGEBIET.BEZIRKSNUM = swissBOUNDARIES3D_1_5_TLM_BEZIRKSGEBIET.BEZIRKSNUM"
+        - "LEFT JOIN swissBOUNDARIES3D_1_5_TLM_KANTONSGEBIET ON swissBOUNDARIES3D_1_5_TLM_HOHEITSGEBIET.KANTONSNUM = swissBOUNDARIES3D_1_5_TLM_KANTONSGEBIET.KANTONSNUM"
+
+  - name: swissBOUNDARIES3D_BEZIRKSGEBIET_enriched
+    statement:
+      select:
+        - "swissBOUNDARIES3D_1_5_TLM_BEZIRKSGEBIET.*"
+        - "swissBOUNDARIES3D_1_5_TLM_KANTONSGEBIET.NAME AS KANTON_NAME"
+      from:
+        - swissBOUNDARIES3D_1_5_TLM_BEZIRKSGEBIET
+      join:
+        - "LEFT JOIN swissBOUNDARIES3D_1_5_TLM_KANTONSGEBIET ON swissBOUNDARIES3D_1_5_TLM_BEZIRKSGEBIET.KANTONSNUM = swissBOUNDARIES3D_1_5_TLM_KANTONSGEBIET.KANTONSNUM"
 
 features:
-  - table: swissNAMES3D_PKT
+  - table: swissNAMES3D_PKT_enriched
     identifier_column: UUID
-  - table: swissNAMES3D_LIN
+  - table: swissNAMES3D_LIN_enriched
     identifier_column: UUID
-  - table: swissNAMES3D_PLY
+  - table: swissNAMES3D_PLY_enriched
     identifier_column: UUID
-  - table: swissBOUNDARIES3D_1_5_TLM_HOHEITSGEBIET
+  - table: swissBOUNDARIES3D_HOHEITSGEBIET_enriched
     identifier_column: UUID
-  - table: swissBOUNDARIES3D_1_5_TLM_BEZIRKSGEBIET
+  - table: swissBOUNDARIES3D_BEZIRKSGEBIET_enriched
     identifier_column: UUID
   - table: swissBOUNDARIES3D_1_5_TLM_KANTONSGEBIET
     identifier_column: UUID
 
 toponyms:
-  - table: swissNAMES3D_PKT
+  - table: swissNAMES3D_PKT_enriched
     identifier_column: UUID
     toponym_column: NAME
-  - table: swissNAMES3D_LIN
+  - table: swissNAMES3D_LIN_enriched
     identifier_column: UUID
     toponym_column: NAME
-  - table: swissNAMES3D_PLY
+  - table: swissNAMES3D_PLY_enriched
     identifier_column: UUID
     toponym_column: NAME
-  - table: swissBOUNDARIES3D_1_5_TLM_HOHEITSGEBIET
+  - table: swissBOUNDARIES3D_HOHEITSGEBIET_enriched
     identifier_column: UUID
     toponym_column: NAME
-  - table: swissBOUNDARIES3D_1_5_TLM_BEZIRKSGEBIET
+  - table: swissBOUNDARIES3D_BEZIRKSGEBIET_enriched
     identifier_column: UUID
     toponym_column: NAME
   - table: swissBOUNDARIES3D_1_5_TLM_KANTONSGEBIET
