@@ -48,7 +48,9 @@ sources:
         type: TEXT
     derivations:
       - name: geometry
-        type: TEXT
+        type: GEOMETRY
+        index: true
+        srid: 4326
         expression: "'POINT(' || longitude || ' ' || latitude || ')'"
       - name: feature_code_full
         type: TEXT
@@ -193,17 +195,21 @@ views:
         - "LEFT JOIN featureCodes AS features ON allCountries.feature_code_full = features.code"
 
 features:
-  - table: allCountriesEnriched
+  - table: allCountries
+    view: allCountriesEnriched
     identifier_column: geonameid
 
 toponyms:
   - table: allCountries
+    view: allCountriesEnriched
     identifier_column: geonameid
     toponym_column: name
   - table: allCountries
+    view: allCountriesEnriched
     identifier_column: geonameid
     toponym_column: asciiname
   - table: allCountries
+    view: allCountriesEnriched
     identifier_column: geonameid
     toponym_column: alternatenames
     separator: ","

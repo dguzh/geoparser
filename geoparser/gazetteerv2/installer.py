@@ -85,6 +85,9 @@ class GazetteerInstaller:
             # Apply derivations after loading the data
             self._create_derivations(source_config, table_name)
 
+            # Convert WKT text to proper SpatiaLite geometries
+            self._build_geometry(source_config, table_name)
+
             # Create indices for indexed columns
             self._create_indices(source_config, table_name)
 
@@ -279,25 +282,46 @@ class GazetteerInstaller:
         """
         table_name = source_config.name
 
-        # Drop the existing table if it exists
+        # Drop the existing table if it exists using SpatiaLite's proper cleanup function
+        # This ensures all SpatiaLite metadata (geometry_columns, spatial indexes, etc.) are cleaned up
         with engine.connect() as connection:
-            connection.execute(sa.text(f"DROP TABLE IF EXISTS {table_name}"))
+            # Use DropTable() instead of raw DROP TABLE to properly clean up SpatiaLite metadata
+            # The third parameter (1) enables permissive mode, so it won't fail if table doesn't exist
+            try:
+                connection.execute(
+                    sa.text(f"SELECT DropTable(NULL, '{table_name}', 1)")
+                )
+            except Exception:
+                # If DropTable fails for any reason, fall back to regular DROP TABLE
+                # This can happen if the table exists but isn't a proper SpatiaLite table
+                connection.execute(sa.text(f"DROP TABLE IF EXISTS {table_name}"))
             connection.commit()
 
         # Build column definitions
         columns = []
         primary_keys = []
 
+        # Find geometry column and get its SRID
+        geometry_item = self._find_geometry_item(source_config)
+
         # Add columns for attributes (that aren't dropped)
         for attr in source_config.attributes:
             if not attr.drop:
-                columns.append(f"{attr.name} {attr.type.value}")
-                if attr.primary:
-                    primary_keys.append(attr.name)
+                if attr.type == DataType.GEOMETRY:
+                    # Create geometry columns as TEXT initially with _wkt suffix
+                    columns.append(f"{attr.name}_wkt TEXT")
+                else:
+                    columns.append(f"{attr.name} {attr.type.value}")
+                    if attr.primary:
+                        primary_keys.append(attr.name)
 
         # Add columns for derivations
         for derivation in source_config.derivations:
-            columns.append(f"{derivation.name} {derivation.type.value}")
+            if derivation.type == DataType.GEOMETRY:
+                # Create geometry derivations as TEXT initially with _wkt suffix
+                columns.append(f"{derivation.name}_wkt TEXT")
+            else:
+                columns.append(f"{derivation.name} {derivation.type.value}")
 
         # If no primary keys defined, don't add a primary key constraint
         pk_clause = ""
@@ -409,7 +433,8 @@ class GazetteerInstaller:
         keep_columns = [attr.name for attr in source_config.attributes if not attr.drop]
         chunk = chunk[keep_columns]
 
-        # Load processed chunk to database with append strategy
+        # For geometry columns, keep them as WKT text for now
+        # They will be converted to proper geometries later
         chunk.to_sql(table_name, engine, index=False, if_exists="append")
 
     def _load_spatial_file(
@@ -495,12 +520,57 @@ class GazetteerInstaller:
         # Keep only the specified columns
         chunk = chunk[keep_columns]
 
-        # Convert geometry to WKT for storage in SQLite
-        if "geometry" in chunk.columns:
-            chunk["geometry"] = chunk.geometry.to_wkt()
+        # Convert geometry to WKT for insertion as text
+        geometry_item = self._find_geometry_item(source_config)
+        if geometry_item is not None and geometry_item.name in chunk.columns:
+            chunk[f"{geometry_item.name}_wkt"] = chunk[geometry_item.name].to_wkt()
+            # Remove the original geometry column since we only want the WKT version for now
+            chunk = chunk.drop(columns=[geometry_item.name])
 
-        # Convert to DataFrame and load to database
+        # Convert to regular DataFrame and use pandas to_sql
         pd.DataFrame(chunk).to_sql(table_name, engine, index=False, if_exists="append")
+
+    def _build_geometry(self, source_config: SourceConfig, table_name: str) -> None:
+        """
+        Convert WKT text in geometry column to proper SpatiaLite geometries.
+
+        This function converts the TEXT geometry column to a proper SpatiaLite
+        geometry column with appropriate constraints.
+
+        Args:
+            source_config: Source configuration
+            table_name: Name of the table to update
+        """
+        # Find the geometry item (attribute or derivation) to get the SRID
+        geometry_item = self._find_geometry_item(source_config)
+
+        if geometry_item is None:
+            # No geometry column, nothing to convert
+            return
+
+        with engine.connect() as connection:
+            # Step 1: Add a new SpatiaLite geometry column with the proper name
+            add_geometry_sql = f"SELECT AddGeometryColumn('{table_name}', '{geometry_item.name}', {geometry_item.srid}, 'GEOMETRY', 'XY')"
+            connection.execute(sa.text(add_geometry_sql))
+
+            # Step 2: Populate the new geometry column from the WKT text column
+            update_sql = (
+                f"UPDATE {table_name} "
+                f"SET {geometry_item.name} = GeomFromText({geometry_item.name}_wkt, {geometry_item.srid}) "
+                f"WHERE {geometry_item.name}_wkt IS NOT NULL"
+            )
+
+            # Execute all steps with a progress bar
+            with tqdm(
+                total=1,
+                desc=f"Building {table_name}.{geometry_item.name}",
+                unit="column",
+            ) as pbar:
+                connection.execute(sa.text(update_sql))
+                pbar.update(1)
+
+            # Commit all changes
+            connection.commit()
 
     def _create_derivations(self, source_config: SourceConfig, table_name: str) -> None:
         """
@@ -517,11 +587,20 @@ class GazetteerInstaller:
 
         with engine.connect() as connection:
             for derivation in source_config.derivations:
-                # Create an UPDATE statement to set the derived column
-                update_sql = (
-                    f"UPDATE {table_name} "
-                    f"SET {derivation.name} = {derivation.expression}"
-                )
+                # Handle geometry derivations - store as WKT text
+                if derivation.type == DataType.GEOMETRY:
+                    # For geometry derivations, store the WKT expression as text
+                    # (will be converted to proper geometry later in _build_geometry)
+                    update_sql = (
+                        f"UPDATE {table_name} "
+                        f"SET {derivation.name}_wkt = {derivation.expression}"
+                    )
+                else:
+                    # Regular derivation
+                    update_sql = (
+                        f"UPDATE {table_name} "
+                        f"SET {derivation.name} = {derivation.expression}"
+                    )
 
                 # Execute the update with a progress bar
                 with tqdm(
@@ -543,40 +622,43 @@ class GazetteerInstaller:
             source_config: Source configuration
             table_name: Name of the table to create indices for
         """
-        # Collect all columns that need indices
-        indexed_columns: List[str] = []
+        # Collect all columns that need indices with their types
+        indexed_columns: List[tuple] = []
 
         # Check regular attributes
         for attr in source_config.attributes:
             if attr.index and not attr.drop:
-                indexed_columns.append(attr.name)
+                indexed_columns.append((attr.name, attr.type))
 
         # Check derivations
         for derivation in source_config.derivations:
             if derivation.index:
-                indexed_columns.append(derivation.name)
+                indexed_columns.append((derivation.name, derivation.type))
 
         if not indexed_columns:
             return
 
         with engine.connect() as connection:
-            for column_name in indexed_columns:
-                index_name = f"idx_{table_name}_{column_name}"
+            for column_name, column_type in indexed_columns:
+                if column_type == DataType.GEOMETRY:
+                    # Create spatial index for geometry column
+                    index_sql = (
+                        f"SELECT CreateSpatialIndex('{table_name}', '{column_name}')"
+                    )
+                else:
+                    # Create regular B-tree index for other columns
+                    index_name = f"idx_{table_name}_{column_name}"
+                    index_sql = (
+                        f"CREATE INDEX {index_name} ON {table_name}({column_name})"
+                    )
 
-                # Create index with a progress bar
+                # Create index with progress bar
                 with tqdm(
                     total=1,
                     desc=f"Indexing {table_name}.{column_name}",
                     unit="index",
                 ) as pbar:
-                    # Drop the index if it exists
-                    connection.execute(sa.text(f"DROP INDEX IF EXISTS {index_name}"))
-
-                    # Create the index
-                    create_index_sql = (
-                        f"CREATE INDEX {index_name} ON {table_name}({column_name})"
-                    )
-                    connection.execute(sa.text(create_index_sql))
+                    connection.execute(sa.text(index_sql))
                     pbar.update(1)
 
             # Commit all the index creations
@@ -598,6 +680,10 @@ class GazetteerInstaller:
         """
         dtype_map = {}
         for attr in source_config.attributes:
+            # Skip geometry columns - they're handled specially
+            if attr.type == DataType.GEOMETRY:
+                continue
+
             # Map our DataType to pandas dtype
             if attr.type == DataType.TEXT:
                 dtype_map[attr.name] = "str"
@@ -608,6 +694,24 @@ class GazetteerInstaller:
             # BLOB type doesn't have a direct pandas equivalent, will be handled as object
 
         return dtype_map
+
+    def _find_geometry_item(self, source_config: SourceConfig):
+        """Find the geometry attribute or derivation (if any) in the source config.
+
+        Returns:
+            The geometry attribute/derivation object, or None if no geometry column exists
+        """
+        # Check attributes first
+        for attr in source_config.attributes:
+            if attr.type == DataType.GEOMETRY and not attr.drop:
+                return attr
+
+        # Check derivations
+        for deriv in source_config.derivations:
+            if deriv.type == DataType.GEOMETRY:
+                return deriv
+
+        return None
 
     def _create_view(self, view_config: ViewConfig) -> None:
         """
@@ -707,7 +811,12 @@ class GazetteerInstaller:
         Returns:
             SQL for inserting features into the Feature table
         """
+        # Use table for sourcing data (efficient, no spatial joins)
         source_name = feature_config.table
+        # Use view if specified, otherwise use table for registration
+        table_name = (
+            feature_config.view if feature_config.view else feature_config.table
+        )
         identifier_column = feature_config.identifier_column
         gazetteer_name = gazetteer_config.name
 
@@ -717,7 +826,7 @@ class GazetteerInstaller:
             INSERT OR IGNORE INTO feature (gazetteer_name, table_name, identifier_name, identifier_value)
             SELECT 
                 '{gazetteer_name}' as gazetteer_name,
-                '{source_name}' as table_name,
+                '{table_name}' as table_name,
                 '{identifier_column}' as identifier_name,
                 CAST({identifier_column} AS TEXT) as identifier_value
             FROM {source_name}
@@ -777,7 +886,12 @@ class GazetteerInstaller:
         Returns:
             SQL for inserting toponyms into the Toponym table
         """
+        # Use table for sourcing data (efficient, no spatial joins)
         source_name = toponym_config.table
+        # Use view if specified, otherwise use table for feature matching
+        table_name = (
+            toponym_config.view if toponym_config.view else toponym_config.table
+        )
         identifier_column = toponym_config.identifier_column
         toponym_column = toponym_config.toponym_column
         gazetteer_name = gazetteer_config.name
@@ -791,6 +905,7 @@ class GazetteerInstaller:
                 f.id as feature_id
             FROM {source_name} s
             JOIN feature f ON f.gazetteer_name = '{gazetteer_name}' 
+                           AND f.table_name = '{table_name}'
                            AND f.identifier_value = CAST(s.{identifier_column} AS TEXT)
             WHERE s.{toponym_column} IS NOT NULL AND s.{toponym_column} != ''
         """
@@ -810,7 +925,12 @@ class GazetteerInstaller:
         Returns:
             SQL for inserting toponyms into the Toponym table
         """
+        # Use table for sourcing data (efficient, no spatial joins)
         source_name = toponym_config.table
+        # Use view if specified, otherwise use table for feature matching
+        table_name = (
+            toponym_config.view if toponym_config.view else toponym_config.table
+        )
         identifier_column = toponym_config.identifier_column
         toponym_column = toponym_config.toponym_column
         separator = toponym_config.separator
@@ -827,6 +947,7 @@ class GazetteerInstaller:
                     s.{toponym_column} || '{separator}' as remaining
                 FROM {source_name} s
                 JOIN feature f ON f.gazetteer_name = '{gazetteer_name}' 
+                               AND f.table_name = '{table_name}'
                                AND f.identifier_value = CAST(s.{identifier_column} AS TEXT)
                 WHERE s.{toponym_column} IS NOT NULL AND s.{toponym_column} != ''
                 
