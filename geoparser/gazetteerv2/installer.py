@@ -811,7 +811,12 @@ class GazetteerInstaller:
         Returns:
             SQL for inserting features into the Feature table
         """
+        # Use table for sourcing data (efficient, no spatial joins)
         source_name = feature_config.table
+        # Use view if specified, otherwise use table for registration
+        table_name = (
+            feature_config.view if feature_config.view else feature_config.table
+        )
         identifier_column = feature_config.identifier_column
         gazetteer_name = gazetteer_config.name
 
@@ -821,7 +826,7 @@ class GazetteerInstaller:
             INSERT OR IGNORE INTO feature (gazetteer_name, table_name, identifier_name, identifier_value)
             SELECT 
                 '{gazetteer_name}' as gazetteer_name,
-                '{source_name}' as table_name,
+                '{table_name}' as table_name,
                 '{identifier_column}' as identifier_name,
                 CAST({identifier_column} AS TEXT) as identifier_value
             FROM {source_name}
@@ -881,7 +886,12 @@ class GazetteerInstaller:
         Returns:
             SQL for inserting toponyms into the Toponym table
         """
+        # Use table for sourcing data (efficient, no spatial joins)
         source_name = toponym_config.table
+        # Use view if specified, otherwise use table for feature matching
+        table_name = (
+            toponym_config.view if toponym_config.view else toponym_config.table
+        )
         identifier_column = toponym_config.identifier_column
         toponym_column = toponym_config.toponym_column
         gazetteer_name = gazetteer_config.name
@@ -895,6 +905,7 @@ class GazetteerInstaller:
                 f.id as feature_id
             FROM {source_name} s
             JOIN feature f ON f.gazetteer_name = '{gazetteer_name}' 
+                           AND f.table_name = '{table_name}'
                            AND f.identifier_value = CAST(s.{identifier_column} AS TEXT)
             WHERE s.{toponym_column} IS NOT NULL AND s.{toponym_column} != ''
         """
@@ -914,7 +925,12 @@ class GazetteerInstaller:
         Returns:
             SQL for inserting toponyms into the Toponym table
         """
+        # Use table for sourcing data (efficient, no spatial joins)
         source_name = toponym_config.table
+        # Use view if specified, otherwise use table for feature matching
+        table_name = (
+            toponym_config.view if toponym_config.view else toponym_config.table
+        )
         identifier_column = toponym_config.identifier_column
         toponym_column = toponym_config.toponym_column
         separator = toponym_config.separator
@@ -931,6 +947,7 @@ class GazetteerInstaller:
                     s.{toponym_column} || '{separator}' as remaining
                 FROM {source_name} s
                 JOIN feature f ON f.gazetteer_name = '{gazetteer_name}' 
+                               AND f.table_name = '{table_name}'
                                AND f.identifier_value = CAST(s.{identifier_column} AS TEXT)
                 WHERE s.{toponym_column} IS NOT NULL AND s.{toponym_column} != ''
                 

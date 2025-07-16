@@ -159,6 +159,7 @@ class FeatureConfig(BaseModel):
     """Configuration for extracting features from a gazetteer source."""
 
     table: str
+    view: t.Optional[str] = None
     identifier_column: str
 
 
@@ -166,6 +167,7 @@ class ToponymConfig(BaseModel):
     """Configuration for extracting toponyms from a gazetteer source."""
 
     table: str
+    view: t.Optional[str] = None
     identifier_column: str
     toponym_column: str
     separator: t.Optional[str] = None
@@ -240,7 +242,11 @@ class GazetteerConfig(BaseModel):
         for feature in self.features:
             if feature.table not in all_names:
                 raise ValueError(
-                    f"Feature configuration references non-existent source/view: {feature.table}"
+                    f"Feature configuration table references non-existent source/view: {feature.table}"
+                )
+            if feature.view and feature.view not in all_names:
+                raise ValueError(
+                    f"Feature configuration view references non-existent source/view: {feature.view}"
                 )
 
         return self
@@ -258,7 +264,11 @@ class GazetteerConfig(BaseModel):
         for toponym_config in self.toponyms:
             if toponym_config.table not in all_names:
                 raise ValueError(
-                    f"Toponym configuration references non-existent source/view: {toponym_config.table}"
+                    f"Toponym configuration table references non-existent source/view: {toponym_config.table}"
+                )
+            if toponym_config.view and toponym_config.view not in all_names:
+                raise ValueError(
+                    f"Toponym configuration view references non-existent source/view: {toponym_config.view}"
                 )
 
         return self
