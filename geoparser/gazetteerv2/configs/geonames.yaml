@@ -64,6 +64,12 @@ sources:
         type: TEXT
         index: true
         expression: "country_code || '.' || admin1_code || '.' || admin2_code"
+      - name: name_no_parens
+        type: TEXT
+        expression: "CASE WHEN instr(name, '(') > 0 THEN trim(substr(name, 1, instr(name, '(') - 1)) ELSE name END"
+      - name: asciiname_no_parens
+        type: TEXT
+        expression: "CASE WHEN instr(asciiname, '(') > 0 THEN trim(substr(asciiname, 1, instr(asciiname, '(') - 1)) ELSE asciiname END"
 
   - name: admin1CodesASCII
     type: tabular
@@ -164,7 +170,9 @@ views:
       select:
         - "allCountries.geonameid"
         - "allCountries.name"
+        - "allCountries.name_no_parens"
         - "allCountries.asciiname"
+        - "allCountries.asciiname_no_parens"
         - "allCountries.alternatenames"
         - "allCountries.latitude"
         - "allCountries.longitude"
@@ -207,7 +215,15 @@ toponyms:
   - table: allCountries
     view: allCountriesEnriched
     identifier_column: geonameid
+    toponym_column: name_no_parens
+  - table: allCountries
+    view: allCountriesEnriched
+    identifier_column: geonameid
     toponym_column: asciiname
+  - table: allCountries
+    view: allCountriesEnriched
+    identifier_column: geonameid
+    toponym_column: asciiname_no_parens
   - table: allCountries
     view: allCountriesEnriched
     identifier_column: geonameid
