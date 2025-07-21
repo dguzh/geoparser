@@ -61,12 +61,34 @@ class DerivationConfig(BaseModel):
         return self
 
 
+class SelectConfig(BaseModel):
+    """Configuration for a SELECT clause element."""
+
+    table: str
+    column: str
+    alias: t.Optional[str] = None
+
+
+class FromConfig(BaseModel):
+    """Configuration for a FROM clause element."""
+
+    table: str
+
+
+class JoinConfig(BaseModel):
+    """Configuration for a JOIN clause element."""
+
+    type: str  # e.g., "LEFT JOIN", "INNER JOIN", "RIGHT JOIN"
+    table: str  # The table to join
+    on: str  # The ON condition
+
+
 class StatementConfig(BaseModel):
     """SQL statement configuration for a view."""
 
-    select: t.List[str]
-    from_: t.List[str] = Field(alias="from")
-    join: t.Optional[t.List[str]] = None
+    select: t.List[SelectConfig]
+    from_: FromConfig = Field(alias="from")
+    join: t.Optional[t.List[JoinConfig]] = None
 
 
 class SourceConfig(BaseModel):
@@ -213,11 +235,26 @@ class GazetteerConfig(BaseModel):
         # Check that 'from' references existing sources or views
         all_names = source_names.union(view_names)
         for view in self.views:
-            for source_ref in view.statement.from_:
-                if source_ref not in all_names:
+            # Check the from table
+            if view.statement.from_.table not in all_names:
+                raise ValueError(
+                    f"View '{view.name}' from references non-existent source/view: {view.statement.from_.table}"
+                )
+
+            # Check all select tables
+            for select_item in view.statement.select:
+                if select_item.table not in all_names:
                     raise ValueError(
-                        f"View '{view.name}' references non-existent source/view: {source_ref}"
+                        f"View '{view.name}' select references non-existent source/view: {select_item.table}"
                     )
+
+            # Check all join tables
+            if view.statement.join:
+                for join_item in view.statement.join:
+                    if join_item.table not in all_names:
+                        raise ValueError(
+                            f"View '{view.name}' join references non-existent source/view: {join_item.table}"
+                        )
 
         return self
 

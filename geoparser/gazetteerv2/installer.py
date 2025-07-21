@@ -743,16 +743,27 @@ class GazetteerInstaller:
         """
         view_name = view_config.name
 
-        # Build the select clause
-        select_clause = ", ".join(view_config.statement.select)
+        # Build the select clause from SelectConfig objects
+        select_parts = []
+        for select_item in view_config.statement.select:
+            column_ref = f"{select_item.table}.{select_item.column}"
+            if select_item.alias:
+                column_ref += f" AS {select_item.alias}"
+            select_parts.append(column_ref)
+        select_clause = ", ".join(select_parts)
 
-        # Build the from clause - use source names directly
-        from_clause = ", ".join(view_config.statement.from_)
+        # Build the from clause from FromConfig object
+        from_clause = view_config.statement.from_.table
 
-        # Build the join clause if specified
+        # Build the join clause from JoinConfig objects
         join_clause = ""
         if view_config.statement.join:
-            join_clause = " " + " ".join(view_config.statement.join)
+            join_parts = []
+            for join_item in view_config.statement.join:
+                join_parts.append(
+                    f"{join_item.type} {join_item.table} ON {join_item.on}"
+                )
+            join_clause = " " + " ".join(join_parts)
 
         # Build the full SQL
         sql = f"CREATE VIEW {view_name} AS SELECT {select_clause} FROM {from_clause}{join_clause}"
