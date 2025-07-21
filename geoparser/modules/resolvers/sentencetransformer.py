@@ -29,17 +29,17 @@ class SentenceTransformerResolver(Resolver):
     GAZETTEER_ATTRIBUTE_MAP = {
         "geonames": {
             "name": "name",
-            "feature_type": "feature_name",
-            "admin1": "admin1_name",
-            "admin2": "admin2_name",
-            "country": "country_name",
+            "type": "feature_name",
+            "level1": "country_name",
+            "level2": "admin1_name",
+            "level3": "admin2_name",
         },
         "swissnames3d": {
             "name": "NAME",
-            "feature_type": "OBJEKTART",
-            "admin1": "KANTON_NAME",
-            "admin2": "BEZIRK_NAME",
-            "admin3": "GEMEINDE_NAME",
+            "type": "OBJEKTART",
+            "level1": "KANTON_NAME",
+            "level2": "BEZIRK_NAME",
+            "level3": "GEMEINDE_NAME",
         },
     }
 
@@ -322,54 +322,42 @@ class SentenceTransformerResolver(Resolver):
 
         # Get location data
         location_data = candidate.data
-        gazetteer_name = self.gazetteer_name.lower()
 
         # Get attribute mappings for this gazetteer
-        attr_map = self.GAZETTEER_ATTRIBUTE_MAP.get(gazetteer_name, {})
+        if self.gazetteer_name not in self.GAZETTEER_ATTRIBUTE_MAP:
+            raise ValueError(
+                f"Gazetteer '{self.gazetteer_name}' is not configured in GAZETTEER_ATTRIBUTE_MAP"
+            )
+
+        attr_map = self.GAZETTEER_ATTRIBUTE_MAP[self.gazetteer_name]
 
         # Extract attributes
-        name = location_data.get(attr_map.get("name", "name"), "") or ""
-        feature_type = location_data.get(
-            attr_map.get("feature_type", "feature_type"), ""
-        )
+        feature_name = location_data.get(attr_map["name"])
+        feature_type = location_data.get(attr_map["type"])
 
         # Build description components
-        description_parts = [name]
+        description_parts = []
+
+        # Add feature name if available
+        if feature_name:
+            description_parts.append(feature_name)
 
         # Add feature type in brackets if available
         if feature_type:
             description_parts.append(f"({feature_type})")
 
-        # Build hierarchical context
-        hierarchy_parts = []
-
-        # Get all available admin levels from attribute map
+        # Build hierarchical context from admin levels
         admin_levels = []
-        for level in ["admin3", "admin2", "admin1"]:
+        for level in ["level3", "level2", "level1"]:
             if level in attr_map:
                 admin_value = location_data.get(attr_map[level])
-                if admin_value and admin_value != name:
-                    # Check for redundancy with previous level
-                    if not admin_levels or admin_value != admin_levels[-1]:
-                        admin_levels.append(admin_value)
-
-        # Add country if available and not redundant
-        if "country" in attr_map:
-            country = location_data.get(attr_map["country"])
-            if country and feature_type != "independent political entity":
-                admin_levels.append(country)
-
-        # Special handling for Swiss cantons
-        if gazetteer_name == "swissnames3d" and feature_type == "Kanton":
-            # Don't add canton name to hierarchy for canton features
-            admin_levels = [level for level in admin_levels if level != name]
-
-        hierarchy_parts = admin_levels
+                if admin_value:
+                    admin_levels.append(admin_value)
 
         # Combine description parts
-        if hierarchy_parts:
+        if admin_levels:
             description_parts.append("in")
-            description_parts.append(", ".join(hierarchy_parts))
+            description_parts.append(", ".join(admin_levels))
 
         description = " ".join(description_parts).strip()
 
