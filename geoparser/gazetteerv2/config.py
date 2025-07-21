@@ -29,16 +29,8 @@ class AttributeConfig(BaseModel):
     name: str
     type: DataType
     index: bool = False
-    primary: bool = False
     drop: bool = False
     srid: t.Optional[int] = None
-
-    @model_validator(mode="after")
-    def validate_primary_and_drop(self) -> "AttributeConfig":
-        """Validate that a primary attribute cannot be dropped."""
-        if self.primary and self.drop:
-            raise ValueError("A primary key attribute cannot be dropped")
-        return self
 
     @model_validator(mode="after")
     def validate_geometry_srid(self) -> "AttributeConfig":

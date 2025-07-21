@@ -7,7 +7,7 @@ sources:
     attributes:
       - name: UUID
         type: TEXT
-        primary: true
+        index: true
       - name: OBJEKTART
         type: TEXT
       - name: OBJEKTKLAS
@@ -18,7 +18,6 @@ sources:
         type: INTEGER
       - name: NAME_UUID
         type: TEXT
-        primary: true
       - name: NAME
         type: TEXT
       - name: STATUS
@@ -48,7 +47,7 @@ sources:
     attributes:
       - name: UUID
         type: TEXT
-        primary: true
+        index: true
       - name: OBJEKTART
         type: TEXT
       - name: OBJEKTKLAS
@@ -57,7 +56,6 @@ sources:
         type: TEXT
       - name: NAME_UUID
         type: TEXT
-        primary: true
       - name: NAME
         type: TEXT
       - name: STATUS
@@ -87,7 +85,7 @@ sources:
     attributes:
       - name: UUID
         type: TEXT
-        primary: true
+        index: true
       - name: OBJEKTART
         type: TEXT
       - name: OBJEKTKLAS
@@ -96,7 +94,6 @@ sources:
         type: INTEGER
       - name: NAME_UUID
         type: TEXT
-        primary: true
       - name: NAME
         type: TEXT
       - name: STATUS
@@ -128,7 +125,7 @@ sources:
     attributes:
       - name: UUID
         type: TEXT
-        primary: true
+        index: true
       - name: DATUM_AEND
         type: TEXT
       - name: DATUM_ERST
@@ -157,8 +154,10 @@ sources:
         type: INTEGER
       - name: BEZIRKSNUM
         type: INTEGER
+        index: true
       - name: KANTONSNUM
         type: INTEGER
+        index: true
       - name: NAME
         type: TEXT
       - name: GEM_FLAECH
@@ -189,7 +188,7 @@ sources:
     attributes:
       - name: UUID
         type: TEXT
-        primary: true
+        index: true
       - name: DATUM_AEND
         type: TEXT
       - name: DATUM_ERST
@@ -216,6 +215,7 @@ sources:
         type: TEXT
       - name: BEZIRKSNUM
         type: INTEGER
+        index: true
       - name: SEE_FLAECH
         type: REAL
       - name: BEZIRKSFLA
@@ -224,6 +224,7 @@ sources:
         type: TEXT
       - name: KANTONSNUM
         type: INTEGER
+        index: true
       - name: ICC
         type: TEXT
       - name: EINWOHNERZ
@@ -244,7 +245,7 @@ sources:
     attributes:
       - name: UUID
         type: TEXT
-        primary: true
+        index: true
       - name: DATUM_AEND
         type: TEXT
       - name: DATUM_ERST
@@ -271,6 +272,7 @@ sources:
         type: TEXT
       - name: KANTONSNUM
         type: INTEGER
+        index: true
       - name: SEE_FLAECH
         type: REAL
       - name: KANTONSFLA

@@ -8,7 +8,7 @@ sources:
     attributes:
       - name: geonameid
         type: INTEGER
-        primary: true
+        index: true
       - name: name
         type: TEXT
       - name: asciiname
@@ -79,7 +79,7 @@ sources:
     attributes:
       - name: code
         type: TEXT
-        primary: true
+        index: true
       - name: name
         type: TEXT
       - name: asciiname
@@ -95,7 +95,7 @@ sources:
     attributes:
       - name: code
         type: TEXT
-        primary: true
+        index: true
       - name: name
         type: TEXT
       - name: asciiname
@@ -112,7 +112,7 @@ sources:
     attributes:
       - name: ISO
         type: TEXT
-        primary: true
+        index: true
       - name: ISO3
         type: TEXT
       - name: ISO_Numeric
@@ -158,7 +158,7 @@ sources:
     attributes:
       - name: code
         type: TEXT
-        primary: true
+        index: true
       - name: name
         type: TEXT
       - name: description

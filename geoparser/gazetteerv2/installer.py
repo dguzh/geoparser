@@ -299,7 +299,6 @@ class GazetteerInstaller:
 
         # Build column definitions
         columns = []
-        primary_keys = []
 
         # Find geometry column and get its SRID
         geometry_item = self._find_geometry_item(source_config)
@@ -312,8 +311,6 @@ class GazetteerInstaller:
                     columns.append(f"{attr.name}_wkt TEXT")
                 else:
                     columns.append(f"{attr.name} {attr.type.value}")
-                    if attr.primary:
-                        primary_keys.append(attr.name)
 
         # Add columns for derivations
         for derivation in source_config.derivations:
@@ -323,15 +320,8 @@ class GazetteerInstaller:
             else:
                 columns.append(f"{derivation.name} {derivation.type.value}")
 
-        # If no primary keys defined, don't add a primary key constraint
-        pk_clause = ""
-        if primary_keys:
-            pk_clause = f", PRIMARY KEY ({', '.join(primary_keys)})"
-
-        # Create the table
-        create_table_sql = (
-            f"CREATE TABLE {table_name} ({', '.join(columns)}{pk_clause})"
-        )
+        # Create the table without primary key constraints
+        create_table_sql = f"CREATE TABLE {table_name} ({', '.join(columns)})"
 
         with engine.connect() as connection:
             connection.execute(sa.text(create_table_sql))
