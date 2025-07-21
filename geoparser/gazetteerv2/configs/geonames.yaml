@@ -178,14 +178,14 @@ views:
         - "allCountries.longitude"
         - "allCountries.feature_class"
         - "allCountries.feature_code"
-        - "features.name AS feature_name"
+        - "featureCodes.name AS feature_name"
         - "allCountries.country_code"
         - "countryInfo.Country AS country_name"
         - "allCountries.cc2"
         - "allCountries.admin1_code"
-        - "admin1.name AS admin1_name"
+        - "admin1CodesASCII.name AS admin1_name"
         - "allCountries.admin2_code"
-        - "admin2.name AS admin2_name"
+        - "admin2Codes.name AS admin2_name"
         - "allCountries.admin3_code"
         - "allCountries.admin4_code"
         - "allCountries.population"
@@ -198,9 +198,9 @@ views:
         - allCountries
       join:
         - "LEFT JOIN countryInfo ON allCountries.country_code = countryInfo.ISO"
-        - "LEFT JOIN admin1CodesASCII AS admin1 ON allCountries.admin1_code_full = admin1.code"
-        - "LEFT JOIN admin2Codes AS admin2 ON allCountries.admin2_code_full = admin2.code"
-        - "LEFT JOIN featureCodes AS features ON allCountries.feature_code_full = features.code"
+        - "LEFT JOIN admin1CodesASCII ON allCountries.admin1_code_full = admin1CodesASCII.code"
+        - "LEFT JOIN admin2Codes ON allCountries.admin2_code_full = admin2Codes.code"
+        - "LEFT JOIN featureCodes ON allCountries.feature_code_full = featureCodes.code"
 
 features:
   - table: allCountries
