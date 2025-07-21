@@ -229,16 +229,16 @@ views:
       join:
         - type: LEFT JOIN
           table: countryInfo
-          on: allCountries.country_code = countryInfo.ISO
+          condition: allCountries.country_code = countryInfo.ISO
         - type: LEFT JOIN
           table: admin1CodesASCII
-          on: allCountries.admin1_code_full = admin1CodesASCII.code
+          condition: allCountries.admin1_code_full = admin1CodesASCII.code
         - type: LEFT JOIN
           table: admin2Codes
-          on: allCountries.admin2_code_full = admin2Codes.code
+          condition: allCountries.admin2_code_full = admin2Codes.code
         - type: LEFT JOIN
           table: featureCodes
-          on: allCountries.feature_code_full = featureCodes.code
+          condition: allCountries.feature_code_full = featureCodes.code
 
 features:
   - table: allCountries

@@ -80,7 +80,7 @@ class JoinConfig(BaseModel):
 
     type: str  # e.g., "LEFT JOIN", "INNER JOIN", "RIGHT JOIN"
     table: str  # The table to join
-    on: str  # The ON condition
+    condition: str  # The ON condition
 
 
 class StatementConfig(BaseModel):

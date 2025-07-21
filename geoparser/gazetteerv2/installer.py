@@ -760,8 +760,12 @@ class GazetteerInstaller:
         if view_config.statement.join:
             join_parts = []
             for join_item in view_config.statement.join:
+                # Optimize spatial join conditions for SpatiaLite
+                optimized_condition = self._optimize_spatial_join_condition(
+                    join_item.condition
+                )
                 join_parts.append(
-                    f"{join_item.type} {join_item.table} ON {join_item.on}"
+                    f"{join_item.type} {join_item.table} ON {optimized_condition}"
                 )
             join_clause = " " + " ".join(join_parts)
 
@@ -769,6 +773,66 @@ class GazetteerInstaller:
         sql = f"CREATE VIEW {view_name} AS SELECT {select_clause} FROM {from_clause}{join_clause}"
 
         return sql
+
+    def _optimize_spatial_join_condition(self, condition: str) -> str:
+        """
+        Transform simple spatial join conditions into SpatiaLite-optimized expressions.
+
+        This converts expressions like:
+        ST_Within(geometry1, geometry2_table.geometry2_column)
+
+        Into SpatiaLite-optimized expressions like:
+        geometry2_table.rowid IN (SELECT rowid FROM SpatialIndex WHERE f_table_name = 'geometry2_table' AND search_frame = geometry1) AND ST_Within(geometry1, geometry2_table.geometry2_column)
+
+        Args:
+            condition: The original join condition
+
+        Returns:
+            The optimized join condition
+        """
+        import re
+
+        # Define spatial functions that can benefit from spatial index optimization
+        spatial_functions = [
+            "ST_Within",
+            "ST_Intersects",
+            "ST_Contains",
+            "ST_Overlaps",
+            "ST_Touches",
+            "ST_Crosses",
+            "ST_Disjoint",
+            "ST_Equals",
+        ]
+
+        # Pattern to match spatial function calls with two geometry arguments
+        # Matches: FUNCTION(geometry1, geometry2_table.geometry2_column)
+        for func in spatial_functions:
+            pattern = rf"{func}\s*\(\s*([^,]+),\s*(\w+)\.(\w+)\s*\)"
+            match = re.search(pattern, condition, re.IGNORECASE)
+
+            if match:
+                geometry1 = match.group(1).strip()
+                geometry2_table = match.group(2).strip()
+                geometry2_column = match.group(3).strip()
+
+                # Build the optimized condition
+                spatial_index_condition = (
+                    f"{geometry2_table}.rowid IN (SELECT rowid FROM SpatialIndex "
+                    f"WHERE f_table_name = '{geometry2_table}' AND search_frame = {geometry1})"
+                )
+
+                original_condition = (
+                    f"{func}({geometry1}, {geometry2_table}.{geometry2_column})"
+                )
+                optimized_condition = (
+                    f"{spatial_index_condition} AND {original_condition}"
+                )
+
+                # Replace the original condition in the full string
+                return condition.replace(match.group(0), optimized_condition)
+
+        # If no spatial functions found, return the original condition
+        return condition
 
     def _register_features(
         self, gazetteer_config: GazetteerConfig, feature_config: FeatureConfig
