@@ -8,7 +8,7 @@ sources:
     attributes:
       - name: geonameid
         type: INTEGER
-        primary: true
+        index: true
       - name: name
         type: TEXT
       - name: asciiname
@@ -79,7 +79,7 @@ sources:
     attributes:
       - name: code
         type: TEXT
-        primary: true
+        index: true
       - name: name
         type: TEXT
       - name: asciiname
@@ -95,7 +95,7 @@ sources:
     attributes:
       - name: code
         type: TEXT
-        primary: true
+        index: true
       - name: name
         type: TEXT
       - name: asciiname
@@ -112,7 +112,7 @@ sources:
     attributes:
       - name: ISO
         type: TEXT
-        primary: true
+        index: true
       - name: ISO3
         type: TEXT
       - name: ISO_Numeric
@@ -158,7 +158,7 @@ sources:
     attributes:
       - name: code
         type: TEXT
-        primary: true
+        index: true
       - name: name
         type: TEXT
       - name: description
@@ -168,39 +168,77 @@ views:
   - name: allCountriesEnriched
     statement:
       select:
-        - "allCountries.geonameid"
-        - "allCountries.name"
-        - "allCountries.name_no_parens"
-        - "allCountries.asciiname"
-        - "allCountries.asciiname_no_parens"
-        - "allCountries.alternatenames"
-        - "allCountries.latitude"
-        - "allCountries.longitude"
-        - "allCountries.feature_class"
-        - "allCountries.feature_code"
-        - "features.name AS feature_name"
-        - "allCountries.country_code"
-        - "countryInfo.Country AS country_name"
-        - "allCountries.cc2"
-        - "allCountries.admin1_code"
-        - "admin1.name AS admin1_name"
-        - "allCountries.admin2_code"
-        - "admin2.name AS admin2_name"
-        - "allCountries.admin3_code"
-        - "allCountries.admin4_code"
-        - "allCountries.population"
-        - "allCountries.elevation"
-        - "allCountries.dem"
-        - "allCountries.timezone"
-        - "allCountries.modification_date"
-        - "allCountries.geometry"
+        - table: allCountries
+          column: geonameid
+        - table: allCountries
+          column: name
+        - table: allCountries
+          column: name_no_parens
+        - table: allCountries
+          column: asciiname
+        - table: allCountries
+          column: asciiname_no_parens
+        - table: allCountries
+          column: alternatenames
+        - table: allCountries
+          column: latitude
+        - table: allCountries
+          column: longitude
+        - table: allCountries
+          column: feature_class
+        - table: allCountries
+          column: feature_code
+        - table: featureCodes
+          column: name
+          alias: feature_name
+        - table: allCountries
+          column: country_code
+        - table: countryInfo
+          column: Country
+          alias: country_name
+        - table: allCountries
+          column: cc2
+        - table: allCountries
+          column: admin1_code
+        - table: admin1CodesASCII
+          column: name
+          alias: admin1_name
+        - table: allCountries
+          column: admin2_code
+        - table: admin2Codes
+          column: name
+          alias: admin2_name
+        - table: allCountries
+          column: admin3_code
+        - table: allCountries
+          column: admin4_code
+        - table: allCountries
+          column: population
+        - table: allCountries
+          column: elevation
+        - table: allCountries
+          column: dem
+        - table: allCountries
+          column: timezone
+        - table: allCountries
+          column: modification_date
+        - table: allCountries
+          column: geometry
       from:
-        - allCountries
+        table: allCountries
       join:
-        - "LEFT JOIN countryInfo ON allCountries.country_code = countryInfo.ISO"
-        - "LEFT JOIN admin1CodesASCII AS admin1 ON allCountries.admin1_code_full = admin1.code"
-        - "LEFT JOIN admin2Codes AS admin2 ON allCountries.admin2_code_full = admin2.code"
-        - "LEFT JOIN featureCodes AS features ON allCountries.feature_code_full = features.code"
+        - type: LEFT JOIN
+          table: countryInfo
+          condition: allCountries.country_code = countryInfo.ISO
+        - type: LEFT JOIN
+          table: admin1CodesASCII
+          condition: allCountries.admin1_code_full = admin1CodesASCII.code
+        - type: LEFT JOIN
+          table: admin2Codes
+          condition: allCountries.admin2_code_full = admin2Codes.code
+        - type: LEFT JOIN
+          table: featureCodes
+          condition: allCountries.feature_code_full = featureCodes.code
 
 features:
   - table: allCountries
