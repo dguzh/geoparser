@@ -1,3 +1,4 @@
+import re
 from typing import List
 
 from sqlmodel import Session
@@ -39,9 +40,12 @@ class Gazetteer:
         Returns:
             List of Feature objects that have this exact toponym
         """
+        # Remove quotes and trim whitespace
+        normalized_toponym = re.sub(r'"', "", toponym).strip()
+
         with Session(engine) as db:
             return FeatureRepository.get_by_gazetteer_and_toponym_exact(
-                db, self.gazetteer_name, toponym, limit
+                db, self.gazetteer_name, normalized_toponym, limit
             )
 
     def search_partial(
@@ -62,9 +66,12 @@ class Gazetteer:
             List of Feature objects that have toponyms containing this text,
             ordered by relevance (highest rank first)
         """
+        # Remove quotes and trim whitespace
+        normalized_toponym = re.sub(r'"', "", toponym).strip()
+
         with Session(engine) as db:
             return FeatureRepository.get_by_gazetteer_and_toponym_partial(
-                db, self.gazetteer_name, toponym, limit, ranks
+                db, self.gazetteer_name, normalized_toponym, limit, ranks
             )
 
     def search_fuzzy(
@@ -85,7 +92,10 @@ class Gazetteer:
             List of Feature objects that have toponyms fuzzy matching this text,
             ordered by relevance (highest rank first)
         """
+        # Remove quotes and trim whitespace
+        normalized_toponym = re.sub(r'"', "", toponym).strip()
+
         with Session(engine) as db:
             return FeatureRepository.get_by_gazetteer_and_toponym_fuzzy(
-                db, self.gazetteer_name, toponym, limit, ranks
+                db, self.gazetteer_name, normalized_toponym, limit, ranks
             )
