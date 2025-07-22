@@ -5,7 +5,7 @@ from sqlmodel import Session, select
 
 from geoparser.db.crud.base import BaseRepository
 from geoparser.db.models.feature import Feature
-from geoparser.db.models.toponym import Toponym, ToponymFTS
+from geoparser.db.models.toponym import Toponym, ToponymFTSTrigrams, ToponymFTSWords
 
 
 class FeatureRepository(BaseRepository[Feature]):
@@ -58,7 +58,7 @@ class FeatureRepository(BaseRepository[Feature]):
         """
         Get all features for a gazetteer that have an exactly matching toponym.
 
-        Uses the FTS table for case-insensitive exact matching. Only returns
+        Uses the unicode61 FTS table for case-insensitive exact matching. Only returns
         features where the toponym text has exactly the same length as the
         search query.
 
@@ -74,10 +74,10 @@ class FeatureRepository(BaseRepository[Feature]):
         statement = (
             select(Feature)
             .join(Toponym, Feature.id == Toponym.feature_id)
-            .join(ToponymFTS, Toponym.id == ToponymFTS.rowid)
+            .join(ToponymFTSWords, Toponym.id == ToponymFTSWords.rowid)
             .where(
                 Feature.gazetteer_name == gazetteer_name,
-                ToponymFTS.text.match(f'"{toponym}"'),
+                ToponymFTSWords.text.match(f'"{toponym}"'),
                 func.length(Toponym.text) == len(toponym),
             )
             .limit(limit)
@@ -96,8 +96,8 @@ class FeatureRepository(BaseRepository[Feature]):
         """
         Get all features for a gazetteer that have a toponym containing the search term.
 
-        Uses the FTS table for case-insensitive partial matching with BM25 ranking.
-        Returns features where the toponym text contains the search query as a substring.
+        Uses the trigram FTS table for character-level partial matching with BM25 ranking.
+        Returns features where the toponym text contains character sequences matching the search query.
 
         Args:
             db: Database session
@@ -110,14 +110,14 @@ class FeatureRepository(BaseRepository[Feature]):
             List of features that have toponyms containing this text, ordered by relevance (highest rank first)
         """
         statement = (
-            select(Feature, literal_column("bm25(toponym_fts)").label("rank"))
+            select(Feature, literal_column("bm25(toponym_fts_trigrams)").label("rank"))
             .join(Toponym, Feature.id == Toponym.feature_id)
-            .join(ToponymFTS, Toponym.id == ToponymFTS.rowid)
+            .join(ToponymFTSTrigrams, Toponym.id == ToponymFTSTrigrams.rowid)
             .where(
                 Feature.gazetteer_name == gazetteer_name,
-                ToponymFTS.text.match(f'"{toponym}"'),
+                ToponymFTSTrigrams.text.match(toponym),
             )
-            .order_by(literal_column("bm25(toponym_fts)"))
+            .order_by(literal_column("bm25(toponym_fts_trigrams)"))
             .limit(limit)
         )
         results = db.exec(statement).unique().all()
@@ -146,7 +146,7 @@ class FeatureRepository(BaseRepository[Feature]):
         """
         Get all features for a gazetteer that have toponyms fuzzy matching the search term.
 
-        Uses the FTS table for fuzzy matching by splitting the search term into trigrams
+        Uses the trigram FTS table for fuzzy matching by splitting the search term into trigrams
         and searching for any of them with BM25 ranking. This allows for approximate
         matching even with typos or partial character matches.
 
@@ -170,14 +170,14 @@ class FeatureRepository(BaseRepository[Feature]):
             trigram_query = " OR ".join(trigrams)
 
         statement = (
-            select(Feature, literal_column("bm25(toponym_fts)").label("rank"))
+            select(Feature, literal_column("bm25(toponym_fts_trigrams)").label("rank"))
             .join(Toponym, Feature.id == Toponym.feature_id)
-            .join(ToponymFTS, Toponym.id == ToponymFTS.rowid)
+            .join(ToponymFTSTrigrams, Toponym.id == ToponymFTSTrigrams.rowid)
             .where(
                 Feature.gazetteer_name == gazetteer_name,
-                ToponymFTS.text.match(trigram_query),
+                ToponymFTSTrigrams.text.match(trigram_query),
             )
-            .order_by(literal_column("bm25(toponym_fts)"))
+            .order_by(literal_column("bm25(toponym_fts_trigrams)"))
             .limit(limit)
         )
         results = db.exec(statement).unique().all()
