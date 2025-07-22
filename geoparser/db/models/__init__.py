@@ -37,7 +37,8 @@ from geoparser.db.models.resolution_subject import (
 from geoparser.db.models.toponym import (
     Toponym,
     ToponymCreate,
-    ToponymFTS,
+    ToponymFTSTrigrams,
+    ToponymFTSWords,
     ToponymUpdate,
 )
 
