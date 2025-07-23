@@ -380,27 +380,25 @@ class SentenceTransformerResolver(Resolver):
 
         # Check cache for existing embeddings
         cached_embeddings = []
-        texts_to_embed = []
-        cache_indices = []
+        missing_texts = []
+        missing_indices = []
 
         for i, text in enumerate(texts):
             if text in self.embedding_cache:
                 cached_embeddings.append((i, self.embedding_cache[text]))
             else:
-                texts_to_embed.append(text)
-                cache_indices.append(i)
+                missing_texts.append(text)
+                missing_indices.append(i)
 
         # Generate embeddings for uncached texts
-        new_embeddings = []
-        if texts_to_embed:
+        if missing_texts:
             embeddings = self.transformer.encode(
-                texts_to_embed, convert_to_tensor=True, batch_size=32
+                missing_texts, convert_to_tensor=True, batch_size=32
             )
 
             # Cache new embeddings
-            for text, embedding in zip(texts_to_embed, embeddings):
+            for text, embedding in zip(missing_texts, embeddings):
                 self.embedding_cache[text] = embedding
-                new_embeddings.append(embedding)
 
         # Combine cached and new embeddings in correct order
         result_embeddings = [None] * len(texts)
@@ -410,8 +408,9 @@ class SentenceTransformerResolver(Resolver):
             result_embeddings[idx] = embedding
 
         # Place new embeddings
-        for cache_idx, embedding in zip(cache_indices, new_embeddings):
-            result_embeddings[cache_idx] = embedding
+        if missing_texts:
+            for idx, embedding in zip(missing_indices, embeddings):
+                result_embeddings[idx] = embedding
 
         return result_embeddings
 
