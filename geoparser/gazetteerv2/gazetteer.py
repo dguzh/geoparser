@@ -48,14 +48,15 @@ class Gazetteer:
                 db, self.gazetteer_name, normalized_toponym, limit
             )
 
-    def search_partial(
+    def search_phrase(
         self, toponym: str, limit: int = 1000, ranks: int = 1
     ) -> List[Feature]:
         """
-        Search for features with toponyms containing the search term.
+        Search for features with toponyms containing the search term as a phrase.
 
-        Returns features where the toponym text contains the search query as a substring,
-        using BM25 ranking for relevance scoring.
+        Returns features where the toponym text contains the search query as a contiguous
+        phrase (subspan) in the exact word order specified, using BM25 ranking for
+        relevance scoring.
 
         Args:
             toponym: Toponym string to search for
@@ -63,7 +64,61 @@ class Gazetteer:
             ranks: Number of rank groups to include in results (default: 1)
 
         Returns:
-            List of Feature objects that have toponyms containing this text,
+            List of Feature objects that have toponyms containing this text as a phrase,
+            ordered by relevance (highest rank first)
+        """
+        # Remove quotes and trim whitespace
+        normalized_toponym = re.sub(r'"', "", toponym).strip()
+
+        with Session(engine) as db:
+            return FeatureRepository.get_by_gazetteer_and_toponym_phrase(
+                db, self.gazetteer_name, normalized_toponym, limit, ranks
+            )
+
+    def search_permuted(
+        self, toponym: str, limit: int = 1000, ranks: int = 1
+    ) -> List[Feature]:
+        """
+        Search for features with toponyms containing all search terms in any order.
+
+        Returns features where the toponym text contains all tokens from the search query,
+        but the order of tokens doesn't matter (implicit AND), using BM25 ranking for
+        relevance scoring.
+
+        Args:
+            toponym: Toponym string to search for
+            limit: Maximum number of results to return (default: 1000)
+            ranks: Number of rank groups to include in results (default: 1)
+
+        Returns:
+            List of Feature objects that have toponyms containing all search tokens in any order,
+            ordered by relevance (highest rank first)
+        """
+        # Remove quotes and trim whitespace
+        normalized_toponym = re.sub(r'"', "", toponym).strip()
+
+        with Session(engine) as db:
+            return FeatureRepository.get_by_gazetteer_and_toponym_permuted(
+                db, self.gazetteer_name, normalized_toponym, limit, ranks
+            )
+
+    def search_partial(
+        self, toponym: str, limit: int = 1000, ranks: int = 1
+    ) -> List[Feature]:
+        """
+        Search for features with toponyms partially matching the search terms.
+
+        Returns features where the toponym text contains some (but not necessarily all)
+        tokens from the search query using OR logic for looser matching, using BM25
+        ranking for relevance scoring.
+
+        Args:
+            toponym: Toponym string to search for
+            limit: Maximum number of results to return (default: 1000)
+            ranks: Number of rank groups to include in results (default: 1)
+
+        Returns:
+            List of Feature objects that have toponyms partially matching the search tokens,
             ordered by relevance (highest rank first)
         """
         # Remove quotes and trim whitespace
@@ -71,6 +126,33 @@ class Gazetteer:
 
         with Session(engine) as db:
             return FeatureRepository.get_by_gazetteer_and_toponym_partial(
+                db, self.gazetteer_name, normalized_toponym, limit, ranks
+            )
+
+    def search_substring(
+        self, toponym: str, limit: int = 1000, ranks: int = 1
+    ) -> List[Feature]:
+        """
+        Search for features with toponyms containing the search term as a substring.
+
+        Returns features where the toponym text contains the search query as a substring,
+        using BM25 ranking for relevance scoring. Note: This method requires queries
+        with 3 or more characters due to trigram tokenization.
+
+        Args:
+            toponym: Toponym string to search for
+            limit: Maximum number of results to return (default: 1000)
+            ranks: Number of rank groups to include in results (default: 1)
+
+        Returns:
+            List of Feature objects that have toponyms containing this text as a substring,
+            ordered by relevance (highest rank first)
+        """
+        # Remove quotes and trim whitespace
+        normalized_toponym = re.sub(r'"', "", toponym).strip()
+
+        with Session(engine) as db:
+            return FeatureRepository.get_by_gazetteer_and_toponym_substring(
                 db, self.gazetteer_name, normalized_toponym, limit, ranks
             )
 
@@ -82,6 +164,7 @@ class Gazetteer:
 
         Uses trigram-based fuzzy matching for approximate string matching,
         allowing for typos and partial character matches with BM25 ranking.
+        Note: This method requires queries with 3 or more characters due to trigram tokenization.
 
         Args:
             toponym: Toponym string to search for
