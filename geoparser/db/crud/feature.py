@@ -165,7 +165,9 @@ class FeatureRepository(BaseRepository[Feature]):
         Returns:
             List of features that have toponyms containing all search tokens in any order, ordered by relevance (highest rank first)
         """
-        query = toponym
+        query = " ".join(
+            [f'"{token.strip()}"' for token in toponym.split() if token.strip()]
+        )
 
         statement = (
             select(Feature, literal_column("bm25(toponym_fts_words)").label("rank"))
@@ -218,7 +220,9 @@ class FeatureRepository(BaseRepository[Feature]):
         Returns:
             List of features that have toponyms partially matching the search tokens, ordered by relevance (highest rank first)
         """
-        query = " OR ".join(toponym.split())
+        query = " OR ".join(
+            [f'"{token.strip()}"' for token in toponym.split() if token.strip()]
+        )
 
         statement = (
             select(Feature, literal_column("bm25(toponym_fts_words)").label("rank"))
