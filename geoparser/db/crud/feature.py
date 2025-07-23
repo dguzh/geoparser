@@ -275,6 +275,10 @@ class FeatureRepository(BaseRepository[Feature]):
         Returns:
             List of features that have toponyms containing this text as a substring, ordered by relevance (highest rank first)
         """
+        # Trigram tokenization requires at least 3 characters
+        if len(toponym) < 3:
+            return []
+
         query = f'"{toponym}"'
 
         statement = (
@@ -329,6 +333,10 @@ class FeatureRepository(BaseRepository[Feature]):
         Returns:
             List of features that have toponyms fuzzy matching this text, ordered by relevance (highest rank first)
         """
+        # Trigram tokenization requires at least 3 characters
+        if len(toponym) < 3:
+            return []
+
         query = " OR ".join([f'"{toponym[i:i+3]}"' for i in range(len(toponym) - 2)])
 
         statement = (
