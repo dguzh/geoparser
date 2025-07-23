@@ -127,17 +127,7 @@ class FeatureRepository(BaseRepository[Feature]):
         )
         results = db.exec(statement).unique().all()
 
-        if not results or ranks <= 0:
-            return []
-
-        # Get unique rank values and take only the top N rank groups
-        unique_ranks = sorted(list(set(result[1] for result in results)))[:ranks]
-
-        # Filter results to only include features from the top N rank groups
-        filtered_results = [
-            result[0] for result in results if result[1] in unique_ranks
-        ]
-        return filtered_results
+        return cls._filter_by_ranks(results, ranks)
 
     @classmethod
     def get_by_gazetteer_and_toponym_permuted(
@@ -182,17 +172,7 @@ class FeatureRepository(BaseRepository[Feature]):
         )
         results = db.exec(statement).unique().all()
 
-        if not results or ranks <= 0:
-            return []
-
-        # Get unique rank values and take only the top N rank groups
-        unique_ranks = sorted(list(set(result[1] for result in results)))[:ranks]
-
-        # Filter results to only include features from the top N rank groups
-        filtered_results = [
-            result[0] for result in results if result[1] in unique_ranks
-        ]
-        return filtered_results
+        return cls._filter_by_ranks(results, ranks)
 
     @classmethod
     def get_by_gazetteer_and_toponym_partial(
@@ -237,17 +217,7 @@ class FeatureRepository(BaseRepository[Feature]):
         )
         results = db.exec(statement).unique().all()
 
-        if not results or ranks <= 0:
-            return []
-
-        # Get unique rank values and take only the top N rank groups
-        unique_ranks = sorted(list(set(result[1] for result in results)))[:ranks]
-
-        # Filter results to only include features from the top N rank groups
-        filtered_results = [
-            result[0] for result in results if result[1] in unique_ranks
-        ]
-        return filtered_results
+        return cls._filter_by_ranks(results, ranks)
 
     @classmethod
     def get_by_gazetteer_and_toponym_substring(
@@ -294,17 +264,7 @@ class FeatureRepository(BaseRepository[Feature]):
         )
         results = db.exec(statement).unique().all()
 
-        if not results or ranks <= 0:
-            return []
-
-        # Get unique rank values and take only the top N rank groups
-        unique_ranks = sorted(list(set(result[1] for result in results)))[:ranks]
-
-        # Filter results to only include features from the top N rank groups
-        filtered_results = [
-            result[0] for result in results if result[1] in unique_ranks
-        ]
-        return filtered_results
+        return cls._filter_by_ranks(results, ranks)
 
     @classmethod
     def get_by_gazetteer_and_toponym_fuzzy(
@@ -352,6 +312,20 @@ class FeatureRepository(BaseRepository[Feature]):
         )
         results = db.exec(statement).unique().all()
 
+        return cls._filter_by_ranks(results, ranks)
+
+    @classmethod
+    def _filter_by_ranks(cls, results: t.List[t.Tuple], ranks: int) -> t.List[Feature]:
+        """
+        Helper method to filter ranked results by top rank groups.
+
+        Args:
+            results: List of tuples where each tuple contains (Feature, rank)
+            ranks: Number of rank groups to include in results
+
+        Returns:
+            List of Feature objects from the top N rank groups
+        """
         if not results or ranks <= 0:
             return []
 
