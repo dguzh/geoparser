@@ -102,7 +102,7 @@ def setup_fts(target, connection, **kw):
         CREATE VIRTUAL TABLE toponym_fts_words USING fts5(
             text,
             content='',
-            tokenize='unicode61 remove_diacritics 2 tokenchars "."'
+            tokenize="unicode61 remove_diacritics 2 tokenchars '.'"
         )
     """
         )
@@ -115,7 +115,7 @@ def setup_fts(target, connection, **kw):
         CREATE VIRTUAL TABLE toponym_fts_trigrams USING fts5(
             text,
             content='',
-            tokenize='trigram remove_diacritics 1'
+            tokenize="trigram remove_diacritics 1"
         )
     """
         )
