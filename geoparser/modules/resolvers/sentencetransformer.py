@@ -155,12 +155,20 @@ class SentenceTransformerResolver(Resolver):
             List of context strings for each reference
         """
         contexts = []
-        token_limit = self.transformer.get_max_seq_length()
+        max_seq_length = self.transformer.get_max_seq_length()
+        # Reserve space for special tokens ([CLS] and [SEP] for BERT-like models)
+        token_limit = max_seq_length - 2
 
         for reference in references:
             doc_text = reference.document.text
             ref_start = reference.start
             ref_end = reference.end
+
+            # Check if entire document fits within token limit
+            doc_tokens = len(self.tokenizer.tokenize(doc_text))
+            if doc_tokens <= token_limit:
+                contexts.append(doc_text)
+                continue
 
             # Use spaCy to get sentence boundaries
             doc = self.nlp(doc_text)
@@ -172,11 +180,6 @@ class SentenceTransformerResolver(Resolver):
                 if sent.start_char <= ref_start < sent.end_char:
                     target_sentence = sent
                     break
-
-            if target_sentence is None:
-                # Fallback: use the reference text itself
-                contexts.append(reference.text)
-                continue
 
             # Get sentence index
             target_idx = sentences.index(target_sentence)
@@ -195,9 +198,7 @@ class SentenceTransformerResolver(Resolver):
                 if i > 0:
                     prev_sentence = sentences[i - 1]
                     prev_tokens = len(self.tokenizer.tokenize(prev_sentence.text))
-                    if (
-                        tokens_count + prev_tokens < token_limit - 1
-                    ):  # Reserve space for special tokens
+                    if tokens_count + prev_tokens <= token_limit:
                         context_sentences.insert(0, prev_sentence)
                         tokens_count += prev_tokens
                         i -= 1
@@ -207,9 +208,7 @@ class SentenceTransformerResolver(Resolver):
                 if j < len(sentences) - 1:
                     next_sentence = sentences[j + 1]
                     next_tokens = len(self.tokenizer.tokenize(next_sentence.text))
-                    if (
-                        tokens_count + next_tokens < token_limit - 1
-                    ):  # Reserve space for special tokens
+                    if tokens_count + next_tokens <= token_limit:
                         context_sentences.append(next_sentence)
                         tokens_count += next_tokens
                         j += 1
