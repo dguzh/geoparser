@@ -47,8 +47,8 @@ class SentenceTransformerResolver(Resolver):
         self,
         model_name: str = "dguzh/geo-all-MiniLM-L6-v2",
         gazetteer_name: str = "geonames",
-        max_candidates: int = 100,
-        similarity_threshold: float = 0.0,
+        min_similarity: float = 0.7,
+        max_ranks: int = 3,
     ):
         """
         Initialize the SentenceTransformerResolver.
@@ -56,22 +56,22 @@ class SentenceTransformerResolver(Resolver):
         Args:
             model_name: HuggingFace model name for SentenceTransformer
             gazetteer_name: Name of the gazetteer to search
-            max_candidates: Maximum number of candidates to retrieve per reference
-            similarity_threshold: Minimum similarity threshold for matches
+            min_similarity: Minimum similarity threshold to stop candidate generation
+            max_ranks: Maximum number of rank groups to try during candidate expansion
         """
         # Initialize parent with the parameters
         super().__init__(
             model_name=model_name,
             gazetteer_name=gazetteer_name,
-            max_candidates=max_candidates,
-            similarity_threshold=similarity_threshold,
+            min_similarity=min_similarity,
+            max_ranks=max_ranks,
         )
 
         # Store instance attributes directly from parameters
         self.model_name = model_name
         self.gazetteer_name = gazetteer_name
-        self.max_candidates = max_candidates
-        self.similarity_threshold = similarity_threshold
+        self.min_similarity = min_similarity
+        self.max_ranks = max_ranks
 
         # Initialize transformer and tokenizer
         self.transformer = SentenceTransformer(model_name)
@@ -91,7 +91,11 @@ class SentenceTransformerResolver(Resolver):
         self, references: List["Reference"]
     ) -> List[List[Tuple[str, str]]]:
         """
-        Predict referents for multiple references using SentenceTransformer embeddings.
+        Predict referents for multiple references using iterative candidate generation.
+
+        Uses a search strategy that starts with restrictive search methods and
+        progressively expands to less restrictive ones, stopping when candidates
+        with sufficient similarity are found.
 
         Args:
             references: List of Reference ORM objects to process
@@ -102,47 +106,168 @@ class SentenceTransformerResolver(Resolver):
         if not references:
             return []
 
-        # Step 1: Extract contexts for all references
-        contexts = self._extract_contexts(references)
+        # Extract contexts and generate embeddings for all references
+        context_texts = self._extract_contexts(references)
+        context_embeddings = self._generate_embeddings(context_texts)
 
-        # Step 2: Get all unique candidates across all references
-        all_candidates = self._get_all_candidates(references)
+        # Initialize tracking structures
+        results = [[] for _ in references]
+        best_candidates = [None] * len(references)
+        best_similarities = [0.0] * len(references)
 
-        # Step 3: Generate location descriptions for all unique candidates
-        unique_candidates = self._get_unique_candidates(all_candidates)
-        candidate_descriptions = self._generate_descriptions(unique_candidates)
+        # Define search methods in order of preference
+        search_methods = [
+            "exact",
+            "phrase",
+            "substring",
+            "permuted",
+            "partial",
+            "fuzzy",
+        ]
 
-        # Step 4: Generate embeddings for contexts and candidate descriptions
-        context_embeddings = self._generate_embeddings(contexts)
-        candidate_embeddings = self._generate_embeddings(candidate_descriptions)
+        # Iterative search strategy with increasing ranks
+        for ranks in range(1, self.max_ranks + 1):
 
-        # Step 5: Find best matches for each reference
-        results = []
-        for i, reference in enumerate(references):
-            context_embedding = context_embeddings[i]
-            reference_candidates = all_candidates[i]
+            for method in search_methods:
+                # Skip exact method for ranks > 1
+                if method == "exact" and ranks > 1:
+                    continue
 
-            if not reference_candidates:
-                results.append([])
-                continue
+                # Search for candidates for all unresolved references
+                all_candidates = self._search_candidates(
+                    method, ranks, references, results
+                )
 
-            # Get embeddings for this reference's candidates
-            ref_candidate_embeddings = []
-            for candidate in reference_candidates:
-                desc = self._get_description(candidate)
-                embedding_idx = candidate_descriptions.index(desc)
-                ref_candidate_embeddings.append(candidate_embeddings[embedding_idx])
+                if not all_candidates:
+                    break  # All references resolved
 
-            # Calculate similarities and find best match
-            similarities = self._calculate_similarities(
-                context_embedding, ref_candidate_embeddings
-            )
+                # Evaluate candidates and update tracking structures
+                self._evaluate_candidates(
+                    all_candidates,
+                    context_embeddings,
+                    results,
+                    best_candidates,
+                    best_similarities,
+                )
 
-            best_matches = self._select_best_matches(reference_candidates, similarities)
+                # If all references resolved, we can stop
+                if all(results):
+                    break
 
-            results.append(best_matches)
+            # If all references resolved, we can stop
+            if all(results):
+                break
+
+        # For any remaining unresolved references, use the best candidate found
+        for i, result in enumerate(results):
+            if not result and best_candidates[i] is not None:
+                results[i] = [
+                    (self.gazetteer_name, best_candidates[i].identifier_value)
+                ]
 
         return results
+
+    def _search_candidates(
+        self,
+        method: str,
+        ranks: int,
+        references: List["Reference"],
+        results: List[List[Tuple[str, str]]],
+    ) -> List[Tuple[int, List["Feature"]]]:
+        """
+        Search for candidates for all unresolved references using a specific method.
+
+        Args:
+            method: Name of the search method to use
+            ranks: Number of rank groups to include for ranked methods
+            references: List of all references being processed
+            results: List of current results to determine which references are unresolved
+
+        Returns:
+            List of tuples containing (reference_index, candidates_list)
+        """
+        # Get unresolved references for this round
+        unresolved_indices = [i for i, result in enumerate(results) if not result]
+        if not unresolved_indices:
+            return []
+
+        # Search for candidates for all unresolved references
+        all_candidates = []
+        for idx in unresolved_indices:
+            reference = references[idx]
+            candidates = self.gazetteer.search(reference.text, method, ranks=ranks)
+            all_candidates.append((idx, candidates))
+
+        return all_candidates
+
+    def _evaluate_candidates(
+        self,
+        all_candidates: List[Tuple[int, List["Feature"]]],
+        context_embeddings: List[torch.Tensor],
+        results: List[List[Tuple[str, str]]],
+        best_candidates: List["Feature"],
+        best_similarities: List[float],
+    ) -> None:
+        """
+        Evaluate candidates and update tracking structures.
+
+        Args:
+            all_candidates: List of (reference_index, candidates) tuples
+            context_embeddings: Embeddings for reference contexts
+            results: Results list to update when references are resolved
+            best_candidates: List to track best candidates found so far
+            best_similarities: List to track best similarities found so far
+        """
+        # Evaluate and compare candidates for each unresolved reference
+        for idx, candidates in all_candidates:
+            if not candidates:
+                continue
+
+            # Find the best candidate for the context
+            context_embedding = context_embeddings[idx]
+            best_candidate, best_similarity = self._find_best_candidate(
+                context_embedding, candidates
+            )
+
+            # Update best candidate found so far
+            if best_similarity > best_similarities[idx]:
+                best_candidates[idx] = best_candidate
+                best_similarities[idx] = best_similarity
+
+            # Check if similarity meets threshold
+            if best_similarity >= self.min_similarity:
+                results[idx] = [(self.gazetteer_name, best_candidate.identifier_value)]
+
+    def _find_best_candidate(
+        self, context_embedding: torch.Tensor, candidates: List["Feature"]
+    ) -> Tuple["Feature", float]:
+        """
+        Find the best candidate match against a context embedding.
+
+        Args:
+            context_embedding: Embedding tensor for the reference context
+            candidates: List of candidate features to evaluate
+
+        Returns:
+            Tuple of (best_candidate, best_similarity)
+        """
+        if not candidates:
+            return None, 0.0
+
+        # Get descriptions and embeddings for candidates
+        candidate_descriptions = [
+            self._generate_description(candidate) for candidate in candidates
+        ]
+        candidate_embeddings = self._generate_embeddings(candidate_descriptions)
+
+        # Calculate similarities
+        similarities = self._calculate_similarities(
+            context_embedding, candidate_embeddings
+        )
+
+        # Find best match
+        best_idx = max(range(len(similarities)), key=lambda i: similarities[i])
+        return candidates[best_idx], similarities[best_idx]
 
     def _extract_contexts(self, references: List["Reference"]) -> List[str]:
         """
@@ -223,88 +348,7 @@ class SentenceTransformerResolver(Resolver):
 
         return contexts
 
-    def _get_all_candidates(
-        self, references: List["Reference"]
-    ) -> List[List["Feature"]]:
-        """
-        Retrieve candidate features for all references from a gazetteer.
-
-        Args:
-            references: List of Reference objects
-
-        Returns:
-            List of candidate lists for each reference
-        """
-        all_candidates = []
-
-        for reference in references:
-            reference_candidates = []
-
-            # Try exact match first
-            candidates = self.gazetteer.search_exact(
-                reference.text, limit=self.max_candidates
-            )
-
-            # If no exact matches, try partial matching
-            if not candidates:
-                candidates = self.gazetteer.search_partial(
-                    reference.text, limit=self.max_candidates
-                )
-
-            # If still no matches, try fuzzy matching
-            if not candidates:
-                candidates = self.gazetteer.search_fuzzy(
-                    reference.text, limit=self.max_candidates
-                )
-
-            reference_candidates.extend(candidates)
-
-            all_candidates.append(reference_candidates)
-
-        return all_candidates
-
-    def _get_unique_candidates(
-        self, all_candidates: List[List["Feature"]]
-    ) -> List["Feature"]:
-        """
-        Extract unique candidates from all references to avoid duplicate processing.
-
-        Args:
-            all_candidates: List of candidate lists for each reference
-
-        Returns:
-            List of unique Feature objects
-        """
-        unique_candidates = {}
-
-        for candidates in all_candidates:
-            for candidate in candidates:
-                # Use gazetteer_name + identifier_value as unique key
-                key = f"{self.gazetteer_name}:{candidate.identifier_value}"
-                if key not in unique_candidates:
-                    unique_candidates[key] = candidate
-
-        return list(unique_candidates.values())
-
-    def _generate_descriptions(self, candidates: List["Feature"]) -> List[str]:
-        """
-        Generate textual descriptions for candidate locations.
-
-        Args:
-            candidates: List of Feature objects
-
-        Returns:
-            List of location description strings
-        """
-        descriptions = []
-
-        for candidate in candidates:
-            description = self._get_description(candidate)
-            descriptions.append(description)
-
-        return descriptions
-
-    def _get_description(self, candidate: "Feature") -> str:
+    def _generate_description(self, candidate: "Feature") -> str:
         """
         Generate a textual description for a single candidate location.
 
@@ -439,36 +483,3 @@ class SentenceTransformerResolver(Resolver):
         )
 
         return similarities.tolist()
-
-    def _select_best_matches(
-        self, candidates: List["Feature"], similarities: List[float]
-    ) -> List[Tuple[str, str]]:
-        """
-        Select the best matching candidates based on similarity scores.
-
-        Args:
-            candidates: List of candidate Feature objects
-            similarities: List of similarity scores corresponding to candidates
-
-        Returns:
-            List of (gazetteer_name, identifier) tuples for best matches
-        """
-        if not candidates or not similarities:
-            return []
-
-        # Find candidates above threshold
-        valid_matches = [
-            (candidate, similarity)
-            for candidate, similarity in zip(candidates, similarities)
-            if similarity >= self.similarity_threshold
-        ]
-
-        if not valid_matches:
-            return []
-
-        # Sort by similarity score (descending)
-        valid_matches.sort(key=lambda x: x[1], reverse=True)
-
-        # Return the best match (could be extended to return multiple matches)
-        best_candidate, _ = valid_matches[0]
-        return [(self.gazetteer_name, best_candidate.identifier_value)]
