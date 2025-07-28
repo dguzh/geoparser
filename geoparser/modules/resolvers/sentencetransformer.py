@@ -48,7 +48,7 @@ class SentenceTransformerResolver(Resolver):
         model_name: str = "dguzh/geo-all-MiniLM-L6-v2",
         gazetteer_name: str = "geonames",
         min_similarity: float = 0.7,
-        max_ranks: int = 3,
+        max_iter: int = 3,
     ):
         """
         Initialize the SentenceTransformerResolver.
@@ -57,21 +57,21 @@ class SentenceTransformerResolver(Resolver):
             model_name: HuggingFace model name for SentenceTransformer
             gazetteer_name: Name of the gazetteer to search
             min_similarity: Minimum similarity threshold to stop candidate generation
-            max_ranks: Maximum number of rank groups to try during candidate expansion
+            max_iter: Maximum number of iterations through search methods with increasing ranks
         """
         # Initialize parent with the parameters
         super().__init__(
             model_name=model_name,
             gazetteer_name=gazetteer_name,
             min_similarity=min_similarity,
-            max_ranks=max_ranks,
+            max_iter=max_iter,
         )
 
         # Store instance attributes directly from parameters
         self.model_name = model_name
         self.gazetteer_name = gazetteer_name
         self.min_similarity = min_similarity
-        self.max_ranks = max_ranks
+        self.max_iter = max_iter
 
         # Initialize transformer and tokenizer
         self.transformer = SentenceTransformer(model_name)
@@ -126,7 +126,7 @@ class SentenceTransformerResolver(Resolver):
         ]
 
         # Iterative search strategy with increasing ranks
-        for ranks in range(1, self.max_ranks + 1):
+        for ranks in range(1, self.max_iter + 1):
 
             for method in search_methods:
                 # Skip exact method for ranks > 1
