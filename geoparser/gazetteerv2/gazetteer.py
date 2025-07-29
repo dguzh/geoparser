@@ -1,3 +1,4 @@
+import re
 from typing import List
 
 from sqlmodel import Session
@@ -25,67 +26,51 @@ class Gazetteer:
         """
         self.gazetteer_name = gazetteer_name
 
-    def search_exact(self, toponym: str, limit: int = 1000) -> List[Feature]:
-        """
-        Search for features with exactly matching toponyms.
-
-        Only returns features where the toponym text has exactly the same length
-        as the search query and matches case-insensitively.
-
-        Args:
-            toponym: Toponym string to search for
-            limit: Maximum number of results to return (default: 1000)
-
-        Returns:
-            List of Feature objects that have this exact toponym
-        """
-        with Session(engine) as db:
-            return FeatureRepository.get_by_gazetteer_and_toponym_exact(
-                db, self.gazetteer_name, toponym, limit
-            )
-
-    def search_partial(
-        self, toponym: str, limit: int = 1000, ranks: int = 1
+    def search(
+        self, toponym: str, method: str, limit: int = 1000, ranks: int = 1
     ) -> List[Feature]:
         """
-        Search for features with toponyms containing the search term.
-
-        Returns features where the toponym text contains the search query as a substring,
-        using BM25 ranking for relevance scoring.
+        Search for features using the specified search method.
 
         Args:
             toponym: Toponym string to search for
+            method: Search method to use ("exact", "phrase", "substring", "permuted", "partial", "fuzzy")
             limit: Maximum number of results to return (default: 1000)
-            ranks: Number of rank groups to include in results (default: 1)
+            ranks: Number of rank groups to include in results (default: 1, ignored for exact method)
 
         Returns:
-            List of Feature objects that have toponyms containing this text,
-            ordered by relevance (highest rank first)
+            List of Feature objects matching the search criteria
+
+        Raises:
+            ValueError: If an unknown search method is specified
         """
+        # Remove quotes and trim whitespace
+        normalized_toponym = re.sub(r'"', "", toponym).strip()
+
+        # Map method names to repository functions
+        method_map = {
+            "exact": lambda db: FeatureRepository.get_by_gazetteer_and_toponym_exact(
+                db, self.gazetteer_name, normalized_toponym, limit
+            ),
+            "phrase": lambda db: FeatureRepository.get_by_gazetteer_and_toponym_phrase(
+                db, self.gazetteer_name, normalized_toponym, limit, ranks
+            ),
+            "permuted": lambda db: FeatureRepository.get_by_gazetteer_and_toponym_permuted(
+                db, self.gazetteer_name, normalized_toponym, limit, ranks
+            ),
+            "partial": lambda db: FeatureRepository.get_by_gazetteer_and_toponym_partial(
+                db, self.gazetteer_name, normalized_toponym, limit, ranks
+            ),
+            "substring": lambda db: FeatureRepository.get_by_gazetteer_and_toponym_substring(
+                db, self.gazetteer_name, normalized_toponym, limit, ranks
+            ),
+            "fuzzy": lambda db: FeatureRepository.get_by_gazetteer_and_toponym_fuzzy(
+                db, self.gazetteer_name, normalized_toponym, limit, ranks
+            ),
+        }
+
+        if method not in method_map:
+            raise ValueError(f"Unknown search method: {method}")
+
         with Session(engine) as db:
-            return FeatureRepository.get_by_gazetteer_and_toponym_partial(
-                db, self.gazetteer_name, toponym, limit, ranks
-            )
-
-    def search_fuzzy(
-        self, toponym: str, limit: int = 1000, ranks: int = 1
-    ) -> List[Feature]:
-        """
-        Search for features with toponyms fuzzy matching the search term.
-
-        Uses trigram-based fuzzy matching for approximate string matching,
-        allowing for typos and partial character matches with BM25 ranking.
-
-        Args:
-            toponym: Toponym string to search for
-            limit: Maximum number of results to return (default: 1000)
-            ranks: Number of rank groups to include in results (default: 1)
-
-        Returns:
-            List of Feature objects that have toponyms fuzzy matching this text,
-            ordered by relevance (highest rank first)
-        """
-        with Session(engine) as db:
-            return FeatureRepository.get_by_gazetteer_and_toponym_fuzzy(
-                db, self.gazetteer_name, toponym, limit, ranks
-            )
+            return method_map[method](db)
