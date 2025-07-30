@@ -60,11 +60,11 @@ jobs:
         token: ${{ secrets.GITHUB_TOKEN }}
 
     - name: Set up environment
+      if: matrix.os == 'ubuntu-latest'
+      shell: bash
       run: |
-        if [ "${{ matrix.os }}" == "ubuntu-latest" ]; then
-          sudo apt-get update
-          sudo apt-get install -y patchelf
-        fi
+        sudo apt-get update
+        sudo apt-get install -y patchelf
 
     - name: Check if binary already exists
       id: check_binary
