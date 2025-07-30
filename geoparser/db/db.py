@@ -5,7 +5,7 @@ from appdirs import user_data_dir
 from sqlalchemy import event
 from sqlmodel import Session, SQLModel, create_engine
 
-from .spatialite.loader import get_spatialite_path
+from .spatialite.loader import get_spatialite_path, load_spatialite_extension
 
 # Ensure the parent directory exists
 db_location = Path(user_data_dir("geoparser", "")) / "geoparser.db"
@@ -28,32 +28,12 @@ def load_spatialite(dbapi_connection, connection_record):
     spatialite_path = get_spatialite_path()
 
     if spatialite_path is None:
-        return
+        raise RuntimeError("SpatiaLite library not found.")
 
     try:
-        # Enable extension loading
-        dbapi_connection.enable_load_extension(True)
-
-        # Load the spatialite extension
-        dbapi_connection.load_extension(str(spatialite_path))
-
-        # Initialize spatial metadata only if it doesn't exist
-        cursor = dbapi_connection.cursor()
-        cursor.execute(
-            "SELECT name FROM sqlite_master WHERE type='table' AND name='spatial_ref_sys'"
-        )
-        if not cursor.fetchone():
-            cursor.execute("SELECT InitSpatialMetaData()")
-        cursor.close()
-
-    except Exception:
-        pass
-    finally:
-        # Disable extension loading for security
-        try:
-            dbapi_connection.enable_load_extension(False)
-        except Exception:
-            pass
+        load_spatialite_extension(dbapi_connection, spatialite_path)
+    except Exception as e:
+        raise RuntimeError(f"Failed to load SpatiaLite extension: {e}") from e
 
 
 def create_db_and_tables(engine):
