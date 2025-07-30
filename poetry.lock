@@ -6155,6 +6155,21 @@ files = [
 ]
 
 [[package]]
+name = "xx_sent_ud_sm"
+version = "3.8.0"
+description = "Multi-language pipeline optimized for CPU. Components: senter."
+optional = false
+python-versions = "*"
+groups = ["dev"]
+files = [
+    {file = "xx_sent_ud_sm-3.8.0.tar.gz", hash = "sha256:d895d6ce9e1a70139fa9096e2d2809d8d20a306e4e3d5ef0beb3d66d87a09edf"},
+]
+
+[package.source]
+type = "url"
+url = "https://github.com/explosion/spacy-models/releases/download/xx_sent_ud_sm-3.8.0/xx_sent_ud_sm-3.8.0.tar.gz"
+
+[[package]]
 name = "xxhash"
 version = "3.5.0"
 description = "Python binding for xxHash"
@@ -6387,4 +6402,4 @@ propcache = ">=0.2.0"
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.11,<3.13"
-content-hash = "702d0205727f52758eb8011ee4a07fcd4065179a568613ba44168f0cddca5c85"
+content-hash = "de6d7dd098169f34119c3b3384ccb69ab014ba87d4e01367845d8ed4f0e84642"
