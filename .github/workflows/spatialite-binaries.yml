@@ -126,9 +126,14 @@ jobs:
             fi
           done
           
-          # Use patchelf to make binaries relocatable
-          chmod +w "$BINARY_DIR/mod_spatialite.so"
-          patchelf --set-rpath '$ORIGIN' "$BINARY_DIR/mod_spatialite.so"
+          # Use patchelf to make all binaries relocatable
+          for so_file in "$BINARY_DIR"/*.so*; do
+            if [ -f "$so_file" ]; then
+              echo "Patching $so_file"
+              chmod +w "$so_file"
+              patchelf --set-rpath '$ORIGIN' "$so_file"
+            fi
+          done
         fi
 
     - name: Verify binaries
