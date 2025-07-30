@@ -1,9 +1,8 @@
 import os
 import platform
 import sys
-from contextlib import contextmanager
 from pathlib import Path
-from typing import Iterator, Optional
+from typing import Optional
 
 
 def get_spatialite_path() -> Optional[Path]:
@@ -44,15 +43,33 @@ def get_spatialite_path() -> Optional[Path]:
     return spatialite_path if spatialite_path.exists() else None
 
 
-@contextmanager
-def temporary_add_dll_directory(dll_path: Path) -> Iterator[None]:
-    """
-    Temporarily add a directory to the DLL search path.
+def load_spatialite_extension(dbapi_connection, spatialite_path: Path):
+    """Load the SpatiaLite extension into a database connection."""
+    try:
+        # Enable extension loading
+        dbapi_connection.enable_load_extension(True)
 
-    This is for Python >= 3.8 on Windows.
-    """
-    if sys.version_info >= (3, 8) and platform.system() == "Windows":
-        with os.add_dll_directory(dll_path):
-            yield
-    else:
-        yield
+        # On Windows, add the directory containing the DLLs to the search path
+        if platform.system() == "Windows" and sys.version_info >= (3, 8):
+            with os.add_dll_directory(spatialite_path.parent):
+                # Load the spatialite extension (without file extension)
+                dbapi_connection.load_extension(str(spatialite_path.with_suffix("")))
+        else:
+            # Load the spatialite extension (without file extension)
+            dbapi_connection.load_extension(str(spatialite_path.with_suffix("")))
+
+        # Initialize spatial metadata only if it doesn't exist
+        cursor = dbapi_connection.cursor()
+        cursor.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name='spatial_ref_sys'"
+        )
+        if not cursor.fetchone():
+            cursor.execute("SELECT InitSpatialMetaData()")
+        cursor.close()
+
+    finally:
+        # Always disable extension loading for security
+        try:
+            dbapi_connection.enable_load_extension(False)
+        except Exception:
+            pass  # Ignore errors when disabling
