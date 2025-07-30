@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - development
+      - bugfix/spatialite-deps
   workflow_dispatch:
 
 jobs:
@@ -22,7 +23,6 @@ jobs:
             binary_path: /usr/lib/x86_64-linux-gnu/mod_spatialite.so
             filename: mod_spatialite.so
           
-
           # macOS Intel
           - os: macos-13  # Intel runners
             platform: darwin
@@ -48,7 +48,7 @@ jobs:
             install_cmd: |
               curl -L -o spatialite.7z https://www.gaia-gis.it/gaia-sins/windows-bin-amd64/mod_spatialite-5.1.0-win-amd64.7z
               7z x spatialite.7z -o./spatialite-extract
-            binary_path: ./spatialite-extract/mod_spatialite-5.1.0-win-amd64/mod_spatialite.dll
+            binary_path: ./spatialite-extract/mod_spatialite.dll
             filename: mod_spatialite.dll
 
     runs-on: ${{ matrix.os }}
@@ -58,6 +58,13 @@ jobs:
       uses: actions/checkout@v4
       with:
         token: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Set up environment
+      run: |
+        if [ "${{ matrix.os }}" == "ubuntu-latest" ]; then
+          sudo apt-get update
+          sudo apt-get install -y patchelf
+        fi
 
     - name: Check if binary already exists
       id: check_binary
@@ -81,87 +88,70 @@ jobs:
       run: |
         ${{ matrix.install_cmd }}
 
-    - name: Copy binary to project directory
+    - name: Copy binary and dependencies to project directory
       if: steps.check_binary.outputs.exists == 'false'
       shell: bash
       run: |
         BINARY_DIR="geoparser/db/spatialite/${{ matrix.platform }}-${{ matrix.arch }}"
-        BINARY_FILE="$BINARY_DIR/${{ matrix.filename }}"
         
-        # Find the actual binary path (may vary slightly)
-        ACTUAL_PATH="${{ matrix.binary_path }}"
+        # Windows: Copy all DLLs from the extracted folder
+        if [ "${{ matrix.platform }}" = "win" ]; then
+          cp ./spatialite-extract/*.dll "$BINARY_DIR/"
+          echo "✓ Copied all DLLs to $BINARY_DIR"
         
-        # Try alternative paths if primary doesn't exist
-        if [ ! -f "$ACTUAL_PATH" ]; then
-          case "${{ matrix.platform }}" in
-            "linux")
-              # Try alternative Linux paths
-              for path in /usr/lib/*/mod_spatialite.so /usr/lib64/mod_spatialite.so; do
-                if [ -f "$path" ]; then
-                  ACTUAL_PATH="$path"
-                  break
-                fi
-              done
-              ;;
-            "darwin")
-              # Try alternative macOS paths
-              for path in /usr/local/lib/mod_spatialite.dylib /opt/homebrew/lib/mod_spatialite.dylib; do
-                if [ -f "$path" ]; then
-                  ACTUAL_PATH="$path"
-                  break
-                fi
-              done
-              ;;
-            "win")
-              # Try alternative Windows paths
-              for path in ./spatialite-extract/mod_spatialite-5.1.0-win-amd64/mod_spatialite.dll ./spatialite-extract/mod_spatialite.dll ./mod_spatialite.dll; do
-                if [ -f "$path" ]; then
-                  ACTUAL_PATH="$path"
-                  break
-                fi
-              done
-              ;;
-          esac
-        fi
-        
-        if [ -f "$ACTUAL_PATH" ]; then
-          cp "$ACTUAL_PATH" "$BINARY_FILE"
-          echo "✓ Copied binary: $ACTUAL_PATH → $BINARY_FILE"
-          ls -la "$BINARY_FILE"
-        else
-          echo "✗ Binary not found at expected location: $ACTUAL_PATH"
-          echo "Contents of current directory:"
-          ls -la .
-          if [ "${{ matrix.platform }}" = "win" ]; then
-            echo "Contents of spatialite-extract directory:"
-            ls -la ./spatialite-extract/ || echo "spatialite-extract directory not found"
+        # macOS: Use otool to find and copy dependencies
+        elif [ "${{ matrix.platform }}" = "darwin" ]; then
+          BINARY_PATH="${{ matrix.binary_path }}"
+          cp "$BINARY_PATH" "$BINARY_DIR/"
+          
+          # Get list of dependencies, filter for relevant ones
+          otool -L "$BINARY_PATH" | grep -E 'libspatialite|libproj|libgeos|libfreexl|libsqlite3|libiconv|liblzma|libcharset' | awk '{print $1}' | while read dep; do
+            if [ -f "$dep" ]; then
+              cp "$dep" "$BINARY_DIR/"
+              echo "✓ Copied dependency: $dep"
+            else
+              echo "✗ Dependency not found: $dep"
+            fi
+          done
 
-          fi
-          exit 1
+        # Linux: Use ldd to find and copy dependencies
+        elif [ "${{ matrix.platform }}" = "linux" ]; then
+          BINARY_PATH="${{ matrix.binary_path }}"
+          cp "$BINARY_PATH" "$BINARY_DIR/"
+          
+          ldd "$BINARY_PATH" | grep "=>" | awk '{print $3}' | while read dep; do
+            if [ -f "$dep" ]; then
+              cp "$dep" "$BINARY_DIR/"
+              echo "✓ Copied dependency: $dep"
+            fi
+          done
+          
+          # Use patchelf to make binaries relocatable
+          chmod +w "$BINARY_DIR/mod_spatialite.so"
+          patchelf --set-rpath '$ORIGIN' "$BINARY_DIR/mod_spatialite.so"
         fi
 
-    - name: Verify binary
+    - name: Verify binaries
       if: steps.check_binary.outputs.exists == 'false'
       shell: bash
       run: |
-        BINARY_FILE="geoparser/db/spatialite/${{ matrix.platform }}-${{ matrix.arch }}/${{ matrix.filename }}"
+        BINARY_DIR="geoparser/db/spatialite/${{ matrix.platform }}-${{ matrix.arch }}"
+        echo "Contents of $BINARY_DIR:"
+        ls -la "$BINARY_DIR"
         
-        if [ -f "$BINARY_FILE" ]; then
-          echo "✓ Binary verification:"
-          echo "  File: $BINARY_FILE"
-          echo "  Size: $(stat -c%s "$BINARY_FILE" 2>/dev/null || stat -f%z "$BINARY_FILE" 2>/dev/null || echo "unknown") bytes"
-          echo "  Type: $(file "$BINARY_FILE" 2>/dev/null || echo "file command not available")"
-        else
-          echo "✗ Binary verification failed: $BINARY_FILE does not exist"
+        # Verify the main binary exists
+        if [ ! -f "$BINARY_DIR/${{ matrix.filename }}" ]; then
+          echo "✗ Main binary missing!"
           exit 1
         fi
+        echo "✓ Main binary is present."
 
-    - name: Upload binary as artifact
+    - name: Upload binaries as artifact
       if: steps.check_binary.outputs.exists == 'false'
       uses: actions/upload-artifact@v4
       with:
         name: spatialite-${{ matrix.platform }}-${{ matrix.arch }}
-        path: geoparser/db/spatialite/${{ matrix.platform }}-${{ matrix.arch }}/${{ matrix.filename }}
+        path: geoparser/db/spatialite/${{ matrix.platform }}-${{ matrix.arch }}/
 
   commit-binaries:
     name: Commit all binaries
@@ -202,10 +192,10 @@ jobs:
     - name: Check what binaries were collected
       run: |
         echo "=== Binaries collected in this run ==="
-        find geoparser/db/spatialite -name "mod_spatialite.*" -type f | sort
+        find geoparser/db/spatialite -type f | sort
         
         echo "=== File sizes ==="
-        find geoparser/db/spatialite -name "mod_spatialite.*" -type f -exec ls -lh {} \;
+        find geoparser/db/spatialite -type f -exec ls -lh {} \;
 
     - name: Commit and push binaries
       run: |
@@ -218,10 +208,10 @@ jobs:
         if git diff --staged --quiet; then
           echo "No new binaries to commit"
         else
-          git commit -m "Add/update SpatiaLite binaries
-
+          git commit -m "Add/update SpatiaLite binaries and dependencies
+          
           Collected binaries for multiple platforms:
-          $(find geoparser/db/spatialite -name "mod_spatialite.*" -type f | sort | sed 's/^/- /')"
+          $(find geoparser/db/spatialite -type f | sort | sed 's/^/- /')"
           
           # Push changes
           git push origin ${{ github.ref_name }}
@@ -249,16 +239,6 @@ jobs:
     - name: Check all binaries
       run: |
         echo "=== SpatiaLite Binary Collection Summary ==="
-        echo "Current working directory: $(pwd)"
-        echo "Git status:"
-        git status --porcelain
-        echo "Latest commit:"
-        git log -1 --oneline
-        echo ""
-        echo "Files in spatialite directory:"
-        find geoparser/db/spatialite -type f -name "mod_spatialite.*" | sort
-        echo ""
-        
         PLATFORMS=(
           "linux-x86_64:mod_spatialite.so"
           "darwin-x86_64:mod_spatialite.dylib"
@@ -266,32 +246,25 @@ jobs:
           "win-amd64:mod_spatialite.dll"
         )
         
-        MISSING=0
-        PRESENT=0
-        
+        ALL_PRESENT=true
         for platform_file in "${PLATFORMS[@]}"; do
           IFS=':' read -r platform filename <<< "$platform_file"
           binary_path="geoparser/db/spatialite/$platform/$filename"
           
-          echo "Checking: $binary_path"
-          if [ -f "$binary_path" ]; then
-            size=$(stat -c%s "$binary_path" 2>/dev/null || stat -f%z "$binary_path" 2>/dev/null || echo "unknown")
-            echo "✓ $platform: $filename ($size bytes)"
-            PRESENT=$((PRESENT + 1))
+          echo "Checking for directory: geoparser/db/spatialite/$platform"
+          if [ -d "geoparser/db/spatialite/$platform" ]; then
+            echo "✓ Directory exists. Contents:"
+            ls -la "geoparser/db/spatialite/$platform"
           else
-            echo "✗ $platform: $filename (missing)"
-            MISSING=$((MISSING + 1))
+            echo "✗ Directory missing: geoparser/db/spatialite/$platform"
+            ALL_PRESENT=false
           fi
         done
         
-        echo ""
-        echo "Summary: $PRESENT present, $MISSING missing"
-        
-        if [ $MISSING -eq 0 ]; then
-          echo "🎉 All SpatiaLite binaries are available!"
+        if [ "$ALL_PRESENT" = true ]; then
+          echo "🎉 All SpatiaLite binary directories are available!"
           exit 0
         else
-          echo "⚠️  Some binaries are still missing"
-          echo "This is expected if binaries are still being collected/committed."
+          echo "⚠️  Some binary directories are still missing."
           exit 1
         fi

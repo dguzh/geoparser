@@ -5,7 +5,7 @@ from appdirs import user_data_dir
 from sqlalchemy import event
 from sqlmodel import Session, SQLModel, create_engine
 
-from .spatialite.loader import get_spatialite_path
+from .spatialite.loader import get_spatialite_path, temporary_add_dll_directory
 
 # Ensure the parent directory exists
 db_location = Path(user_data_dir("geoparser", "")) / "geoparser.db"
@@ -31,20 +31,22 @@ def load_spatialite(dbapi_connection, connection_record):
         return
 
     try:
-        # Enable extension loading
-        dbapi_connection.enable_load_extension(True)
+        # On Windows, we need to add the directory containing the DLLs to the search path
+        with temporary_add_dll_directory(spatialite_path.parent):
+            # Enable extension loading
+            dbapi_connection.enable_load_extension(True)
 
-        # Load the spatialite extension
-        dbapi_connection.load_extension(str(spatialite_path))
+            # Load the spatialite extension
+            dbapi_connection.load_extension(str(spatialite_path))
 
-        # Initialize spatial metadata only if it doesn't exist
-        cursor = dbapi_connection.cursor()
-        cursor.execute(
-            "SELECT name FROM sqlite_master WHERE type='table' AND name='spatial_ref_sys'"
-        )
-        if not cursor.fetchone():
-            cursor.execute("SELECT InitSpatialMetaData()")
-        cursor.close()
+            # Initialize spatial metadata only if it doesn't exist
+            cursor = dbapi_connection.cursor()
+            cursor.execute(
+                "SELECT name FROM sqlite_master WHERE type='table' AND name='spatial_ref_sys'"
+            )
+            if not cursor.fetchone():
+                cursor.execute("SELECT InitSpatialMetaData()")
+            cursor.close()
 
     except Exception:
         pass

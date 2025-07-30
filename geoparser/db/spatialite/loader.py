@@ -1,6 +1,9 @@
+import os
 import platform
+import sys
+from contextlib import contextmanager
 from pathlib import Path
-from typing import Optional
+from typing import Iterator, Optional
 
 
 def get_spatialite_path() -> Optional[Path]:
@@ -39,3 +42,17 @@ def get_spatialite_path() -> Optional[Path]:
     spatialite_path = spatialite_dir / filename
 
     return spatialite_path if spatialite_path.exists() else None
+
+
+@contextmanager
+def temporary_add_dll_directory(dll_path: Path) -> Iterator[None]:
+    """
+    Temporarily add a directory to the DLL search path.
+
+    This is for Python >= 3.8 on Windows.
+    """
+    if sys.version_info >= (3, 8) and platform.system() == "Windows":
+        with os.add_dll_directory(dll_path):
+            yield
+    else:
+        yield
