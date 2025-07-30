@@ -96,7 +96,7 @@ jobs:
         
         # Windows: Copy all DLLs from the extracted folder
         if [ "${{ matrix.platform }}" = "win" ]; then
-          cp ./spatialite-extract/*.dll "$BINARY_DIR/"
+          cp ./spatialite-extract/mod_spatialite-5.1.0-win-amd64/*.dll "$BINARY_DIR/"
           echo "✓ Copied all DLLs to $BINARY_DIR"
         
         # macOS: Use otool to find and copy dependencies
