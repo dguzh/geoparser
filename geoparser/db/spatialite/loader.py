@@ -1,6 +1,5 @@
 import os
 import platform
-import sys
 from pathlib import Path
 from typing import Optional
 
@@ -49,11 +48,18 @@ def load_spatialite_extension(dbapi_connection, spatialite_path: Path):
         # Enable extension loading
         dbapi_connection.enable_load_extension(True)
 
-        # On Windows, add the directory containing the DLLs to the search path
-        if platform.system() == "Windows" and sys.version_info >= (3, 8):
-            with os.add_dll_directory(spatialite_path.parent):
+        # On Windows, add the directory containing the DLLs to the PATH
+        if platform.system() == "Windows":
+            original_path = os.environ.get("PATH", "")
+            dll_dir = str(spatialite_path.parent)
+            try:
+                # Temporarily add the DLL directory to PATH
+                os.environ["PATH"] = dll_dir + os.pathsep + original_path
                 # Load the spatialite extension (without file extension)
                 dbapi_connection.load_extension(str(spatialite_path.with_suffix("")))
+            finally:
+                # Restore original PATH
+                os.environ["PATH"] = original_path
         else:
             # Load the spatialite extension (without file extension)
             dbapi_connection.load_extension(str(spatialite_path.with_suffix("")))
