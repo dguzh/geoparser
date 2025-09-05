@@ -12,17 +12,6 @@ if t.TYPE_CHECKING:
 class RecognitionBase(SQLModel):
     """Base model for recognition data."""
 
-    document_id: uuid.UUID = Field(
-        sa_column=Column(
-            UUID, ForeignKey("document.id", ondelete="CASCADE"), nullable=False
-        )
-    )
-    recognizer_id: uuid.UUID = Field(
-        sa_column=Column(
-            UUID, ForeignKey("recognizer.id", ondelete="CASCADE"), nullable=False
-        )
-    )
-
 
 class Recognition(RecognitionBase, table=True):
     """
@@ -33,12 +22,25 @@ class Recognition(RecognitionBase, table=True):
     """
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    document_id: uuid.UUID = Field(
+        sa_column=Column(
+            UUID, ForeignKey("document.id", ondelete="CASCADE"), nullable=False
+        )
+    )
+    recognizer_id: uuid.UUID = Field(
+        sa_column=Column(
+            UUID, ForeignKey("recognizer.id", ondelete="CASCADE"), nullable=False
+        )
+    )
     document: "Document" = Relationship(back_populates="recognitions")
     recognizer: "Recognizer" = Relationship(back_populates="recognitions")
 
 
 class RecognitionCreate(RecognitionBase):
     """Model for creating a new recognition record."""
+
+    document_id: uuid.UUID
+    recognizer_id: uuid.UUID
 
 
 class RecognitionUpdate(SQLModel):

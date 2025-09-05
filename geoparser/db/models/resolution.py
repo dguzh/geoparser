@@ -12,17 +12,6 @@ if t.TYPE_CHECKING:
 class ResolutionBase(SQLModel):
     """Base model for resolution data."""
 
-    reference_id: uuid.UUID = Field(
-        sa_column=Column(
-            UUID, ForeignKey("reference.id", ondelete="CASCADE"), nullable=False
-        )
-    )
-    resolver_id: uuid.UUID = Field(
-        sa_column=Column(
-            UUID, ForeignKey("resolver.id", ondelete="CASCADE"), nullable=False
-        )
-    )
-
 
 class Resolution(ResolutionBase, table=True):
     """
@@ -33,12 +22,25 @@ class Resolution(ResolutionBase, table=True):
     """
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    reference_id: uuid.UUID = Field(
+        sa_column=Column(
+            UUID, ForeignKey("reference.id", ondelete="CASCADE"), nullable=False
+        )
+    )
+    resolver_id: uuid.UUID = Field(
+        sa_column=Column(
+            UUID, ForeignKey("resolver.id", ondelete="CASCADE"), nullable=False
+        )
+    )
     reference: "Reference" = Relationship(back_populates="resolutions")
     resolver: "Resolver" = Relationship(back_populates="resolutions")
 
 
 class ResolutionCreate(ResolutionBase):
     """Model for creating a new resolution record."""
+
+    reference_id: uuid.UUID
+    resolver_id: uuid.UUID
 
 
 class ResolutionUpdate(SQLModel):

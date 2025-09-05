@@ -11,11 +11,7 @@ if t.TYPE_CHECKING:
 
 
 class ReferentBase(SQLModel):
-    """
-    Base model for referent data.
-
-    Contains a reference to a feature in the gazetteer system.
-    """
+    """Base model for referent data."""
 
 
 class Referent(ReferentBase, table=True):
