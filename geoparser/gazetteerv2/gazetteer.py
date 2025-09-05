@@ -27,7 +27,7 @@ class Gazetteer:
         self.gazetteer_name = gazetteer_name
 
     def search(
-        self, toponym: str, method: str, limit: int = 1000, ranks: int = 1
+        self, toponym: str, method: str = "exact", limit: int = 1000, ranks: int = 1
     ) -> List[Feature]:
         """
         Search for features using the specified search method.
@@ -74,3 +74,18 @@ class Gazetteer:
 
         with Session(engine) as db:
             return method_map[method](db)
+
+    def find(self, identifier: str) -> Feature | None:
+        """
+        Find a feature by its identifier.
+
+        Args:
+            identifier: The identifier value of the feature to find
+
+        Returns:
+            Feature object if found, None otherwise
+        """
+        with Session(engine) as db:
+            return FeatureRepository.get_by_gazetteer_and_identifier(
+                db, self.gazetteer_name, identifier
+            )
