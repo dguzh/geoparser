@@ -5,14 +5,9 @@ from sqlmodel import Session, SQLModel
 from sqlmodel.pool import StaticPool
 
 from geoparser.db.db import create_engine
-from geoparser.db.models import (
-    Document,
-    DocumentCreate,
-    Project,
-    ProjectCreate,
-    Reference,
-    ReferenceCreate,
-)
+from geoparser.db.models import Document, DocumentCreate, Project, ProjectCreate
+from geoparser.db.models import Recognizer as RecognizerModel
+from geoparser.db.models import RecognizerCreate, Reference, ReferenceCreate
 from geoparser.modules.recognizers.recognizer import Recognizer
 from geoparser.modules.resolvers.resolver import Resolver
 from geoparser.orchestrator import Orchestrator
@@ -55,9 +50,24 @@ def test_document(test_db, test_project):
 
 
 @pytest.fixture
-def test_reference(test_db, test_document):
+def test_recognizer(test_db):
+    """Create a test recognizer."""
+    recognizer_create = RecognizerCreate(
+        name="test-recognizer", config={"model": "test-model"}
+    )
+    recognizer = RecognizerModel.model_validate(recognizer_create)
+    test_db.add(recognizer)
+    test_db.commit()
+    test_db.refresh(recognizer)
+    return recognizer
+
+
+@pytest.fixture
+def test_reference(test_db, test_document, test_recognizer):
     """Create a test reference in the test document."""
-    reference_create = ReferenceCreate(start=29, end=35, document_id=test_document.id)
+    reference_create = ReferenceCreate(
+        start=29, end=35, document_id=test_document.id, recognizer_id=test_recognizer.id
+    )
     reference = Reference.model_validate(reference_create)
     test_db.add(reference)
     test_db.commit()

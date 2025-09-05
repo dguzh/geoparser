@@ -5,16 +5,14 @@ import pytest
 
 from geoparser.db.crud import (
     FeatureRepository,
-    RecognitionModuleRepository,
-    RecognitionObjectRepository,
-    RecognitionSubjectRepository,
+    RecognitionRepository,
+    RecognizerRepository,
     ReferenceRepository,
     ReferentRepository,
-    ResolutionModuleRepository,
-    ResolutionObjectRepository,
-    ResolutionSubjectRepository,
+    ResolutionRepository,
+    ResolverRepository,
 )
-from geoparser.db.models import RecognitionModule, ResolutionModule
+from geoparser.db.models import Recognizer, Resolver
 from geoparser.orchestrator import Orchestrator
 
 
@@ -24,8 +22,8 @@ def test_orchestrator_initialization():
     assert isinstance(orchestrator, Orchestrator)
 
 
-def test_initialize_recognition_module_new(test_db, mock_recognition_module):
-    """Test _initialize_recognition_module with a new module."""
+def test_initialize_recognizer_new(test_db, mock_recognition_module):
+    """Test _initialize_recognizer with a new module."""
     orchestrator = Orchestrator()
 
     # Mock database calls for module creation
@@ -33,18 +31,16 @@ def test_initialize_recognition_module_new(test_db, mock_recognition_module):
         mock_session.return_value.__enter__.return_value = test_db
         mock_session.return_value.__exit__.return_value = None
         with patch.object(
-            RecognitionModuleRepository, "get_by_name_and_config", return_value=None
+            RecognizerRepository, "get_by_name_and_config", return_value=None
         ) as mock_get:
-            new_module = RecognitionModule(
+            new_module = Recognizer(
                 id=uuid.uuid4(), name="mock_recognition", config={"param": "value"}
             )
             with patch.object(
-                RecognitionModuleRepository, "create", return_value=new_module
+                RecognizerRepository, "create", return_value=new_module
             ) as mock_create:
                 # Call the method
-                module_id = orchestrator._initialize_recognition_module(
-                    mock_recognition_module
-                )
+                module_id = orchestrator._initialize_recognizer(mock_recognition_module)
 
                 # Verify calls
                 mock_get.assert_called_once_with(
@@ -56,12 +52,12 @@ def test_initialize_recognition_module_new(test_db, mock_recognition_module):
                 assert module_id == new_module.id
 
 
-def test_initialize_recognition_module_existing(test_db, mock_recognition_module):
-    """Test _initialize_recognition_module with an existing module."""
+def test_initialize_recognizer_existing(test_db, mock_recognition_module):
+    """Test _initialize_recognizer with an existing module."""
     orchestrator = Orchestrator()
 
     # Create existing module in database
-    existing_module = RecognitionModule(
+    existing_module = Recognizer(
         id=uuid.uuid4(), name="mock_recognition", config={"param": "value"}
     )
 
@@ -70,14 +66,12 @@ def test_initialize_recognition_module_existing(test_db, mock_recognition_module
         mock_session.return_value.__enter__.return_value = test_db
         mock_session.return_value.__exit__.return_value = None
         with patch.object(
-            RecognitionModuleRepository,
+            RecognizerRepository,
             "get_by_name_and_config",
             return_value=existing_module,
         ) as mock_get:
             # Call the method
-            module_id = orchestrator._initialize_recognition_module(
-                mock_recognition_module
-            )
+            module_id = orchestrator._initialize_recognizer(mock_recognition_module)
 
             # Verify calls
             mock_get.assert_called_once_with(
@@ -86,8 +80,8 @@ def test_initialize_recognition_module_existing(test_db, mock_recognition_module
             assert module_id == existing_module.id
 
 
-def test_initialize_resolution_module_new(test_db, mock_resolution_module):
-    """Test _initialize_resolution_module with a new module."""
+def test_initialize_resolver_new(test_db, mock_resolution_module):
+    """Test _initialize_resolver with a new module."""
     orchestrator = Orchestrator()
 
     # Mock database calls for module creation
@@ -95,18 +89,16 @@ def test_initialize_resolution_module_new(test_db, mock_resolution_module):
         mock_session.return_value.__enter__.return_value = test_db
         mock_session.return_value.__exit__.return_value = None
         with patch.object(
-            ResolutionModuleRepository, "get_by_name_and_config", return_value=None
+            ResolverRepository, "get_by_name_and_config", return_value=None
         ) as mock_get:
-            new_module = ResolutionModule(
+            new_module = Resolver(
                 id=uuid.uuid4(), name="mock_resolution", config={"param": "value"}
             )
             with patch.object(
-                ResolutionModuleRepository, "create", return_value=new_module
+                ResolverRepository, "create", return_value=new_module
             ) as mock_create:
                 # Call the method
-                module_id = orchestrator._initialize_resolution_module(
-                    mock_resolution_module
-                )
+                module_id = orchestrator._initialize_resolver(mock_resolution_module)
 
                 # Verify calls
                 mock_get.assert_called_once_with(
@@ -116,12 +108,12 @@ def test_initialize_resolution_module_new(test_db, mock_resolution_module):
                 assert module_id == new_module.id
 
 
-def test_initialize_resolution_module_existing(test_db, mock_resolution_module):
-    """Test _initialize_resolution_module with an existing module."""
+def test_initialize_resolver_existing(test_db, mock_resolution_module):
+    """Test _initialize_resolver with an existing module."""
     orchestrator = Orchestrator()
 
     # Create existing module in database
-    existing_module = ResolutionModule(
+    existing_module = Resolver(
         id=uuid.uuid4(), name="mock_resolution", config={"param": "value"}
     )
 
@@ -130,14 +122,12 @@ def test_initialize_resolution_module_existing(test_db, mock_resolution_module):
         mock_session.return_value.__enter__.return_value = test_db
         mock_session.return_value.__exit__.return_value = None
         with patch.object(
-            ResolutionModuleRepository,
+            ResolverRepository,
             "get_by_name_and_config",
             return_value=existing_module,
         ) as mock_get:
             # Call the method
-            module_id = orchestrator._initialize_resolution_module(
-                mock_resolution_module
-            )
+            module_id = orchestrator._initialize_resolver(mock_resolution_module)
 
             # Verify calls
             mock_get.assert_called_once_with(
@@ -151,8 +141,8 @@ def test_run_module_recognition(test_db, test_project, mock_recognition_module):
     orchestrator = Orchestrator()
 
     # Mock private methods
-    with patch.object(orchestrator, "_initialize_recognition_module") as mock_init:
-        with patch.object(orchestrator, "_execute_recognition_module") as mock_exec:
+    with patch.object(orchestrator, "_initialize_recognizer") as mock_init:
+        with patch.object(orchestrator, "_execute_recognizer") as mock_exec:
             # Set up mocks
             module_id = uuid.uuid4()
             mock_init.return_value = module_id
@@ -172,8 +162,8 @@ def test_run_module_resolution(test_db, test_project, mock_resolution_module):
     orchestrator = Orchestrator()
 
     # Mock private methods
-    with patch.object(orchestrator, "_initialize_resolution_module") as mock_init:
-        with patch.object(orchestrator, "_execute_resolution_module") as mock_exec:
+    with patch.object(orchestrator, "_initialize_resolver") as mock_init:
+        with patch.object(orchestrator, "_execute_resolver") as mock_exec:
             # Set up mocks
             module_id = uuid.uuid4()
             mock_init.return_value = module_id
@@ -200,10 +190,10 @@ def test_run_module_unsupported_type(test_db, test_project):
         orchestrator.run_module(unsupported_module, test_project.id)
 
 
-def test_execute_recognition_module(
+def test_execute_recognizer(
     test_db, test_project, mock_recognition_module, test_document
 ):
-    """Test _execute_recognition_module with a document."""
+    """Test _execute_recognizer with a document."""
     orchestrator = Orchestrator()
     module_id = uuid.uuid4()
 
@@ -222,7 +212,7 @@ def test_execute_recognition_module(
                 ]
 
                 # Call the method
-                orchestrator._execute_recognition_module(
+                orchestrator._execute_recognizer(
                     mock_recognition_module, module_id, test_project.id
                 )
 
@@ -238,10 +228,10 @@ def test_execute_recognition_module(
                 )
 
 
-def test_execute_recognition_module_no_documents(
+def test_execute_recognizer_no_documents(
     test_db, test_project, mock_recognition_module
 ):
-    """Test _execute_recognition_module with no documents."""
+    """Test _execute_recognizer with no documents."""
     orchestrator = Orchestrator()
     module_id = uuid.uuid4()
 
@@ -254,7 +244,7 @@ def test_execute_recognition_module_no_documents(
             mock_get_docs.return_value = []
 
             # Call the method
-            orchestrator._execute_recognition_module(
+            orchestrator._execute_recognizer(
                 mock_recognition_module, module_id, test_project.id
             )
 
@@ -263,10 +253,10 @@ def test_execute_recognition_module_no_documents(
             mock_recognition_module.predict_references.assert_not_called()
 
 
-def test_execute_resolution_module(
+def test_execute_resolver(
     test_db, test_project, mock_resolution_module, test_reference, test_document
 ):
-    """Test _execute_resolution_module with a reference."""
+    """Test _execute_resolver with a reference."""
     orchestrator = Orchestrator()
     module_id = uuid.uuid4()
 
@@ -288,7 +278,7 @@ def test_execute_resolution_module(
                 ]
 
                 # Call the method
-                orchestrator._execute_resolution_module(
+                orchestrator._execute_resolver(
                     mock_resolution_module, module_id, test_project.id
                 )
 
@@ -305,10 +295,8 @@ def test_execute_resolution_module(
                 )
 
 
-def test_execute_resolution_module_no_references(
-    test_db, test_project, mock_resolution_module
-):
-    """Test _execute_resolution_module with no references."""
+def test_execute_resolver_no_references(test_db, test_project, mock_resolution_module):
+    """Test _execute_resolver with no references."""
     orchestrator = Orchestrator()
     module_id = uuid.uuid4()
 
@@ -321,7 +309,7 @@ def test_execute_resolution_module_no_references(
             mock_get_refs.return_value = []
 
             # Call the method
-            orchestrator._execute_resolution_module(
+            orchestrator._execute_resolver(
                 mock_resolution_module, module_id, test_project.id
             )
 
@@ -353,59 +341,63 @@ def test_process_reference_predictions(test_db, mock_recognition_module):
 
 
 def test_create_reference_record(test_db, test_document):
-    """Test _create_reference_record when reference doesn't exist."""
+    """Test _create_reference_record creates reference with recognizer ID."""
     orchestrator = Orchestrator()
-    module_id = uuid.uuid4()
+    recognizer_id = uuid.uuid4()
 
     # Mock database calls
-    with patch.object(
-        ReferenceRepository, "get_by_document_and_span", return_value=None
-    ) as mock_get:
-        with patch.object(ReferenceRepository, "create") as mock_create_reference:
-            with patch.object(
-                RecognitionObjectRepository, "create"
-            ) as mock_create_recognition:
-                # Set up mocks
-                reference_id = uuid.uuid4()
-                reference = MagicMock()
-                reference.id = reference_id
-                mock_create_reference.return_value = reference
+    with patch.object(ReferenceRepository, "create") as mock_create_reference:
+        # Set up mocks
+        reference_id = uuid.uuid4()
+        reference = MagicMock()
+        reference.id = reference_id
+        mock_create_reference.return_value = reference
 
-                # Call the method
-                result_id = orchestrator._create_reference_record(
-                    test_db, test_document.id, 29, 35, module_id
-                )
+        # Call the method
+        result_id = orchestrator._create_reference_record(
+            test_db, test_document.id, 29, 35, recognizer_id
+        )
 
-                # Verify calls
-                mock_get.assert_called_once_with(test_db, test_document.id, 29, 35)
-                mock_create_reference.assert_called_once()
-                mock_create_recognition.assert_called_once()
-                assert result_id == reference_id
+        # Verify calls
+        mock_create_reference.assert_called_once()
+        created_args = mock_create_reference.call_args[0][
+            1
+        ]  # Get ReferenceCreate object
+        assert created_args.start == 29
+        assert created_args.end == 35
+        assert created_args.document_id == test_document.id
+        assert created_args.recognizer_id == recognizer_id
+        assert result_id == reference_id
 
 
-def test_create_reference_record_existing(test_db, test_document, test_reference):
-    """Test _create_reference_record when reference already exists."""
+def test_create_reference_record_creates_new(test_db, test_document):
+    """Test _create_reference_record always creates new reference with recognizer ID."""
     orchestrator = Orchestrator()
-    module_id = uuid.uuid4()
+    recognizer_id = uuid.uuid4()
 
     # Mock database calls
-    with patch.object(
-        ReferenceRepository, "get_by_document_and_span", return_value=test_reference
-    ) as mock_get:
-        with patch.object(ReferenceRepository, "create") as mock_create_reference:
-            with patch.object(
-                RecognitionObjectRepository, "create"
-            ) as mock_create_recognition:
-                # Call the method
-                result_id = orchestrator._create_reference_record(
-                    test_db, test_document.id, 29, 35, module_id
-                )
+    with patch.object(ReferenceRepository, "create") as mock_create_reference:
+        # Set up mocks
+        reference_id = uuid.uuid4()
+        reference = MagicMock()
+        reference.id = reference_id
+        mock_create_reference.return_value = reference
 
-                # Verify calls
-                mock_get.assert_called_once_with(test_db, test_document.id, 29, 35)
-                mock_create_reference.assert_not_called()
-                mock_create_recognition.assert_called_once()
-                assert result_id == test_reference.id
+        # Call the method
+        result_id = orchestrator._create_reference_record(
+            test_db, test_document.id, 10, 15, recognizer_id
+        )
+
+        # Verify calls
+        mock_create_reference.assert_called_once()
+        created_args = mock_create_reference.call_args[0][
+            1
+        ]  # Get ReferenceCreate object
+        assert created_args.start == 10
+        assert created_args.end == 15
+        assert created_args.document_id == test_document.id
+        assert created_args.recognizer_id == recognizer_id
+        assert result_id == reference_id
 
 
 def test_process_referent_predictions(test_db, mock_resolution_module):
@@ -438,41 +430,41 @@ def test_process_referent_predictions(test_db, mock_resolution_module):
 
 
 def test_create_referent_record(test_db, test_reference):
-    """Test _create_referent_record."""
+    """Test _create_referent_record creates referent with resolver ID."""
     orchestrator = Orchestrator()
-    module_id = uuid.uuid4()
+    resolver_id = uuid.uuid4()
 
     # Mock database calls
     with patch.object(
         FeatureRepository, "get_by_gazetteer_and_identifier"
     ) as mock_get_feature:
         with patch.object(ReferentRepository, "create") as mock_create_referent:
-            with patch.object(
-                ResolutionObjectRepository, "create"
-            ) as mock_create_resolution:
-                # Set up mocks
-                feature_id = 123456
-                feature = MagicMock()
-                feature.id = feature_id
-                mock_get_feature.return_value = feature
+            # Set up mocks
+            feature_id = 123456
+            feature = MagicMock()
+            feature.id = feature_id
+            mock_get_feature.return_value = feature
 
-                referent_id = uuid.uuid4()
-                referent = MagicMock()
-                referent.id = referent_id
-                mock_create_referent.return_value = referent
+            referent_id = uuid.uuid4()
+            referent = MagicMock()
+            referent.id = referent_id
+            mock_create_referent.return_value = referent
 
-                # Call the method
-                result_id = orchestrator._create_referent_record(
-                    test_db, test_reference.id, "test_gazetteer", "loc1", module_id
-                )
+            # Call the method
+            result_id = orchestrator._create_referent_record(
+                test_db, test_reference.id, "test_gazetteer", "loc1", resolver_id
+            )
 
-                # Verify calls
-                mock_get_feature.assert_called_once_with(
-                    test_db, "test_gazetteer", "loc1"
-                )
-                mock_create_referent.assert_called_once()
-                mock_create_resolution.assert_called_once()
-                assert result_id == referent_id
+            # Verify calls
+            mock_get_feature.assert_called_once_with(test_db, "test_gazetteer", "loc1")
+            mock_create_referent.assert_called_once()
+            created_args = mock_create_referent.call_args[0][
+                1
+            ]  # Get ReferentCreate object
+            assert created_args.reference_id == test_reference.id
+            assert created_args.feature_id == feature_id
+            assert created_args.resolver_id == resolver_id
+            assert result_id == referent_id
 
 
 def test_mark_document_processed(test_db, test_document):
@@ -481,7 +473,7 @@ def test_mark_document_processed(test_db, test_document):
     module_id = uuid.uuid4()
 
     # Mock database call
-    with patch.object(RecognitionSubjectRepository, "create") as mock_create:
+    with patch.object(RecognitionRepository, "create") as mock_create:
         # Call the method
         orchestrator._mark_document_processed(test_db, test_document.id, module_id)
 
@@ -495,7 +487,7 @@ def test_mark_reference_processed(test_db, test_reference):
     module_id = uuid.uuid4()
 
     # Mock database call
-    with patch.object(ResolutionSubjectRepository, "create") as mock_create:
+    with patch.object(ResolutionRepository, "create") as mock_create:
         # Call the method
         orchestrator._mark_reference_processed(test_db, test_reference.id, module_id)
 

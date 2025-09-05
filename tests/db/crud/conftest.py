@@ -11,22 +11,18 @@ from geoparser.db.models import (
     FeatureCreate,
     Project,
     ProjectCreate,
-    RecognitionModule,
-    RecognitionModuleCreate,
-    RecognitionObject,
-    RecognitionObjectCreate,
-    RecognitionSubject,
-    RecognitionSubjectCreate,
+    Recognition,
+    RecognitionCreate,
+    Recognizer,
+    RecognizerCreate,
     Reference,
     ReferenceCreate,
     Referent,
     ReferentCreate,
-    ResolutionModule,
-    ResolutionModuleCreate,
-    ResolutionObject,
-    ResolutionObjectCreate,
-    ResolutionSubject,
-    ResolutionSubjectCreate,
+    Resolution,
+    ResolutionCreate,
+    Resolver,
+    ResolverCreate,
 )
 
 
@@ -66,35 +62,35 @@ def test_document(test_db: Session, test_project: Project):
 
 
 @pytest.fixture
-def test_recognition_module(test_db: Session):
-    """Create a test recognition module."""
+def test_recognizer(test_db: Session):
+    """Create a test recognizer."""
     config = {
         "model": "test-model",
         "threshold": 0.75,
     }
-    module_create = RecognitionModuleCreate(
-        name="test-recognition-module", config=config
+    recognizer_create = RecognizerCreate(name="test-recognizer", config=config)
+    recognizer = Recognizer(
+        name=recognizer_create.name, config=recognizer_create.config
     )
-    module = RecognitionModule(name=module_create.name, config=module_create.config)
-    test_db.add(module)
+    test_db.add(recognizer)
     test_db.commit()
-    test_db.refresh(module)
-    return module
+    test_db.refresh(recognizer)
+    return recognizer
 
 
 @pytest.fixture
-def test_resolution_module(test_db: Session):
-    """Create a test resolution module."""
+def test_resolver(test_db: Session):
+    """Create a test resolver."""
     config = {
         "gazetteer": "test-gazetteer",
         "max_results": 5,
     }
-    module_create = ResolutionModuleCreate(name="test-resolution-module", config=config)
-    module = ResolutionModule(name=module_create.name, config=module_create.config)
-    test_db.add(module)
+    resolver_create = ResolverCreate(name="test-resolver", config=config)
+    resolver = Resolver(name=resolver_create.name, config=resolver_create.config)
+    test_db.add(resolver)
     test_db.commit()
-    test_db.refresh(module)
-    return module
+    test_db.refresh(resolver)
+    return resolver
 
 
 @pytest.fixture
@@ -111,42 +107,34 @@ def test_feature(test_db: Session):
 
 
 @pytest.fixture
-def test_reference(test_db: Session, test_document: Document):
+def test_reference(
+    test_db: Session, test_document: Document, test_recognizer: Recognizer
+):
     """Create a test reference."""
-    reference_create = ReferenceCreate(start=29, end=35, document_id=test_document.id)
+    reference_create = ReferenceCreate(
+        start=29, end=35, document_id=test_document.id, recognizer_id=test_recognizer.id
+    )
     reference = ReferenceRepository.create(test_db, reference_create)
     return reference
 
 
 @pytest.fixture
-def test_recognition_object(
+def test_referent(
     test_db: Session,
     test_reference: Reference,
-    test_recognition_module: RecognitionModule,
+    test_feature: Feature,
+    test_resolver: Resolver,
 ):
-    """Create a test recognition object."""
-    recognition_create = RecognitionObjectCreate(
-        reference_id=test_reference.id, module_id=test_recognition_module.id
-    )
-    recognition = RecognitionObject(
-        reference_id=recognition_create.reference_id,
-        module_id=recognition_create.module_id,
-    )
-    test_db.add(recognition)
-    test_db.commit()
-    test_db.refresh(recognition)
-    return recognition
-
-
-@pytest.fixture
-def test_referent(test_db: Session, test_reference: Reference, test_feature: Feature):
     """Create a test referent."""
     referent_create = ReferentCreate(
-        reference_id=test_reference.id, feature_id=test_feature.id
+        reference_id=test_reference.id,
+        feature_id=test_feature.id,
+        resolver_id=test_resolver.id,
     )
     referent = Referent(
         reference_id=test_reference.id,
         feature_id=test_feature.id,
+        resolver_id=test_resolver.id,
     )
     test_db.add(referent)
     test_db.commit()
@@ -155,59 +143,40 @@ def test_referent(test_db: Session, test_reference: Reference, test_feature: Fea
 
 
 @pytest.fixture
-def test_resolution_object(
+def test_recognition(
     test_db: Session,
-    test_referent: Referent,
-    test_resolution_module: ResolutionModule,
+    test_document: Document,
+    test_recognizer: Recognizer,
 ):
-    """Create a test resolution object."""
-    resolution_create = ResolutionObjectCreate(
-        referent_id=test_referent.id, module_id=test_resolution_module.id
+    """Create a test recognition."""
+    recognition_create = RecognitionCreate(
+        document_id=test_document.id, recognizer_id=test_recognizer.id
     )
-    resolution = ResolutionObject(
-        referent_id=resolution_create.referent_id, module_id=resolution_create.module_id
+    recognition = Recognition(
+        document_id=recognition_create.document_id,
+        recognizer_id=recognition_create.recognizer_id,
+    )
+    test_db.add(recognition)
+    test_db.commit()
+    test_db.refresh(recognition)
+    return recognition
+
+
+@pytest.fixture
+def test_resolution(
+    test_db: Session,
+    test_reference: Reference,
+    test_resolver: Resolver,
+):
+    """Create a test resolution."""
+    resolution_create = ResolutionCreate(
+        reference_id=test_reference.id, resolver_id=test_resolver.id
+    )
+    resolution = Resolution(
+        reference_id=resolution_create.reference_id,
+        resolver_id=resolution_create.resolver_id,
     )
     test_db.add(resolution)
     test_db.commit()
     test_db.refresh(resolution)
     return resolution
-
-
-@pytest.fixture
-def test_recognition_subject(
-    test_db: Session,
-    test_document: Document,
-    test_recognition_module: RecognitionModule,
-):
-    """Create a test recognition subject."""
-    recognition_subject_create = RecognitionSubjectCreate(
-        document_id=test_document.id, module_id=test_recognition_module.id
-    )
-    recognition_subject = RecognitionSubject(
-        document_id=recognition_subject_create.document_id,
-        module_id=recognition_subject_create.module_id,
-    )
-    test_db.add(recognition_subject)
-    test_db.commit()
-    test_db.refresh(recognition_subject)
-    return recognition_subject
-
-
-@pytest.fixture
-def test_resolution_subject(
-    test_db: Session,
-    test_reference: Reference,
-    test_resolution_module: ResolutionModule,
-):
-    """Create a test resolution subject."""
-    resolution_subject_create = ResolutionSubjectCreate(
-        reference_id=test_reference.id, module_id=test_resolution_module.id
-    )
-    resolution_subject = ResolutionSubject(
-        reference_id=resolution_subject_create.reference_id,
-        module_id=resolution_subject_create.module_id,
-    )
-    test_db.add(resolution_subject)
-    test_db.commit()
-    test_db.refresh(resolution_subject)
-    return resolution_subject

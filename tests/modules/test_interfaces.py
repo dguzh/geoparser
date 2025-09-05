@@ -70,30 +70,30 @@ def test_recognition_module_abstract():
     """Test that Recognizer is abstract and requires implementation."""
 
     # Create a concrete subclass that doesn't implement required methods
-    class InvalidRecognitionModule(Recognizer):
+    class InvalidRecognizer(Recognizer):
         NAME = "invalid_recognition"
 
     # Should raise TypeError when instantiated due to abstract methods
     with pytest.raises(TypeError, match="predict_references"):
-        InvalidRecognitionModule()
+        InvalidRecognizer()
 
 
 def test_recognition_module_implementation():
     """Test a valid implementation of Recognizer with Document ORM objects."""
 
     # Create a valid implementation that works with Document ORM objects
-    class ValidRecognitionModule(Recognizer):
+    class ValidRecognizer(Recognizer):
         NAME = "valid_recognition"
 
         def predict_references(self, documents):
             return [[(0, 5), (10, 15)] for _ in documents]
 
     # Should instantiate without errors
-    module = ValidRecognitionModule()
+    module = ValidRecognizer()
     assert module.name == "valid_recognition"
 
     # Should instantiate with parameters
-    module = ValidRecognitionModule(custom_param="test")
+    module = ValidRecognizer(custom_param="test")
     assert module.config == {"custom_param": "test"}
 
     # Should produce expected output with mock Document objects
@@ -116,19 +116,19 @@ def test_resolution_module_abstract():
     """Test that Resolver is abstract and requires implementation."""
 
     # Create a concrete subclass that doesn't implement required methods
-    class InvalidResolutionModule(Resolver):
+    class InvalidResolver(Resolver):
         NAME = "invalid_resolution"
 
     # Should raise TypeError when instantiated due to abstract methods
     with pytest.raises(TypeError, match="predict_referents"):
-        InvalidResolutionModule()
+        InvalidResolver()
 
 
 def test_resolution_module_implementation():
     """Test a valid implementation of Resolver with Reference ORM objects."""
 
     # Create a valid implementation that works with Reference ORM objects
-    class ValidResolutionModule(Resolver):
+    class ValidResolver(Resolver):
         NAME = "valid_resolution"
 
         def predict_referents(self, references):
@@ -138,11 +138,11 @@ def test_resolution_module_implementation():
             ]
 
     # Should instantiate without errors
-    module = ValidResolutionModule()
+    module = ValidResolver()
     assert module.name == "valid_resolution"
 
     # Should instantiate with parameters
-    module = ValidResolutionModule(model="test_model", threshold=0.5)
+    module = ValidResolver(model="test_model", threshold=0.5)
     assert module.config == {"model": "test_model", "threshold": 0.5}
 
     # Should produce expected output with mock Reference objects
