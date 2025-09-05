@@ -9,7 +9,7 @@ from geoparser.db.models.validators import normalize_newlines
 
 if t.TYPE_CHECKING:
     from geoparser.db.models.project import Project
-    from geoparser.db.models.recognition_subject import RecognitionSubject
+    from geoparser.db.models.recognition import Recognition
     from geoparser.db.models.reference import Reference
 
 
@@ -46,7 +46,7 @@ class Document(DocumentBase, table=True):
             "lazy": "joined",  # Enable eager loading
         },
     )
-    recognition_subjects: list["RecognitionSubject"] = Relationship(
+    recognitions: list["Recognition"] = Relationship(
         back_populates="document",
         sa_relationship_kwargs={
             "cascade": "all, delete-orphan",

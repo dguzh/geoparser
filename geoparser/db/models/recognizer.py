@@ -4,35 +4,35 @@ import uuid
 from sqlmodel import JSON, Field, Relationship, SQLModel
 
 if t.TYPE_CHECKING:
-    from geoparser.db.models.resolution_object import ResolutionObject
-    from geoparser.db.models.resolution_subject import ResolutionSubject
+    from geoparser.db.models.recognition import Recognition
+    from geoparser.db.models.reference import Reference
 
 
-class ResolutionModuleBase(SQLModel):
-    """Base model for resolution module metadata."""
+class RecognizerBase(SQLModel):
+    """Base model for recognizer metadata."""
 
     name: str = Field(index=True)
     config: t.Dict[str, t.Any] = Field(default_factory=dict, sa_type=JSON)
 
 
-class ResolutionModule(ResolutionModuleBase, table=True):
+class Recognizer(RecognizerBase, table=True):
     """
-    Stores metadata about resolution modules.
+    Stores metadata about recognizers.
 
     This includes configuration information and other details about specific
-    resolution module instances.
+    recognizer instances.
     """
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-    resolution_objects: list["ResolutionObject"] = Relationship(
-        back_populates="module",
+    references: list["Reference"] = Relationship(
+        back_populates="recognizer",
         sa_relationship_kwargs={
             "cascade": "all, delete-orphan",
             "passive_deletes": True,
         },
     )
-    resolution_subjects: list["ResolutionSubject"] = Relationship(
-        back_populates="module",
+    recognitions: list["Recognition"] = Relationship(
+        back_populates="recognizer",
         sa_relationship_kwargs={
             "cascade": "all, delete-orphan",
             "passive_deletes": True,
@@ -41,17 +41,17 @@ class ResolutionModule(ResolutionModuleBase, table=True):
 
     def __str__(self) -> str:
         """
-        Return a string representation of the resolution module.
+        Return a string representation of the recognizer.
 
         Returns:
-            String with module name and config parameters
+            String with recognizer name and config parameters
         """
         config_str = ", ".join(f"{k}={repr(v)}" for k, v in self.config.items())
         return f"{self.name}({config_str})"
 
     def __repr__(self) -> str:
         """
-        Return a developer representation of the resolution module.
+        Return a developer representation of the recognizer.
 
         Returns:
             Same as __str__ method
@@ -59,12 +59,12 @@ class ResolutionModule(ResolutionModuleBase, table=True):
         return self.__str__()
 
 
-class ResolutionModuleCreate(ResolutionModuleBase):
-    """Model for creating a new resolution module record."""
+class RecognizerCreate(RecognizerBase):
+    """Model for creating a new recognizer record."""
 
 
-class ResolutionModuleUpdate(SQLModel):
-    """Model for updating a resolution module record."""
+class RecognizerUpdate(SQLModel):
+    """Model for updating a recognizer record."""
 
     id: uuid.UUID
     name: t.Optional[str] = None

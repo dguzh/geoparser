@@ -6,25 +6,21 @@ from sqlmodel import Session
 
 from geoparser.db.crud import (
     FeatureRepository,
-    RecognitionModuleRepository,
-    RecognitionObjectRepository,
-    RecognitionSubjectRepository,
+    RecognitionRepository,
+    RecognizerRepository,
     ReferenceRepository,
     ReferentRepository,
-    ResolutionModuleRepository,
-    ResolutionObjectRepository,
-    ResolutionSubjectRepository,
+    ResolutionRepository,
+    ResolverRepository,
 )
 from geoparser.db.db import engine
 from geoparser.db.models import (
-    RecognitionModuleCreate,
-    RecognitionObjectCreate,
-    RecognitionSubjectCreate,
+    RecognitionCreate,
+    RecognizerCreate,
     ReferenceCreate,
     ReferentCreate,
-    ResolutionModuleCreate,
-    ResolutionObjectCreate,
-    ResolutionSubjectCreate,
+    ResolutionCreate,
+    ResolverCreate,
 )
 from geoparser.modules.module import Module
 from geoparser.modules.recognizers.recognizer import Recognizer
@@ -61,13 +57,13 @@ class Orchestrator:
         try:
             # Execute based on module type
             if isinstance(module, Recognizer):
-                # Initialize and execute recognition module
-                module_id = self._initialize_recognition_module(module)
-                self._execute_recognition_module(module, module_id, project_id)
+                # Initialize and execute recognizer
+                recognizer_id = self._initialize_recognizer(module)
+                self._execute_recognizer(module, recognizer_id, project_id)
             elif isinstance(module, Resolver):
-                # Initialize and execute resolution module
-                module_id = self._initialize_resolution_module(module)
-                self._execute_resolution_module(module, module_id, project_id)
+                # Initialize and execute resolver
+                resolver_id = self._initialize_resolver(module)
+                self._execute_resolver(module, resolver_id, project_id)
             else:
                 raise ValueError(f"Unsupported module type: {type(module)}")
 
@@ -80,86 +76,86 @@ class Orchestrator:
             )
             raise
 
-    def _initialize_recognition_module(self, module: Recognizer) -> uuid.UUID:
+    def _initialize_recognizer(self, module: Recognizer) -> uuid.UUID:
         """
-        Initialize a recognition module in the database.
+        Initialize a recognizer in the database.
 
-        Retrieves an existing module record or creates a new one if it doesn't exist.
+        Retrieves an existing recognizer record or creates a new one if it doesn't exist.
 
         Args:
-            module: Recognition module to initialize
+            module: Recognizer to initialize
 
         Returns:
-            Database ID of the module
+            Database ID of the recognizer
         """
         with Session(engine) as db:
-            db_module = RecognitionModuleRepository.get_by_name_and_config(
+            db_recognizer = RecognizerRepository.get_by_name_and_config(
                 db, module.name, module.config
             )
-            if db_module is None:
-                module_create = RecognitionModuleCreate(
+            if db_recognizer is None:
+                recognizer_create = RecognizerCreate(
                     name=module.name, config=module.config
                 )
-                db_module = RecognitionModuleRepository.create(db, module_create)
-                logging.info(f"Created new recognition module {str(module)}")
+                db_recognizer = RecognizerRepository.create(db, recognizer_create)
+                logging.info(f"Created new recognizer {str(module)}")
             else:
-                logging.info(f"Using existing recognition module {str(module)}")
+                logging.info(f"Using existing recognizer {str(module)}")
 
-            return db_module.id
+            return db_recognizer.id
 
-    def _initialize_resolution_module(self, module: Resolver) -> uuid.UUID:
+    def _initialize_resolver(self, module: Resolver) -> uuid.UUID:
         """
-        Initialize a resolution module in the database.
+        Initialize a resolver in the database.
 
-        Retrieves an existing module record or creates a new one if it doesn't exist.
+        Retrieves an existing resolver record or creates a new one if it doesn't exist.
 
         Args:
-            module: Resolution module to initialize
+            module: Resolver to initialize
 
         Returns:
-            Database ID of the module
+            Database ID of the resolver
         """
         with Session(engine) as db:
-            db_module = ResolutionModuleRepository.get_by_name_and_config(
+            db_resolver = ResolverRepository.get_by_name_and_config(
                 db, module.name, module.config
             )
-            if db_module is None:
-                module_create = ResolutionModuleCreate(
-                    name=module.name, config=module.config
-                )
-                db_module = ResolutionModuleRepository.create(db, module_create)
-                logging.info(f"Created new resolution module {str(module)}")
+            if db_resolver is None:
+                resolver_create = ResolverCreate(name=module.name, config=module.config)
+                db_resolver = ResolverRepository.create(db, resolver_create)
+                logging.info(f"Created new resolver {str(module)}")
             else:
-                logging.info(f"Using existing resolution module {str(module)}")
+                logging.info(f"Using existing resolver {str(module)}")
 
-            return db_module.id
+            return db_resolver.id
 
-    def _execute_recognition_module(
+    def _execute_recognizer(
         self,
         module: Recognizer,
-        module_id: uuid.UUID,
+        recognizer_id: uuid.UUID,
         project_id: uuid.UUID,
     ) -> None:
         """
-        Execute a recognition module on unprocessed documents.
+        Execute a recognizer on unprocessed documents.
 
         Args:
-            module: Recognition module to execute
-            module_id: Database ID of the module
-            project_id: UUID of the project to run the module on
+            module: Recognizer to execute
+            recognizer_id: Database ID of the recognizer
+            project_id: UUID of the project to run the recognizer on
         """
         with Session(engine) as db:
             # Get unprocessed documents
             unprocessed_documents = self._get_unprocessed_documents(
-                db, module_id, project_id
+                db, recognizer_id, project_id
             )
 
             if not unprocessed_documents:
-                logging.info(f"No unprocessed documents found for module {str(module)}")
+                logging.info(
+                    f"No unprocessed documents found for recognizer {str(module)}"
+                )
                 return
 
             logging.info(
-                f"Processing {len(unprocessed_documents)} documents with module {str(module)} in project {project_id}."
+                f"Processing {len(unprocessed_documents)} documents with recognizer {str(module)} in project {project_id}."
             )
 
             # Get predictions from module using Document ORM objects directly
@@ -170,29 +166,29 @@ class Orchestrator:
 
             # Process predictions and update database
             self._process_reference_predictions(
-                db, document_ids, predicted_references, module_id
+                db, document_ids, predicted_references, recognizer_id
             )
 
             logging.info(
-                f"Module {str(module)} completed processing {len(unprocessed_documents)} documents."
+                f"Recognizer {str(module)} completed processing {len(unprocessed_documents)} documents."
             )
 
     def _get_unprocessed_documents(
-        self, db: Session, module_id: uuid.UUID, project_id: uuid.UUID
+        self, db: Session, recognizer_id: uuid.UUID, project_id: uuid.UUID
     ):
         """
-        Get documents that haven't been processed by a specific module.
+        Get documents that haven't been processed by a specific recognizer.
 
         Args:
             db: Database session
-            module_id: ID of the module to check against
+            recognizer_id: ID of the recognizer to check against
             project_id: UUID of the project to check against
 
         Returns:
             List of unprocessed documents
         """
-        return RecognitionSubjectRepository.get_unprocessed_documents(
-            db, project_id, module_id
+        return RecognitionRepository.get_unprocessed_documents(
+            db, project_id, recognizer_id
         )
 
     def _process_reference_predictions(
@@ -200,7 +196,7 @@ class Orchestrator:
         db: Session,
         document_ids: List[uuid.UUID],
         predicted_references: List[List[Tuple[int, int]]],
-        module_id: uuid.UUID,
+        recognizer_id: uuid.UUID,
     ) -> None:
         """
         Process reference predictions and update the database.
@@ -209,16 +205,16 @@ class Orchestrator:
             db: Database session
             document_ids: List of document IDs
             predicted_references: Nested list of predicted references
-            module_id: ID of the module that made the predictions
+            recognizer_id: ID of the recognizer that made the predictions
         """
         # Process each document with its predicted references
         for doc_id, references in zip(document_ids, predicted_references):
-            # Create references and recognition records
+            # Create references with recognizer ID
             for start, end in references:
-                self._create_reference_record(db, doc_id, start, end, module_id)
+                self._create_reference_record(db, doc_id, start, end, recognizer_id)
 
             # Mark document as processed
-            self._mark_document_processed(db, doc_id, module_id)
+            self._mark_document_processed(db, doc_id, recognizer_id)
 
     def _create_reference_record(
         self,
@@ -226,86 +222,73 @@ class Orchestrator:
         document_id: uuid.UUID,
         start: int,
         end: int,
-        module_id: uuid.UUID,
+        recognizer_id: uuid.UUID,
     ) -> uuid.UUID:
         """
-        Create a reference record and associate it with a recognition module.
+        Create a reference record with the recognizer ID.
 
         Args:
             db: Database session
             document_id: ID of the document containing the reference
             start: Start position of the reference
             end: End position of the reference
-            module_id: ID of the recognition module
+            recognizer_id: ID of the recognizer
 
         Returns:
             ID of the created reference
         """
-        # Check if a reference with the same span already exists for this document
-        reference = ReferenceRepository.get_by_document_and_span(
-            db, document_id, start, end
+        # Create the reference with recognizer ID directly
+        reference_create = ReferenceCreate(
+            start=start, end=end, document_id=document_id, recognizer_id=recognizer_id
         )
-
-        # If not, create the reference
-        if reference is None:
-            # Create the reference
-            reference_create = ReferenceCreate(
-                start=start, end=end, document_id=document_id
-            )
-            reference = ReferenceRepository.create(db, reference_create)
-
-        # Create the recognition object (link between reference and module)
-        recognition_object_create = RecognitionObjectCreate(
-            reference_id=reference.id, module_id=module_id
-        )
-        RecognitionObjectRepository.create(db, recognition_object_create)
+        reference = ReferenceRepository.create(db, reference_create)
 
         return reference.id
 
     def _mark_document_processed(
-        self, db: Session, document_id: uuid.UUID, module_id: uuid.UUID
+        self, db: Session, document_id: uuid.UUID, recognizer_id: uuid.UUID
     ) -> None:
         """
-        Mark a document as processed by a specific module.
+        Mark a document as processed by a specific recognizer.
 
         Args:
             db: Database session
             document_id: ID of the document to mark
-            module_id: ID of the module that processed it
+            recognizer_id: ID of the recognizer that processed it
         """
-        subject_create = RecognitionSubjectCreate(
-            document_id=document_id, module_id=module_id
+        recognition_create = RecognitionCreate(
+            document_id=document_id, recognizer_id=recognizer_id
         )
-        RecognitionSubjectRepository.create(db, subject_create)
+        RecognitionRepository.create(db, recognition_create)
 
-    def _execute_resolution_module(
+    def _execute_resolver(
         self,
         module: Resolver,
-        module_id: uuid.UUID,
+        resolver_id: uuid.UUID,
         project_id: uuid.UUID,
     ) -> None:
         """
-        Execute a resolution module on unprocessed references.
+        Execute a resolver on unprocessed references.
 
         Args:
-            module: Resolution module to execute
-            module_id: Database ID of the module
-            project_id: UUID of the project to run the module on
+            module: Resolver to execute
+            resolver_id: Database ID of the resolver
+            project_id: UUID of the project to run the resolver on
         """
         with Session(engine) as db:
             # Get unprocessed references
             unprocessed_references = self._get_unprocessed_references(
-                db, module_id, project_id
+                db, resolver_id, project_id
             )
 
             if not unprocessed_references:
                 logging.info(
-                    f"No unprocessed references found for module {str(module)}"
+                    f"No unprocessed references found for resolver {str(module)}"
                 )
                 return
 
             logging.info(
-                f"Processing {len(unprocessed_references)} references with module {str(module)} in project {project_id}."
+                f"Processing {len(unprocessed_references)} references with resolver {str(module)} in project {project_id}."
             )
 
             # Get predictions from module using Reference ORM objects directly
@@ -316,29 +299,29 @@ class Orchestrator:
 
             # Process predictions and update database
             self._process_referent_predictions(
-                db, reference_ids, predicted_referents, module_id
+                db, reference_ids, predicted_referents, resolver_id
             )
 
             logging.info(
-                f"Module {str(module)} completed processing {len(unprocessed_references)} references."
+                f"Resolver {str(module)} completed processing {len(unprocessed_references)} references."
             )
 
     def _get_unprocessed_references(
-        self, db: Session, module_id: uuid.UUID, project_id: uuid.UUID
+        self, db: Session, resolver_id: uuid.UUID, project_id: uuid.UUID
     ):
         """
-        Get references that haven't been processed by a specific resolution module.
+        Get references that haven't been processed by a specific resolver.
 
         Args:
             db: Database session
-            module_id: ID of the module to check against
+            resolver_id: ID of the resolver to check against
             project_id: UUID of the project to check against
 
         Returns:
             List of unprocessed references
         """
-        return ResolutionSubjectRepository.get_unprocessed_references(
-            db, project_id, module_id
+        return ResolutionRepository.get_unprocessed_references(
+            db, project_id, resolver_id
         )
 
     def _process_referent_predictions(
@@ -346,7 +329,7 @@ class Orchestrator:
         db: Session,
         reference_ids: List[uuid.UUID],
         predicted_referents: List[List[Tuple[str, str]]],
-        module_id: uuid.UUID,
+        resolver_id: uuid.UUID,
     ) -> None:
         """
         Process referent predictions and update the database.
@@ -355,18 +338,18 @@ class Orchestrator:
             db: Database session
             reference_ids: List of reference IDs
             predicted_referents: Nested list of predicted (gazetteer_name, identifier) tuples
-            module_id: ID of the module that made the predictions
+            resolver_id: ID of the resolver that made the predictions
         """
         # Process each reference with its predicted referents
         for reference_id, referents in zip(reference_ids, predicted_referents):
-            # Create referent records for each prediction
+            # Create referent records for each prediction with resolver ID
             for gazetteer_name, identifier in referents:
                 self._create_referent_record(
-                    db, reference_id, gazetteer_name, identifier, module_id
+                    db, reference_id, gazetteer_name, identifier, resolver_id
                 )
 
             # Mark reference as processed
-            self._mark_reference_processed(db, reference_id, module_id)
+            self._mark_reference_processed(db, reference_id, resolver_id)
 
     def _create_referent_record(
         self,
@@ -374,17 +357,17 @@ class Orchestrator:
         reference_id: uuid.UUID,
         gazetteer_name: str,
         identifier: str,
-        module_id: uuid.UUID,
+        resolver_id: uuid.UUID,
     ) -> uuid.UUID:
         """
-        Create a referent record and associate it with a resolution module.
+        Create a referent record with the resolver ID.
 
         Args:
             db: Database session
             reference_id: ID of the reference
             gazetteer_name: Name of the gazetteer
             identifier: Identifier value in the gazetteer
-            module_id: ID of the resolution module
+            resolver_id: ID of the resolver
 
         Returns:
             ID of the created referent
@@ -394,32 +377,26 @@ class Orchestrator:
             db, gazetteer_name, identifier
         )
 
-        # Create the referent
+        # Create the referent with resolver ID directly
         referent_create = ReferentCreate(
-            reference_id=reference_id, feature_id=feature.id
+            reference_id=reference_id, feature_id=feature.id, resolver_id=resolver_id
         )
         referent = ReferentRepository.create(db, referent_create)
-
-        # Create the resolution object (link between referent and module)
-        resolution_object_create = ResolutionObjectCreate(
-            referent_id=referent.id, module_id=module_id
-        )
-        ResolutionObjectRepository.create(db, resolution_object_create)
 
         return referent.id
 
     def _mark_reference_processed(
-        self, db: Session, reference_id: uuid.UUID, module_id: uuid.UUID
+        self, db: Session, reference_id: uuid.UUID, resolver_id: uuid.UUID
     ) -> None:
         """
-        Mark a reference as processed by a specific module.
+        Mark a reference as processed by a specific resolver.
 
         Args:
             db: Database session
             reference_id: ID of the reference to mark
-            module_id: ID of the module that processed it
+            resolver_id: ID of the resolver that processed it
         """
-        subject_create = ResolutionSubjectCreate(
-            reference_id=reference_id, module_id=module_id
+        resolution_create = ResolutionCreate(
+            reference_id=reference_id, resolver_id=resolver_id
         )
-        ResolutionSubjectRepository.create(db, subject_create)
+        ResolutionRepository.create(db, resolution_create)
