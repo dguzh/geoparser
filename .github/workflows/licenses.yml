@@ -3,7 +3,6 @@ name: licenses
 on:
   push:
     branches:
-      - development
       - hotfix/py313
     paths:
       - 'pyproject.toml'
@@ -22,7 +21,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          ref: development
+          ref: hotfix/py313
       # Step 2: Set up Python
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -70,4 +69,4 @@ jobs:
           git config user.email "${{ github.actor }}@users.noreply.github.com"
           git add THIRD_PARTY_LICENSES
           git commit -m "Update THIRD_PARTY_LICENSES file [skip ci]" || echo "No changes to commit"
-          git push origin HEAD:development
+          git push origin HEAD:hotfix/py313
