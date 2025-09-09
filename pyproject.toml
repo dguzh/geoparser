@@ -81,3 +81,5 @@ source = [
     'geoparser/',
     'geoparser\',
 ]
+
+# trigger: licenses workflow 2025-09-09T07:28:27Z
