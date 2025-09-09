@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "geoparser"
-version = "0.2.2"
+version = "0.2.3"
 description = "A customizable geoparsing library for unstructured text"
 authors = ["Diego Gomes <diego.gomes@uzh.ch>"]
 readme = "README.md"
@@ -14,26 +14,30 @@ include = [
 ]
 
 [tool.poetry.dependencies]
-python = ">=3.9,<3.13"
-numpy = "^2.0.0"
+python = ">=3.10,<3.14"
+numpy = "^2.1.0"
 pandas = "^2.2.3"
-spacy = "^3.8.2"
+spacy = "^3.8.7"
 sentence-transformers = "^3.4.1"
 tqdm = "^4.67.0"
-torch = "^2.5.1"
+torch = "^2.8.0"
 requests = "^2.32.3"
 appdirs = "^1.4.4"
 datasets = "^3.1.0"
 haversine = "^2.8.1"
-accelerate = "^0.34.2"
+accelerate = "^1.0.0"
 pydantic = "^2.9.2"
 geopandas = "^1.0.1"
-typer = "^0.12.5"
+typer = "^0.15.2"
 fastapi = "^0.115.6"
 werkzeug = "^3.1.3"
 uvicorn = "^0.34.0"
 python-multipart = "^0.0.20"
 sqlmodel = "^0.0.22"
+srsly = ">=2.5.0"
+thinc = ">=8.3.6"
+scipy = ">=1.15.0"
+pyproj = ">=3.7.0"
 
 
 [tool.poetry.group.dev.dependencies]
