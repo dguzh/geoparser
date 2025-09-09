@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - development
+      - hotfix/**
     paths:
       - 'pyproject.toml'
       - 'poetry.lock'
