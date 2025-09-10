@@ -79,31 +79,30 @@ class Resolver(Module):
                 return
 
             # Get all references from all documents in the project
-            references = [
-                ReferenceRepository.get_by_document(db, doc.id) for doc in documents
-            ]
+            references = []
+            for doc in documents:
+                doc_references = ReferenceRepository.get_by_document(db, doc.id)
+                references.extend(doc_references)
 
             # Filter out references that have already been processed by this resolver
             unprocessed_references = self._get_unprocessed_references(db, references)
 
-            if not any(
-                unprocessed_references
-            ):  # Check if any document has unprocessed references
+            if not unprocessed_references:
                 return
 
-            # Get predictions from resolver using Reference ORM objects grouped by document
+            # Get predictions from resolver using Reference objects
             predicted_referents = self.predict_referents(unprocessed_references)
 
-            # Process predictions and update database (handles nested structure)
-            self._process_referent_predictions(
+            # Process predictions and update database
+            self._record_referent_predictions(
                 db, unprocessed_references, predicted_referents, self.id
             )
 
-    def _process_referent_predictions(
+    def _record_referent_predictions(
         self,
         db: Session,
-        unprocessed_references: List[List["Reference"]],
-        predicted_referents: List[List[List[Tuple[str, str]]]],
+        unprocessed_references: List["Reference"],
+        predicted_referents: List[Tuple[str, str]],
         resolver_id: uuid.UUID,
     ) -> None:
         """
@@ -111,24 +110,20 @@ class Resolver(Module):
 
         Args:
             db: Database session
-            unprocessed_references: Nested list of references grouped by document
-            predicted_referents: Nested list of predicted (gazetteer_name, identifier) tuples
+            unprocessed_references: List of references to process
+            predicted_referents: List of (gazetteer_name, identifier) tuples - each reference gets exactly one referent
             resolver_id: ID of the resolver that made the predictions
         """
-        # Process each document's references with their predicted referents
-        for doc_references, doc_predictions in zip(
-            unprocessed_references, predicted_referents
-        ):
-            # Process each reference within the document
-            for reference, referents in zip(doc_references, doc_predictions):
-                # Create referent records for each prediction with resolver ID
-                for gazetteer_name, identifier in referents:
-                    self._create_referent_record(
-                        db, reference.id, gazetteer_name, identifier, resolver_id
-                    )
+        # Process each reference with its predicted referent
+        for reference, referent in zip(unprocessed_references, predicted_referents):
+            # Create referent record for the single prediction with resolver ID
+            gazetteer_name, identifier = referent
+            self._create_referent_record(
+                db, reference.id, gazetteer_name, identifier, resolver_id
+            )
 
-                # Mark reference as processed
-                self._create_resolution_record(db, reference.id, resolver_id)
+            # Mark reference as processed
+            self._create_resolution_record(db, reference.id, resolver_id)
 
     def _create_referent_record(
         self,
@@ -176,46 +171,39 @@ class Resolver(Module):
         ResolutionRepository.create(db, resolution_create)
 
     def _get_unprocessed_references(
-        self, db: Session, references: List[List["Reference"]]
-    ) -> List[List["Reference"]]:
+        self, db: Session, references: List["Reference"]
+    ) -> List["Reference"]:
         """
         Filter out references that have already been processed by this resolver.
-        Preserves document grouping structure.
 
         Args:
             db: Database session
-            references: List of lists of references (grouped by document)
+            references: List of references to check
 
         Returns:
-            List of lists of references that haven't been processed by this resolver
+            List of references that haven't been processed by this resolver.
         """
         unprocessed_references = []
-        for doc_references in references:
-            unprocessed_doc_refs = []
-            for ref in doc_references:
-                # Check if this reference has already been processed by this resolver
-                existing_resolution = (
-                    ResolutionRepository.get_by_reference_and_resolver(
-                        db, ref.id, self.id
-                    )
-                )
-                if not existing_resolution:
-                    unprocessed_doc_refs.append(ref)
-            unprocessed_references.append(unprocessed_doc_refs)
+        for ref in references:
+            # Check if this reference has already been processed by this resolver
+            existing_resolution = ResolutionRepository.get_by_reference_and_resolver(
+                db, ref.id, self.id
+            )
+            if not existing_resolution:
+                unprocessed_references.append(ref)
         return unprocessed_references
 
     @abstractmethod
     def predict_referents(
-        self, references: t.List[t.List["Reference"]]
-    ) -> t.List[t.List[t.List[t.Tuple[str, str]]]]:
+        self, references: t.List["Reference"]
+    ) -> t.List[t.Tuple[str, str]]:
         """
-        Predict referents for multiple references grouped by document.
+        Predict referents for multiple references.
 
         This abstract method must be implemented by child classes.
 
         Args:
-            references: List of lists of Reference ORM objects grouped by document.
-                       Each inner list contains references from a single document.
+            references: List of Reference ORM objects to process.
                        Each Reference object provides access to:
                        - reference.text: the actual reference text
                        - reference.start/end: positions in document
@@ -223,8 +211,9 @@ class Resolver(Module):
                        - reference.document.text: full document text
 
         Returns:
-            List of lists of lists of tuples containing (gazetteer_name, identifier).
-            Structure: [document][reference][referent] = (gazetteer_name, identifier)
-            The outer list corresponds to documents, the middle list to references within each document,
-            and the inner list to referents for each reference.
+            List of tuples containing (gazetteer_name, identifier).
+            Each tuple corresponds to the referent found for one reference at the same index in the input list.
+            The gazetteer_name identifies which gazetteer the identifier refers to,
+            and the identifier is the value used to identify the referent in that gazetteer.
+            Each reference gets exactly one referent.
         """

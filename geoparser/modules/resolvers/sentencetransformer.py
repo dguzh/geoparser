@@ -88,8 +88,8 @@ class SentenceTransformerResolver(Resolver):
         self.embedding_cache: Dict[str, torch.Tensor] = {}
 
     def predict_referents(
-        self, references: List["Reference"]
-    ) -> List[List[Tuple[str, str]]]:
+        self, references: t.List["Reference"]
+    ) -> t.List[t.Tuple[str, str]]:
         """
         Predict referents for multiple references using iterative candidate generation.
 
@@ -101,8 +101,9 @@ class SentenceTransformerResolver(Resolver):
             references: List of Reference ORM objects to process
 
         Returns:
-            List of lists of (gazetteer_name, identifier) tuples for each reference
+            List of (gazetteer_name, identifier) tuples - each reference gets exactly one referent
         """
+        # Check if there are any references to process
         if not references:
             return []
 
@@ -111,7 +112,7 @@ class SentenceTransformerResolver(Resolver):
         context_embeddings = self._generate_embeddings(context_texts)
 
         # Initialize tracking structures
-        results = [[] for _ in references]
+        results = [None] * len(references)
         best_candidates = [None] * len(references)
         best_similarities = [0.0] * len(references)
 
@@ -151,19 +152,23 @@ class SentenceTransformerResolver(Resolver):
                 )
 
                 # If all references resolved, we can stop
-                if all(results):
+                if all(result is not None for result in results):
                     break
 
             # If all references resolved, we can stop
-            if all(results):
+            if all(result is not None for result in results):
                 break
 
         # For any remaining unresolved references, use the best candidate found
         for i, result in enumerate(results):
-            if not result and best_candidates[i] is not None:
-                results[i] = [
-                    (self.gazetteer_name, best_candidates[i].identifier_value)
-                ]
+            if result is None and best_candidates[i] is not None:
+                results[i] = (self.gazetteer_name, best_candidates[i].identifier_value)
+
+        # Ensure we have a result for every reference using list comprehension
+        results = [
+            result if result is not None else (self.gazetteer_name, "")
+            for result in results
+        ]
 
         return results
 
@@ -172,7 +177,7 @@ class SentenceTransformerResolver(Resolver):
         method: str,
         ranks: int,
         references: List["Reference"],
-        results: List[List[Tuple[str, str]]],
+        results: List[Tuple[str, str]],
     ) -> List[Tuple[int, List["Feature"]]]:
         """
         Search for candidates for all unresolved references using a specific method.
@@ -187,7 +192,7 @@ class SentenceTransformerResolver(Resolver):
             List of tuples containing (reference_index, candidates_list)
         """
         # Get unresolved references for this round
-        unresolved_indices = [i for i, result in enumerate(results) if not result]
+        unresolved_indices = [i for i, result in enumerate(results) if result is None]
         if not unresolved_indices:
             return []
 
@@ -204,7 +209,7 @@ class SentenceTransformerResolver(Resolver):
         self,
         all_candidates: List[Tuple[int, List["Feature"]]],
         context_embeddings: List[torch.Tensor],
-        results: List[List[Tuple[str, str]]],
+        results: List[Tuple[str, str]],
         best_candidates: List["Feature"],
         best_similarities: List[float],
     ) -> None:
@@ -236,7 +241,7 @@ class SentenceTransformerResolver(Resolver):
 
             # Check if similarity meets threshold
             if best_similarity >= self.min_similarity:
-                results[idx] = [(self.gazetteer_name, best_candidate.identifier_value)]
+                results[idx] = (self.gazetteer_name, best_candidate.identifier_value)
 
     def _find_best_candidate(
         self, context_embedding: torch.Tensor, candidates: List["Feature"]

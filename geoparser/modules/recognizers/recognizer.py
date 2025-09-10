@@ -85,18 +85,15 @@ class Recognizer(Module):
             # Get predictions from recognizer using Document objects
             predicted_references = self.predict_references(unprocessed_documents)
 
-            # Extract document IDs for database operations
-            document_ids = [doc.id for doc in unprocessed_documents]
-
             # Process predictions and update database
-            self._process_reference_predictions(
-                db, document_ids, predicted_references, self.id
+            self._record_reference_predictions(
+                db, unprocessed_documents, predicted_references, self.id
             )
 
-    def _process_reference_predictions(
+    def _record_reference_predictions(
         self,
         db: Session,
-        document_ids: List[uuid.UUID],
+        documents: List["Document"],
         predicted_references: List[List[Tuple[int, int]]],
         recognizer_id: uuid.UUID,
     ) -> None:
@@ -105,18 +102,20 @@ class Recognizer(Module):
 
         Args:
             db: Database session
-            document_ids: List of document IDs
+            documents: List of document objects
             predicted_references: Nested list of predicted references
             recognizer_id: ID of the recognizer that made the predictions
         """
         # Process each document with its predicted references
-        for doc_id, references in zip(document_ids, predicted_references):
+        for document, references in zip(documents, predicted_references):
             # Create references with recognizer ID
             for start, end in references:
-                self._create_reference_record(db, doc_id, start, end, recognizer_id)
+                self._create_reference_record(
+                    db, document.id, start, end, recognizer_id
+                )
 
             # Mark document as processed
-            self._create_recognition_record(db, doc_id, recognizer_id)
+            self._create_recognition_record(db, document.id, recognizer_id)
 
     def _create_reference_record(
         self,
