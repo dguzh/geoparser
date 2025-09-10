@@ -1,5 +1,3 @@
-import logging
-import typing as t
 import uuid
 from typing import List, Optional, Union
 
@@ -8,40 +6,43 @@ from sqlmodel import Session
 from geoparser.db.crud import DocumentRepository, ProjectRepository
 from geoparser.db.db import engine
 from geoparser.db.models import Document, DocumentCreate, Project, ProjectCreate
-from geoparser.modules.module import Module
+from geoparser.modules.recognizers.recognizer import Recognizer
+from geoparser.modules.resolvers.resolver import Resolver
 from geoparser.orchestrator import Orchestrator
 
 
 class GeoparserV2:
     """
-    User-facing wrapper for the geoparser functionality.
+    User-facing interface for the geoparser functionality.
 
-    Provides a simple interface for geoparsing operations with optional
-    project persistence and configurable processing modules.
+    Handles project management and orchestrates the recognition/resolution pipeline.
+    The GeoparserV2 manages projects, documents, and determines what needs processing,
+    while the Orchestrator handles the actual recognition/resolution execution.
     """
 
     def __init__(
         self,
+        recognizer: Recognizer,
+        resolver: Resolver,
         project_name: Optional[str] = None,
-        pipeline: Optional[List[Module]] = None,
     ):
         """
         Initialize a GeoparserV2 instance.
 
         Args:
+            recognizer: The recognizer module to use for identifying references.
+            resolver: The resolver module to use for resolving references to referents.
             project_name: Optional name for persistent project storage.
                           If None, creates a temporary project.
-            pipeline: List of processing modules for text processing pipeline.
         """
         # Project management
         self.project_name = project_name or f"temp_project_{uuid.uuid4()}"
-        self.project_id = self._initialize_project(self.project_name)
+        self.project_id = self._load_project(self.project_name)
 
-        # Module management
-        self.pipeline = pipeline or []
-        self.orchestrator = Orchestrator()
+        # Create orchestrator for this recognizer/resolver combination
+        self.orchestrator = Orchestrator(recognizer, resolver)
 
-    def _initialize_project(self, project_name: str) -> uuid.UUID:
+    def _load_project(self, project_name: str) -> uuid.UUID:
         """
         Load an existing project or create a new one if it doesn't exist.
 
@@ -57,9 +58,6 @@ class GeoparserV2:
 
             # Create new project if it doesn't exist
             if project is None:
-                logging.info(
-                    f"No project found with name '{project_name}'; creating a new one."
-                )
                 project_create = ProjectCreate(name=project_name)
                 project = Project(name=project_create.name)
                 project = ProjectRepository.create(db, project)
@@ -68,19 +66,19 @@ class GeoparserV2:
 
     def add_documents(self, texts: Union[str, List[str]]) -> List[uuid.UUID]:
         """
-        Add one or more documents to the project.
+        Add documents to the project.
 
         Args:
-            texts: Either a single document text (str) or a list of document texts (List[str])
+            texts: Either a single document text or a list of document texts
 
         Returns:
             List of UUIDs of the created documents
         """
-        with Session(engine) as db:
-            # Convert single string to list for uniform processing
-            if isinstance(texts, str):
-                texts = [texts]
+        # Convert single string to list for uniform processing
+        if isinstance(texts, str):
+            texts = [texts]
 
+        with Session(engine) as db:
             document_ids = []
             for text in texts:
                 document_create = DocumentCreate(text=text, project_id=self.project_id)
@@ -90,21 +88,18 @@ class GeoparserV2:
             return document_ids
 
     def get_documents(
-        self, document_ids: t.Optional[List[uuid.UUID]] = None
+        self, document_ids: Optional[List[uuid.UUID]] = None
     ) -> List[Document]:
         """
-        Retrieve documents with their associated references and referents.
-
-        This method fetches document objects from the database along with their
-        related references and referents, enabling traversal like:
-        documents[0].references[0].referents[0]
+        Retrieve documents with their associated references and referents,
+        filtered by the configured recognizer and resolver.
 
         Args:
-            document_ids: Optional list of document IDs to retrieve.
+            document_ids: Optional list of specific document IDs to retrieve.
                           If None, retrieves all documents in the project.
 
         Returns:
-            List of Document objects with related references and referents.
+            List of Document objects with filtered references and referents.
         """
         with Session(engine) as db:
             if document_ids:
@@ -116,45 +111,57 @@ class GeoparserV2:
                 # Retrieve all documents for the project
                 documents = DocumentRepository.get_by_project(db, self.project_id)
 
-            # Return the ORM objects directly
-            return [doc for doc in documents if doc is not None]
+            # Filter documents and their references/referents
+            filtered_documents = []
+            for doc in documents:
+                if doc is not None:
+                    # Filter references to only include those from our recognizer
+                    filtered_references = [
+                        ref
+                        for ref in doc.references
+                        if ref.recognizer_id == self.orchestrator.recognizer_id
+                    ]
 
-    def run_module(self, module: Module) -> None:
-        """
-        Run a single processing module on the project's documents.
+                    # For each reference, filter referents to only include those from our resolver
+                    for ref in filtered_references:
+                        filtered_referents = [
+                            referent
+                            for referent in ref.referents
+                            if referent.resolver_id == self.orchestrator.resolver_id
+                        ]
+                        # Update the reference's referents list
+                        ref.referents = filtered_referents
 
-        Args:
-            module: The processing module to run.
-        """
-        self.orchestrator.run_module(module, self.project_id)
+                    # Update the document's references list
+                    doc.references = filtered_references
+                    filtered_documents.append(doc)
 
-    def run_pipeline(self) -> None:
-        """
-        Run all modules in the pipeline on the project's documents.
-
-        This executes each module in the pipeline in sequence.
-        """
-        for module in self.pipeline:
-            self.run_module(module)
+            return filtered_documents
 
     def parse(self, texts: Union[str, List[str]]) -> List[Document]:
         """
-        Parse one or more texts with the configured pipeline.
+        Parse one or more texts with the configured recognizer and resolver.
 
         This method adds documents to the project, processes them with
-        all configured modules in the pipeline, and returns the processed documents.
+        the configured recognizer followed by the resolver, and returns
+        the processed documents containing only results from this specific pipeline.
 
         Args:
             texts: Either a single document text or a list of texts
 
         Returns:
             List of Document objects with processed references and referents
+            from the configured recognizer and resolver only.
         """
+
         # Add documents to the project and get their IDs
         document_ids = self.add_documents(texts)
 
-        # Run the pipeline on the project
-        self.run_pipeline()
+        # Pass document IDs through the recognition pipeline
+        self.orchestrator.run_recognizer(document_ids)
 
-        # Retrieve the processed documents using the project
+        # Pass document IDs through the resolution pipeline
+        self.orchestrator.run_resolver(document_ids)
+
+        # Return the parsed documents with fresh data from database
         return self.get_documents(document_ids)
