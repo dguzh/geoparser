@@ -27,9 +27,9 @@ class Project:
                          it will be created.
         """
         self.project_name = project_name
-        self.project_id = self._load_project(project_name)
+        self.id = self._load(project_name)
 
-    def _load_project(self, project_name: str) -> uuid.UUID:
+    def _load(self, project_name: str) -> uuid.UUID:
         """
         Load an existing project or create a new one if it doesn't exist.
 
@@ -64,7 +64,7 @@ class Project:
 
         with Session(engine) as db:
             for text in texts:
-                document_create = DocumentCreate(text=text, project_id=self.project_id)
+                document_create = DocumentCreate(text=text, project_id=self.id)
                 DocumentRepository.create(db, document_create)
 
     def get_documents(
@@ -85,7 +85,7 @@ class Project:
         """
         with Session(engine) as db:
             # Retrieve all documents for the project
-            documents = DocumentRepository.get_by_project(db, self.project_id)
+            documents = DocumentRepository.get_by_project(db, self.id)
 
             # Filter documents and their references/referents
             filtered_documents = []
