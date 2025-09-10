@@ -1,7 +1,11 @@
+import typing as t
 import uuid
 from typing import List, Tuple
 
 from sqlmodel import Session
+
+if t.TYPE_CHECKING:
+    from geoparser.project import Project
 
 from geoparser.db.crud import (
     DocumentRepository,
@@ -26,9 +30,9 @@ from geoparser.modules.recognizers.recognizer import Recognizer
 from geoparser.modules.resolvers.resolver import Resolver
 
 
-class Orchestrator:
+class Pipeline:
     """
-    Project-agnostic execution engine for a specific recognizer/resolver combination.
+    Project-agnostic execution pipeline for a specific recognizer/resolver combination.
 
     This class is responsible for:
     - Initializing recognizer and resolver in the database
@@ -36,13 +40,13 @@ class Orchestrator:
     - Running resolver on references to create referents
     - Processing predictions and persisting them to the database
 
-    The orchestrator works directly with documents and references, without
+    The pipeline works directly with documents and references, without
     knowledge of projects or project-specific filtering logic.
     """
 
     def __init__(self, recognizer: Recognizer, resolver: Resolver):
         """
-        Initialize an Orchestrator for a specific recognizer/resolver combination.
+        Initialize a Pipeline for a specific recognizer/resolver combination.
 
         Args:
             recognizer: The recognizer to use
@@ -101,44 +105,42 @@ class Orchestrator:
 
             return db_resolver.id
 
-    def run_recognizer(self, document_ids: List[uuid.UUID]) -> None:
+    def run_recognizer(self, project: "Project") -> None:
         """
-        Run the configured recognizer on the provided documents.
+        Run the configured recognizer on all documents in the project.
 
         Args:
-            document_ids: List of document IDs to process
+            project: Project object containing documents to process
         """
-        if not document_ids:
-            return
-
         with Session(engine) as db:
+            # Get all documents in the project
+            all_documents = DocumentRepository.get_by_project(db, project.project_id)
+
+            if not all_documents:
+                return
+
             # Filter out documents that have already been processed by this recognizer
-            unprocessed_document_ids = []
-            for doc_id in document_ids:
+            unprocessed_documents = []
+            for doc in all_documents:
                 # Check if this document has already been processed by this recognizer
                 existing_recognition = (
                     RecognitionRepository.get_by_document_and_recognizer(
-                        db, doc_id, self.recognizer_id
+                        db, doc.id, self.recognizer_id
                     )
                 )
                 if not existing_recognition:
-                    unprocessed_document_ids.append(doc_id)
+                    unprocessed_documents.append(doc)
 
-            if not unprocessed_document_ids:
+            if not unprocessed_documents:
                 return
 
-            # Get Document ORM objects for unprocessed documents
-            unprocessed_documents = [
-                DocumentRepository.get(db, doc_id)
-                for doc_id in unprocessed_document_ids
-            ]
-
-            # Get predictions from recognizer using Document ORM objects
+            # Get predictions from recognizer using Document objects
             predicted_references = self.recognizer.predict_references(
                 unprocessed_documents
             )
 
             # Process predictions and update database
+            unprocessed_document_ids = [doc.id for doc in unprocessed_documents]
             self._process_reference_predictions(
                 db, unprocessed_document_ids, predicted_references, self.recognizer_id
             )
@@ -185,9 +187,6 @@ class Orchestrator:
             start: Start position of the reference
             end: End position of the reference
             recognizer_id: ID of the recognizer
-
-        Returns:
-            ID of the created reference
         """
         # Create the reference with recognizer ID directly
         reference_create = ReferenceCreate(
@@ -211,21 +210,24 @@ class Orchestrator:
         )
         RecognitionRepository.create(db, recognition_create)
 
-    def run_resolver(self, document_ids: List[uuid.UUID]) -> None:
+    def run_resolver(self, project: "Project") -> None:
         """
-        Run the configured resolver on references from the provided documents.
+        Run the configured resolver on all references from all documents in the project.
 
         Args:
-            document_ids: List of document IDs containing references to process
+            project: Project object containing documents with references to process
         """
-        if not document_ids:
-            return
-
         with Session(engine) as db:
-            # Get all references from the specified documents
+            # Get all documents in the project
+            all_documents = DocumentRepository.get_by_project(db, project.project_id)
+
+            if not all_documents:
+                return
+
+            # Get all references from all documents in the project
             all_references = []
-            for doc_id in document_ids:
-                references = ReferenceRepository.get_by_document(db, doc_id)
+            for doc in all_documents:
+                references = ReferenceRepository.get_by_document(db, doc.id)
                 all_references.extend(references)
 
             # Filter out references that have already been processed by this resolver
@@ -300,9 +302,6 @@ class Orchestrator:
             gazetteer_name: Name of the gazetteer
             identifier: Identifier value in the gazetteer
             resolver_id: ID of the resolver
-
-        Returns:
-            ID of the created referent
         """
         # Look up the feature by gazetteer and identifier
         feature = FeatureRepository.get_by_gazetteer_and_identifier(
