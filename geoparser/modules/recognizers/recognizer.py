@@ -6,7 +6,6 @@ from typing import List, Tuple
 from sqlmodel import Session
 
 from geoparser.db.crud import (
-    DocumentRepository,
     RecognitionRepository,
     RecognizerRepository,
     ReferenceRepository,
@@ -17,7 +16,6 @@ from geoparser.modules.module import Module
 
 if t.TYPE_CHECKING:
     from geoparser.db.models import Document
-    from geoparser.project import Project
 
 
 class Recognizer(Module):
@@ -62,20 +60,17 @@ class Recognizer(Module):
 
             return db_recognizer.id
 
-    def run(self, project: "Project") -> None:
+    def run(self, documents: List["Document"]) -> None:
         """
-        Run the configured recognizer on all documents in the project.
+        Run the configured recognizer on the provided documents.
 
         Args:
-            project: Project object containing documents to process
+            documents: List of Document objects to process
         """
+        if not documents:
+            return
+
         with Session(engine) as db:
-            # Get all documents in the project
-            documents = DocumentRepository.get_by_project(db, project.id)
-
-            if not documents:
-                return
-
             # Filter out documents that have already been processed by this recognizer
             unprocessed_documents = self._filter_unprocessed_documents(db, documents)
 

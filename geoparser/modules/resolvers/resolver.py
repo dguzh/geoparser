@@ -6,7 +6,6 @@ from typing import List, Tuple
 from sqlmodel import Session
 
 from geoparser.db.crud import (
-    DocumentRepository,
     FeatureRepository,
     ReferenceRepository,
     ReferentRepository,
@@ -18,8 +17,7 @@ from geoparser.db.models import ReferentCreate, ResolutionCreate, ResolverCreate
 from geoparser.modules.module import Module
 
 if t.TYPE_CHECKING:
-    from geoparser.db.models import Reference
-    from geoparser.project import Project
+    from geoparser.db.models import Document, Reference
 
 
 class Resolver(Module):
@@ -64,21 +62,18 @@ class Resolver(Module):
 
             return db_resolver.id
 
-    def run(self, project: "Project") -> None:
+    def run(self, documents: List["Document"]) -> None:
         """
-        Run the configured resolver on all references from all documents in the project.
+        Run the configured resolver on all references from the provided documents.
 
         Args:
-            project: Project object containing documents with references to process
+            documents: List of Document objects containing references to process
         """
+        if not documents:
+            return
+
         with Session(engine) as db:
-            # Get all documents in the project
-            documents = DocumentRepository.get_by_project(db, project.id)
-
-            if not documents:
-                return
-
-            # Get all references from all documents in the project
+            # Get all references from all documents
             references = []
             for doc in documents:
                 doc_references = ReferenceRepository.get_by_document(db, doc.id)

@@ -66,16 +66,16 @@ class Project:
 
     def get_documents(
         self,
-        recognizer_id: uuid.UUID,
-        resolver_id: uuid.UUID,
+        recognizer_id: uuid.UUID = None,
+        resolver_id: uuid.UUID = None,
     ) -> List[Document]:
         """
         Retrieve all documents in the project with their associated references and referents,
         filtered by the specified recognizer and resolver.
 
         Args:
-            recognizer_id: Recognizer ID to filter references by. If None, no references returned.
-            resolver_id: Resolver ID to filter referents by. If None, no referents returned.
+            recognizer_id: Recognizer ID to filter references by. If None, no references returned. Defaults to None.
+            resolver_id: Resolver ID to filter referents by. If None, no referents returned. Defaults to None.
 
         Returns:
             List of Document objects with filtered references and referents.
