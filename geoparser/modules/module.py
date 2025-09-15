@@ -25,11 +25,11 @@ class Module(ABC):
             raise ValueError("Module must define a NAME class attribute")
 
         self.name = self.NAME
-        self.config = self._initialize_config(kwargs)
+        self.config = self._normalize_config(kwargs)
 
-    def _initialize_config(self, kwargs_dict: dict) -> dict:
+    def _normalize_config(self, kwargs_dict: dict) -> dict:
         """
-        Initialize configuration dictionary for consistent storage.
+        Normalize configuration dictionary for consistent storage.
 
         This helper method:
         1. Converts sets to lists for JSON serialization

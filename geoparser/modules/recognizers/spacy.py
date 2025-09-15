@@ -39,12 +39,12 @@ class SpacyRecognizer(Recognizer):
         self.model_name = model_name
         self.entity_types = entity_types
 
-        # Initialize spaCy model with optimized pipeline
-        self.nlp = self._initialize_spacy_model()
+        # Load spaCy model with optimized pipeline
+        self.nlp = self._load_spacy_model()
 
-    def _initialize_spacy_model(self) -> spacy.language.Language:
+    def _load_spacy_model(self) -> spacy.language.Language:
         """
-        Initialize and configure the spaCy model with optimized pipeline.
+        Load and configure the spaCy model with optimized pipeline.
 
         Loads the specified model and disables unnecessary pipeline components
         to optimize performance for NER tasks.
