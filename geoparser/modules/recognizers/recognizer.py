@@ -77,7 +77,7 @@ class Recognizer(Module):
                 return
 
             # Filter out documents that have already been processed by this recognizer
-            unprocessed_documents = self._get_unprocessed_documents(db, documents)
+            unprocessed_documents = self._filter_unprocessed_documents(db, documents)
 
             if not unprocessed_documents:
                 return
@@ -157,7 +157,7 @@ class Recognizer(Module):
         )
         RecognitionRepository.create(db, recognition_create)
 
-    def _get_unprocessed_documents(
+    def _filter_unprocessed_documents(
         self, db: Session, documents: List["Document"]
     ) -> List["Document"]:
         """

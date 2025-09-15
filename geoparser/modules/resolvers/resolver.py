@@ -85,7 +85,7 @@ class Resolver(Module):
                 references.extend(doc_references)
 
             # Filter out references that have already been processed by this resolver
-            unprocessed_references = self._get_unprocessed_references(db, references)
+            unprocessed_references = self._filter_unprocessed_references(db, references)
 
             if not unprocessed_references:
                 return
@@ -170,7 +170,7 @@ class Resolver(Module):
         )
         ResolutionRepository.create(db, resolution_create)
 
-    def _get_unprocessed_references(
+    def _filter_unprocessed_references(
         self, db: Session, references: List["Reference"]
     ) -> List["Reference"]:
         """
