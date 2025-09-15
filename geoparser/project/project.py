@@ -116,3 +116,13 @@ class Project:
                 filtered_documents.append(doc)
 
             return filtered_documents
+
+    def delete(self) -> None:
+        """
+        Delete this project and all its associated data from the database.
+
+        This will remove the project, all its documents, references, referents,
+        recognitions, and resolutions due to cascade delete relationships.
+        """
+        with Session(engine) as db:
+            ProjectRepository.delete(db, id=self.id)
