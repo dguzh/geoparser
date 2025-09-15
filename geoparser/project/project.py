@@ -5,9 +5,7 @@ from sqlmodel import Session
 
 from geoparser.db.crud import DocumentRepository, ProjectRepository
 from geoparser.db.db import engine
-from geoparser.db.models import Document, DocumentCreate
-from geoparser.db.models import Project as ProjectModel
-from geoparser.db.models import ProjectCreate
+from geoparser.db.models import Document, DocumentCreate, ProjectCreate
 
 
 class Project:
@@ -46,8 +44,7 @@ class Project:
             # Create new project if it doesn't exist
             if project is None:
                 project_create = ProjectCreate(name=project_name)
-                project = ProjectModel(name=project_create.name)
-                project = ProjectRepository.create(db, project)
+                project = ProjectRepository.create(db, project_create)
 
             return project.id
 
@@ -90,33 +87,32 @@ class Project:
             # Filter documents and their references/referents
             filtered_documents = []
             for doc in documents:
-                if doc is not None:
-                    # Filter references by recognizer (empty list if recognizer_id is None)
-                    if recognizer_id is not None:
-                        filtered_references = [
-                            ref
-                            for ref in doc.references
-                            if ref.recognizer_id == recognizer_id
+                # Filter references by recognizer (empty list if recognizer_id is None)
+                if recognizer_id is not None:
+                    filtered_references = [
+                        ref
+                        for ref in doc.references
+                        if ref.recognizer_id == recognizer_id
+                    ]
+                else:
+                    filtered_references = []
+
+                # Filter referents by resolver (only if there are references and resolver_id is provided)
+                if resolver_id is not None and filtered_references:
+                    for ref in filtered_references:
+                        filtered_referents = [
+                            referent
+                            for referent in ref.referents
+                            if referent.resolver_id == resolver_id
                         ]
-                    else:
-                        filtered_references = []
+                        ref.referents = filtered_referents
+                else:
+                    # Set empty referents for all references if resolver_id is None or no references
+                    for ref in filtered_references:
+                        ref.referents = []
 
-                    # Filter referents by resolver (empty list if resolver_id is None)
-                    if resolver_id is not None:
-                        for ref in filtered_references:
-                            filtered_referents = [
-                                referent
-                                for referent in ref.referents
-                                if referent.resolver_id == resolver_id
-                            ]
-                            ref.referents = filtered_referents
-                    else:
-                        # Set empty referents for all references if resolver_id is None
-                        for ref in filtered_references:
-                            ref.referents = []
-
-                    # Update the document's references list
-                    doc.references = filtered_references
-                    filtered_documents.append(doc)
+                # Update the document's references list
+                doc.references = filtered_references
+                filtered_documents.append(doc)
 
             return filtered_documents
