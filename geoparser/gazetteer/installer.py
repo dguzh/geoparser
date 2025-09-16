@@ -16,7 +16,7 @@ from tqdm.auto import tqdm
 from geoparser.db.crud.gazetteer import GazetteerRepository
 from geoparser.db.db import engine
 from geoparser.db.models.gazetteer import GazetteerCreate
-from geoparser.gazetteerv2.config import (
+from geoparser.gazetteer.config import (
     DataType,
     FeatureConfig,
     GazetteerConfig,

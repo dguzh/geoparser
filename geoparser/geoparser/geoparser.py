@@ -7,12 +7,12 @@ from geoparser.modules.resolvers import Resolver
 from geoparser.project import Project
 
 
-class GeoparserV2:
+class Geoparser:
     """
     User-facing interface for the geoparser functionality.
 
     Provides a simple parse method for processing texts with configured recognizer and resolver.
-    The GeoparserV2 creates a new project for each parse operation, making it stateless by default.
+    The Geoparser creates a new project for each parse operation, making it stateless by default.
     """
 
     def __init__(
@@ -21,7 +21,7 @@ class GeoparserV2:
         resolver: Resolver,
     ):
         """
-        Initialize a GeoparserV2 instance.
+        Initialize a Geoparser instance.
 
         Args:
             recognizer: The recognizer module to use for identifying references.

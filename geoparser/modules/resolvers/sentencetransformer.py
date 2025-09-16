@@ -6,7 +6,7 @@ import torch
 from sentence_transformers import SentenceTransformer
 from transformers import AutoTokenizer
 
-from geoparser.gazetteerv2.gazetteer import Gazetteer
+from geoparser.gazetteer.gazetteer import Gazetteer
 from geoparser.modules.resolvers import Resolver
 
 if t.TYPE_CHECKING:

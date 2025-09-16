@@ -3,17 +3,17 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from geoparser.geoparserv2.geoparserv2 import GeoparserV2
+from geoparser.geoparser.geoparser import Geoparser
 from geoparser.modules.recognizers.base import Recognizer
 from geoparser.modules.resolvers.base import Resolver
 
 
-def test_geoparserv2_initialization():
-    """Test basic initialization of GeoparserV2."""
+def test_geoparser_initialization():
+    """Test basic initialization of Geoparser."""
     mock_recognizer = MagicMock(spec=Recognizer)
     mock_resolver = MagicMock(spec=Resolver)
 
-    geoparser = GeoparserV2(recognizer=mock_recognizer, resolver=mock_resolver)
+    geoparser = Geoparser(recognizer=mock_recognizer, resolver=mock_resolver)
 
     assert geoparser.recognizer == mock_recognizer
     assert geoparser.resolver == mock_resolver
@@ -28,12 +28,12 @@ def test_parse_single_text():
     mock_recognizer.id = uuid.uuid4()
     mock_resolver.id = uuid.uuid4()
 
-    geoparser = GeoparserV2(recognizer=mock_recognizer, resolver=mock_resolver)
+    geoparser = Geoparser(recognizer=mock_recognizer, resolver=mock_resolver)
 
     text = "This is a test document about London."
 
     # Mock the Project methods
-    with patch("geoparser.geoparserv2.geoparserv2.Project") as mock_project_class:
+    with patch("geoparser.geoparser.geoparser.Project") as mock_project_class:
         mock_project = MagicMock()
         mock_project_class.return_value = mock_project
 
@@ -73,7 +73,7 @@ def test_parse_multiple_texts():
     mock_recognizer.id = uuid.uuid4()
     mock_resolver.id = uuid.uuid4()
 
-    geoparser = GeoparserV2(recognizer=mock_recognizer, resolver=mock_resolver)
+    geoparser = Geoparser(recognizer=mock_recognizer, resolver=mock_resolver)
 
     texts = [
         "This is the first document about London.",
@@ -81,7 +81,7 @@ def test_parse_multiple_texts():
     ]
 
     # Mock the Project methods
-    with patch("geoparser.geoparserv2.geoparserv2.Project") as mock_project_class:
+    with patch("geoparser.geoparser.geoparser.Project") as mock_project_class:
         mock_project = MagicMock()
         mock_project_class.return_value = mock_project
 
@@ -115,12 +115,12 @@ def test_parse_with_save():
     mock_recognizer.id = uuid.uuid4()
     mock_resolver.id = uuid.uuid4()
 
-    geoparser = GeoparserV2(recognizer=mock_recognizer, resolver=mock_resolver)
+    geoparser = Geoparser(recognizer=mock_recognizer, resolver=mock_resolver)
 
     text = "This is a test document about London."
 
     # Mock the Project methods
-    with patch("geoparser.geoparserv2.geoparserv2.Project") as mock_project_class:
+    with patch("geoparser.geoparser.geoparser.Project") as mock_project_class:
         mock_project = MagicMock()
         mock_project_class.return_value = mock_project
 
@@ -154,10 +154,10 @@ def test_parse_empty_text():
     mock_recognizer.id = uuid.uuid4()
     mock_resolver.id = uuid.uuid4()
 
-    geoparser = GeoparserV2(recognizer=mock_recognizer, resolver=mock_resolver)
+    geoparser = Geoparser(recognizer=mock_recognizer, resolver=mock_resolver)
 
     # Mock the Project methods
-    with patch("geoparser.geoparserv2.geoparserv2.Project") as mock_project_class:
+    with patch("geoparser.geoparser.geoparser.Project") as mock_project_class:
         mock_project = MagicMock()
         mock_project_class.return_value = mock_project
 
@@ -187,10 +187,10 @@ def test_parse_project_cleanup_on_exception():
     mock_recognizer.id = uuid.uuid4()
     mock_resolver.id = uuid.uuid4()
 
-    geoparser = GeoparserV2(recognizer=mock_recognizer, resolver=mock_resolver)
+    geoparser = Geoparser(recognizer=mock_recognizer, resolver=mock_resolver)
 
     # Mock the Project methods to raise an exception
-    with patch("geoparser.geoparserv2.geoparserv2.Project") as mock_project_class:
+    with patch("geoparser.geoparser.geoparser.Project") as mock_project_class:
         mock_project = MagicMock()
         mock_project_class.return_value = mock_project
 
@@ -215,13 +215,13 @@ def test_parse_project_name_generation():
     mock_recognizer.id = uuid.uuid4()
     mock_resolver.id = uuid.uuid4()
 
-    geoparser = GeoparserV2(recognizer=mock_recognizer, resolver=mock_resolver)
+    geoparser = Geoparser(recognizer=mock_recognizer, resolver=mock_resolver)
 
     # Mock uuid.uuid4().hex to return a predictable value
     with patch("uuid.uuid4") as mock_uuid:
         mock_uuid.return_value.hex = "abcdef123456789"
 
-        with patch("geoparser.geoparserv2.geoparserv2.Project") as mock_project_class:
+        with patch("geoparser.geoparser.geoparser.Project") as mock_project_class:
             mock_project = MagicMock()
             mock_project_class.return_value = mock_project
             mock_project.get_documents.return_value = []
