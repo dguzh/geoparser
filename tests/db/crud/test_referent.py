@@ -10,14 +10,22 @@ from geoparser.db.models import (
     Referent,
     ReferentCreate,
     ReferentUpdate,
+    Resolver,
 )
 
 
-def test_create(test_db: Session, test_reference: Reference, test_feature: Feature):
+def test_create(
+    test_db: Session,
+    test_reference: Reference,
+    test_feature: Feature,
+    test_resolver: Resolver,
+):
     """Test creating a referent."""
     # Create a referent using the create model with all required fields
     referent_create = ReferentCreate(
-        reference_id=test_reference.id, feature_id=test_feature.id
+        reference_id=test_reference.id,
+        feature_id=test_feature.id,
+        resolver_id=test_resolver.id,
     )
 
     # Create the referent
@@ -64,7 +72,9 @@ def test_get_by_reference(
 
     # Create another referent for the same reference
     referent_create = ReferentCreate(
-        reference_id=test_reference.id, feature_id=another_feature.id
+        reference_id=test_reference.id,
+        feature_id=another_feature.id,
+        resolver_id=test_referent.resolver_id,
     )
 
     # Create the referent
@@ -95,7 +105,9 @@ def test_get_all(test_db: Session, test_referent: Referent):
 
     # Create another referent
     referent_create = ReferentCreate(
-        reference_id=test_referent.reference_id, feature_id=another_feature.id
+        reference_id=test_referent.reference_id,
+        feature_id=another_feature.id,
+        resolver_id=test_referent.resolver_id,
     )
 
     # Create the referent

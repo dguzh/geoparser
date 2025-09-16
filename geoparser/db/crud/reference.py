@@ -31,6 +31,7 @@ class ReferenceRepository(BaseRepository[Reference]):
         # Extract data from the ReferenceCreate model
         data = obj_in.model_dump()
         document_id = data["document_id"]
+        recognizer_id = data["recognizer_id"]
         start = data["start"]
         end = data["end"]
 
@@ -65,6 +66,7 @@ class ReferenceRepository(BaseRepository[Reference]):
         start = update_data.get("start", db_obj.start)
         end = update_data.get("end", db_obj.end)
         document_id = update_data.get("document_id", db_obj.document_id)
+        recognizer_id = update_data.get("recognizer_id", db_obj.recognizer_id)
 
         # Get the document to extract updated text
         document = db.get(Document, document_id)

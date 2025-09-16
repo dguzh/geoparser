@@ -6,9 +6,9 @@ from sqlmodel import Field, Relationship, SQLModel
 
 if t.TYPE_CHECKING:
     from geoparser.db.models.document import Document
-    from geoparser.db.models.recognition_object import RecognitionObject
+    from geoparser.db.models.recognizer import Recognizer
     from geoparser.db.models.referent import Referent
-    from geoparser.db.models.resolution_subject import ResolutionSubject
+    from geoparser.db.models.resolution import Resolution
 
 
 class ReferenceBase(SQLModel):
@@ -33,7 +33,15 @@ class Reference(ReferenceBase, table=True):
             UUID, ForeignKey("document.id", ondelete="CASCADE"), nullable=False
         )
     )
+    recognizer_id: uuid.UUID = Field(
+        sa_column=Column(
+            UUID, ForeignKey("recognizer.id", ondelete="CASCADE"), nullable=False
+        )
+    )
     document: "Document" = Relationship(back_populates="references")
+    recognizer: "Recognizer" = Relationship(
+        back_populates="references", sa_relationship_kwargs={"lazy": "joined"}
+    )
     referents: list["Referent"] = Relationship(
         back_populates="reference",
         sa_relationship_kwargs={
@@ -42,15 +50,7 @@ class Reference(ReferenceBase, table=True):
             "lazy": "joined",  # Enable eager loading
         },
     )
-    recognition_objects: list["RecognitionObject"] = Relationship(
-        back_populates="reference",
-        sa_relationship_kwargs={
-            "cascade": "all, delete-orphan",
-            "passive_deletes": True,
-            "lazy": "joined",
-        },
-    )
-    resolution_subjects: list["ResolutionSubject"] = Relationship(
+    resolutions: list["Resolution"] = Relationship(
         back_populates="reference",
         sa_relationship_kwargs={
             "cascade": "all, delete-orphan",
@@ -81,10 +81,11 @@ class ReferenceCreate(ReferenceBase):
     """
     Model for creating a new reference.
 
-    Includes the document_id to associate the reference with a document.
+    Includes the document_id and recognizer_id to associate the reference.
     """
 
     document_id: uuid.UUID
+    recognizer_id: uuid.UUID
 
 
 class ReferenceUpdate(SQLModel):
@@ -92,5 +93,6 @@ class ReferenceUpdate(SQLModel):
 
     id: uuid.UUID
     document_id: t.Optional[uuid.UUID] = None
+    recognizer_id: t.Optional[uuid.UUID] = None
     start: t.Optional[int] = None
     end: t.Optional[int] = None

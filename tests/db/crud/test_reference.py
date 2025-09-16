@@ -3,13 +3,21 @@ import uuid
 from sqlmodel import Session
 
 from geoparser.db.crud import ReferenceRepository
-from geoparser.db.models import Document, Reference, ReferenceCreate, ReferenceUpdate
+from geoparser.db.models import (
+    Document,
+    Recognizer,
+    Reference,
+    ReferenceCreate,
+    ReferenceUpdate,
+)
 
 
-def test_create(test_db: Session, test_document: Document):
+def test_create(test_db: Session, test_document: Document, test_recognizer: Recognizer):
     """Test creating a reference."""
     # Create a reference using the create model with all required fields
-    reference_create = ReferenceCreate(start=29, end=35, document_id=test_document.id)
+    reference_create = ReferenceCreate(
+        start=29, end=35, document_id=test_document.id, recognizer_id=test_recognizer.id
+    )
 
     # Create the reference
     created_reference = ReferenceRepository.create(test_db, reference_create)
@@ -73,11 +81,16 @@ def test_get_by_document_and_span(
 
 
 def test_get_by_document(
-    test_db: Session, test_document: Document, test_reference: Reference
+    test_db: Session,
+    test_document: Document,
+    test_reference: Reference,
+    test_recognizer: Recognizer,
 ):
     """Test getting references by document ID."""
     # Create another reference in the same document
-    reference_create = ReferenceCreate(start=10, end=14, document_id=test_document.id)
+    reference_create = ReferenceCreate(
+        start=10, end=14, document_id=test_document.id, recognizer_id=test_recognizer.id
+    )
 
     # Create the reference
     created_reference = ReferenceRepository.create(test_db, reference_create)
@@ -110,7 +123,10 @@ def test_get_all(test_db: Session, test_reference: Reference):
 
     # Create another reference
     reference_create = ReferenceCreate(
-        start=10, end=14, document_id=test_reference.document_id
+        start=10,
+        end=14,
+        document_id=test_reference.document_id,
+        recognizer_id=test_reference.recognizer_id,
     )
 
     # Create the reference

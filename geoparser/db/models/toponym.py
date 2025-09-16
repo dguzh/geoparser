@@ -11,7 +11,6 @@ class ToponymBase(SQLModel):
     """Base model for toponym data."""
 
     text: str = Field(index=True)
-    feature_id: int = Field(foreign_key="feature.id", index=True)
 
 
 class Toponym(ToponymBase, table=True):
@@ -30,6 +29,7 @@ class Toponym(ToponymBase, table=True):
     )
 
     id: int = Field(primary_key=True)
+    feature_id: int = Field(foreign_key="feature.id", index=True)
     feature: "Feature" = Relationship(back_populates="toponyms")
 
 
@@ -64,6 +64,8 @@ class ToponymFTSTrigrams(SQLModel, table=True):
 
 class ToponymCreate(ToponymBase):
     """Model for creating a new toponym."""
+
+    feature_id: int
 
 
 class ToponymUpdate(SQLModel):

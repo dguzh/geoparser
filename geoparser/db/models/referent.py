@@ -7,15 +7,11 @@ from sqlmodel import Field, Relationship, SQLModel
 if t.TYPE_CHECKING:
     from geoparser.db.models.feature import Feature
     from geoparser.db.models.reference import Reference
-    from geoparser.db.models.resolution_object import ResolutionObject
+    from geoparser.db.models.resolver import Resolver
 
 
 class ReferentBase(SQLModel):
-    """
-    Base model for referent data.
-
-    Contains a reference to a feature in the gazetteer system.
-    """
+    """Base model for referent data."""
 
 
 class Referent(ReferentBase, table=True):
@@ -37,16 +33,16 @@ class Referent(ReferentBase, table=True):
             Integer, ForeignKey("feature.id", ondelete="CASCADE"), nullable=False
         )
     )
-    reference: "Reference" = Relationship(back_populates="referents")
-    _feature: "Feature" = Relationship(sa_relationship_kwargs={"lazy": "joined"})
-    resolution_objects: list["ResolutionObject"] = Relationship(
-        back_populates="referent",
-        sa_relationship_kwargs={
-            "cascade": "all, delete-orphan",
-            "passive_deletes": True,
-            "lazy": "joined",
-        },
+    resolver_id: uuid.UUID = Field(
+        sa_column=Column(
+            UUID, ForeignKey("resolver.id", ondelete="CASCADE"), nullable=False
+        )
     )
+    reference: "Reference" = Relationship(back_populates="referents")
+    resolver: "Resolver" = Relationship(
+        back_populates="referents", sa_relationship_kwargs={"lazy": "joined"}
+    )
+    _feature: "Feature" = Relationship(sa_relationship_kwargs={"lazy": "joined"})
 
     @property
     def feature(self) -> t.Dict[str, t.Any]:
@@ -83,11 +79,12 @@ class ReferentCreate(ReferentBase):
     """
     Model for creating a new referent.
 
-    Includes the reference_id and feature_id to associate the referent.
+    Includes the reference_id, feature_id, and resolver_id to associate the referent.
     """
 
     reference_id: uuid.UUID
     feature_id: int
+    resolver_id: uuid.UUID
 
 
 class ReferentUpdate(SQLModel):
@@ -96,3 +93,4 @@ class ReferentUpdate(SQLModel):
     id: uuid.UUID
     reference_id: t.Optional[uuid.UUID] = None
     feature_id: t.Optional[int] = None
+    resolver_id: t.Optional[uuid.UUID] = None
