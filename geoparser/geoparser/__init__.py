@@ -1,1 +1,0 @@
-from .geoparser import Geoparser

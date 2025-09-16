@@ -1,1 +1,0 @@
-from .geospan import GeoSpan
