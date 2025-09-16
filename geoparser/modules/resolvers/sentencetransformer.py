@@ -7,7 +7,7 @@ from sentence_transformers import SentenceTransformer
 from transformers import AutoTokenizer
 
 from geoparser.gazetteerv2.gazetteer import Gazetteer
-from geoparser.modules.resolvers.resolver import Resolver
+from geoparser.modules.resolvers import Resolver
 
 if t.TYPE_CHECKING:
     from geoparser.db.models import Reference

@@ -8,8 +8,8 @@ from geoparser.db.db import create_engine
 from geoparser.db.models import Document, DocumentCreate, Project, ProjectCreate
 from geoparser.db.models import Recognizer as RecognizerModel
 from geoparser.db.models import RecognizerCreate, Reference, ReferenceCreate
-from geoparser.modules.recognizers.recognizer import Recognizer
-from geoparser.modules.resolvers.resolver import Resolver
+from geoparser.modules.recognizers import Recognizer
+from geoparser.modules.resolvers import Resolver
 from geoparser.orchestrator import Orchestrator
 
 

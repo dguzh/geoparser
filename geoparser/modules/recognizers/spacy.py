@@ -3,7 +3,7 @@ from typing import List, Set, Tuple
 
 import spacy
 
-from geoparser.modules.recognizers.recognizer import Recognizer
+from geoparser.modules.recognizers import Recognizer
 
 if t.TYPE_CHECKING:
     from geoparser.db.models import Document

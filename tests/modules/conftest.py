@@ -2,8 +2,8 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from geoparser.modules.recognizers.recognizer import Recognizer
-from geoparser.modules.resolvers.resolver import Resolver
+from geoparser.modules.recognizers import Recognizer
+from geoparser.modules.resolvers import Resolver
 
 
 @pytest.fixture

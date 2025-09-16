@@ -1,8 +1,8 @@
 import pytest
 
 from geoparser.modules.module import Module
-from geoparser.modules.recognizers.recognizer import Recognizer
-from geoparser.modules.resolvers.resolver import Resolver
+from geoparser.modules.recognizers import Recognizer
+from geoparser.modules.resolvers import Resolver
 
 
 def test_base_module_init():

@@ -14,8 +14,8 @@ from geoparser.db.models import (
     ReferenceCreate,
 )
 from geoparser.geoparserv2.geoparserv2 import GeoparserV2
-from geoparser.modules.recognizers.recognizer import Recognizer
-from geoparser.modules.resolvers.resolver import Resolver
+from geoparser.modules.recognizers import Recognizer
+from geoparser.modules.resolvers import Resolver
 from geoparser.orchestrator import Orchestrator
 
 

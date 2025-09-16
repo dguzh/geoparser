@@ -2,8 +2,8 @@ import uuid
 from typing import List, Union
 
 from geoparser.db.models import Document
-from geoparser.modules.recognizers.recognizer import Recognizer
-from geoparser.modules.resolvers.resolver import Resolver
+from geoparser.modules.recognizers import Recognizer
+from geoparser.modules.resolvers import Resolver
 from geoparser.project import Project
 
 
