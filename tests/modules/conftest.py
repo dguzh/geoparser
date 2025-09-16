@@ -1,28 +1,16 @@
-from unittest.mock import MagicMock
+# Shared fixtures across all module tests.
+# Individual module types have their own conftest.py files in their respective directories.
 
 import pytest
 
-from geoparser.modules.recognizers import Recognizer
-from geoparser.modules.resolvers import Resolver
+from geoparser.modules.module import Module
 
 
 @pytest.fixture
-def mock_recognition_module():
-    """Create a mock recognition module for testing."""
-    module = MagicMock(spec=Recognizer)
-    module.name = "mock_recognition"
-    module.config = {"param": "value"}
-    module.predict_references.return_value = [[(29, 35), (41, 46)]]
-    return module
+def concrete_test_module_class():
+    """Create a concrete subclass of Module for testing."""
 
+    class TestModule(Module):
+        NAME = "test_module"
 
-@pytest.fixture
-def mock_resolution_module():
-    """Create a mock resolution module for testing."""
-    module = MagicMock(spec=Resolver)
-    module.name = "mock_resolution"
-    module.config = {"param": "value"}
-    module.predict_referents.return_value = [
-        [("test_gazetteer", "loc1"), ("test_gazetteer", "loc2")]
-    ]
-    return module
+    return TestModule
