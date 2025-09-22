@@ -1,3 +1,4 @@
+import tempfile
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -163,10 +164,10 @@ def test_predict_referents_empty_references():
                         assert result == []
 
 
-def test_extract_contexts_single_reference(
+def test_extract_context_single_reference(
     mock_references, mock_sentence_transformer, mock_tokenizer, mock_spacy_nlp
 ):
-    """Test _extract_contexts with a single reference."""
+    """Test _extract_context with a single reference."""
     with patch(
         "geoparser.modules.resolvers.sentencetransformer.SentenceTransformer",
         return_value=mock_sentence_transformer,
@@ -195,16 +196,15 @@ def test_extract_contexts_single_reference(
                             ".",
                         ]
 
-                        contexts = resolver._extract_contexts([mock_references[0]])
+                        context = resolver._extract_context(mock_references[0])
 
-                        assert len(contexts) == 1
-                        assert contexts[0] == "I visited London last summer."
+                        assert context == "I visited London last summer."
 
 
-def test_extract_contexts_long_document(
+def test_extract_context_long_document(
     mock_references, mock_sentence_transformer, mock_tokenizer, mock_spacy_nlp
 ):
-    """Test _extract_contexts with a document that exceeds token limit."""
+    """Test _extract_context with a document that exceeds token limit."""
     with patch(
         "geoparser.modules.resolvers.sentencetransformer.SentenceTransformer",
         return_value=mock_sentence_transformer,
@@ -239,11 +239,10 @@ def test_extract_contexts_long_document(
 
                         mock_tokenizer.tokenize.side_effect = mock_tokenize
 
-                        contexts = resolver._extract_contexts([mock_references[0]])
+                        context = resolver._extract_context(mock_references[0])
 
-                        assert len(contexts) == 1
                         # Should return the sentence context
-                        assert contexts[0] == "I visited London last summer."
+                        assert context == "I visited London last summer."
 
 
 def test_generate_description_geonames(mock_features):
@@ -383,11 +382,11 @@ def test_embed_references_caching(mock_references):
                     ):
                         resolver = SentenceTransformerResolver()
 
-                        # Mock _extract_contexts to return identical contexts
+                        # Mock _extract_context to return identical contexts
                         with patch.object(
                             resolver,
-                            "_extract_contexts",
-                            return_value=["same context", "same context"],
+                            "_extract_context",
+                            return_value="same context",
                         ):
                             resolver._embed_references(mock_references)
 
@@ -467,3 +466,294 @@ def test_predict_referents_integration(mock_references, mock_features):
 
                             assert len(result) == 1
                             assert result[0] == ("geonames", "2643743")
+
+
+def test_prepare_training_data_empty_documents():
+    """Test _prepare_training_data with empty document list."""
+    with patch("geoparser.modules.resolvers.sentencetransformer.SentenceTransformer"):
+        with patch("geoparser.modules.resolvers.sentencetransformer.AutoTokenizer"):
+            with patch("geoparser.modules.resolvers.sentencetransformer.spacy"):
+                with patch("geoparser.modules.resolvers.sentencetransformer.Gazetteer"):
+                    with patch.object(
+                        SentenceTransformerResolver, "_load", return_value="mock-id"
+                    ):
+                        resolver = SentenceTransformerResolver()
+
+                        result = resolver._prepare_training_data([])
+
+                        assert result == {"sentence1": [], "sentence2": [], "label": []}
+
+
+def test_prepare_training_data_no_referents():
+    """Test _prepare_training_data with documents that have no resolved references."""
+    mock_document = MagicMock()
+    mock_reference = MagicMock()
+    mock_reference.referents = []  # No resolved referents
+    mock_document.references = [mock_reference]
+
+    with patch("geoparser.modules.resolvers.sentencetransformer.SentenceTransformer"):
+        with patch("geoparser.modules.resolvers.sentencetransformer.AutoTokenizer"):
+            with patch("geoparser.modules.resolvers.sentencetransformer.spacy"):
+                with patch("geoparser.modules.resolvers.sentencetransformer.Gazetteer"):
+                    with patch.object(
+                        SentenceTransformerResolver, "_load", return_value="mock-id"
+                    ):
+                        resolver = SentenceTransformerResolver()
+
+                        result = resolver._prepare_training_data([mock_document])
+
+                        assert result == {"sentence1": [], "sentence2": [], "label": []}
+
+
+def test_prepare_training_data_with_referents():
+    """Test _prepare_training_data with documents containing resolved references."""
+    # Create mock document with resolved reference
+    mock_document = MagicMock()
+    mock_reference = MagicMock()
+    mock_reference.text = "London"
+    mock_reference.referents = [MagicMock()]
+    mock_reference.referents[0].feature.identifier_value = "2643743"
+    mock_document.references = [mock_reference]
+
+    # Create mock candidates
+    mock_candidate1 = MagicMock()
+    mock_candidate1.identifier_value = "2643743"  # Correct candidate
+    mock_candidate2 = MagicMock()
+    mock_candidate2.identifier_value = "5128581"  # Incorrect candidate
+
+    mock_gazetteer = MagicMock()
+    mock_gazetteer.search.return_value = [mock_candidate1, mock_candidate2]
+
+    with patch("geoparser.modules.resolvers.sentencetransformer.SentenceTransformer"):
+        with patch("geoparser.modules.resolvers.sentencetransformer.AutoTokenizer"):
+            with patch("geoparser.modules.resolvers.sentencetransformer.spacy"):
+                with patch(
+                    "geoparser.modules.resolvers.sentencetransformer.Gazetteer",
+                    return_value=mock_gazetteer,
+                ):
+                    with patch.object(
+                        SentenceTransformerResolver, "_load", return_value="mock-id"
+                    ):
+                        resolver = SentenceTransformerResolver()
+
+                        # Mock the context extraction and description generation
+                        with patch.object(
+                            resolver, "_extract_context", return_value="test context"
+                        ):
+                            with patch.object(
+                                resolver,
+                                "_generate_description",
+                                side_effect=["desc1", "desc2"],
+                            ):
+                                result = resolver._prepare_training_data(
+                                    [mock_document]
+                                )
+
+                                # Should have 2 training examples (positive and negative)
+                                assert len(result["sentence1"]) == 2
+                                assert len(result["sentence2"]) == 2
+                                assert len(result["label"]) == 2
+
+                                # Check contexts are correct
+                                assert all(
+                                    ctx == "test context" for ctx in result["sentence1"]
+                                )
+
+                                # Check descriptions
+                                assert result["sentence2"] == ["desc1", "desc2"]
+
+                                # Check labels (first should be positive, second negative)
+                                assert result["label"] == [1, 0]
+
+
+def test_fit_empty_documents():
+    """Test fit method with empty document list."""
+    with patch("geoparser.modules.resolvers.sentencetransformer.SentenceTransformer"):
+        with patch("geoparser.modules.resolvers.sentencetransformer.AutoTokenizer"):
+            with patch("geoparser.modules.resolvers.sentencetransformer.spacy"):
+                with patch("geoparser.modules.resolvers.sentencetransformer.Gazetteer"):
+                    with patch.object(
+                        SentenceTransformerResolver, "_load", return_value="mock-id"
+                    ):
+                        resolver = SentenceTransformerResolver()
+
+                        with tempfile.TemporaryDirectory() as temp_dir:
+                            with pytest.raises(
+                                ValueError, match="No training examples found"
+                            ):
+                                resolver.fit([], temp_dir)
+
+
+def test_fit_no_training_examples():
+    """Test fit method with documents that produce no training examples."""
+    mock_document = MagicMock()
+    mock_document.references = []  # No references
+
+    with patch("geoparser.modules.resolvers.sentencetransformer.SentenceTransformer"):
+        with patch("geoparser.modules.resolvers.sentencetransformer.AutoTokenizer"):
+            with patch("geoparser.modules.resolvers.sentencetransformer.spacy"):
+                with patch("geoparser.modules.resolvers.sentencetransformer.Gazetteer"):
+                    with patch.object(
+                        SentenceTransformerResolver, "_load", return_value="mock-id"
+                    ):
+                        resolver = SentenceTransformerResolver()
+
+                        with tempfile.TemporaryDirectory() as temp_dir:
+                            with pytest.raises(
+                                ValueError, match="No training examples found"
+                            ):
+                                resolver.fit([mock_document], temp_dir)
+
+
+def test_fit_successful_training():
+    """Test fit method with successful training."""
+    # Mock training data preparation
+    training_data = {
+        "sentence1": ["context1", "context2"],
+        "sentence2": ["desc1", "desc2"],
+        "label": [1, 0],
+    }
+
+    mock_transformer = MagicMock()
+    mock_trainer = MagicMock()
+
+    with patch(
+        "geoparser.modules.resolvers.sentencetransformer.SentenceTransformer",
+        return_value=mock_transformer,
+    ):
+        with patch("geoparser.modules.resolvers.sentencetransformer.AutoTokenizer"):
+            with patch("geoparser.modules.resolvers.sentencetransformer.spacy"):
+                with patch("geoparser.modules.resolvers.sentencetransformer.Gazetteer"):
+                    with patch(
+                        "geoparser.modules.resolvers.sentencetransformer.SentenceTransformerTrainer",
+                        return_value=mock_trainer,
+                    ):
+                        with patch(
+                            "geoparser.modules.resolvers.sentencetransformer.ContrastiveLoss"
+                        ) as mock_loss:
+                            with patch(
+                                "geoparser.modules.resolvers.sentencetransformer.SentenceTransformerTrainingArguments"
+                            ) as mock_args:
+                                with patch(
+                                    "geoparser.modules.resolvers.sentencetransformer.Dataset.from_dict"
+                                ) as mock_dataset:
+                                    with patch.object(
+                                        SentenceTransformerResolver,
+                                        "_load",
+                                        return_value="mock-id",
+                                    ):
+                                        resolver = SentenceTransformerResolver()
+
+                                        # Mock _prepare_training_data to return test data
+                                        with patch.object(
+                                            resolver,
+                                            "_prepare_training_data",
+                                            return_value=training_data,
+                                        ):
+                                            with tempfile.TemporaryDirectory() as temp_dir:
+                                                resolver.fit(
+                                                    [MagicMock()],
+                                                    temp_dir,
+                                                    epochs=2,
+                                                    batch_size=4,
+                                                )
+
+                                                # Verify training was called
+                                                mock_trainer.train.assert_called_once()
+
+                                                # Verify model was saved
+                                                mock_transformer.save_pretrained.assert_called_once_with(
+                                                    temp_dir
+                                                )
+
+                                                # Verify dataset was created with correct data
+                                                mock_dataset.assert_called_once_with(
+                                                    training_data
+                                                )
+
+                                                # Verify training arguments were set correctly
+                                                mock_args.assert_called_once()
+                                                args_call = mock_args.call_args[1]
+                                                assert (
+                                                    args_call["output_dir"] == temp_dir
+                                                )
+                                                assert (
+                                                    args_call["num_train_epochs"] == 2
+                                                )
+                                                assert (
+                                                    args_call[
+                                                        "per_device_train_batch_size"
+                                                    ]
+                                                    == 4
+                                                )
+
+
+def test_fit_custom_parameters():
+    """Test fit method with custom training parameters."""
+    training_data = {"sentence1": ["context1"], "sentence2": ["desc1"], "label": [1]}
+
+    mock_transformer = MagicMock()
+    mock_trainer = MagicMock()
+
+    with patch(
+        "geoparser.modules.resolvers.sentencetransformer.SentenceTransformer",
+        return_value=mock_transformer,
+    ):
+        with patch("geoparser.modules.resolvers.sentencetransformer.AutoTokenizer"):
+            with patch("geoparser.modules.resolvers.sentencetransformer.spacy"):
+                with patch("geoparser.modules.resolvers.sentencetransformer.Gazetteer"):
+                    with patch(
+                        "geoparser.modules.resolvers.sentencetransformer.SentenceTransformerTrainer",
+                        return_value=mock_trainer,
+                    ):
+                        with patch(
+                            "geoparser.modules.resolvers.sentencetransformer.ContrastiveLoss"
+                        ):
+                            with patch(
+                                "geoparser.modules.resolvers.sentencetransformer.SentenceTransformerTrainingArguments"
+                            ) as mock_args:
+                                with patch(
+                                    "geoparser.modules.resolvers.sentencetransformer.Dataset.from_dict"
+                                ):
+                                    with patch.object(
+                                        SentenceTransformerResolver,
+                                        "_load",
+                                        return_value="mock-id",
+                                    ):
+                                        resolver = SentenceTransformerResolver()
+
+                                        with patch.object(
+                                            resolver,
+                                            "_prepare_training_data",
+                                            return_value=training_data,
+                                        ):
+                                            with tempfile.TemporaryDirectory() as temp_dir:
+                                                resolver.fit(
+                                                    [MagicMock()],
+                                                    temp_dir,
+                                                    epochs=5,
+                                                    batch_size=16,
+                                                    learning_rate=1e-4,
+                                                    warmup_ratio=0.2,
+                                                    save_strategy="steps",
+                                                )
+
+                                                # Verify custom parameters were passed
+                                                args_call = mock_args.call_args[1]
+                                                assert (
+                                                    args_call["num_train_epochs"] == 5
+                                                )
+                                                assert (
+                                                    args_call[
+                                                        "per_device_train_batch_size"
+                                                    ]
+                                                    == 16
+                                                )
+                                                assert (
+                                                    args_call["learning_rate"] == 1e-4
+                                                )
+                                                assert args_call["warmup_ratio"] == 0.2
+                                                assert (
+                                                    args_call["save_strategy"]
+                                                    == "steps"
+                                                )
