@@ -18,7 +18,7 @@ include = [
 python = ">=3.11,<3.13"
 numpy = "^2.0.0"
 pandas = "^2.2.3"
-spacy = "^3.8.2"
+spacy = "^3.8.7"
 sentence-transformers = "^5.1.0"
 tqdm = "^4.67.0"
 torch = "^2.5.1"
