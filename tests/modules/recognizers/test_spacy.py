@@ -273,3 +273,320 @@ def test_spacy_recognizer_config():
                 "model_name": "en_core_web_md",
             }
             assert recognizer.config == expected_config
+
+
+@pytest.fixture
+def mock_documents_with_references():
+    """Create mock Document objects with reference annotations for training."""
+    doc1 = MagicMock()
+    doc1.text = "I visited London and Paris last year."
+    doc1.references = [
+        MagicMock(start=10, end=16),  # "London"
+        MagicMock(start=21, end=26),  # "Paris"
+    ]
+
+    doc2 = MagicMock()
+    doc2.text = "New York is a great city."
+    doc2.references = [
+        MagicMock(start=0, end=8),  # "New York"
+    ]
+
+    return [doc1, doc2]
+
+
+@pytest.fixture
+def mock_spacy_doc_with_entities():
+    """Create a mock spaCy Doc with entities for testing label distillation."""
+    # Mock entities
+    ent1 = MagicMock()
+    ent1.start_char = 10
+    ent1.end_char = 16
+    ent1.label_ = "GPE"
+
+    ent2 = MagicMock()
+    ent2.start_char = 21
+    ent2.end_char = 26
+    ent2.label_ = "GPE"
+
+    # Mock tokens
+    token1 = MagicMock()
+    token1.ent_type_ = "GPE"
+
+    token2 = MagicMock()
+    token2.ent_type_ = "LOC"
+
+    # Mock span
+    mock_span = MagicMock()
+    mock_span.ents = [ent1, ent2]
+    mock_span.__iter__ = lambda self: iter([token1, token2])
+
+    # Mock doc
+    mock_doc = MagicMock()
+    mock_doc.char_span.return_value = mock_span
+
+    return mock_doc
+
+
+def test_get_distilled_label_exact_entity_match():
+    """Test _get_distilled_label when span exactly matches an entity."""
+    with patch("geoparser.modules.recognizers.spacy.spacy.load") as mock_load:
+        with patch.object(SpacyRecognizer, "_load", return_value="mock-id"):
+            mock_nlp = MagicMock()
+            mock_load.return_value = mock_nlp
+
+            recognizer = SpacyRecognizer()
+
+            # Mock entity that matches exactly
+            mock_entity = MagicMock()
+            mock_entity.label_ = "GPE"
+
+            mock_span = MagicMock()
+            mock_span.ents = [mock_entity]
+
+            mock_doc = MagicMock()
+            mock_doc.char_span.return_value = mock_span
+
+            result = recognizer._get_distilled_label(10, 16, mock_doc)
+
+            assert result == "GPE"
+            mock_doc.char_span.assert_called_once_with(10, 16, alignment_mode="expand")
+
+
+def test_get_distilled_label_token_level_match():
+    """Test _get_distilled_label when no exact entity match but token has entity type."""
+    with patch("geoparser.modules.recognizers.spacy.spacy.load") as mock_load:
+        with patch.object(SpacyRecognizer, "_load", return_value="mock-id"):
+            mock_nlp = MagicMock()
+            mock_load.return_value = mock_nlp
+
+            recognizer = SpacyRecognizer()
+
+            # Mock token with entity type
+            mock_token = MagicMock()
+            mock_token.ent_type_ = "LOC"
+
+            mock_span = MagicMock()
+            mock_span.ents = []  # No exact entity match
+            mock_span.__iter__ = lambda self: iter([mock_token])
+
+            mock_doc = MagicMock()
+            mock_doc.char_span.return_value = mock_span
+
+            result = recognizer._get_distilled_label(10, 16, mock_doc)
+
+            assert result == "LOC"
+
+
+def test_get_distilled_label_no_match_fallback():
+    """Test _get_distilled_label fallback to 'LOC' when no match found."""
+    with patch("geoparser.modules.recognizers.spacy.spacy.load") as mock_load:
+        with patch.object(SpacyRecognizer, "_load", return_value="mock-id"):
+            mock_nlp = MagicMock()
+            mock_load.return_value = mock_nlp
+
+            recognizer = SpacyRecognizer()
+
+            mock_doc = MagicMock()
+            mock_doc.char_span.return_value = None  # No span found
+
+            result = recognizer._get_distilled_label(10, 16, mock_doc)
+
+            assert result == "LOC"
+
+
+def test_get_distilled_label_filtered_entity_types():
+    """Test _get_distilled_label respects entity_types filter."""
+    with patch("geoparser.modules.recognizers.spacy.spacy.load") as mock_load:
+        with patch.object(SpacyRecognizer, "_load", return_value="mock-id"):
+            mock_nlp = MagicMock()
+            mock_load.return_value = mock_nlp
+
+            # Only GPE and LOC are valid
+            recognizer = SpacyRecognizer(entity_types={"GPE", "LOC"})
+
+            # Mock entity with PERSON type (should be filtered)
+            mock_entity = MagicMock()
+            mock_entity.label_ = "PERSON"
+
+            # Mock token with LOC type (should match)
+            mock_token = MagicMock()
+            mock_token.ent_type_ = "LOC"
+
+            mock_span = MagicMock()
+            mock_span.ents = [mock_entity]  # PERSON entity should be ignored
+            mock_span.__iter__ = lambda self: iter([mock_token])
+
+            mock_doc = MagicMock()
+            mock_doc.char_span.return_value = mock_span
+
+            result = recognizer._get_distilled_label(10, 16, mock_doc)
+
+            assert result == "LOC"  # Should find LOC from token, not PERSON from entity
+
+
+def test_prepare_training_data_with_distillation(mock_documents_with_references):
+    """Test _prepare_training_data uses label distillation correctly."""
+    with patch("geoparser.modules.recognizers.spacy.spacy.load") as mock_load:
+        with patch.object(SpacyRecognizer, "_load", return_value="mock-id"):
+            # Mock the main nlp pipeline
+            mock_nlp = MagicMock()
+            mock_doc1 = MagicMock()
+            mock_doc2 = MagicMock()
+            mock_nlp.make_doc.side_effect = [mock_doc1, mock_doc2]
+
+            # Mock the base nlp pipeline for distillation
+            mock_base_nlp = MagicMock()
+            mock_base_doc1 = MagicMock()
+            mock_base_doc2 = MagicMock()
+
+            mock_load.side_effect = [
+                mock_nlp,
+                mock_base_nlp,
+            ]  # First call for init, second for distillation
+
+            recognizer = SpacyRecognizer()
+
+            # Mock _get_distilled_label calls
+            with patch.object(recognizer, "_get_distilled_label") as mock_distill:
+                mock_distill.side_effect = [
+                    "GPE",
+                    "GPE",
+                    "LOC",
+                ]  # Labels for the 3 references
+
+                # Mock base_nlp calls
+                mock_base_nlp.side_effect = [mock_base_doc1, mock_base_doc2]
+
+                # Mock Example.from_dict at module level
+                with patch(
+                    "geoparser.modules.recognizers.spacy.Example"
+                ) as mock_example_class:
+                    mock_example1 = MagicMock()
+                    mock_example2 = MagicMock()
+                    mock_example_class.from_dict.side_effect = [
+                        mock_example1,
+                        mock_example2,
+                    ]
+
+                    result = recognizer._prepare_training_data(
+                        mock_documents_with_references
+                    )
+
+                    # Verify distillation was called for each reference
+                    assert mock_distill.call_count == 3
+                    mock_distill.assert_any_call(10, 16, mock_base_doc1)  # London
+                    mock_distill.assert_any_call(21, 26, mock_base_doc1)  # Paris
+                    mock_distill.assert_any_call(0, 8, mock_base_doc2)  # New York
+
+                    # Verify Example creation with distilled labels
+                    expected_entities1 = [(10, 16, "GPE"), (21, 26, "GPE")]
+                    expected_entities2 = [(0, 8, "LOC")]
+
+                    mock_example_class.from_dict.assert_any_call(
+                        mock_doc1, {"entities": expected_entities1}
+                    )
+                    mock_example_class.from_dict.assert_any_call(
+                        mock_doc2, {"entities": expected_entities2}
+                    )
+
+                    assert result == [mock_example1, mock_example2]
+
+
+def test_fit_method_complete_workflow(mock_documents_with_references, tmp_path):
+    """Test the complete fit method workflow with training."""
+    with patch("geoparser.modules.recognizers.spacy.spacy.load") as mock_load:
+        with patch.object(SpacyRecognizer, "_load", return_value="mock-id"):
+            mock_nlp = MagicMock()
+            mock_load.return_value = mock_nlp
+
+            # Mock optimizer
+            mock_optimizer = MagicMock()
+            mock_nlp.resume_training.return_value = mock_optimizer
+
+            recognizer = SpacyRecognizer()
+
+            # Mock training data preparation
+            mock_examples = [MagicMock(), MagicMock()]
+            with patch.object(recognizer, "_prepare_training_data") as mock_prepare:
+                mock_prepare.return_value = mock_examples
+
+                # Mock Path.mkdir and nlp.to_disk
+                with patch(
+                    "geoparser.modules.recognizers.spacy.Path"
+                ) as mock_path_class:
+                    mock_path = MagicMock()
+                    mock_path_class.return_value = mock_path
+
+                    output_path = str(tmp_path / "test_model")
+
+                    recognizer.fit(
+                        documents=mock_documents_with_references,
+                        output_path=output_path,
+                        epochs=2,
+                        batch_size=4,
+                        dropout=0.2,
+                        learning_rate=0.002,
+                    )
+
+                    # Verify training data preparation
+                    mock_prepare.assert_called_once_with(mock_documents_with_references)
+
+                    # Verify optimizer setup
+                    mock_nlp.resume_training.assert_called_once()
+                    assert mock_optimizer.learn_rate == 0.002
+
+                    # Verify training loop (2 epochs)
+                    assert mock_nlp.update.call_count == 2  # 2 batches per epoch
+
+                    # Verify model saving
+                    mock_path_class.assert_called_once_with(output_path)
+                    mock_path.mkdir.assert_called_once_with(parents=True, exist_ok=True)
+                    mock_nlp.to_disk.assert_called_once_with(output_path)
+
+
+def test_fit_method_no_training_examples():
+    """Test fit method raises error when no training examples are created."""
+    with patch("geoparser.modules.recognizers.spacy.spacy.load") as mock_load:
+        with patch.object(SpacyRecognizer, "_load", return_value="mock-id"):
+            mock_nlp = MagicMock()
+            mock_load.return_value = mock_nlp
+
+            recognizer = SpacyRecognizer()
+
+            # Mock empty training data
+            with patch.object(recognizer, "_prepare_training_data") as mock_prepare:
+                mock_prepare.return_value = []
+
+                with pytest.raises(ValueError, match="No training examples found"):
+                    recognizer.fit(documents=[], output_path="/tmp/test")
+
+
+def test_fit_method_default_parameters(mock_documents_with_references, tmp_path):
+    """Test fit method with default parameters."""
+    with patch("geoparser.modules.recognizers.spacy.spacy.load") as mock_load:
+        with patch.object(SpacyRecognizer, "_load", return_value="mock-id"):
+            mock_nlp = MagicMock()
+            mock_load.return_value = mock_nlp
+
+            mock_optimizer = MagicMock()
+            mock_nlp.resume_training.return_value = mock_optimizer
+
+            recognizer = SpacyRecognizer()
+
+            mock_examples = [MagicMock()]
+            with patch.object(recognizer, "_prepare_training_data") as mock_prepare:
+                mock_prepare.return_value = mock_examples
+
+                with patch("geoparser.modules.recognizers.spacy.Path"):
+                    output_path = str(tmp_path / "test_model")
+
+                    recognizer.fit(
+                        documents=mock_documents_with_references,
+                        output_path=output_path,
+                    )
+
+                    # Verify default parameters were used
+                    assert mock_optimizer.learn_rate == 0.001  # default learning_rate
+
+                    # Verify 10 epochs (default) with 1 example means 10 update calls
+                    assert mock_nlp.update.call_count == 10
