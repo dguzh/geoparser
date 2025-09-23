@@ -488,7 +488,7 @@ class SentenceTransformerResolver(Resolver):
     def fit(
         self,
         documents: List["Document"],
-        output_dir: Union[str, Path],
+        output_path: Union[str, Path],
         epochs: int = 1,
         batch_size: int = 8,
         learning_rate: float = 2e-5,
@@ -505,7 +505,7 @@ class SentenceTransformerResolver(Resolver):
 
         Args:
             documents: List of Document objects containing references with resolved referents
-            output_dir: Directory path to save the fine-tuned model
+            output_path: Directory path to save the fine-tuned model
             epochs: Number of training epochs (default: 1)
             batch_size: Training batch size (default: 8)
             learning_rate: Learning rate for training (default: 2e-5)
@@ -515,14 +515,14 @@ class SentenceTransformerResolver(Resolver):
         Raises:
             ValueError: If no training examples can be created from the provided documents
         """
-        print("Preparing training data from resolved references...")
+        print("Preparing training data from referent annotations...")
 
         # Step 1: Gather training data from resolved references
         training_data = self._prepare_training_data(documents)
 
         if not training_data["sentence1"] or len(training_data["sentence1"]) == 0:
             raise ValueError(
-                "No training examples found. Ensure documents contain references with resolved referents."
+                "No training examples found. Ensure documents contain references with referent annotations."
             )
 
         print(f"Created {len(training_data['sentence1'])} training examples")
@@ -535,7 +535,7 @@ class SentenceTransformerResolver(Resolver):
 
         # Step 4: Configure training arguments
         training_args = SentenceTransformerTrainingArguments(
-            output_dir=str(output_dir),
+            output_dir=str(output_path),
             num_train_epochs=epochs,
             per_device_train_batch_size=batch_size,
             learning_rate=learning_rate,
@@ -562,9 +562,9 @@ class SentenceTransformerResolver(Resolver):
         trainer.train()
 
         # Step 7: Save the final model
-        self.transformer.save_pretrained(str(output_dir))
+        self.transformer.save_pretrained(str(output_path))
 
-        print(f"Model fine-tuning completed and saved to: {output_dir}")
+        print(f"Model fine-tuning completed and saved to: {output_path}")
 
     def _prepare_training_data(self, documents: List["Document"]) -> Dict[str, List]:
         """
