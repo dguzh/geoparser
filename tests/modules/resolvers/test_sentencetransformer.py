@@ -757,3 +757,329 @@ def test_fit_custom_parameters():
                                                     args_call["save_strategy"]
                                                     == "steps"
                                                 )
+
+
+def test_predict_referents_exact_method_skip_on_higher_ranks():
+    """Test that exact method is skipped for ranks > 1."""
+    mock_references = [MagicMock()]
+    mock_references[0].id = 1
+    mock_references[0].text = "London"
+
+    mock_transformer = MagicMock()
+    mock_transformer.encode.return_value = torch.randn(1, 384)
+    mock_transformer.get_max_seq_length.return_value = 512
+
+    mock_gazetteer = MagicMock()
+    mock_gazetteer.search.return_value = []  # No candidates found
+
+    with patch(
+        "geoparser.modules.resolvers.sentencetransformer.SentenceTransformer",
+        return_value=mock_transformer,
+    ):
+        with patch("geoparser.modules.resolvers.sentencetransformer.AutoTokenizer"):
+            with patch("geoparser.modules.resolvers.sentencetransformer.spacy"):
+                with patch(
+                    "geoparser.modules.resolvers.sentencetransformer.Gazetteer",
+                    return_value=mock_gazetteer,
+                ):
+                    with patch.object(
+                        SentenceTransformerResolver, "_load", return_value="mock-id"
+                    ):
+                        resolver = SentenceTransformerResolver(max_iter=2)
+
+                        # Mock _extract_context to return a simple context
+                        with patch.object(
+                            resolver, "_extract_context", return_value="test context"
+                        ):
+                            result = resolver.predict_referents(mock_references)
+
+                            # Should return default result since no candidates found
+                            assert result == [("geonames", "")]
+
+                            # Verify exact method was called only for ranks=1
+                            search_calls = mock_gazetteer.search.call_args_list
+                            exact_calls = [
+                                call
+                                for call in search_calls
+                                if len(call[0]) > 1 and call[0][1] == "exact"
+                            ]
+                            # Should only have 1 exact call (for ranks=1)
+                            assert len(exact_calls) == 1
+
+
+def test_embed_references_empty_list():
+    """Test _embed_references with empty references list."""
+    with patch("geoparser.modules.resolvers.sentencetransformer.SentenceTransformer"):
+        with patch("geoparser.modules.resolvers.sentencetransformer.AutoTokenizer"):
+            with patch("geoparser.modules.resolvers.sentencetransformer.spacy"):
+                with patch("geoparser.modules.resolvers.sentencetransformer.Gazetteer"):
+                    with patch.object(
+                        SentenceTransformerResolver, "_load", return_value="mock-id"
+                    ):
+                        resolver = SentenceTransformerResolver()
+
+                        # Call with empty list should return early
+                        resolver._embed_references([])
+
+                        # Verify no embeddings were stored
+                        assert len(resolver.reference_embeddings) == 0
+
+
+def test_gather_candidates_already_resolved():
+    """Test _gather_candidates skips already resolved references."""
+    mock_reference = MagicMock()
+    mock_reference.text = "London"
+
+    mock_gazetteer = MagicMock()
+
+    with patch("geoparser.modules.resolvers.sentencetransformer.SentenceTransformer"):
+        with patch("geoparser.modules.resolvers.sentencetransformer.AutoTokenizer"):
+            with patch("geoparser.modules.resolvers.sentencetransformer.spacy"):
+                with patch(
+                    "geoparser.modules.resolvers.sentencetransformer.Gazetteer",
+                    return_value=mock_gazetteer,
+                ):
+                    with patch.object(
+                        SentenceTransformerResolver, "_load", return_value="mock-id"
+                    ):
+                        resolver = SentenceTransformerResolver()
+
+                        references = [mock_reference]
+                        candidates = [[]]
+                        results = [("geonames", "123")]  # Already resolved
+
+                        resolver._gather_candidates(
+                            references, candidates, results, "exact", 1
+                        )
+
+                        # Should not have called search since reference is already resolved
+                        mock_gazetteer.search.assert_not_called()
+
+
+def test_embed_candidates_already_resolved():
+    """Test _embed_candidates skips already resolved references."""
+    mock_candidate = MagicMock()
+    mock_candidate.id = 1
+
+    with patch("geoparser.modules.resolvers.sentencetransformer.SentenceTransformer"):
+        with patch("geoparser.modules.resolvers.sentencetransformer.AutoTokenizer"):
+            with patch("geoparser.modules.resolvers.sentencetransformer.spacy"):
+                with patch("geoparser.modules.resolvers.sentencetransformer.Gazetteer"):
+                    with patch.object(
+                        SentenceTransformerResolver, "_load", return_value="mock-id"
+                    ):
+                        resolver = SentenceTransformerResolver()
+
+                        candidates = [[mock_candidate]]
+                        results = [("geonames", "123")]  # Already resolved
+
+                        resolver._embed_candidates(candidates, results)
+
+                        # Should not have stored any embeddings since reference is resolved
+                        assert len(resolver.candidate_embeddings) == 0
+
+
+def test_embed_candidates_no_candidates_to_embed():
+    """Test _embed_candidates when all candidates already have embeddings."""
+    mock_candidate = MagicMock()
+    mock_candidate.id = 1
+
+    mock_transformer = MagicMock()
+
+    with patch(
+        "geoparser.modules.resolvers.sentencetransformer.SentenceTransformer",
+        return_value=mock_transformer,
+    ):
+        with patch("geoparser.modules.resolvers.sentencetransformer.AutoTokenizer"):
+            with patch("geoparser.modules.resolvers.sentencetransformer.spacy"):
+                with patch("geoparser.modules.resolvers.sentencetransformer.Gazetteer"):
+                    with patch.object(
+                        SentenceTransformerResolver, "_load", return_value="mock-id"
+                    ):
+                        resolver = SentenceTransformerResolver()
+
+                        # Pre-populate candidate embeddings
+                        resolver.candidate_embeddings[1] = torch.randn(384)
+
+                        candidates = [[mock_candidate]]
+                        results = [None]  # Not resolved yet
+
+                        resolver._embed_candidates(candidates, results)
+
+                        # Should not have called encode since candidate already has embedding
+                        mock_transformer.encode.assert_not_called()
+
+
+def test_evaluate_candidates_no_candidates():
+    """Test _evaluate_candidates when reference has no candidates."""
+    mock_reference = MagicMock()
+    mock_reference.id = 1
+
+    with patch("geoparser.modules.resolvers.sentencetransformer.SentenceTransformer"):
+        with patch("geoparser.modules.resolvers.sentencetransformer.AutoTokenizer"):
+            with patch("geoparser.modules.resolvers.sentencetransformer.spacy"):
+                with patch("geoparser.modules.resolvers.sentencetransformer.Gazetteer"):
+                    with patch.object(
+                        SentenceTransformerResolver, "_load", return_value="mock-id"
+                    ):
+                        resolver = SentenceTransformerResolver()
+
+                        # Add reference embedding
+                        resolver.reference_embeddings[1] = torch.randn(384)
+
+                        references = [mock_reference]
+                        candidates = [[]]  # No candidates
+                        results = [None]
+
+                        resolver._evaluate_candidates(references, candidates, results)
+
+                        # Result should remain None since no candidates to evaluate
+                        assert results[0] is None
+
+
+def test_extract_context_with_previous_sentence_expansion():
+    """Test _extract_context when expanding context to include previous sentences."""
+    mock_reference = MagicMock()
+    mock_reference.start = 50
+    mock_reference.end = 56
+    mock_reference.document.text = (
+        "Previous sentence here. Target sentence with London here. Next sentence here."
+    )
+
+    mock_transformer = MagicMock()
+    mock_transformer.get_max_seq_length.return_value = 512
+
+    mock_tokenizer = MagicMock()
+
+    def mock_tokenize(text):
+        # Make document exceed token limit, but individual sentences fit
+        if (
+            "Previous sentence here. Target sentence with London here. Next sentence here."
+            in text
+        ):
+            return ["token"] * 600  # Exceeds limit
+        elif "Previous sentence here." in text:
+            return ["prev"] * 5
+        elif "Target sentence with London here." in text:
+            return ["target"] * 5
+        elif "Next sentence here." in text:
+            return ["next"] * 5
+        else:
+            return ["token"] * 5
+
+    mock_tokenizer.tokenize.side_effect = mock_tokenize
+
+    # Create mock sentences
+    mock_prev_sent = MagicMock()
+    mock_prev_sent.start_char = 0
+    mock_prev_sent.end_char = 23
+    mock_prev_sent.text = "Previous sentence here."
+
+    mock_target_sent = MagicMock()
+    mock_target_sent.start_char = 24
+    mock_target_sent.end_char = 56
+    mock_target_sent.text = "Target sentence with London here."
+
+    mock_next_sent = MagicMock()
+    mock_next_sent.start_char = 57
+    mock_next_sent.end_char = 76
+    mock_next_sent.text = "Next sentence here."
+
+    mock_nlp = MagicMock()
+    mock_doc = MagicMock()
+    mock_doc.sents = [mock_prev_sent, mock_target_sent, mock_next_sent]
+    mock_nlp.return_value = mock_doc
+
+    with patch(
+        "geoparser.modules.resolvers.sentencetransformer.SentenceTransformer",
+        return_value=mock_transformer,
+    ):
+        with patch(
+            "geoparser.modules.resolvers.sentencetransformer.AutoTokenizer.from_pretrained",
+            return_value=mock_tokenizer,
+        ):
+            with patch(
+                "geoparser.modules.resolvers.sentencetransformer.spacy.load",
+                return_value=mock_nlp,
+            ):
+                with patch("geoparser.modules.resolvers.sentencetransformer.Gazetteer"):
+                    with patch.object(
+                        SentenceTransformerResolver, "_load", return_value="mock-id"
+                    ):
+                        resolver = SentenceTransformerResolver()
+
+                        context = resolver._extract_context(mock_reference)
+
+                        # Should include previous and target sentences (and next if it fits)
+                        expected = "Previous sentence here. Target sentence with London here. Next sentence here."
+                        assert context == expected
+
+
+def test_extract_context_with_next_sentence_expansion():
+    """Test _extract_context when expanding context to include next sentences."""
+    mock_reference = MagicMock()
+    mock_reference.start = 24
+    mock_reference.end = 30
+    mock_reference.document.text = (
+        "Target sentence with London here. Next sentence here."
+    )
+
+    mock_transformer = MagicMock()
+    mock_transformer.get_max_seq_length.return_value = 512
+
+    mock_tokenizer = MagicMock()
+
+    def mock_tokenize(text):
+        # Make document exceed token limit, but individual sentences fit
+        if "Target sentence with London here. Next sentence here." in text:
+            return ["token"] * 600  # Exceeds limit
+        elif "Target sentence with London here." in text:
+            return ["target"] * 5
+        elif "Next sentence here." in text:
+            return ["next"] * 5
+        else:
+            return ["token"] * 5
+
+    mock_tokenizer.tokenize.side_effect = mock_tokenize
+
+    # Create mock sentences - only target and next (no previous)
+    mock_target_sent = MagicMock()
+    mock_target_sent.start_char = 0
+    mock_target_sent.end_char = 32
+    mock_target_sent.text = "Target sentence with London here."
+
+    mock_next_sent = MagicMock()
+    mock_next_sent.start_char = 33
+    mock_next_sent.end_char = 52
+    mock_next_sent.text = "Next sentence here."
+
+    mock_nlp = MagicMock()
+    mock_doc = MagicMock()
+    mock_doc.sents = [mock_target_sent, mock_next_sent]
+    mock_nlp.return_value = mock_doc
+
+    with patch(
+        "geoparser.modules.resolvers.sentencetransformer.SentenceTransformer",
+        return_value=mock_transformer,
+    ):
+        with patch(
+            "geoparser.modules.resolvers.sentencetransformer.AutoTokenizer.from_pretrained",
+            return_value=mock_tokenizer,
+        ):
+            with patch(
+                "geoparser.modules.resolvers.sentencetransformer.spacy.load",
+                return_value=mock_nlp,
+            ):
+                with patch("geoparser.modules.resolvers.sentencetransformer.Gazetteer"):
+                    with patch.object(
+                        SentenceTransformerResolver, "_load", return_value="mock-id"
+                    ):
+                        resolver = SentenceTransformerResolver()
+
+                        context = resolver._extract_context(mock_reference)
+
+                        # Should include both target and next sentences
+                        expected = (
+                            "Target sentence with London here. Next sentence here."
+                        )
+                        assert context == expected
