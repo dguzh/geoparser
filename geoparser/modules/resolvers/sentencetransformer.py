@@ -1,9 +1,13 @@
 import typing as t
-from typing import Dict, List, Tuple
+from pathlib import Path
+from typing import Dict, List, Tuple, Union
 
 import spacy
 import torch
-from sentence_transformers import SentenceTransformer
+from datasets import Dataset
+from sentence_transformers import SentenceTransformer, SentenceTransformerTrainer
+from sentence_transformers.losses import ContrastiveLoss
+from sentence_transformers.training_args import SentenceTransformerTrainingArguments
 from transformers import AutoTokenizer
 
 from geoparser.gazetteer.gazetteer import Gazetteer
@@ -176,7 +180,7 @@ class SentenceTransformerResolver(Resolver):
             return
 
         # Extract contexts for all references
-        contexts = self._extract_contexts(references)
+        contexts = [self._extract_context(reference) for reference in references]
 
         # Group references by identical context text to avoid duplicate encoding
         context_to_refs = {}
@@ -326,84 +330,79 @@ class SentenceTransformerResolver(Resolver):
             if best_similarity >= min_similarity:
                 results[i] = (self.gazetteer_name, best_candidate.identifier_value)
 
-    def _extract_contexts(self, references: List["Reference"]) -> List[str]:
+    def _extract_context(self, reference: "Reference") -> str:
         """
-        Extract context around each reference, respecting model token limits.
+        Extract context around a single reference, respecting model token limits.
 
         Args:
-            references: List of Reference objects
+            reference: Reference object
 
         Returns:
-            List of context strings for each reference
+            Context string for the reference
         """
-        contexts = []
         max_seq_length = self.transformer.get_max_seq_length()
         # Reserve space for special tokens ([CLS] and [SEP] for BERT-like models)
         token_limit = max_seq_length - 2
 
-        for reference in references:
-            doc_text = reference.document.text
-            reference_start = reference.start
-            reference_end = reference.end
+        doc_text = reference.document.text
+        reference_start = reference.start
+        reference_end = reference.end
 
-            # Check if entire document fits within token limit
-            doc_tokens = len(self.tokenizer.tokenize(doc_text))
-            if doc_tokens <= token_limit:
-                contexts.append(doc_text)
-                continue
+        # Check if entire document fits within token limit
+        doc_tokens = len(self.tokenizer.tokenize(doc_text))
+        if doc_tokens <= token_limit:
+            return doc_text
 
-            # Use spaCy to get sentence boundaries
-            doc = self.nlp(doc_text)
-            sentences = list(doc.sents)
+        # Use spaCy to get sentence boundaries
+        doc = self.nlp(doc_text)
+        sentences = list(doc.sents)
 
-            # Find the sentence containing the reference
-            target_sentence = None
-            for sent in sentences:
-                if sent.start_char <= reference_start < sent.end_char:
-                    target_sentence = sent
-                    break
+        # Find the sentence containing the reference
+        target_sentence = None
+        for sent in sentences:
+            if sent.start_char <= reference_start < sent.end_char:
+                target_sentence = sent
+                break
 
-            # Get sentence index
-            target_idx = sentences.index(target_sentence)
-            context_sentences = [target_sentence]
+        # Get sentence index
+        target_idx = sentences.index(target_sentence)
+        context_sentences = [target_sentence]
 
-            # Calculate tokens for target sentence
-            tokens_count = len(self.tokenizer.tokenize(target_sentence.text))
+        # Calculate tokens for target sentence
+        tokens_count = len(self.tokenizer.tokenize(target_sentence.text))
 
-            # Expand context bidirectionally while respecting token limit
-            i, j = target_idx, target_idx
+        # Expand context bidirectionally while respecting token limit
+        i, j = target_idx, target_idx
 
-            while True:
-                expanded = False
+        while True:
+            expanded = False
 
-                # Try to add previous sentence
-                if i > 0:
-                    prev_sentence = sentences[i - 1]
-                    prev_tokens = len(self.tokenizer.tokenize(prev_sentence.text))
-                    if tokens_count + prev_tokens <= token_limit:
-                        context_sentences.insert(0, prev_sentence)
-                        tokens_count += prev_tokens
-                        i -= 1
-                        expanded = True
+            # Try to add previous sentence
+            if i > 0:
+                prev_sentence = sentences[i - 1]
+                prev_tokens = len(self.tokenizer.tokenize(prev_sentence.text))
+                if tokens_count + prev_tokens <= token_limit:
+                    context_sentences.insert(0, prev_sentence)
+                    tokens_count += prev_tokens
+                    i -= 1
+                    expanded = True
 
-                # Try to add next sentence
-                if j < len(sentences) - 1:
-                    next_sentence = sentences[j + 1]
-                    next_tokens = len(self.tokenizer.tokenize(next_sentence.text))
-                    if tokens_count + next_tokens <= token_limit:
-                        context_sentences.append(next_sentence)
-                        tokens_count += next_tokens
-                        j += 1
-                        expanded = True
+            # Try to add next sentence
+            if j < len(sentences) - 1:
+                next_sentence = sentences[j + 1]
+                next_tokens = len(self.tokenizer.tokenize(next_sentence.text))
+                if tokens_count + next_tokens <= token_limit:
+                    context_sentences.append(next_sentence)
+                    tokens_count += next_tokens
+                    j += 1
+                    expanded = True
 
-                if not expanded:
-                    break
+            if not expanded:
+                break
 
-            # Combine sentences to form context
-            context = " ".join(sent.text for sent in context_sentences)
-            contexts.append(context)
-
-        return contexts
+        # Combine sentences to form context
+        context = " ".join(sent.text for sent in context_sentences)
+        return context
 
     def _generate_description(self, candidate: "Feature") -> str:
         """
@@ -485,3 +484,139 @@ class SentenceTransformerResolver(Resolver):
         )
 
         return similarities.tolist()
+
+    def fit(
+        self,
+        documents: List["Document"],
+        output_path: Union[str, Path],
+        epochs: int = 1,
+        batch_size: int = 8,
+        learning_rate: float = 2e-5,
+        warmup_ratio: float = 0.1,
+        save_strategy: str = "epoch",
+    ) -> None:
+        """
+        Fine-tune the SentenceTransformer model using references and their resolved referents as training data.
+
+        This method gathers all references from the provided documents that have been resolved
+        (i.e., have referents), extracts their contexts and all candidate descriptions, and uses
+        them to create positive and negative training examples for fine-tuning the underlying
+        SentenceTransformer model using ContrastiveLoss.
+
+        Args:
+            documents: List of Document objects containing references with resolved referents
+            output_path: Directory path to save the fine-tuned model
+            epochs: Number of training epochs (default: 1)
+            batch_size: Training batch size (default: 8)
+            learning_rate: Learning rate for training (default: 2e-5)
+            warmup_ratio: Warmup ratio for learning rate scheduler (default: 0.1)
+            save_strategy: When to save the model during training (default: "epoch")
+
+        Raises:
+            ValueError: If no training examples can be created from the provided documents
+        """
+        print("Preparing training data from referent annotations...")
+
+        # Step 1: Gather training data from resolved references
+        training_data = self._prepare_training_data(documents)
+
+        if not training_data["sentence1"] or len(training_data["sentence1"]) == 0:
+            raise ValueError(
+                "No training examples found. Ensure documents contain references with referent annotations."
+            )
+
+        print(f"Created {len(training_data['sentence1'])} training examples")
+
+        # Step 2: Create training dataset
+        train_dataset = Dataset.from_dict(training_data)
+
+        # Step 3: Setup training loss
+        train_loss = ContrastiveLoss(self.transformer)
+
+        # Step 4: Configure training arguments
+        training_args = SentenceTransformerTrainingArguments(
+            output_dir=str(output_path),
+            num_train_epochs=epochs,
+            per_device_train_batch_size=batch_size,
+            learning_rate=learning_rate,
+            warmup_ratio=warmup_ratio,
+            save_strategy=save_strategy,
+            logging_strategy="steps",
+            logging_steps=max(1, len(training_data["sentence1"]) // (batch_size * 10)),
+            eval_strategy="no",  # No evaluation for now
+            save_total_limit=2,  # Keep only 2 checkpoints
+            load_best_model_at_end=False,
+        )
+
+        # Step 5: Create trainer
+        trainer = SentenceTransformerTrainer(
+            model=self.transformer,
+            args=training_args,
+            train_dataset=train_dataset,
+            loss=train_loss,
+        )
+
+        print("Starting model fine-tuning...")
+
+        # Step 6: Train the model
+        trainer.train()
+
+        # Step 7: Save the final model
+        self.transformer.save_pretrained(str(output_path))
+
+        print(f"Model fine-tuning completed and saved to: {output_path}")
+
+    def _prepare_training_data(self, documents: List["Document"]) -> Dict[str, List]:
+        """
+        Prepare training data from documents with resolved references.
+
+        This method extracts all references that have been resolved (have referents),
+        gets their contexts and all candidate descriptions to create both positive
+        and negative training examples for ContrastiveLoss.
+
+        Args:
+            documents: List of Document objects
+
+        Returns:
+            Dictionary with 'sentence1', 'sentence2', and 'label' lists for training
+        """
+        sentence1_texts = []  # contexts
+        sentence2_texts = []  # candidate descriptions
+        labels = []  # 1 for positive, 0 for negative
+
+        for document in documents:
+            for reference in document.references:
+                # Only process references that have been resolved (have referents)
+                if reference.referents:
+                    # Extract context for this reference
+                    context = self._extract_context(reference)
+
+                    # Get the correct referent - we assume there's only one
+                    correct_referent_id = reference.referents[
+                        0
+                    ].feature.identifier_value
+
+                    # Get all candidates for this reference text to create negative examples
+                    candidates = self.gazetteer.search(reference.text)
+
+                    for candidate in candidates:
+                        # Generate description for this candidate
+                        description = self._generate_description(candidate)
+
+                        # Determine if this is a positive or negative example
+                        label = (
+                            1
+                            if candidate.identifier_value == correct_referent_id
+                            else 0
+                        )
+
+                        # Add as training example
+                        sentence1_texts.append(context)
+                        sentence2_texts.append(description)
+                        labels.append(label)
+
+        return {
+            "sentence1": sentence1_texts,
+            "sentence2": sentence2_texts,
+            "label": labels,
+        }
