@@ -73,7 +73,6 @@ def test_load_spacy_model(mock_spacy_model):
 
             # Verify disable_pipes was called with the correct components
             expected_components = [
-                "tok2vec",
                 "tagger",
                 "parser",
                 "attribute_ruler",
