@@ -3,7 +3,12 @@ from sqlmodel import Session, SQLModel
 from sqlmodel.pool import StaticPool
 
 from geoparser.db.db import create_engine
-from geoparser.db.models import Document, DocumentCreate, Project, ProjectCreate
+from geoparser.db.models import (
+    Document,
+    DocumentCreate,
+    Project,
+    ProjectCreate,
+)
 from geoparser.db.models import Recognizer as RecognizerModel
 from geoparser.db.models import (
     RecognizerCreate,
@@ -13,7 +18,9 @@ from geoparser.db.models import (
     ReferentCreate,
 )
 from geoparser.db.models import Resolver as ResolverModel
-from geoparser.db.models import ResolverCreate
+from geoparser.db.models import (
+    ResolverCreate,
+)
 from geoparser.db.models.feature import Feature, FeatureCreate
 from geoparser.db.models.gazetteer import Gazetteer as GazetteerModel
 from geoparser.db.models.gazetteer import GazetteerCreate
