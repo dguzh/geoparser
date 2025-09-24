@@ -1,5 +1,6 @@
 import typing as t
 import uuid
+from typing import List, Optional
 
 from pydantic import AfterValidator
 from sqlalchemy import UUID, Column, ForeignKey
@@ -53,6 +54,33 @@ class Document(DocumentBase, table=True):
             "passive_deletes": True,
         },
     )
+
+    _recognizer_id: Optional[uuid.UUID] = None
+
+    def _set_recognizer_context(self, recognizer_id: uuid.UUID = None):
+        """
+        Internal method to set the viewing context for references.
+
+        Args:
+            recognizer_id: ID of the recognizer to use for filtering references
+        """
+        self._recognizer_id = recognizer_id
+
+    @property
+    def toponyms(self) -> List["Reference"]:
+        """
+        Return references filtered by the configured recognizer.
+
+        Returns:
+            List of Reference objects matching the configured recognizer ID,
+            or empty list if no recognizer is configured
+        """
+        if self._recognizer_id is None:
+            return []
+
+        return [
+            ref for ref in self.references if ref.recognizer_id == self._recognizer_id
+        ]
 
     def __str__(self) -> str:
         """

@@ -31,7 +31,9 @@ class Feature(FeatureBase, table=True):
     )
 
     id: int = Field(primary_key=True)
-    toponyms: list["Toponym"] = Relationship(back_populates="feature")
+    toponyms: list["Toponym"] = Relationship(
+        back_populates="feature", sa_relationship_kwargs={"lazy": "joined"}
+    )
 
     @property
     def data(self) -> t.Dict[str, t.Any]:

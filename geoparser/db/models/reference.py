@@ -1,5 +1,6 @@
 import typing as t
 import uuid
+from typing import Optional
 
 from sqlalchemy import UUID, Column, ForeignKey
 from sqlmodel import Field, Relationship, SQLModel
@@ -57,6 +58,37 @@ class Reference(ReferenceBase, table=True):
             "passive_deletes": True,
         },
     )
+
+    _resolver_id: Optional[uuid.UUID] = None
+
+    def _set_resolver_context(self, resolver_id: uuid.UUID = None):
+        """
+        Internal method to set the viewing context for referents.
+
+        Args:
+            resolver_id: ID of the resolver to use for filtering referents
+        """
+        self._resolver_id = resolver_id
+
+    @property
+    def location(self) -> Optional["Referent"]:
+        """
+        Return the referent from the resolver configured in the context.
+
+        Returns:
+            Referent object from the configured resolver, or None if no resolver
+            is configured or no matching referent is found
+        """
+        # Get resolver_id from context
+        if self._resolver_id is None:
+            return None
+
+        # Find referent from the configured resolver
+        for referent in self.referents:
+            if referent.resolver_id == self._resolver_id:
+                return referent
+
+        return None
 
     def __str__(self) -> str:
         """

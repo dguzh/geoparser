@@ -97,7 +97,8 @@ def test_get_documents_no_filters(test_db):
 
         assert len(documents) == 2
         for doc in documents:
-            assert doc.references == []  # No references without recognizer_id
+            assert doc._recognizer_id is None  # Context set to None
+            assert doc.toponyms == []  # No toponyms without recognizer context
 
 
 def test_get_documents_with_recognizer_filter(test_db):
@@ -116,8 +117,9 @@ def test_get_documents_with_recognizer_filter(test_db):
         documents = project.get_documents(recognizer_id=recognizer_id)
 
         assert len(documents) == 1
-        # References should be empty since no references exist for this recognizer
-        assert documents[0].references == []
+        # Context should be set but no matching references exist
+        assert documents[0]._recognizer_id == recognizer_id
+        assert documents[0].toponyms == []  # No matching references
 
 
 def test_get_documents_with_resolver_filter(test_db):
@@ -139,8 +141,9 @@ def test_get_documents_with_resolver_filter(test_db):
         )
 
         assert len(documents) == 1
-        # References should be empty since no references exist
-        assert documents[0].references == []
+        # Context should be set but no matching references exist
+        assert documents[0]._recognizer_id == recognizer_id
+        assert documents[0].toponyms == []  # No matching references
 
 
 def test_delete_project(test_db):

@@ -70,52 +70,28 @@ class Project:
         resolver_id: uuid.UUID = None,
     ) -> List[Document]:
         """
-        Retrieve all documents in the project with their associated references and referents,
-        filtered by the specified recognizer and resolver.
+        Retrieve all documents in the project with context set for the specified recognizer/resolver.
 
         Args:
-            recognizer_id: Recognizer ID to filter references by. If None, no references returned. Defaults to None.
-            resolver_id: Resolver ID to filter referents by. If None, no referents returned. Defaults to None.
+            recognizer_id: Recognizer ID to configure in document context for filtering references.
+            resolver_id: Resolver ID to configure in reference context for filtering referents.
 
         Returns:
-            List of Document objects with filtered references and referents.
+            List of Document objects with context set for filtering.
         """
         with Session(engine) as db:
             # Retrieve all documents for the project
             documents = DocumentRepository.get_by_project(db, self.id)
 
-            # Filter documents and their references/referents
-            filtered_documents = []
+            # Always set context on each document (even if None)
             for doc in documents:
-                # Filter references by recognizer (empty list if recognizer_id is None)
-                if recognizer_id is not None:
-                    filtered_references = [
-                        ref
-                        for ref in doc.references
-                        if ref.recognizer_id == recognizer_id
-                    ]
-                else:
-                    filtered_references = []
+                doc._set_recognizer_context(recognizer_id)
 
-                # Filter referents by resolver (only if there are references and resolver_id is provided)
-                if resolver_id is not None and filtered_references:
-                    for ref in filtered_references:
-                        filtered_referents = [
-                            referent
-                            for referent in ref.referents
-                            if referent.resolver_id == resolver_id
-                        ]
-                        ref.referents = filtered_referents
-                else:
-                    # Set empty referents for all references if resolver_id is None or no references
-                    for ref in filtered_references:
-                        ref.referents = []
+                # Always set context on each reference (even if None)
+                for ref in doc.references:
+                    ref._set_resolver_context(resolver_id)
 
-                # Update the document's references list
-                doc.references = filtered_references
-                filtered_documents.append(doc)
-
-            return filtered_documents
+            return documents
 
     def delete(self) -> None:
         """
