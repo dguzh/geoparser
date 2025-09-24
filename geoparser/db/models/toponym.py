@@ -32,6 +32,24 @@ class Toponym(ToponymBase, table=True):
     feature_id: int = Field(foreign_key="feature.id", index=True)
     feature: "Feature" = Relationship(back_populates="toponyms")
 
+    def __str__(self) -> str:
+        """
+        Return a string representation of the toponym.
+
+        Returns:
+            String with toponym indicator and text content
+        """
+        return f"Toponym({self.text})"
+
+    def __repr__(self) -> str:
+        """
+        Return a developer representation of the toponym.
+
+        Returns:
+            Same as __str__ method
+        """
+        return self.__str__()
+
 
 class ToponymFTSWords(SQLModel, table=True):
     """
