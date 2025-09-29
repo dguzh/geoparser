@@ -120,7 +120,7 @@ class SentenceTransformerResolver(Resolver):
 
         # Initialize tracking structures
         results = [None] * len(references)
-        candidates = [[]] * len(references)
+        candidates = [[] for _ in range(len(references))]
 
         # Define search methods in order of preference
         search_methods = [
