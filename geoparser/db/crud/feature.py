@@ -5,7 +5,7 @@ from sqlmodel import Session, select
 
 from geoparser.db.crud.base import BaseRepository
 from geoparser.db.models.feature import Feature
-from geoparser.db.models.toponym import Name, NameFTSTrigrams, NameFTSWords
+from geoparser.db.models.name import Name, NameFTSTrigrams, NameFTSWords
 
 
 class FeatureRepository(BaseRepository[Feature]):

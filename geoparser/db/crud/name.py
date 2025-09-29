@@ -3,7 +3,7 @@ import typing as t
 from sqlmodel import Session, select
 
 from geoparser.db.crud.base import BaseRepository
-from geoparser.db.models.toponym import Name
+from geoparser.db.models.name import Name
 
 
 class NameRepository(BaseRepository[Name]):

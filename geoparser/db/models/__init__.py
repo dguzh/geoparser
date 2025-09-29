@@ -1,6 +1,13 @@
 from geoparser.db.models.document import Document, DocumentCreate, DocumentUpdate
 from geoparser.db.models.feature import Feature, FeatureCreate, FeatureUpdate
 from geoparser.db.models.gazetteer import Gazetteer, GazetteerCreate, GazetteerUpdate
+from geoparser.db.models.name import (
+    Name,
+    NameCreate,
+    NameFTSTrigrams,
+    NameFTSWords,
+    NameUpdate,
+)
 from geoparser.db.models.project import Project, ProjectCreate, ProjectUpdate
 from geoparser.db.models.recognition import (
     Recognition,
@@ -20,13 +27,6 @@ from geoparser.db.models.resolution import (
     ResolutionUpdate,
 )
 from geoparser.db.models.resolver import Resolver, ResolverCreate, ResolverUpdate
-from geoparser.db.models.toponym import (
-    Name,
-    NameCreate,
-    NameFTSTrigrams,
-    NameFTSWords,
-    NameUpdate,
-)
 
 for rebuild in [
     Project,

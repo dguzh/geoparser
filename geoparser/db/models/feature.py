@@ -4,7 +4,7 @@ from sqlalchemy import UniqueConstraint
 from sqlmodel import Field, Relationship, Session, SQLModel, text
 
 if t.TYPE_CHECKING:
-    from geoparser.db.models.toponym import Name
+    from geoparser.db.models.name import Name
 
 
 class FeatureBase(SQLModel):

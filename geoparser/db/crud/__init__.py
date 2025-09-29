@@ -1,6 +1,7 @@
 from geoparser.db.crud.document import DocumentRepository
 from geoparser.db.crud.feature import FeatureRepository
 from geoparser.db.crud.gazetteer import GazetteerRepository
+from geoparser.db.crud.name import NameRepository
 from geoparser.db.crud.project import ProjectRepository
 from geoparser.db.crud.recognition import RecognitionRepository
 from geoparser.db.crud.recognizer import RecognizerRepository
@@ -8,4 +9,3 @@ from geoparser.db.crud.reference import ReferenceRepository
 from geoparser.db.crud.referent import ReferentRepository
 from geoparser.db.crud.resolution import ResolutionRepository
 from geoparser.db.crud.resolver import ResolverRepository
-from geoparser.db.crud.toponym import NameRepository
