@@ -618,59 +618,59 @@ features:
   - table: swissBOUNDARIES3D_KANTONSGEBIET
     identifier_column: UUID
 
-toponyms:
+names:
   - table: swissNAMES3D_PKT
     view: swissNAMES3D_PKT_enriched
     identifier_column: UUID
-    toponym_column: NAME
+    name_column: NAME
   - table: swissNAMES3D_PKT
     view: swissNAMES3D_PKT_enriched
     identifier_column: UUID
-    toponym_column: NAME_NO_PARENS
+    name_column: NAME_NO_PARENS
   - table: swissNAMES3D_PKT
     view: swissNAMES3D_PKT_enriched
     identifier_column: UUID
-    toponym_column: NAME_NO_CODE
+    name_column: NAME_NO_CODE
   - table: swissNAMES3D_LIN
     view: swissNAMES3D_LIN_enriched
     identifier_column: UUID
-    toponym_column: NAME
+    name_column: NAME
   - table: swissNAMES3D_LIN
     view: swissNAMES3D_LIN_enriched
     identifier_column: UUID
-    toponym_column: NAME_NO_PARENS
+    name_column: NAME_NO_PARENS
   - table: swissNAMES3D_LIN
     view: swissNAMES3D_LIN_enriched
     identifier_column: UUID
-    toponym_column: NAME_NO_CODE
+    name_column: NAME_NO_CODE
   - table: swissNAMES3D_PLY
     view: swissNAMES3D_PLY_enriched
     identifier_column: UUID
-    toponym_column: NAME
+    name_column: NAME
   - table: swissNAMES3D_PLY
     view: swissNAMES3D_PLY_enriched
     identifier_column: UUID
-    toponym_column: NAME_NO_PARENS
+    name_column: NAME_NO_PARENS
   - table: swissNAMES3D_PLY
     view: swissNAMES3D_PLY_enriched
     identifier_column: UUID
-    toponym_column: NAME_NO_CODE
+    name_column: NAME_NO_CODE
   - table: swissBOUNDARIES3D_HOHEITSGEBIET
     view: swissBOUNDARIES3D_HOHEITSGEBIET_enriched
     identifier_column: UUID
-    toponym_column: NAME
+    name_column: NAME
   - table: swissBOUNDARIES3D_HOHEITSGEBIET
     view: swissBOUNDARIES3D_HOHEITSGEBIET_enriched
     identifier_column: UUID
-    toponym_column: NAME_NO_PARENS
+    name_column: NAME_NO_PARENS
   - table: swissBOUNDARIES3D_BEZIRKSGEBIET
     view: swissBOUNDARIES3D_BEZIRKSGEBIET_enriched
     identifier_column: UUID
-    toponym_column: NAME
+    name_column: NAME
   - table: swissBOUNDARIES3D_BEZIRKSGEBIET
     view: swissBOUNDARIES3D_BEZIRKSGEBIET_enriched
     identifier_column: UUID
-    toponym_column: NAME_NO_PARENS
+    name_column: NAME_NO_PARENS
   - table: swissBOUNDARIES3D_KANTONSGEBIET
     identifier_column: UUID
-    toponym_column: NAME
+    name_column: NAME

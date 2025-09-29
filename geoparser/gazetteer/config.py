@@ -177,13 +177,13 @@ class FeatureConfig(BaseModel):
     identifier_column: str
 
 
-class ToponymConfig(BaseModel):
-    """Configuration for extracting toponyms from a gazetteer source."""
+class NameConfig(BaseModel):
+    """Configuration for extracting names from a gazetteer source."""
 
     table: str
     view: t.Optional[str] = None
     identifier_column: str
-    toponym_column: str
+    name_column: str
     separator: t.Optional[str] = None
 
 
@@ -194,7 +194,7 @@ class GazetteerConfig(BaseModel):
     sources: t.List[SourceConfig]
     views: t.Optional[t.List[ViewConfig]] = []
     features: t.Optional[t.List[FeatureConfig]] = []
-    toponyms: t.Optional[t.List[ToponymConfig]] = []
+    names: t.Optional[t.List[NameConfig]] = []
 
     @field_validator("name")
     @classmethod
@@ -281,23 +281,23 @@ class GazetteerConfig(BaseModel):
         return self
 
     @model_validator(mode="after")
-    def validate_toponym_references(self) -> "GazetteerConfig":
-        """Validate that toponyms reference existing sources or views."""
-        if not self.toponyms:
+    def validate_name_references(self) -> "GazetteerConfig":
+        """Validate that names reference existing sources or views."""
+        if not self.names:
             return self
 
         source_names = {source.name for source in self.sources}
         view_names = {view.name for view in self.views} if self.views else set()
         all_names = source_names.union(view_names)
 
-        for toponym_config in self.toponyms:
-            if toponym_config.table not in all_names:
+        for name_config in self.names:
+            if name_config.table not in all_names:
                 raise ValueError(
-                    f"Toponym configuration table references non-existent source/view: {toponym_config.table}"
+                    f"Name configuration table references non-existent source/view: {name_config.table}"
                 )
-            if toponym_config.view and toponym_config.view not in all_names:
+            if name_config.view and name_config.view not in all_names:
                 raise ValueError(
-                    f"Toponym configuration view references non-existent source/view: {toponym_config.view}"
+                    f"Name configuration view references non-existent source/view: {name_config.view}"
                 )
 
         return self
