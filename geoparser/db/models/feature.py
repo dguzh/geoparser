@@ -108,6 +108,24 @@ class Feature(FeatureBase, table=True):
                 # Handle cases where geometry column doesn't exist or geometry data is corrupted
                 return None
 
+    def __str__(self) -> str:
+        """
+        Return a string representation of the feature.
+
+        Returns:
+            String with feature indicator showing gazetteer and identifier
+        """
+        return f"Feature({self.gazetteer_name}:{self.identifier_value})"
+
+    def __repr__(self) -> str:
+        """
+        Return a developer representation of the feature.
+
+        Returns:
+            Same as __str__ method
+        """
+        return self.__str__()
+
 
 class FeatureCreate(FeatureBase):
     """Model for creating a new feature."""

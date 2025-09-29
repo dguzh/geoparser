@@ -44,26 +44,6 @@ class Referent(ReferentBase, table=True):
     )
     feature: "Feature" = Relationship(sa_relationship_kwargs={"lazy": "joined"})
 
-    def __str__(self) -> str:
-        """
-        Return a string representation of the referent.
-
-        Returns:
-            String with referent indicator showing gazetteer and identifier
-        """
-        return (
-            f"Referent({self.feature.gazetteer_name}:{self.feature.identifier_value})"
-        )
-
-    def __repr__(self) -> str:
-        """
-        Return a developer representation of the referent.
-
-        Returns:
-            Same as __str__ method
-        """
-        return self.__str__()
-
 
 class ReferentCreate(ReferentBase):
     """

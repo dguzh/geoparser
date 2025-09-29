@@ -7,6 +7,7 @@ from sqlmodel import Field, Relationship, SQLModel
 
 if t.TYPE_CHECKING:
     from geoparser.db.models.document import Document
+    from geoparser.db.models.feature import Feature
     from geoparser.db.models.recognizer import Recognizer
     from geoparser.db.models.referent import Referent
     from geoparser.db.models.resolution import Resolution
@@ -71,12 +72,12 @@ class Reference(ReferenceBase, table=True):
         self._resolver_id = resolver_id
 
     @property
-    def location(self) -> Optional["Referent"]:
+    def location(self) -> Optional["Feature"]:
         """
-        Return the referent from the resolver configured in the context.
+        Return the referent feature from the resolver configured in the context.
 
         Returns:
-            Referent object from the configured resolver, or None if no resolver
+            Referent feature object from the configured resolver, or None if no resolver
             is configured or no matching referent is found
         """
         # Get resolver_id from context
@@ -86,7 +87,7 @@ class Reference(ReferenceBase, table=True):
         # Find referent from the configured resolver
         for referent in self.referents:
             if referent.resolver_id == self._resolver_id:
-                return referent
+                return referent.feature
 
         return None
 
