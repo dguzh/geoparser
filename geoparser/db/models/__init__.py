@@ -21,11 +21,11 @@ from geoparser.db.models.resolution import (
 )
 from geoparser.db.models.resolver import Resolver, ResolverCreate, ResolverUpdate
 from geoparser.db.models.toponym import (
-    Toponym,
-    ToponymCreate,
-    ToponymFTSTrigrams,
-    ToponymFTSWords,
-    ToponymUpdate,
+    Name,
+    NameCreate,
+    NameFTSTrigrams,
+    NameFTSWords,
+    NameUpdate,
 )
 
 for rebuild in [
@@ -39,8 +39,8 @@ for rebuild in [
     ReferentCreate,
     Feature,
     FeatureCreate,
-    Toponym,
-    ToponymCreate,
+    Name,
+    NameCreate,
     Recognition,
     RecognitionCreate,
     Resolution,

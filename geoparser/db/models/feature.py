@@ -4,7 +4,7 @@ from sqlalchemy import UniqueConstraint
 from sqlmodel import Field, Relationship, Session, SQLModel, text
 
 if t.TYPE_CHECKING:
-    from geoparser.db.models.toponym import Toponym
+    from geoparser.db.models.toponym import Name
 
 
 class FeatureBase(SQLModel):
@@ -31,7 +31,7 @@ class Feature(FeatureBase, table=True):
     )
 
     id: int = Field(primary_key=True)
-    toponyms: list["Toponym"] = Relationship(
+    names: list["Name"] = Relationship(
         back_populates="feature", sa_relationship_kwargs={"lazy": "joined"}
     )
 

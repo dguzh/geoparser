@@ -18,7 +18,7 @@ class Recognition(RecognitionBase, table=True):
     Tracks which documents have been processed by which recognizers.
 
     This allows tracking of which recognizers have already processed a document,
-    even if no toponyms were found.
+    even if no names were found.
     """
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)

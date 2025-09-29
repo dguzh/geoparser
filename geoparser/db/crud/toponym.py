@@ -3,42 +3,42 @@ import typing as t
 from sqlmodel import Session, select
 
 from geoparser.db.crud.base import BaseRepository
-from geoparser.db.models.toponym import Toponym
+from geoparser.db.models.toponym import Name
 
 
-class ToponymRepository(BaseRepository[Toponym]):
+class NameRepository(BaseRepository[Name]):
     """
-    Repository for Toponym model operations.
+    Repository for Name model operations.
     """
 
-    model = Toponym
+    model = Name
 
     @classmethod
-    def get_by_feature(cls, db: Session, feature_id: int) -> t.List[Toponym]:
+    def get_by_feature(cls, db: Session, feature_id: int) -> t.List[Name]:
         """
-        Get all toponyms for a feature.
+        Get all names for a feature.
 
         Args:
             db: Database session
             feature_id: ID of the feature
 
         Returns:
-            List of toponyms associated with the feature
+            List of names associated with the feature
         """
-        statement = select(Toponym).where(Toponym.feature_id == feature_id)
+        statement = select(Name).where(Name.feature_id == feature_id)
         return db.exec(statement).unique().all()
 
     @classmethod
-    def get_by_toponym(cls, db: Session, toponym: str) -> t.List[Toponym]:
+    def get_by_name(cls, db: Session, name: str) -> t.List[Name]:
         """
-        Get all features with this toponym.
+        Get all features with this name.
 
         Args:
             db: Database session
-            toponym: Toponym to search for
+            name: Name to search for
 
         Returns:
-            List of toponym records with this toponym
+            List of name records with this name
         """
-        statement = select(Toponym).where(Toponym.text == toponym)
+        statement = select(Name).where(Name.text == name)
         return db.exec(statement).unique().all()
