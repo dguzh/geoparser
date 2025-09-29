@@ -37,17 +37,23 @@ class Feature(FeatureBase, table=True):
         back_populates="feature", sa_relationship_kwargs={"lazy": "joined"}
     )
 
+    _data: t.Optional[t.Dict[str, t.Any]] = None
+
     @property
     def data(self) -> t.Dict[str, t.Any]:
         """
         Get the complete gazetteer row data for this feature.
 
         This property retrieves the full row from the original gazetteer table
-        and returns it as a dictionary.
+        and returns it as a dictionary. Results are cached to avoid repeated
+        database queries for the same feature.
 
         Returns:
             Dictionary containing all columns from the gazetteer row
         """
+        if self._data is not None:
+            return self._data
+
         with Session(engine) as db:
             # Build query to get the complete row
             query = text(
@@ -63,8 +69,9 @@ class Feature(FeatureBase, table=True):
                     f"with {self.identifier_name}={self.identifier_value}"
                 )
 
-            # Convert row to dictionary and return
-            return dict(row._mapping)
+            # Convert row to dictionary, cache it, and return
+            self._data = dict(row._mapping)
+            return self._data
 
 
 class FeatureCreate(FeatureBase):
