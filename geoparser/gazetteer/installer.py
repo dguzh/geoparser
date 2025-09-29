@@ -425,7 +425,8 @@ class GazetteerInstaller:
 
         # For geometry columns, keep them as WKT text for now
         # They will be converted to proper geometries later
-        chunk.to_sql(table_name, engine, index=False, if_exists="append")
+        with engine.connect() as connection:
+            chunk.to_sql(table_name, connection, index=False, if_exists="append")
 
     def _load_spatial_file(
         self,
@@ -518,7 +519,10 @@ class GazetteerInstaller:
             chunk = chunk.drop(columns=[geometry_item.name])
 
         # Convert to regular DataFrame and use pandas to_sql
-        pd.DataFrame(chunk).to_sql(table_name, engine, index=False, if_exists="append")
+        with engine.connect() as connection:
+            pd.DataFrame(chunk).to_sql(
+                table_name, connection, index=False, if_exists="append"
+            )
 
     def _build_geometry(self, source_config: SourceConfig, table_name: str) -> None:
         """
