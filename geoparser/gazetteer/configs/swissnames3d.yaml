@@ -599,6 +599,52 @@ views:
           table: swissBOUNDARIES3D_KANTONSGEBIET
           condition: swissBOUNDARIES3D_BEZIRKSGEBIET.KANTONSNUM = swissBOUNDARIES3D_KANTONSGEBIET.KANTONSNUM
 
+  - name: swissBOUNDARIES3D_KANTONSGEBIET_enriched
+    statement:
+      select:
+        - table: swissBOUNDARIES3D_KANTONSGEBIET
+          column: UUID
+        - table: swissBOUNDARIES3D_KANTONSGEBIET
+          column: DATUM_AEND
+        - table: swissBOUNDARIES3D_KANTONSGEBIET
+          column: DATUM_ERST
+        - table: swissBOUNDARIES3D_KANTONSGEBIET
+          column: ERSTELL_J
+        - table: swissBOUNDARIES3D_KANTONSGEBIET
+          column: ERSTELL_M
+        - table: swissBOUNDARIES3D_KANTONSGEBIET
+          column: GRUND_AEND
+        - table: swissBOUNDARIES3D_KANTONSGEBIET
+          column: HERKUNFT
+        - table: swissBOUNDARIES3D_KANTONSGEBIET
+          column: HERKUNFT_J
+        - table: swissBOUNDARIES3D_KANTONSGEBIET
+          column: HERKUNFT_M
+        - table: swissBOUNDARIES3D_KANTONSGEBIET
+          column: REVISION_J
+        - table: swissBOUNDARIES3D_KANTONSGEBIET
+          column: REVISION_M
+        - table: swissBOUNDARIES3D_KANTONSGEBIET
+          column: REVISION_Q
+        - table: swissBOUNDARIES3D_KANTONSGEBIET
+          column: OBJEKTART
+        - table: swissBOUNDARIES3D_KANTONSGEBIET
+          column: KANTONSNUM
+        - table: swissBOUNDARIES3D_KANTONSGEBIET
+          column: SEE_FLAECH
+        - table: swissBOUNDARIES3D_KANTONSGEBIET
+          column: KANTONSFLA
+        - table: swissBOUNDARIES3D_KANTONSGEBIET
+          column: NAME
+        - table: swissBOUNDARIES3D_KANTONSGEBIET
+          column: ICC
+        - table: swissBOUNDARIES3D_KANTONSGEBIET
+          column: EINWOHNERZ
+        - table: swissBOUNDARIES3D_KANTONSGEBIET
+          column: geometry
+      from:
+        table: swissBOUNDARIES3D_KANTONSGEBIET
+
 features:
   - table: swissNAMES3D_PKT
     view: swissNAMES3D_PKT_enriched
@@ -616,6 +662,7 @@ features:
     view: swissBOUNDARIES3D_BEZIRKSGEBIET_enriched
     identifier_column: UUID
   - table: swissBOUNDARIES3D_KANTONSGEBIET
+    view: swissBOUNDARIES3D_KANTONSGEBIET_enriched
     identifier_column: UUID
 
 names:
@@ -672,5 +719,6 @@ names:
     identifier_column: UUID
     name_column: NAME_NO_PARENS
   - table: swissBOUNDARIES3D_KANTONSGEBIET
+    view: swissBOUNDARIES3D_KANTONSGEBIET_enriched
     identifier_column: UUID
     name_column: NAME
