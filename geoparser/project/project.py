@@ -4,7 +4,7 @@ from typing import List, Union
 from sqlmodel import Session
 
 from geoparser.db.crud import DocumentRepository, ProjectRepository
-from geoparser.db.db import engine
+from geoparser.db.engine import engine
 from geoparser.db.models import Document, DocumentCreate, ProjectCreate
 
 

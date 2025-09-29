@@ -14,7 +14,7 @@ from sqlmodel import Session
 from tqdm.auto import tqdm
 
 from geoparser.db.crud.gazetteer import GazetteerRepository
-from geoparser.db.db import engine
+from geoparser.db.engine import engine
 from geoparser.db.models.gazetteer import GazetteerCreate
 from geoparser.gazetteer.config import (
     DataType,

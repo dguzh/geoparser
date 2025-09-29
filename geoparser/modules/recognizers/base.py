@@ -10,7 +10,7 @@ from geoparser.db.crud import (
     RecognizerRepository,
     ReferenceRepository,
 )
-from geoparser.db.db import engine
+from geoparser.db.engine import engine
 from geoparser.db.models import RecognitionCreate, RecognizerCreate, ReferenceCreate
 from geoparser.modules.module import Module
 

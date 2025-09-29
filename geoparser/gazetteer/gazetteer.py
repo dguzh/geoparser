@@ -4,7 +4,7 @@ from typing import List
 from sqlmodel import Session
 
 from geoparser.db.crud.feature import FeatureRepository
-from geoparser.db.db import engine
+from geoparser.db.engine import engine
 from geoparser.db.models.feature import Feature
 
 
