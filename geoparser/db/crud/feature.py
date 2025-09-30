@@ -114,15 +114,16 @@ class FeatureRepository(BaseRepository[Feature]):
         """
         query = f'"{name}"'
 
+        rank = literal_column("bm25(name_fts_words)").label("rank")
         statement = (
-            select(Feature, literal_column("bm25(name_fts_words)").label("rank"))
+            select(Feature, rank)
             .join(Name, Feature.id == Name.feature_id)
             .join(NameFTSWords, Name.id == NameFTSWords.rowid)
             .where(
                 Feature.gazetteer_name == gazetteer_name,
                 NameFTSWords.text.match(query),
             )
-            .order_by(literal_column("bm25(name_fts_words)"))
+            .order_by(rank)
             .limit(limit)
         )
         results = db.exec(statement).unique().all()
@@ -159,15 +160,16 @@ class FeatureRepository(BaseRepository[Feature]):
             [f'"{token.strip()}"' for token in name.split() if token.strip()]
         )
 
+        rank = literal_column("bm25(name_fts_words)").label("rank")
         statement = (
-            select(Feature, literal_column("bm25(name_fts_words)").label("rank"))
+            select(Feature, rank)
             .join(Name, Feature.id == Name.feature_id)
             .join(NameFTSWords, Name.id == NameFTSWords.rowid)
             .where(
                 Feature.gazetteer_name == gazetteer_name,
                 NameFTSWords.text.match(query),
             )
-            .order_by(literal_column("bm25(name_fts_words)"))
+            .order_by(rank)
             .limit(limit)
         )
         results = db.exec(statement).unique().all()
@@ -204,15 +206,16 @@ class FeatureRepository(BaseRepository[Feature]):
             [f'"{token.strip()}"' for token in name.split() if token.strip()]
         )
 
+        rank = literal_column("bm25(name_fts_words)").label("rank")
         statement = (
-            select(Feature, literal_column("bm25(name_fts_words)").label("rank"))
+            select(Feature, rank)
             .join(Name, Feature.id == Name.feature_id)
             .join(NameFTSWords, Name.id == NameFTSWords.rowid)
             .where(
                 Feature.gazetteer_name == gazetteer_name,
                 NameFTSWords.text.match(query),
             )
-            .order_by(literal_column("bm25(name_fts_words)"))
+            .order_by(rank)
             .limit(limit)
         )
         results = db.exec(statement).unique().all()
@@ -251,15 +254,16 @@ class FeatureRepository(BaseRepository[Feature]):
 
         query = f'"{name}"'
 
+        rank = literal_column("bm25(name_fts_trigrams)").label("rank")
         statement = (
-            select(Feature, literal_column("bm25(name_fts_trigrams)").label("rank"))
+            select(Feature, rank)
             .join(Name, Feature.id == Name.feature_id)
             .join(NameFTSTrigrams, Name.id == NameFTSTrigrams.rowid)
             .where(
                 Feature.gazetteer_name == gazetteer_name,
                 NameFTSTrigrams.text.match(query),
             )
-            .order_by(literal_column("bm25(name_fts_trigrams)"))
+            .order_by(rank)
             .limit(limit)
         )
         results = db.exec(statement).unique().all()
@@ -299,15 +303,16 @@ class FeatureRepository(BaseRepository[Feature]):
 
         query = " OR ".join([f'"{name[i:i+3]}"' for i in range(len(name) - 2)])
 
+        rank = literal_column("bm25(name_fts_trigrams)").label("rank")
         statement = (
-            select(Feature, literal_column("bm25(name_fts_trigrams)").label("rank"))
+            select(Feature, rank)
             .join(Name, Feature.id == Name.feature_id)
             .join(NameFTSTrigrams, Name.id == NameFTSTrigrams.rowid)
             .where(
                 Feature.gazetteer_name == gazetteer_name,
                 NameFTSTrigrams.text.match(query),
             )
-            .order_by(literal_column("bm25(name_fts_trigrams)"))
+            .order_by(rank)
             .limit(limit)
         )
         results = db.exec(statement).unique().all()
