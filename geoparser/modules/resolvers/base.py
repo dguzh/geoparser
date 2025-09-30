@@ -12,7 +12,7 @@ from geoparser.db.crud import (
     ResolutionRepository,
     ResolverRepository,
 )
-from geoparser.db.db import engine
+from geoparser.db.engine import engine
 from geoparser.db.models import ReferentCreate, ResolutionCreate, ResolverCreate
 from geoparser.modules.module import Module
 

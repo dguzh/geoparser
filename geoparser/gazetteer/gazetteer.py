@@ -4,7 +4,7 @@ from typing import List
 from sqlmodel import Session
 
 from geoparser.db.crud.feature import FeatureRepository
-from geoparser.db.db import engine
+from geoparser.db.engine import engine
 from geoparser.db.models.feature import Feature
 
 
@@ -13,7 +13,7 @@ class Gazetteer:
     A gazetteer interface for querying geographic features.
 
     This class provides access to gazetteer data stored in the local database,
-    allowing retrieval of candidate features for toponym matching using different
+    allowing retrieval of candidate features for name matching using different
     search strategies: exact, partial, and fuzzy matching.
     """
 
@@ -27,13 +27,13 @@ class Gazetteer:
         self.gazetteer_name = gazetteer_name
 
     def search(
-        self, toponym: str, method: str = "exact", limit: int = 1000, ranks: int = 1
+        self, name: str, method: str = "exact", limit: int = 1000, ranks: int = 1
     ) -> List[Feature]:
         """
         Search for features using the specified search method.
 
         Args:
-            toponym: Toponym string to search for
+            name: Name string to search for
             method: Search method to use ("exact", "phrase", "substring", "permuted", "partial", "fuzzy")
             limit: Maximum number of results to return (default: 1000)
             ranks: Number of rank groups to include in results (default: 1, ignored for exact method)
@@ -45,27 +45,27 @@ class Gazetteer:
             ValueError: If an unknown search method is specified
         """
         # Remove quotes and trim whitespace
-        normalized_toponym = re.sub(r'"', "", toponym).strip()
+        normalized_name = re.sub(r'"', "", name).strip()
 
         # Map method names to repository functions
         method_map = {
-            "exact": lambda db: FeatureRepository.get_by_gazetteer_and_toponym_exact(
-                db, self.gazetteer_name, normalized_toponym, limit
+            "exact": lambda db: FeatureRepository.get_by_gazetteer_and_name_exact(
+                db, self.gazetteer_name, normalized_name, limit
             ),
-            "phrase": lambda db: FeatureRepository.get_by_gazetteer_and_toponym_phrase(
-                db, self.gazetteer_name, normalized_toponym, limit, ranks
+            "phrase": lambda db: FeatureRepository.get_by_gazetteer_and_name_phrase(
+                db, self.gazetteer_name, normalized_name, limit, ranks
             ),
-            "permuted": lambda db: FeatureRepository.get_by_gazetteer_and_toponym_permuted(
-                db, self.gazetteer_name, normalized_toponym, limit, ranks
+            "permuted": lambda db: FeatureRepository.get_by_gazetteer_and_name_permuted(
+                db, self.gazetteer_name, normalized_name, limit, ranks
             ),
-            "partial": lambda db: FeatureRepository.get_by_gazetteer_and_toponym_partial(
-                db, self.gazetteer_name, normalized_toponym, limit, ranks
+            "partial": lambda db: FeatureRepository.get_by_gazetteer_and_name_partial(
+                db, self.gazetteer_name, normalized_name, limit, ranks
             ),
-            "substring": lambda db: FeatureRepository.get_by_gazetteer_and_toponym_substring(
-                db, self.gazetteer_name, normalized_toponym, limit, ranks
+            "substring": lambda db: FeatureRepository.get_by_gazetteer_and_name_substring(
+                db, self.gazetteer_name, normalized_name, limit, ranks
             ),
-            "fuzzy": lambda db: FeatureRepository.get_by_gazetteer_and_toponym_fuzzy(
-                db, self.gazetteer_name, normalized_toponym, limit, ranks
+            "fuzzy": lambda db: FeatureRepository.get_by_gazetteer_and_name_fuzzy(
+                db, self.gazetteer_name, normalized_name, limit, ranks
             ),
         }
 

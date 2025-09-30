@@ -4,7 +4,7 @@ import pytest
 from sqlmodel import Session, SQLModel
 from sqlmodel.pool import StaticPool
 
-from geoparser.db.db import create_engine
+from geoparser.db.engine import create_engine
 from geoparser.db.models import Document, DocumentCreate, Project, ProjectCreate
 from geoparser.modules.recognizers import Recognizer
 

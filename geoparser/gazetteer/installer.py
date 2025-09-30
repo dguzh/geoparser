@@ -14,15 +14,15 @@ from sqlmodel import Session
 from tqdm.auto import tqdm
 
 from geoparser.db.crud.gazetteer import GazetteerRepository
-from geoparser.db.db import engine
+from geoparser.db.engine import engine
 from geoparser.db.models.gazetteer import GazetteerCreate
 from geoparser.gazetteer.config import (
     DataType,
     FeatureConfig,
     GazetteerConfig,
+    NameConfig,
     SourceConfig,
     SourceType,
-    ToponymConfig,
     ViewConfig,
 )
 
@@ -99,9 +99,9 @@ class GazetteerInstaller:
         for feature_config in gazetteer_config.features:
             self._register_features(gazetteer_config, feature_config)
 
-        # Fourth pass: Register toponyms if configured
-        for toponym_config in gazetteer_config.toponyms:
-            self._register_toponyms(gazetteer_config, toponym_config)
+        # Fourth pass: Register names if configured
+        for name_config in gazetteer_config.names:
+            self._register_names(gazetteer_config, name_config)
 
         # Clean up downloads if requested
         if not keep_downloads:
@@ -425,7 +425,8 @@ class GazetteerInstaller:
 
         # For geometry columns, keep them as WKT text for now
         # They will be converted to proper geometries later
-        chunk.to_sql(table_name, engine, index=False, if_exists="append")
+        with engine.connect() as connection:
+            chunk.to_sql(table_name, connection, index=False, if_exists="append")
 
     def _load_spatial_file(
         self,
@@ -518,7 +519,10 @@ class GazetteerInstaller:
             chunk = chunk.drop(columns=[geometry_item.name])
 
         # Convert to regular DataFrame and use pandas to_sql
-        pd.DataFrame(chunk).to_sql(table_name, engine, index=False, if_exists="append")
+        with engine.connect() as connection:
+            pd.DataFrame(chunk).to_sql(
+                table_name, connection, index=False, if_exists="append"
+            )
 
     def _build_geometry(self, source_config: SourceConfig, table_name: str) -> None:
         """
@@ -901,36 +905,36 @@ class GazetteerInstaller:
 
         return sql
 
-    def _register_toponyms(
-        self, gazetteer_config: GazetteerConfig, toponym_config: ToponymConfig
+    def _register_names(
+        self, gazetteer_config: GazetteerConfig, name_config: NameConfig
     ) -> None:
         """
-        Register toponyms from a single source and populate the Toponym table.
+        Register names from a single source and populate the Name table.
 
         Uses efficient INSERT INTO ... SELECT for performance with large datasets.
 
         Args:
             gazetteer_config: Gazetteer configuration
-            toponym_config: Configuration for this toponym source
+            name_config: Configuration for this name source
         """
-        source_name = toponym_config.table
-        identifier_column = toponym_config.identifier_column
-        toponym_column = toponym_config.toponym_column
+        source_name = name_config.table
+        identifier_column = name_config.identifier_column
+        name_column = name_config.name_column
 
         with tqdm(
             total=1,
-            desc=f"Registering {source_name}.{toponym_column}",
+            desc=f"Registering {source_name}.{name_column}",
             unit="source",
         ) as pbar:
             with engine.connect() as connection:
-                # Build the toponym registration SQL
-                if toponym_config.separator:
-                    insert_sql = self._build_separated_toponym_sql(
-                        gazetteer_config, toponym_config
+                # Build the name registration SQL
+                if name_config.separator:
+                    insert_sql = self._build_separated_name_sql(
+                        gazetteer_config, name_config
                     )
                 else:
-                    insert_sql = self._build_simple_toponym_sql(
-                        gazetteer_config, toponym_config
+                    insert_sql = self._build_simple_name_sql(
+                        gazetteer_config, name_config
                     )
 
                 connection.execute(sa.text(insert_sql))
@@ -938,99 +942,95 @@ class GazetteerInstaller:
 
             pbar.update(1)
 
-    def _build_simple_toponym_sql(
-        self, gazetteer_config: GazetteerConfig, toponym_config: ToponymConfig
+    def _build_simple_name_sql(
+        self, gazetteer_config: GazetteerConfig, name_config: NameConfig
     ) -> str:
         """
-        Build SQL for registering simple (non-separated) toponyms from a source.
+        Build SQL for registering simple (non-separated) names from a source.
 
         Args:
             gazetteer_config: Gazetteer configuration
-            toponym_config: Toponym configuration
+            name_config: Name configuration
 
         Returns:
-            SQL for inserting toponyms into the Toponym table
+            SQL for inserting names into the Name table
         """
         # Use table for sourcing data (efficient, no spatial joins)
-        source_name = toponym_config.table
+        source_name = name_config.table
         # Use view if specified, otherwise use table for feature matching
-        table_name = (
-            toponym_config.view if toponym_config.view else toponym_config.table
-        )
-        identifier_column = toponym_config.identifier_column
-        toponym_column = toponym_config.toponym_column
+        table_name = name_config.view if name_config.view else name_config.table
+        identifier_column = name_config.identifier_column
+        name_column = name_config.name_column
         gazetteer_name = gazetteer_config.name
 
         # Use INSERT INTO ... SELECT for performance
         # Let SQLite handle autoincrement for the id column
         sql = f"""
-            INSERT OR IGNORE INTO toponym (text, feature_id)
+            INSERT OR IGNORE INTO name (text, feature_id)
             SELECT 
-                s.{toponym_column} as text,
+                s.{name_column} as text,
                 f.id as feature_id
             FROM {source_name} s
             JOIN feature f ON f.gazetteer_name = '{gazetteer_name}' 
                            AND f.table_name = '{table_name}'
                            AND f.identifier_value = CAST(s.{identifier_column} AS TEXT)
-            WHERE s.{toponym_column} IS NOT NULL AND s.{toponym_column} != ''
+            WHERE s.{name_column} IS NOT NULL AND s.{name_column} != ''
         """
 
         return sql
 
-    def _build_separated_toponym_sql(
-        self, gazetteer_config: GazetteerConfig, toponym_config: ToponymConfig
+    def _build_separated_name_sql(
+        self, gazetteer_config: GazetteerConfig, name_config: NameConfig
     ) -> str:
         """
-        Build SQL for registering separated toponyms from a source using recursive CTE.
+        Build SQL for registering separated names from a source using recursive CTE.
 
         Args:
             gazetteer_config: Gazetteer configuration
-            toponym_config: Toponym configuration
+            name_config: Name configuration
 
         Returns:
-            SQL for inserting toponyms into the Toponym table
+            SQL for inserting names into the Name table
         """
         # Use table for sourcing data (efficient, no spatial joins)
-        source_name = toponym_config.table
+        source_name = name_config.table
         # Use view if specified, otherwise use table for feature matching
-        table_name = (
-            toponym_config.view if toponym_config.view else toponym_config.table
-        )
-        identifier_column = toponym_config.identifier_column
-        toponym_column = toponym_config.toponym_column
-        separator = toponym_config.separator
+        table_name = name_config.view if name_config.view else name_config.table
+        identifier_column = name_config.identifier_column
+        name_column = name_config.name_column
+        separator = name_config.separator
         gazetteer_name = gazetteer_config.name
 
         # Use recursive CTE to split comma-separated values
         sql = f"""
-            INSERT OR IGNORE INTO toponym (text, feature_id)
-            WITH RECURSIVE split_toponyms(feature_id, toponym_value, remaining) AS (
-                -- Base case: start with the full toponym column
+            INSERT OR IGNORE INTO name (text, feature_id)
+            WITH RECURSIVE split_names(feature_id, name_value, remaining) AS (
+                -- Base case: start with the full name column
                 SELECT 
                     f.id as feature_id,
-                    '' as toponym_value,
-                    s.{toponym_column} || '{separator}' as remaining
+                    '' as name_value,
+                    s.{name_column} || '{separator}' as remaining
                 FROM {source_name} s
                 JOIN feature f ON f.gazetteer_name = '{gazetteer_name}' 
                                AND f.table_name = '{table_name}'
                                AND f.identifier_value = CAST(s.{identifier_column} AS TEXT)
-                WHERE s.{toponym_column} IS NOT NULL AND s.{toponym_column} != ''
+                WHERE s.{name_column} IS NOT NULL AND s.{name_column} != ''
                 
                 UNION ALL
                 
-                -- Recursive case: extract next toponym from remaining string
+                -- Recursive case: extract next name from remaining string
                 SELECT 
                     feature_id,
-                    TRIM(substr(remaining, 1, instr(remaining, '{separator}') - 1)) as toponym_value,
+                    TRIM(substr(remaining, 1, instr(remaining, '{separator}') - 1)) as name_value,
                     substr(remaining, instr(remaining, '{separator}') + {len(separator)}) as remaining
-                FROM split_toponyms 
+                FROM split_names 
                 WHERE remaining != '' AND instr(remaining, '{separator}') > 0
             )
             SELECT 
-                toponym_value as text,
+                name_value as text,
                 feature_id
-            FROM split_toponyms 
-            WHERE toponym_value != '' AND toponym_value IS NOT NULL
+            FROM split_names 
+            WHERE name_value != '' AND name_value IS NOT NULL
         """
 
         return sql

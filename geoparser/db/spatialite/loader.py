@@ -5,7 +5,12 @@ from typing import Optional
 
 
 def get_spatialite_path() -> Optional[Path]:
-    """Get the path to the appropriate spatialite library for the current platform."""
+    """
+    Get the path to the appropriate spatialite library for the current platform.
+
+    Returns:
+        Path to the spatialite library if found, None otherwise.
+    """
     system = platform.system().lower()
     machine = platform.machine().lower()
 
@@ -43,7 +48,13 @@ def get_spatialite_path() -> Optional[Path]:
 
 
 def load_spatialite_extension(dbapi_connection, spatialite_path: Path):
-    """Load the SpatiaLite extension into a database connection."""
+    """
+    Load the SpatiaLite extension into a database connection.
+
+    Args:
+        dbapi_connection: SQLite database connection object.
+        spatialite_path: Path to the SpatiaLite library file.
+    """
     try:
         # Enable extension loading
         dbapi_connection.enable_load_extension(True)
@@ -64,12 +75,15 @@ def load_spatialite_extension(dbapi_connection, spatialite_path: Path):
             # Load the spatialite extension (without file extension)
             dbapi_connection.load_extension(str(spatialite_path.with_suffix("")))
 
-        # Initialize spatial metadata only if it doesn't exist
+        # Check if SpatiaLite was already initialized in this database
         cursor = dbapi_connection.cursor()
         cursor.execute(
             "SELECT name FROM sqlite_master WHERE type='table' AND name='spatial_ref_sys'"
         )
-        if not cursor.fetchone():
+
+        # Initialize spatial metadata only if it doesn't exist
+        if cursor.fetchone() is None:
+            print("One-time SpatiaLite setup... (this may take a moment)")
             cursor.execute("SELECT InitSpatialMetaData()")
         cursor.close()
 

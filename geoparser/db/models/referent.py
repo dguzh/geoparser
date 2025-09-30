@@ -42,37 +42,7 @@ class Referent(ReferentBase, table=True):
     resolver: "Resolver" = Relationship(
         back_populates="referents", sa_relationship_kwargs={"lazy": "joined"}
     )
-    _feature: "Feature" = Relationship(sa_relationship_kwargs={"lazy": "joined"})
-
-    @property
-    def feature(self) -> t.Dict[str, t.Any]:
-        """
-        Get the feature data as a dictionary.
-
-        Returns:
-            Dictionary containing all columns from the gazetteer row
-        """
-        return self._feature.data
-
-    def __str__(self) -> str:
-        """
-        Return a string representation of the referent.
-
-        Returns:
-            String with referent indicator
-        """
-        return (
-            f"Referent({self._feature.gazetteer_name}:{self._feature.identifier_value})"
-        )
-
-    def __repr__(self) -> str:
-        """
-        Return a developer representation of the referent.
-
-        Returns:
-            Same as __str__ method
-        """
-        return self.__str__()
+    feature: "Feature" = Relationship(sa_relationship_kwargs={"lazy": "joined"})
 
 
 class ReferentCreate(ReferentBase):

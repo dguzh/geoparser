@@ -3,7 +3,7 @@ from sqlmodel import Session, SQLModel
 from sqlmodel.pool import StaticPool
 
 from geoparser.db.crud import FeatureRepository, ReferenceRepository
-from geoparser.db.db import create_engine
+from geoparser.db.engine import create_engine
 from geoparser.db.models import (
     Document,
     DocumentCreate,
