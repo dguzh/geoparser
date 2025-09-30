@@ -79,7 +79,7 @@ class Project:
         Returns:
             List of Document objects with context set for filtering.
         """
-        with Session(engine) as db:
+        with Session(engine, expire_on_commit=False) as db:
             # Retrieve all documents for the project
             documents = DocumentRepository.get_by_project(db, self.id)
 

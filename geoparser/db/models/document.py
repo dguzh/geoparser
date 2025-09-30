@@ -44,7 +44,7 @@ class Document(DocumentBase, table=True):
             "order_by": "Reference.start",
             "cascade": "all, delete-orphan",
             "passive_deletes": True,
-            "lazy": "joined",  # Enable eager loading
+            "lazy": "selectin",
         },
     )
     recognitions: list["Recognition"] = Relationship(
