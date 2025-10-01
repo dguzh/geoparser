@@ -1,4 +1,5 @@
 import typing as t
+from typing import List, Tuple
 
 from geoparser.modules.resolvers import Resolver
 
@@ -10,41 +11,61 @@ class ManualResolver(Resolver):
     """
     A resolution module for manually annotated referents.
 
-    This module doesn't perform actual resolution but serves as a placeholder
-    to link manually provided referent annotations to a resolver in the database.
-    It should not be used with the run() method.
+    This module allows manual referent annotations (links to gazetteer features)
+    to be integrated into the geoparsing workflow. Each instance is identified by
+    a label, enabling multiple annotation sets (e.g., from different annotators)
+    to be stored for the same references.
+
+    The annotations are provided at initialization and returned by predict_referents()
+    in the same order as the input references. The label is stored in the database
+    config to differentiate between different annotation sets.
     """
 
     NAME = "ManualResolver"
 
-    def __init__(self):
+    def __init__(self, label: str, referents: List[Tuple[str, str]]):
         """
-        Initialize the ManualResolver.
+        Initialize the ManualResolver with a label and referent annotations.
 
-        This resolver has no configuration parameters since it doesn't
-        perform any actual resolution.
+        Args:
+            label: Identifier for this annotation set (e.g., "annotator_A", "expert_1").
+                   Different labels create separate resolver instances in the database.
+            referents: List of (gazetteer_name, identifier) tuples representing the
+                      resolved referents for each reference. Must match the order and
+                      number of references passed to run().
         """
-        super().__init__()
+        # Only label goes to config and database
+        super().__init__(label=label)
+
+        # Store as instance attributes
+        self.label = label
+        self.referents = referents
 
     def predict_referents(
         self, references: t.List["Reference"]
     ) -> t.List[t.Tuple[str, str]]:
         """
-        This method should not be called for ManualResolver.
+        Return the manually provided referent annotations for the given references.
 
-        Manual annotations should be provided directly through the Project interface
-        rather than through the module's predict method.
+        This method validates that the number of references matches the number of
+        referent annotations and returns the annotations in the same order.
 
         Args:
-            references: List of Reference ORM objects
+            references: List of Reference ORM objects to resolve
 
         Returns:
-            Empty list
+            List of (gazetteer_name, identifier) tuples representing the resolved
+            referents. Each tuple corresponds to one reference.
 
         Raises:
-            NotImplementedError: Always, as manual annotations should be provided directly
+            ValueError: If the number of references doesn't match the number of
+                       referent annotations
         """
-        raise NotImplementedError(
-            "ManualResolver does not support predict_referents(). "
-            "Provide annotations directly through the Project.add_documents() interface."
-        )
+        if len(references) != len(self.referents):
+            raise ValueError(
+                f"Number of references ({len(references)}) does not match "
+                f"number of referent annotations ({len(self.referents)}). "
+                f"Ensure annotations are provided for all references in the same order."
+            )
+
+        return self.referents
