@@ -375,16 +375,14 @@ class SentenceTransformerResolver(Resolver):
                         best_candidate.identifier_value,
                     )
 
-    def _extract_context(
-        self, doc_text: str, reference_start: int, reference_end: int
-    ) -> str:
+    def _extract_context(self, text: str, start: int, end: int) -> str:
         """
         Extract context around a single reference, respecting model token limits.
 
         Args:
-            doc_text: Full document text
-            reference_start: Start position of the reference
-            reference_end: End position of the reference
+            text: Full document text
+            start: Start position of the reference
+            end: End position of the reference
 
         Returns:
             Context string for the reference
@@ -394,18 +392,18 @@ class SentenceTransformerResolver(Resolver):
         token_limit = max_seq_length - 2
 
         # Check if entire document fits within token limit
-        doc_tokens = len(self.tokenizer.tokenize(doc_text))
+        doc_tokens = len(self.tokenizer.tokenize(text))
         if doc_tokens <= token_limit:
-            return doc_text
+            return text
 
         # Use spaCy to get sentence boundaries
-        doc = self.nlp(doc_text)
+        doc = self.nlp(text)
         sentences = list(doc.sents)
 
         # Find the sentence containing the reference
         target_sentence = None
         for sent in sentences:
-            if sent.start_char <= reference_start < sent.end_char:
+            if sent.start_char <= start < sent.end_char:
                 target_sentence = sent
                 break
 

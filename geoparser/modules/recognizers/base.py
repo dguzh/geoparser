@@ -80,13 +80,15 @@ class Recognizer(Module):
             # Extract text from documents for prediction
             texts = [doc.text for doc in unprocessed_documents]
 
-            # Get predictions from recognizer using raw text
-            predicted_references = self.predict_references(texts)
+            # Only call predict_references if there are texts to process
+            if texts:
+                # Get predictions from recognizer using raw text
+                predicted_references = self.predict_references(texts)
 
-            # Process predictions and update database
-            self._record_reference_predictions(
-                db, unprocessed_documents, predicted_references, self.id
-            )
+                # Process predictions and update database
+                self._record_reference_predictions(
+                    db, unprocessed_documents, predicted_references, self.id
+                )
 
     def _record_reference_predictions(
         self,

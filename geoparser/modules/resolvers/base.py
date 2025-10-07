@@ -95,16 +95,20 @@ class Resolver(Module):
                     )
                     reference_objects.append(unprocessed_references)
 
-            # Get predictions from resolver using raw data
-            predicted_referents = self.predict_referents(texts, reference_boundaries)
-
-            # Record predictions for each document
-            for unprocessed_references, doc_referents in zip(
-                reference_objects, predicted_referents
-            ):
-                self._record_referent_predictions(
-                    db, unprocessed_references, doc_referents, self.id
+            # Only call predict_referents if there are documents with unprocessed references
+            if texts:
+                # Get predictions from resolver using raw data
+                predicted_referents = self.predict_referents(
+                    texts, reference_boundaries
                 )
+
+                # Record predictions for each document
+                for unprocessed_references, doc_referents in zip(
+                    reference_objects, predicted_referents
+                ):
+                    self._record_referent_predictions(
+                        db, unprocessed_references, doc_referents, self.id
+                    )
 
     def _record_referent_predictions(
         self,
