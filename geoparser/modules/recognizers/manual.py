@@ -4,7 +4,7 @@ from typing import List, Tuple
 from geoparser.modules.recognizers import Recognizer
 
 if t.TYPE_CHECKING:
-    from geoparser.db.models import Document
+    pass
 
 
 class ManualRecognizer(Recognizer):
@@ -42,7 +42,7 @@ class ManualRecognizer(Recognizer):
         self.references = references
 
     def predict_references(
-        self, documents: t.List["Document"]
+        self, texts: t.List[str]
     ) -> t.List[t.List[t.Tuple[int, int]]]:
         """
         Return the manually provided reference annotations for the given documents.
@@ -51,7 +51,7 @@ class ManualRecognizer(Recognizer):
         annotation sets and returns the annotations in the same order.
 
         Args:
-            documents: List of Document ORM objects to annotate
+            texts: List of document text strings to annotate
 
         Returns:
             List of lists of (start, end) tuples representing reference spans.
@@ -61,9 +61,9 @@ class ManualRecognizer(Recognizer):
             ValueError: If the number of documents doesn't match the number of
                        reference annotation sets
         """
-        if len(documents) != len(self.references):
+        if len(texts) != len(self.references):
             raise ValueError(
-                f"Number of documents ({len(documents)}) does not match "
+                f"Number of documents ({len(texts)}) does not match "
                 f"number of reference annotations ({len(self.references)}). "
                 f"Ensure annotations are provided for all documents in the same order."
             )
