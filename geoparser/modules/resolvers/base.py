@@ -73,25 +73,38 @@ class Resolver(Module):
             return
 
         with Session(engine) as db:
-            # Get all references from all documents
-            references = []
+            # Collect data for prediction
+            texts = []
+            reference_boundaries = []
+            reference_objects = []
+
             for doc in documents:
-                doc_references = ReferenceRepository.get_by_document(db, doc.id)
-                references.extend(doc_references)
+                # Get all references for this document
+                references = ReferenceRepository.get_by_document(db, doc.id)
 
-            # Filter out references that have already been processed by this resolver
-            unprocessed_references = self._filter_unprocessed_references(db, references)
+                # Filter to unprocessed references only
+                unprocessed_references = self._filter_unprocessed_references(
+                    db, references
+                )
 
-            if not unprocessed_references:
-                return
+                # Only add to lists if there are unprocessed references
+                if unprocessed_references:
+                    texts.append(doc.text)
+                    reference_boundaries.append(
+                        [(ref.start, ref.end) for ref in unprocessed_references]
+                    )
+                    reference_objects.append(unprocessed_references)
 
-            # Get predictions from resolver using Reference objects
-            predicted_referents = self.predict_referents(unprocessed_references)
+            # Get predictions from resolver using raw data
+            predicted_referents = self.predict_referents(texts, reference_boundaries)
 
-            # Process predictions and update database
-            self._record_referent_predictions(
-                db, unprocessed_references, predicted_referents, self.id
-            )
+            # Record predictions for each document
+            for unprocessed_references, doc_referents in zip(
+                reference_objects, predicted_referents
+            ):
+                self._record_referent_predictions(
+                    db, unprocessed_references, doc_referents, self.id
+                )
 
     def _record_referent_predictions(
         self,
@@ -190,25 +203,22 @@ class Resolver(Module):
 
     @abstractmethod
     def predict_referents(
-        self, references: t.List["Reference"]
-    ) -> t.List[t.Tuple[str, str]]:
+        self, texts: t.List[str], references: t.List[t.List[t.Tuple[int, int]]]
+    ) -> t.List[t.List[t.Tuple[str, str]]]:
         """
-        Predict referents for multiple references.
+        Predict referents for multiple references across multiple documents.
 
         This abstract method must be implemented by child classes.
 
         Args:
-            references: List of Reference ORM objects to process.
-                       Each Reference object provides access to:
-                       - reference.text: the actual reference text
-                       - reference.start/end: positions in document
-                       - reference.document: full Document object
-                       - reference.document.text: full document text
+            texts: List of document text strings
+            references: List of lists of tuples containing (start, end) positions of references.
+                       Each inner list corresponds to references in one document at the same index in texts.
 
         Returns:
-            List of tuples containing (gazetteer_name, identifier).
-            Each tuple corresponds to the referent found for one reference at the same index in the input list.
+            List of lists of tuples containing (gazetteer_name, identifier).
+            Each inner list corresponds to referents for references in one document.
+            Each tuple at position [i][j] is the referent for the reference at position [i][j] in the input.
             The gazetteer_name identifies which gazetteer the identifier refers to,
             and the identifier is the value used to identify the referent in that gazetteer.
-            Each reference gets exactly one referent.
         """

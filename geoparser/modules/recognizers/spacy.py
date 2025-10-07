@@ -68,14 +68,12 @@ class SpacyRecognizer(Recognizer):
         nlp.disable_pipes(*[p for p in pipe_components if p in nlp.pipe_names])
         return nlp
 
-    def predict_references(
-        self, documents: List["Document"]
-    ) -> List[List[Tuple[int, int]]]:
+    def predict_references(self, texts: List[str]) -> List[List[Tuple[int, int]]]:
         """
-        Identify references (location entities) in multiple documents using spaCy.
+        Identify references (location entities) in multiple document texts using spaCy.
 
         Args:
-            documents: List of Document ORM objects to process
+            texts: List of document text strings to process
 
         Returns:
             List of lists of tuples containing (start, end) positions of references.
@@ -83,11 +81,8 @@ class SpacyRecognizer(Recognizer):
         """
         results = []
 
-        # Extract document texts for batch processing
-        document_texts = [doc.text for doc in documents]
-
         # Process documents in batches using spaCy's nlp.pipe for efficiency
-        docs = list(self.nlp.pipe(document_texts))
+        docs = list(self.nlp.pipe(texts))
 
         # Extract reference offsets for each document
         for doc in docs:

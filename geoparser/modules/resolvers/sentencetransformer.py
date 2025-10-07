@@ -14,7 +14,6 @@ from geoparser.gazetteer.gazetteer import Gazetteer
 from geoparser.modules.resolvers import Resolver
 
 if t.TYPE_CHECKING:
-    from geoparser.db.models import Reference
     from geoparser.db.models.feature import Feature
 
 
@@ -88,16 +87,14 @@ class SentenceTransformerResolver(Resolver):
         self.gazetteer = Gazetteer(gazetteer_name)
 
         # Caches for embeddings to avoid recomputation
-        self.reference_embeddings: Dict[int, torch.Tensor] = (
-            {}
-        )  # reference_id -> embedding
+        self.context_embeddings: Dict[str, torch.Tensor] = {}  # context -> embedding
         self.candidate_embeddings: Dict[int, torch.Tensor] = (
             {}
         )  # feature_id -> embedding
 
     def predict_referents(
-        self, references: t.List["Reference"]
-    ) -> t.List[t.Tuple[str, str]]:
+        self, texts: t.List[str], references: t.List[t.List[t.Tuple[int, int]]]
+    ) -> t.List[t.List[t.Tuple[str, str]]]:
         """
         Predict referents for multiple references using iterative candidate generation.
 
@@ -106,21 +103,26 @@ class SentenceTransformerResolver(Resolver):
         with sufficient similarity are found.
 
         Args:
-            references: List of Reference ORM objects to process
+            texts: List of document text strings
+            references: List of lists of tuples containing (start, end) positions of references
 
         Returns:
-            List of (gazetteer_name, identifier) tuples - each reference gets exactly one referent
+            List of lists of tuples containing (gazetteer_name, identifier) -
+            each reference gets exactly one referent
         """
-        # Check if there are any references to process
-        if not references:
+        # Check if there are any texts to process
+        if not texts:
             return []
 
-        # Step 1: Embed all references
-        self._embed_references(references)
+        # Step 1: Extract contexts for all references
+        contexts = self._extract_contexts(texts, references)
 
-        # Initialize tracking structures
-        results = [None] * len(references)
-        candidates = [[] for _ in range(len(references))]
+        # Step 2: Embed all contexts
+        self._embed_contexts(contexts)
+
+        # Initialize tracking structures (nested by document)
+        results = [[None for _ in doc_refs] for doc_refs in references]
+        candidates = [[[] for _ in doc_refs] for doc_refs in references]
 
         # Define search methods in order of preference
         search_methods = [
@@ -139,59 +141,83 @@ class SentenceTransformerResolver(Resolver):
                 if method == "exact" and ranks > 1:
                     continue
 
-                # Step 2: Gather candidates for unresolved references
-                self._gather_candidates(references, candidates, results, method, ranks)
+                # Step 3: Gather candidates for unresolved references
+                self._gather_candidates(
+                    texts, references, candidates, results, method, ranks
+                )
 
-                # Step 3: Embed new candidates
+                # Step 4: Embed new candidates
                 self._embed_candidates(candidates, results)
 
-                # Step 4: Evaluate candidates and update results
+                # Step 5: Evaluate candidates and update results
                 self._evaluate_candidates(
-                    references, candidates, results, self.min_similarity
+                    contexts, candidates, results, self.min_similarity
                 )
 
                 # If all references resolved, we can stop
-                if all(result is not None for result in results):
+                if all(
+                    all(r is not None for r in doc_results) for doc_results in results
+                ):
                     break
 
             # If all references resolved, we can stop
-            if all(result is not None for result in results):
+            if all(all(r is not None for r in doc_results) for doc_results in results):
                 break
 
         # Handle remaining unresolved references by selecting best candidates (min_similarity=0.0)
-        self._evaluate_candidates(references, candidates, results)
+        self._evaluate_candidates(contexts, candidates, results)
 
         # Ensure we have a result for every reference
         results = [
-            result if result is not None else (self.gazetteer_name, "")
-            for result in results
+            [
+                result if result is not None else (self.gazetteer_name, "")
+                for result in doc_results
+            ]
+            for doc_results in results
         ]
 
         return results
 
-    def _embed_references(self, references: List["Reference"]) -> None:
+    def _extract_contexts(
+        self, texts: List[str], references: List[List[Tuple[int, int]]]
+    ) -> List[List[str]]:
         """
-        Extract contexts and generate embeddings for references, avoiding duplicate work.
+        Extract contexts for all references.
 
         Args:
-            references: List of Reference objects to embed
+            texts: List of document text strings
+            references: List of lists of tuples containing (start, end) positions of references
+
+        Returns:
+            List of lists of context strings, matching the structure of references
         """
-        if not references:
-            return
+        contexts = []
+        for text, doc_references in zip(texts, references):
+            doc_contexts = []
+            for start, end in doc_references:
+                context = self._extract_context(text, start, end)
+                doc_contexts.append(context)
+            contexts.append(doc_contexts)
+        return contexts
 
-        # Extract contexts for all references
-        contexts = [self._extract_context(reference) for reference in references]
+    def _embed_contexts(self, contexts: List[List[str]]) -> None:
+        """
+        Generate embeddings for contexts, avoiding duplicate work.
 
-        # Group references by identical context text to avoid duplicate encoding
-        context_to_refs = {}
-        for reference, context in zip(references, contexts):
-            if context not in context_to_refs:
-                context_to_refs[context] = []
-            context_to_refs[context].append(reference)
+        Args:
+            contexts: List of lists of context strings
+        """
+        # Collect unique contexts that need encoding
+        contexts_to_encode = set()
+        for doc_contexts in contexts:
+            for context in doc_contexts:
+                # Only encode contexts we haven't seen before
+                if context not in self.context_embeddings:
+                    contexts_to_encode.add(context)
 
-        # Get unique contexts and encode them in batch
-        unique_contexts = list(context_to_refs.keys())
-        if unique_contexts:
+        # Encode unique contexts in batch
+        if contexts_to_encode:
+            unique_contexts = list(contexts_to_encode)
             embeddings = self.transformer.encode(
                 unique_contexts,
                 convert_to_tensor=True,
@@ -199,16 +225,16 @@ class SentenceTransformerResolver(Resolver):
                 show_progress_bar=True,
             )
 
-            # Store embeddings for all references with the same context
+            # Store embeddings in cache with context as key
             for context, embedding in zip(unique_contexts, embeddings):
-                for reference in context_to_refs[context]:
-                    self.reference_embeddings[reference.id] = embedding
+                self.context_embeddings[context] = embedding
 
     def _gather_candidates(
         self,
-        references: List["Reference"],
-        candidates: List[List["Feature"]],
-        results: List[Tuple[str, str]],
+        texts: List[str],
+        references: List[List[Tuple[int, int]]],
+        candidates: List[List[List["Feature"]]],
+        results: List[List[Tuple[str, str]]],
         method: str,
         ranks: int,
     ) -> None:
@@ -216,46 +242,58 @@ class SentenceTransformerResolver(Resolver):
         Gather candidates for unresolved references using the specified search method.
 
         Args:
-            references: List of all references
-            candidates: List of candidate lists for each reference (modified in-place)
-            results: List of current results to determine which references need candidates
+            texts: List of document text strings
+            references: List of lists of tuples containing (start, end) positions of references
+            candidates: Nested list of candidate lists for each reference (modified in-place)
+            results: Nested list of current results to determine which references need candidates
             method: Search method to use
             ranks: Number of rank groups to include
         """
-        for i, (reference, result) in enumerate(zip(references, results)):
-            # Skip already resolved references
-            if result is not None:
-                continue
+        for doc_idx, (text, doc_references, doc_candidates, doc_results) in enumerate(
+            zip(texts, references, candidates, results)
+        ):
+            for ref_idx, ((start, end), result) in enumerate(
+                zip(doc_references, doc_results)
+            ):
+                # Skip already resolved references
+                if result is not None:
+                    continue
 
-            # Search for new candidates and merge with existing ones, avoiding duplicates
-            new_candidates = self.gazetteer.search(reference.text, method, ranks=ranks)
-            existing_ids = {c.id for c in candidates[i]}
-            for candidate in new_candidates:
-                if candidate.id not in existing_ids:
-                    candidates[i].append(candidate)
+                # Search for new candidates and merge with existing ones, avoiding duplicates
+                reference_text = text[start:end]
+                new_candidates = self.gazetteer.search(
+                    reference_text, method, ranks=ranks
+                )
+                existing_ids = {c.id for c in doc_candidates[ref_idx]}
+                for candidate in new_candidates:
+                    if candidate.id not in existing_ids:
+                        doc_candidates[ref_idx].append(candidate)
 
     def _embed_candidates(
-        self, candidates: List[List["Feature"]], results: List[Tuple[str, str]]
+        self,
+        candidates: List[List[List["Feature"]]],
+        results: List[List[Tuple[str, str]]],
     ) -> None:
         """
         Generate embeddings for candidates that need to be processed.
 
         Args:
-            candidates: List of candidate lists for each reference
-            results: List of current results to determine which candidates need embedding
+            candidates: Nested list of candidate lists for each reference
+            results: Nested list of current results to determine which candidates need embedding
         """
         # Collect unique candidates that need embedding
         candidates_to_embed = {}  # Use dict to avoid duplicates: id -> candidate
 
-        for i, (candidate_list, result) in enumerate(zip(candidates, results)):
-            # Skip already resolved references
-            if result is not None:
-                continue
+        for doc_candidates, doc_results in zip(candidates, results):
+            for candidate_list, result in zip(doc_candidates, doc_results):
+                # Skip already resolved references
+                if result is not None:
+                    continue
 
-            # Add candidates that don't have embeddings yet
-            for candidate in candidate_list:
-                if candidate.id not in self.candidate_embeddings:
-                    candidates_to_embed[candidate.id] = candidate
+                # Add candidates that don't have embeddings yet
+                for candidate in candidate_list:
+                    if candidate.id not in self.candidate_embeddings:
+                        candidates_to_embed[candidate.id] = candidate
 
         if not candidates_to_embed:
             return
@@ -283,59 +321,70 @@ class SentenceTransformerResolver(Resolver):
 
     def _evaluate_candidates(
         self,
-        references: List["Reference"],
-        candidates: List[List["Feature"]],
-        results: List[Tuple[str, str]],
+        contexts: List[List[str]],
+        candidates: List[List[List["Feature"]]],
+        results: List[List[Tuple[str, str]]],
         min_similarity: float = 0.0,
     ) -> None:
         """
         Evaluate candidates against reference contexts and update results.
 
         Args:
-            references: List of all references
-            candidates: List of candidate lists for each reference
-            results: List of current results (modified in-place)
+            contexts: List of lists of context strings
+            candidates: Nested list of candidate lists for each reference
+            results: Nested list of current results (modified in-place)
             min_similarity: Minimum similarity threshold (default: 0.0)
         """
-        for i, (reference, candidate_list, result) in enumerate(
-            zip(references, candidates, results)
+        for doc_idx, (doc_contexts, doc_candidates, doc_results) in enumerate(
+            zip(contexts, candidates, results)
         ):
-            # Skip already resolved references
-            if result is not None:
-                continue
+            for ref_idx, (context, candidate_list, result) in enumerate(
+                zip(doc_contexts, doc_candidates, doc_results)
+            ):
+                # Skip already resolved references
+                if result is not None:
+                    continue
 
-            # Skip if no candidates
-            if not candidate_list:
-                continue
+                # Skip if no candidates
+                if not candidate_list:
+                    continue
 
-            # Get reference embedding
-            reference_embedding = self.reference_embeddings[reference.id]
+                # Get reference context embedding using context as key
+                context_embedding = self.context_embeddings[context]
 
-            # Get candidate embeddings
-            candidate_embeddings = [
-                self.candidate_embeddings[candidate.id] for candidate in candidate_list
-            ]
+                # Get candidate embeddings
+                candidate_embeddings = [
+                    self.candidate_embeddings[candidate.id]
+                    for candidate in candidate_list
+                ]
 
-            # Calculate similarities
-            similarities = self._calculate_similarities(
-                reference_embedding, candidate_embeddings
-            )
+                # Calculate similarities
+                similarities = self._calculate_similarities(
+                    context_embedding, candidate_embeddings
+                )
 
-            # Find best candidate
-            best_idx = max(range(len(similarities)), key=lambda j: similarities[j])
-            best_similarity = similarities[best_idx]
-            best_candidate = candidate_list[best_idx]
+                # Find best candidate
+                best_idx = max(range(len(similarities)), key=lambda j: similarities[j])
+                best_similarity = similarities[best_idx]
+                best_candidate = candidate_list[best_idx]
 
-            # Check if similarity meets threshold
-            if best_similarity >= min_similarity:
-                results[i] = (self.gazetteer_name, best_candidate.identifier_value)
+                # Check if similarity meets threshold
+                if best_similarity >= min_similarity:
+                    doc_results[ref_idx] = (
+                        self.gazetteer_name,
+                        best_candidate.identifier_value,
+                    )
 
-    def _extract_context(self, reference: "Reference") -> str:
+    def _extract_context(
+        self, doc_text: str, reference_start: int, reference_end: int
+    ) -> str:
         """
         Extract context around a single reference, respecting model token limits.
 
         Args:
-            reference: Reference object
+            doc_text: Full document text
+            reference_start: Start position of the reference
+            reference_end: End position of the reference
 
         Returns:
             Context string for the reference
@@ -343,10 +392,6 @@ class SentenceTransformerResolver(Resolver):
         max_seq_length = self.transformer.get_max_seq_length()
         # Reserve space for special tokens ([CLS] and [SEP] for BERT-like models)
         token_limit = max_seq_length - 2
-
-        doc_text = reference.document.text
-        reference_start = reference.start
-        reference_end = reference.end
 
         # Check if entire document fits within token limit
         doc_tokens = len(self.tokenizer.tokenize(doc_text))
@@ -459,14 +504,14 @@ class SentenceTransformerResolver(Resolver):
 
     def _calculate_similarities(
         self,
-        reference_embedding: torch.Tensor,
+        context_embedding: torch.Tensor,
         candidate_embeddings: List[torch.Tensor],
     ) -> List[float]:
         """
         Calculate cosine similarities between context and candidate embeddings.
 
         Args:
-            reference_embedding: Embedding tensor for the reference context
+            context_embedding: Embedding tensor for the reference context
             candidate_embeddings: List of embedding tensors for candidates
 
         Returns:
@@ -480,7 +525,7 @@ class SentenceTransformerResolver(Resolver):
 
         # Calculate cosine similarities
         similarities = torch.nn.functional.cosine_similarity(
-            reference_embedding.unsqueeze(0), candidate_tensor, dim=1
+            context_embedding.unsqueeze(0), candidate_tensor, dim=1
         )
 
         return similarities.tolist()
@@ -589,7 +634,9 @@ class SentenceTransformerResolver(Resolver):
                 # Only process references that have been resolved (have referents)
                 if reference.referents:
                     # Extract context for this reference
-                    context = self._extract_context(reference)
+                    context = self._extract_context(
+                        document.text, reference.start, reference.end
+                    )
 
                     # Get the correct referent - we assume there's only one
                     correct_referent_id = reference.referents[
@@ -597,7 +644,8 @@ class SentenceTransformerResolver(Resolver):
                     ].feature.identifier_value
 
                     # Get all candidates for this reference text to create negative examples
-                    candidates = self.gazetteer.search(reference.text)
+                    reference_text = document.text[reference.start : reference.end]
+                    candidates = self.gazetteer.search(reference_text)
 
                     for candidate in candidates:
                         # Generate description for this candidate

@@ -77,8 +77,11 @@ class Recognizer(Module):
             if not unprocessed_documents:
                 return
 
-            # Get predictions from recognizer using Document objects
-            predicted_references = self.predict_references(unprocessed_documents)
+            # Extract text from documents for prediction
+            texts = [doc.text for doc in unprocessed_documents]
+
+            # Get predictions from recognizer using raw text
+            predicted_references = self.predict_references(texts)
 
             # Process predictions and update database
             self._record_reference_predictions(
@@ -177,15 +180,15 @@ class Recognizer(Module):
 
     @abstractmethod
     def predict_references(
-        self, documents: t.List["Document"]
+        self, texts: t.List[str]
     ) -> t.List[t.List[t.Tuple[int, int]]]:
         """
-        Predict references in multiple documents.
+        Predict references in multiple document texts.
 
         This abstract method must be implemented by child classes.
 
         Args:
-            documents: List of Document ORM objects to process
+            texts: List of document text strings to process
 
         Returns:
             List of lists of tuples containing (start, end) positions of references.
