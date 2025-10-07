@@ -121,23 +121,20 @@ def test_predict_references_single_document():
         with patch.object(SpacyRecognizer, "_load", return_value="mock-id"):
             recognizer = SpacyRecognizer()
 
-            # Create mock document
-            mock_document = MagicMock()
-            mock_document.text = "I visited London and Paris last year."
+            # Test with text string
+            text = "I visited London and Paris last year."
 
-            result = recognizer.predict_references([mock_document])
+            result = recognizer.predict_references([text])
 
             # Verify the result
             assert len(result) == 1
             assert result[0] == [(10, 16), (21, 26)]
 
-            # Verify nlp.pipe was called with the document text
-            mock_nlp.pipe.assert_called_once_with(
-                ["I visited London and Paris last year."]
-            )
+            # Verify nlp.pipe was called with the text
+            mock_nlp.pipe.assert_called_once_with([text])
 
 
-def test_predict_references_multiple_documents(mock_documents):
+def test_predict_references_multiple_documents():
     """Test predict_references with multiple documents."""
     # Mock spaCy entities for first document
     mock_ent1 = MagicMock()
@@ -171,7 +168,12 @@ def test_predict_references_multiple_documents(mock_documents):
         with patch.object(SpacyRecognizer, "_load", return_value="mock-id"):
             recognizer = SpacyRecognizer()
 
-            result = recognizer.predict_references(mock_documents)
+            # Test with text strings
+            texts = [
+                "I visited London and Paris last year.",
+                "New York is a great city with many facilities.",
+            ]
+            result = recognizer.predict_references(texts)
 
             # Verify the result
             assert len(result) == 2
@@ -210,10 +212,9 @@ def test_predict_references_filtered_entity_types():
             # Initialize with only GPE and LOC
             recognizer = SpacyRecognizer(entity_types={"GPE", "LOC"})
 
-            mock_document = MagicMock()
-            mock_document.text = "Test text"
+            text = "Test text"
 
-            result = recognizer.predict_references([mock_document])
+            result = recognizer.predict_references([text])
 
             # Should only include GPE and LOC entities
             assert len(result) == 1
@@ -248,10 +249,9 @@ def test_predict_references_no_entities():
         with patch.object(SpacyRecognizer, "_load", return_value="mock-id"):
             recognizer = SpacyRecognizer()
 
-            mock_document = MagicMock()
-            mock_document.text = "This text has no location entities."
+            text = "This text has no location entities."
 
-            result = recognizer.predict_references([mock_document])
+            result = recognizer.predict_references([text])
 
             assert len(result) == 1
             assert result[0] == []

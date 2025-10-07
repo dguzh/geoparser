@@ -19,8 +19,8 @@ def test_resolver_initialization():
     class TestResolver(Resolver):
         NAME = "test_resolver"
 
-        def predict_referents(self, references):
-            return [("gazetteer", "id1") for _ in references]
+        def predict_referents(self, texts, references):
+            return [[("gazetteer", "id1") for _ in doc_refs] for doc_refs in references]
 
     with patch.object(TestResolver, "_load", return_value=uuid.uuid4()):
         resolver = TestResolver(param1="value1")
@@ -47,8 +47,8 @@ def test_resolver_load_existing(test_db):
     class TestResolver(Resolver):
         NAME = "test_resolver"
 
-        def predict_referents(self, references):
-            return [("gazetteer", "id1") for _ in references]
+        def predict_referents(self, texts, references):
+            return [[("gazetteer", "id1") for _ in doc_refs] for doc_refs in references]
 
     # Create existing resolver in database
     existing_resolver_id = uuid.uuid4()
@@ -72,8 +72,8 @@ def test_resolver_load_new(test_db):
     class TestResolver(Resolver):
         NAME = "test_resolver"
 
-        def predict_referents(self, references):
-            return [("gazetteer", "id1") for _ in references]
+        def predict_referents(self, texts, references):
+            return [[("gazetteer", "id1") for _ in doc_refs] for doc_refs in references]
 
     new_resolver_id = uuid.uuid4()
     with patch("geoparser.modules.resolvers.base.Session") as mock_session:
@@ -100,8 +100,8 @@ def test_resolver_run_no_documents():
     class TestResolver(Resolver):
         NAME = "test_resolver"
 
-        def predict_referents(self, references):
-            return [("gazetteer", "id1") for _ in references]
+        def predict_referents(self, texts, references):
+            return [[("gazetteer", "id1") for _ in doc_refs] for doc_refs in references]
 
     with patch.object(TestResolver, "_load", return_value=uuid.uuid4()):
         resolver = TestResolver()
@@ -114,8 +114,8 @@ def test_resolver_run_no_references(test_db, test_documents):
     class TestResolver(Resolver):
         NAME = "test_resolver"
 
-        def predict_referents(self, references):
-            return [("gazetteer", "id1") for _ in references]
+        def predict_referents(self, texts, references):
+            return [[("gazetteer", "id1") for _ in doc_refs] for doc_refs in references]
 
     resolver_id = uuid.uuid4()
     with patch.object(TestResolver, "_load", return_value=resolver_id):
@@ -137,8 +137,8 @@ def test_resolver_run_already_processed(test_db, test_documents, test_references
     class TestResolver(Resolver):
         NAME = "test_resolver"
 
-        def predict_referents(self, references):
-            return [("gazetteer", "id1") for _ in references]
+        def predict_referents(self, texts, references):
+            return [[("gazetteer", "id1") for _ in doc_refs] for doc_refs in references]
 
     resolver_id = uuid.uuid4()
     with patch.object(TestResolver, "_load", return_value=resolver_id):
@@ -165,8 +165,11 @@ def test_resolver_run_success(test_db, test_documents, test_references):
     class TestResolver(Resolver):
         NAME = "test_resolver"
 
-        def predict_referents(self, references):
-            return [("test_gazetteer", "loc1") for _ in references]
+        def predict_referents(self, texts, references):
+            return [
+                [("test_gazetteer", "loc1") for _ in doc_refs]
+                for doc_refs in references
+            ]
 
     resolver_id = uuid.uuid4()
     with patch.object(TestResolver, "_load", return_value=resolver_id):
@@ -176,22 +179,41 @@ def test_resolver_run_success(test_db, test_documents, test_references):
             mock_session.return_value.__enter__.return_value = test_db
             mock_session.return_value.__exit__.return_value = None
 
+            # Mock get_by_document to return references per document
+            # test_references has 3 refs: first 2 are doc1, last 1 is doc2
+            def mock_get_by_doc(db, doc_id):
+                if doc_id == test_documents[0].id:
+                    return test_references[:2]
+                elif doc_id == test_documents[1].id:
+                    return test_references[2:3]
+                return []
+
             with patch.object(
-                ReferenceRepository, "get_by_document", return_value=test_references
+                ReferenceRepository, "get_by_document", side_effect=mock_get_by_doc
             ):
                 with patch.object(
                     resolver,
                     "_filter_unprocessed_references",
-                    return_value=test_references,
+                    side_effect=lambda db, refs: refs,  # Return all refs as unprocessed
                 ):
                     with patch.object(
                         resolver, "_record_referent_predictions"
                     ) as mock_record:
                         resolver.run(test_documents)
-                        mock_record.assert_called_once_with(
+                        # Should be called once per document with unprocessed references
+                        assert mock_record.call_count == 2
+                        # First call for doc1 with 2 references
+                        mock_record.assert_any_call(
                             test_db,
-                            test_references,
-                            [("test_gazetteer", "loc1") for _ in test_references],
+                            test_references[:2],
+                            [("test_gazetteer", "loc1"), ("test_gazetteer", "loc1")],
+                            resolver_id,
+                        )
+                        # Second call for doc2 with 1 reference
+                        mock_record.assert_any_call(
+                            test_db,
+                            test_references[2:3],
+                            [("test_gazetteer", "loc1")],
                             resolver_id,
                         )
 
@@ -202,8 +224,8 @@ def test_record_referent_predictions(test_db, test_references):
     class TestResolver(Resolver):
         NAME = "test_resolver"
 
-        def predict_referents(self, references):
-            return [("gazetteer", "id1") for _ in references]
+        def predict_referents(self, texts, references):
+            return [[("gazetteer", "id1") for _ in doc_refs] for doc_refs in references]
 
     resolver_id = uuid.uuid4()
     with patch.object(TestResolver, "_load", return_value=resolver_id):
@@ -231,8 +253,8 @@ def test_create_referent_record(test_db, test_reference):
     class TestResolver(Resolver):
         NAME = "test_resolver"
 
-        def predict_referents(self, references):
-            return [("gazetteer", "id1") for _ in references]
+        def predict_referents(self, texts, references):
+            return [[("gazetteer", "id1") for _ in doc_refs] for doc_refs in references]
 
     resolver_id = uuid.uuid4()
     with patch.object(TestResolver, "_load", return_value=resolver_id):
@@ -265,8 +287,8 @@ def test_create_resolution_record(test_db, test_reference):
     class TestResolver(Resolver):
         NAME = "test_resolver"
 
-        def predict_referents(self, references):
-            return [("gazetteer", "id1") for _ in references]
+        def predict_referents(self, texts, references):
+            return [[("gazetteer", "id1") for _ in doc_refs] for doc_refs in references]
 
     resolver_id = uuid.uuid4()
     with patch.object(TestResolver, "_load", return_value=resolver_id):
@@ -287,8 +309,8 @@ def test_filter_unprocessed_references(test_db, test_references):
     class TestResolver(Resolver):
         NAME = "test_resolver"
 
-        def predict_referents(self, references):
-            return [("gazetteer", "id1") for _ in references]
+        def predict_referents(self, texts, references):
+            return [[("gazetteer", "id1") for _ in doc_refs] for doc_refs in references]
 
     resolver_id = uuid.uuid4()
     with patch.object(TestResolver, "_load", return_value=resolver_id):
@@ -316,28 +338,22 @@ def test_predict_referents_implementation():
     class ValidResolver(Resolver):
         NAME = "valid_resolver"
 
-        def predict_referents(self, references):
-            return [("test_gazetteer", "loc1") for _ in references]
+        def predict_referents(self, texts, references):
+            return [
+                [("test_gazetteer", "loc1") for _ in doc_refs]
+                for doc_refs in references
+            ]
 
     with patch.object(ValidResolver, "_load", return_value=uuid.uuid4()):
         resolver = ValidResolver()
 
-        # Create mock Reference objects with Document relationships
-        ref1 = MagicMock()
-        ref1.start = 0
-        ref1.end = 5
-        ref1.text = "Test"
-        ref1.document.text = "Test document 1"
+        # Test with raw data format
+        texts = ["Test document 1", "Test document 2"]
+        references = [[(0, 5)], [(10, 15)]]  # One reference per document
 
-        ref2 = MagicMock()
-        ref2.start = 10
-        ref2.end = 15
-        ref2.text = "docum"
-        ref2.document.text = "Test document 2"
-
-        references = [ref1, ref2]
-
-        result = resolver.predict_referents(references)
+        result = resolver.predict_referents(texts, references)
         assert len(result) == 2
-        assert result[0] == ("test_gazetteer", "loc1")
-        assert result[1] == ("test_gazetteer", "loc1")
+        assert len(result[0]) == 1
+        assert result[0][0] == ("test_gazetteer", "loc1")
+        assert len(result[1]) == 1
+        assert result[1][0] == ("test_gazetteer", "loc1")

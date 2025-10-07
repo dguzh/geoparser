@@ -160,7 +160,7 @@ def test_predict_referents_empty_references():
                         SentenceTransformerResolver, "_load", return_value="mock-id"
                     ):
                         resolver = SentenceTransformerResolver()
-                        result = resolver.predict_referents([])
+                        result = resolver.predict_referents([], [])
                         assert result == []
 
 
@@ -196,7 +196,11 @@ def test_extract_context_single_reference(
                             ".",
                         ]
 
-                        context = resolver._extract_context(mock_references[0])
+                        # Use raw data instead of Reference object
+                        text = "I visited London last summer."
+                        start = 10
+                        end = 16
+                        context = resolver._extract_context(text, start, end)
 
                         assert context == "I visited London last summer."
 
@@ -224,8 +228,10 @@ def test_extract_context_long_document(
                         resolver = SentenceTransformerResolver()
 
                         # Mock that document exceeds token limit (first call returns too many tokens)
-                        def mock_tokenize(text):
-                            if text == mock_references[0].document.text:
+                        text = "I visited London last summer."
+
+                        def mock_tokenize(t):
+                            if t == text:
                                 return ["token"] * 600  # Exceeds limit of 510 (512-2)
                             else:
                                 return [
@@ -239,7 +245,10 @@ def test_extract_context_long_document(
 
                         mock_tokenizer.tokenize.side_effect = mock_tokenize
 
-                        context = resolver._extract_context(mock_references[0])
+                        # Use raw data instead of Reference object
+                        start = 10
+                        end = 16
+                        context = resolver._extract_context(text, start, end)
 
                         # Should return the sentence context
                         assert context == "I visited London last summer."
@@ -365,8 +374,8 @@ def test_calculate_similarities_empty_candidates():
                         assert similarities == []
 
 
-def test_embed_references_caching(mock_references):
-    """Test that _embed_references avoids duplicate work through caching."""
+def test_embed_contexts_caching():
+    """Test that _embed_contexts avoids duplicate work through caching."""
     mock_transformer = MagicMock()
     mock_transformer.encode.return_value = torch.randn(1, 384)  # Single embedding
 
@@ -382,25 +391,20 @@ def test_embed_references_caching(mock_references):
                     ):
                         resolver = SentenceTransformerResolver()
 
-                        # Mock _extract_context to return identical contexts
-                        with patch.object(
-                            resolver,
-                            "_extract_context",
-                            return_value="same context",
-                        ):
-                            resolver._embed_references(mock_references)
+                        # Test with identical contexts (should only encode once)
+                        contexts = [["same context", "same context"]]
+                        resolver._embed_contexts(contexts)
 
-                            # Should only encode once due to identical contexts
-                            mock_transformer.encode.assert_called_once_with(
-                                ["same context"],
-                                convert_to_tensor=True,
-                                batch_size=32,
-                                show_progress_bar=True,
-                            )
+                        # Should only encode once due to identical contexts
+                        mock_transformer.encode.assert_called_once_with(
+                            ["same context"],
+                            convert_to_tensor=True,
+                            batch_size=32,
+                            show_progress_bar=True,
+                        )
 
-                            # Both references should have embeddings stored
-                            assert 1 in resolver.reference_embeddings
-                            assert 2 in resolver.reference_embeddings
+                        # Context should have embedding stored
+                        assert "same context" in resolver.context_embeddings
 
 
 def test_sentence_transformer_resolver_config():
@@ -462,10 +466,14 @@ def test_predict_referents_integration(mock_references, mock_features):
                         with patch.object(
                             resolver, "_calculate_similarities", return_value=[0.9]
                         ):
-                            result = resolver.predict_referents(mock_references[:1])
+                            # Use raw data instead of Reference objects
+                            texts = ["I visited London last summer."]
+                            references = [[(10, 16)]]  # "London"
+                            result = resolver.predict_referents(texts, references)
 
                             assert len(result) == 1
-                            assert result[0] == ("geonames", "2643743")
+                            assert len(result[0]) == 1
+                            assert result[0][0] == ("geonames", "2643743")
 
 
 def test_prepare_training_data_empty_documents():
@@ -791,10 +799,13 @@ def test_predict_referents_exact_method_skip_on_higher_ranks():
                         with patch.object(
                             resolver, "_extract_context", return_value="test context"
                         ):
-                            result = resolver.predict_referents(mock_references)
+                            # Use raw data
+                            texts = ["I visited London"]
+                            references = [[(10, 16)]]  # "London"
+                            result = resolver.predict_referents(texts, references)
 
                             # Should return default result since no candidates found
-                            assert result == [("geonames", "")]
+                            assert result == [[("geonames", "")]]
 
                             # Verify exact method was called only for ranks=1
                             search_calls = mock_gazetteer.search.call_args_list
@@ -807,8 +818,8 @@ def test_predict_referents_exact_method_skip_on_higher_ranks():
                             assert len(exact_calls) == 1
 
 
-def test_embed_references_empty_list():
-    """Test _embed_references with empty references list."""
+def test_embed_contexts_empty_list():
+    """Test _embed_contexts with empty contexts list."""
     with patch("geoparser.modules.resolvers.sentencetransformer.SentenceTransformer"):
         with patch("geoparser.modules.resolvers.sentencetransformer.AutoTokenizer"):
             with patch("geoparser.modules.resolvers.sentencetransformer.spacy"):
@@ -819,10 +830,10 @@ def test_embed_references_empty_list():
                         resolver = SentenceTransformerResolver()
 
                         # Call with empty list should return early
-                        resolver._embed_references([])
+                        resolver._embed_contexts([])
 
                         # Verify no embeddings were stored
-                        assert len(resolver.reference_embeddings) == 0
+                        assert len(resolver.context_embeddings) == 0
 
 
 def test_gather_candidates_already_resolved():
@@ -844,12 +855,14 @@ def test_gather_candidates_already_resolved():
                     ):
                         resolver = SentenceTransformerResolver()
 
-                        references = [mock_reference]
-                        candidates = [[]]
-                        results = [("geonames", "123")]  # Already resolved
+                        # Use new nested structure
+                        texts = ["I visited London"]
+                        references = [[(10, 16)]]  # "London"
+                        candidates = [[[]]]  # No candidates yet
+                        results = [[("geonames", "123")]]  # Already resolved
 
                         resolver._gather_candidates(
-                            references, candidates, results, "exact", 1
+                            texts, references, candidates, results, "exact", 1
                         )
 
                         # Should not have called search since reference is already resolved
@@ -901,8 +914,10 @@ def test_embed_candidates_no_candidates_to_embed():
                         # Pre-populate candidate embeddings
                         resolver.candidate_embeddings[1] = torch.randn(384)
 
-                        candidates = [[mock_candidate]]
-                        results = [None]  # Not resolved yet
+                        candidates = [
+                            [[mock_candidate]]
+                        ]  # Nested: doc -> ref -> candidates
+                        results = [[None]]  # Not resolved yet
 
                         resolver._embed_candidates(candidates, results)
 
@@ -924,17 +939,17 @@ def test_evaluate_candidates_no_candidates():
                     ):
                         resolver = SentenceTransformerResolver()
 
-                        # Add reference embedding
-                        resolver.reference_embeddings[1] = torch.randn(384)
+                        # Add context embedding
+                        resolver.context_embeddings["test context"] = torch.randn(384)
 
-                        references = [mock_reference]
-                        candidates = [[]]  # No candidates
-                        results = [None]
+                        contexts = [["test context"]]  # One document with one reference
+                        candidates = [[[]]]  # No candidates for that reference
+                        results = [[None]]  # Not resolved yet
 
-                        resolver._evaluate_candidates(references, candidates, results)
+                        resolver._evaluate_candidates(contexts, candidates, results)
 
                         # Result should remain None since no candidates to evaluate
-                        assert results[0] is None
+                        assert results[0][0] is None
 
 
 def test_extract_context_with_previous_sentence_expansion():
@@ -1008,7 +1023,11 @@ def test_extract_context_with_previous_sentence_expansion():
                     ):
                         resolver = SentenceTransformerResolver()
 
-                        context = resolver._extract_context(mock_reference)
+                        # Use raw data instead of Reference object
+                        text = mock_reference.document.text
+                        start = mock_reference.start
+                        end = mock_reference.end
+                        context = resolver._extract_context(text, start, end)
 
                         # Should include previous and target sentences (and next if it fits)
                         expected = "Previous sentence here. Target sentence with London here. Next sentence here."
@@ -1076,7 +1095,11 @@ def test_extract_context_with_next_sentence_expansion():
                     ):
                         resolver = SentenceTransformerResolver()
 
-                        context = resolver._extract_context(mock_reference)
+                        # Use raw data instead of Reference object
+                        text = mock_reference.document.text
+                        start = mock_reference.start
+                        end = mock_reference.end
+                        context = resolver._extract_context(text, start, end)
 
                         # Should include both target and next sentences
                         expected = (
