@@ -530,7 +530,9 @@ class SentenceTransformerResolver(Resolver):
 
     def fit(
         self,
-        documents: List["Document"],
+        texts: List[str],
+        references: List[List[Tuple[int, int]]],
+        referents: List[List[Tuple[str, str]]],
         output_path: Union[str, Path],
         epochs: int = 1,
         batch_size: int = 8,
@@ -541,13 +543,14 @@ class SentenceTransformerResolver(Resolver):
         """
         Fine-tune the SentenceTransformer model using references and their resolved referents as training data.
 
-        This method gathers all references from the provided documents that have been resolved
-        (i.e., have referents), extracts their contexts and all candidate descriptions, and uses
-        them to create positive and negative training examples for fine-tuning the underlying
-        SentenceTransformer model using ContrastiveLoss.
+        This method gathers all references that have been resolved (i.e., have referents), extracts
+        their contexts and all candidate descriptions, and uses them to create positive and negative
+        training examples for fine-tuning the underlying SentenceTransformer model using ContrastiveLoss.
 
         Args:
-            documents: List of Document objects containing references with resolved referents
+            texts: List of document text strings
+            references: List of lists of (start, end) position tuples
+            referents: List of lists of (gazetteer_name, identifier) tuples
             output_path: Directory path to save the fine-tuned model
             epochs: Number of training epochs (default: 1)
             batch_size: Training batch size (default: 8)
@@ -561,7 +564,7 @@ class SentenceTransformerResolver(Resolver):
         print("Preparing training data from referent annotations...")
 
         # Step 1: Gather training data from resolved references
-        training_data = self._prepare_training_data(documents)
+        training_data = self._prepare_training_data(texts, references, referents)
 
         if not training_data["sentence1"] or len(training_data["sentence1"]) == 0:
             raise ValueError(
@@ -609,7 +612,12 @@ class SentenceTransformerResolver(Resolver):
 
         print(f"Model fine-tuning completed and saved to: {output_path}")
 
-    def _prepare_training_data(self, documents: List["Document"]) -> Dict[str, List]:
+    def _prepare_training_data(
+        self,
+        texts: List[str],
+        references: List[List[Tuple[int, int]]],
+        referents: List[List[Tuple[str, str]]],
+    ) -> Dict[str, List]:
         """
         Prepare training data from documents with resolved references.
 
@@ -618,7 +626,9 @@ class SentenceTransformerResolver(Resolver):
         and negative training examples for ContrastiveLoss.
 
         Args:
-            documents: List of Document objects
+            texts: List of document text strings
+            references: List of lists of (start, end) position tuples
+            referents: List of lists of (gazetteer_name, identifier) tuples
 
         Returns:
             Dictionary with 'sentence1', 'sentence2', and 'label' lists for training
@@ -627,39 +637,28 @@ class SentenceTransformerResolver(Resolver):
         sentence2_texts = []  # candidate descriptions
         labels = []  # 1 for positive, 0 for negative
 
-        for document in documents:
-            for reference in document.references:
-                # Only process references that have been resolved (have referents)
-                if reference.referents:
-                    # Extract context for this reference
-                    context = self._extract_context(
-                        document.text, reference.start, reference.end
-                    )
+        for text, doc_references, doc_referents in zip(texts, references, referents):
+            for (start, end), (gazetteer_name, identifier) in zip(
+                doc_references, doc_referents
+            ):
+                # Extract context for this reference
+                context = self._extract_context(text, start, end)
 
-                    # Get the correct referent - we assume there's only one
-                    correct_referent_id = reference.referents[
-                        0
-                    ].feature.identifier_value
+                # Get all candidates for this reference text to create negative examples
+                reference_text = text[start:end]
+                candidates = self.gazetteer.search(reference_text)
 
-                    # Get all candidates for this reference text to create negative examples
-                    reference_text = document.text[reference.start : reference.end]
-                    candidates = self.gazetteer.search(reference_text)
+                for candidate in candidates:
+                    # Generate description for this candidate
+                    description = self._generate_description(candidate)
 
-                    for candidate in candidates:
-                        # Generate description for this candidate
-                        description = self._generate_description(candidate)
+                    # Determine if this is a positive or negative example
+                    label = 1 if candidate.identifier_value == identifier else 0
 
-                        # Determine if this is a positive or negative example
-                        label = (
-                            1
-                            if candidate.identifier_value == correct_referent_id
-                            else 0
-                        )
-
-                        # Add as training example
-                        sentence1_texts.append(context)
-                        sentence2_texts.append(description)
-                        labels.append(label)
+                    # Add as training example
+                    sentence1_texts.append(context)
+                    sentence2_texts.append(description)
+                    labels.append(label)
 
         return {
             "sentence1": sentence1_texts,

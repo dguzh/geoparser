@@ -487,17 +487,16 @@ def test_prepare_training_data_empty_documents():
                     ):
                         resolver = SentenceTransformerResolver()
 
-                        result = resolver._prepare_training_data([])
+                        result = resolver._prepare_training_data([], [], [])
 
                         assert result == {"sentence1": [], "sentence2": [], "label": []}
 
 
 def test_prepare_training_data_no_referents():
     """Test _prepare_training_data with documents that have no resolved references."""
-    mock_document = MagicMock()
-    mock_reference = MagicMock()
-    mock_reference.referents = []  # No resolved referents
-    mock_document.references = [mock_reference]
+    texts = ["Some text"]
+    references = [[]]  # No references
+    referents = [[]]
 
     with patch("geoparser.modules.resolvers.sentencetransformer.SentenceTransformer"):
         with patch("geoparser.modules.resolvers.sentencetransformer.AutoTokenizer"):
@@ -508,20 +507,18 @@ def test_prepare_training_data_no_referents():
                     ):
                         resolver = SentenceTransformerResolver()
 
-                        result = resolver._prepare_training_data([mock_document])
+                        result = resolver._prepare_training_data(
+                            texts, references, referents
+                        )
 
                         assert result == {"sentence1": [], "sentence2": [], "label": []}
 
 
 def test_prepare_training_data_with_referents():
     """Test _prepare_training_data with documents containing resolved references."""
-    # Create mock document with resolved reference
-    mock_document = MagicMock()
-    mock_reference = MagicMock()
-    mock_reference.text = "London"
-    mock_reference.referents = [MagicMock()]
-    mock_reference.referents[0].feature.identifier_value = "2643743"
-    mock_document.references = [mock_reference]
+    texts = ["I visited London"]
+    references = [[(10, 16)]]  # "London"
+    referents = [[("geonames", "2643743")]]
 
     # Create mock candidates
     mock_candidate1 = MagicMock()
@@ -554,7 +551,7 @@ def test_prepare_training_data_with_referents():
                                 side_effect=["desc1", "desc2"],
                             ):
                                 result = resolver._prepare_training_data(
-                                    [mock_document]
+                                    texts, references, referents
                                 )
 
                                 # Should have 2 training examples (positive and negative)
@@ -589,13 +586,14 @@ def test_fit_empty_documents():
                             with pytest.raises(
                                 ValueError, match="No training examples found"
                             ):
-                                resolver.fit([], temp_dir)
+                                resolver.fit([], [], [], temp_dir)
 
 
 def test_fit_no_training_examples():
     """Test fit method with documents that produce no training examples."""
-    mock_document = MagicMock()
-    mock_document.references = []  # No references
+    texts = ["Some text"]
+    references = [[]]  # No references
+    referents = [[]]
 
     with patch("geoparser.modules.resolvers.sentencetransformer.SentenceTransformer"):
         with patch("geoparser.modules.resolvers.sentencetransformer.AutoTokenizer"):
@@ -610,7 +608,7 @@ def test_fit_no_training_examples():
                             with pytest.raises(
                                 ValueError, match="No training examples found"
                             ):
-                                resolver.fit([mock_document], temp_dir)
+                                resolver.fit(texts, references, referents, temp_dir)
 
 
 def test_fit_successful_training():
@@ -621,6 +619,10 @@ def test_fit_successful_training():
         "sentence2": ["desc1", "desc2"],
         "label": [1, 0],
     }
+
+    texts = ["Some text"]
+    references = [[(0, 4)]]
+    referents = [[("geonames", "123")]]
 
     mock_transformer = MagicMock()
     mock_trainer = MagicMock()
@@ -660,7 +662,9 @@ def test_fit_successful_training():
                                         ):
                                             with tempfile.TemporaryDirectory() as temp_dir:
                                                 resolver.fit(
-                                                    [MagicMock()],
+                                                    texts,
+                                                    references,
+                                                    referents,
                                                     temp_dir,
                                                     epochs=2,
                                                     batch_size=4,
@@ -700,6 +704,10 @@ def test_fit_custom_parameters():
     """Test fit method with custom training parameters."""
     training_data = {"sentence1": ["context1"], "sentence2": ["desc1"], "label": [1]}
 
+    texts = ["Some text"]
+    references = [[(0, 4)]]
+    referents = [[("geonames", "123")]]
+
     mock_transformer = MagicMock()
     mock_trainer = MagicMock()
 
@@ -737,7 +745,9 @@ def test_fit_custom_parameters():
                                         ):
                                             with tempfile.TemporaryDirectory() as temp_dir:
                                                 resolver.fit(
-                                                    [MagicMock()],
+                                                    texts,
+                                                    references,
+                                                    referents,
                                                     temp_dir,
                                                     epochs=5,
                                                     batch_size=16,

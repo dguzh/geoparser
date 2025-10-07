@@ -276,22 +276,17 @@ def test_spacy_recognizer_config():
 
 
 @pytest.fixture
-def mock_documents_with_references():
-    """Create mock Document objects with reference annotations for training."""
-    doc1 = MagicMock()
-    doc1.text = "I visited London and Paris last year."
-    doc1.references = [
-        MagicMock(start=10, end=16),  # "London"
-        MagicMock(start=21, end=26),  # "Paris"
+def mock_training_data():
+    """Create mock training data with texts and references."""
+    texts = [
+        "I visited London and Paris last year.",
+        "New York is a great city.",
     ]
-
-    doc2 = MagicMock()
-    doc2.text = "New York is a great city."
-    doc2.references = [
-        MagicMock(start=0, end=8),  # "New York"
+    references = [
+        [(10, 16), (21, 26)],  # "London", "Paris"
+        [(0, 8)],  # "New York"
     ]
-
-    return [doc1, doc2]
+    return texts, references
 
 
 @pytest.fixture
@@ -424,8 +419,10 @@ def test_get_distilled_label_filtered_entity_types():
             assert result == "LOC"  # Should find LOC from token, not PERSON from entity
 
 
-def test_prepare_training_data_with_distillation(mock_documents_with_references):
+def test_prepare_training_data_with_distillation(mock_training_data):
     """Test _prepare_training_data uses label distillation correctly."""
+    texts, references = mock_training_data
+
     with patch("geoparser.modules.recognizers.spacy.spacy.load") as mock_load:
         with patch.object(SpacyRecognizer, "_load", return_value="mock-id"):
             # Mock the main nlp pipeline
@@ -468,9 +465,7 @@ def test_prepare_training_data_with_distillation(mock_documents_with_references)
                         mock_example2,
                     ]
 
-                    result = recognizer._prepare_training_data(
-                        mock_documents_with_references
-                    )
+                    result = recognizer._prepare_training_data(texts, references)
 
                     # Verify distillation was called for each reference
                     assert mock_distill.call_count == 3
@@ -492,8 +487,10 @@ def test_prepare_training_data_with_distillation(mock_documents_with_references)
                     assert result == [mock_example1, mock_example2]
 
 
-def test_fit_method_complete_workflow(mock_documents_with_references, tmp_path):
+def test_fit_method_complete_workflow(mock_training_data, tmp_path):
     """Test the complete fit method workflow with training."""
+    texts, references = mock_training_data
+
     with patch("geoparser.modules.recognizers.spacy.spacy.load") as mock_load:
         with patch.object(SpacyRecognizer, "_load", return_value="mock-id"):
             mock_nlp = MagicMock()
@@ -520,7 +517,8 @@ def test_fit_method_complete_workflow(mock_documents_with_references, tmp_path):
                     output_path = str(tmp_path / "test_model")
 
                     recognizer.fit(
-                        documents=mock_documents_with_references,
+                        texts=texts,
+                        references=references,
                         output_path=output_path,
                         epochs=2,
                         batch_size=4,
@@ -529,7 +527,7 @@ def test_fit_method_complete_workflow(mock_documents_with_references, tmp_path):
                     )
 
                     # Verify training data preparation
-                    mock_prepare.assert_called_once_with(mock_documents_with_references)
+                    mock_prepare.assert_called_once_with(texts, references)
 
                     # Verify optimizer setup
                     mock_nlp.resume_training.assert_called_once()
@@ -558,11 +556,13 @@ def test_fit_method_no_training_examples():
                 mock_prepare.return_value = []
 
                 with pytest.raises(ValueError, match="No training examples found"):
-                    recognizer.fit(documents=[], output_path="/tmp/test")
+                    recognizer.fit(texts=[], references=[], output_path="/tmp/test")
 
 
-def test_fit_method_default_parameters(mock_documents_with_references, tmp_path):
+def test_fit_method_default_parameters(mock_training_data, tmp_path):
     """Test fit method with default parameters."""
+    texts, references = mock_training_data
+
     with patch("geoparser.modules.recognizers.spacy.spacy.load") as mock_load:
         with patch.object(SpacyRecognizer, "_load", return_value="mock-id"):
             mock_nlp = MagicMock()
@@ -581,7 +581,8 @@ def test_fit_method_default_parameters(mock_documents_with_references, tmp_path)
                     output_path = str(tmp_path / "test_model")
 
                     recognizer.fit(
-                        documents=mock_documents_with_references,
+                        texts=texts,
+                        references=references,
                         output_path=output_path,
                     )
 

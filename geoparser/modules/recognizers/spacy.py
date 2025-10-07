@@ -1,5 +1,4 @@
 import random
-import typing as t
 from pathlib import Path
 from typing import List, Set, Tuple, Union
 
@@ -7,9 +6,6 @@ import spacy
 from spacy.training import Example
 
 from geoparser.modules.recognizers import Recognizer
-
-if t.TYPE_CHECKING:
-    from geoparser.db.models import Document
 
 
 class SpacyRecognizer(Recognizer):
@@ -98,7 +94,8 @@ class SpacyRecognizer(Recognizer):
 
     def fit(
         self,
-        documents: List["Document"],
+        texts: List[str],
+        references: List[List[Tuple[int, int]]],
         output_path: Union[str, Path],
         epochs: int = 10,
         batch_size: int = 8,
@@ -111,7 +108,8 @@ class SpacyRecognizer(Recognizer):
         to create training examples for fine-tuning the underlying spaCy NER model.
 
         Args:
-            documents: List of Document objects containing reference annotations
+            texts: List of document text strings
+            references: List of lists of (start, end) position tuples
             output_path: Directory path to save the fine-tuned model
             epochs: Number of training epochs (default: 10)
             batch_size: Training batch size (default: 8)
@@ -124,7 +122,7 @@ class SpacyRecognizer(Recognizer):
         print("Preparing training data from reference annotations...")
 
         # Prepare training data
-        examples = self._prepare_training_data(documents)
+        examples = self._prepare_training_data(texts, references)
 
         if not examples:
             raise ValueError(
@@ -187,13 +185,16 @@ class SpacyRecognizer(Recognizer):
 
         return "LOC"  # Default fallback
 
-    def _prepare_training_data(self, documents: List["Document"]) -> List[Example]:
+    def _prepare_training_data(
+        self, texts: List[str], references: List[List[Tuple[int, int]]]
+    ) -> List[Example]:
         """
         Convert documents with reference annotations to spaCy training format.
         Uses label distillation to assign each span the label the base model would choose.
 
         Args:
-            documents: List of Document objects with reference annotations
+            texts: List of document text strings
+            references: List of lists of (start, end) position tuples
 
         Returns:
             List of spaCy Example objects for training
@@ -203,21 +204,19 @@ class SpacyRecognizer(Recognizer):
 
         examples = []
 
-        for document in documents:
+        for text, doc_references in zip(texts, references):
             # Create spaCy doc from text (for training)
-            doc = self.nlp.make_doc(document.text)
+            doc = self.nlp.make_doc(text)
 
             # Process document with frozen base model for label distillation
-            base_doc = base_nlp(document.text)
+            base_doc = base_nlp(text)
 
             # Extract entities from references with distilled labels
             entities = []
-            for reference in document.references:
+            for start, end in doc_references:
                 # Get distilled label from base model
-                entity_label = self._get_distilled_label(
-                    reference.start, reference.end, base_doc
-                )
-                entities.append((reference.start, reference.end, entity_label))
+                entity_label = self._get_distilled_label(start, end, base_doc)
+                entities.append((start, end, entity_label))
 
             # Create training example
             entity_dict = {"entities": entities}
