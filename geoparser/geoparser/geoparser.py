@@ -5,6 +5,8 @@ from geoparser.db.models import Document
 from geoparser.modules.recognizers import Recognizer
 from geoparser.modules.resolvers import Resolver
 from geoparser.project import Project
+from geoparser.services.recognition import RecognitionService
+from geoparser.services.resolution import ResolutionService
 
 
 class Geoparser:
@@ -58,16 +60,18 @@ class Geoparser:
             # Get all documents from the project (without filtering by recognizer/resolver)
             documents = project.get_documents()
 
-            # Run the recognizer on all documents
-            self.recognizer.run(documents)
+            # Run the recognizer on all documents using the service layer
+            recognition_service = RecognitionService(self.recognizer)
+            recognition_service.run(documents)
 
-            # Run the resolver on all documents
-            self.resolver.run(documents)
+            # Run the resolver on all documents using the service layer
+            resolution_service = ResolutionService(self.resolver)
+            resolution_service.run(documents)
 
             # Get all documents with results from our specific recognizer and resolver
             documents = project.get_documents(
-                recognizer_id=self.recognizer.id,
-                resolver_id=self.resolver.id,
+                recognizer_id=recognition_service.recognizer_id,
+                resolver_id=resolution_service.resolver_id,
             )
 
             # If save is True, inform the user about the project name
