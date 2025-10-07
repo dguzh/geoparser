@@ -23,23 +23,33 @@ class ManualResolver(Resolver):
 
     NAME = "ManualResolver"
 
-    def __init__(self, label: str, referents: List[List[Tuple[str, str]]]):
+    def __init__(
+        self,
+        label: str,
+        texts: List[str],
+        references: List[List[Tuple[int, int]]],
+        referents: List[List[Tuple[str, str]]],
+    ):
         """
         Initialize the ManualResolver with a label and referent annotations.
 
         Args:
             label: Identifier for this annotation set (e.g., "annotator_A", "expert_1").
                    Different labels create separate resolver instances in the database.
+            texts: List of document text strings corresponding to the annotations.
+            references: List of lists of (start, end) tuples representing reference positions.
+                       Each inner list corresponds to references in one document.
             referents: List of lists of (gazetteer_name, identifier) tuples representing the
-                      resolved referents. Each inner list corresponds to referents for one
-                      document's references. Must match the order and structure of documents
-                      and references passed to run().
+                      resolved referents. Each annotation corresponds to the document and
+                      reference at the same positions in texts and references.
         """
         # Only label goes to config and database
         super().__init__(label=label)
 
         # Store as instance attributes
         self.label = label
+        self.texts = texts
+        self.references = references
         self.referents = referents
 
     def predict_referents(
@@ -48,8 +58,9 @@ class ManualResolver(Resolver):
         """
         Return the manually provided referent annotations for the given references.
 
-        This method validates that the structure of references matches the structure of
-        stored referent annotations and returns the annotations in the same order.
+        This method matches each input text to the corresponding annotation by looking
+        up the text in the stored texts list, then matches each reference within that
+        document to find the corresponding referent annotation.
 
         Args:
             texts: List of document text strings
@@ -58,25 +69,18 @@ class ManualResolver(Resolver):
         Returns:
             List of lists of (gazetteer_name, identifier) tuples representing the
             resolved referents. Each inner list corresponds to referents for one document.
-
-        Raises:
-            ValueError: If the structure of references doesn't match the structure of
-                       referent annotations
         """
-        # Validate that the nested structure matches
-        if len(references) != len(self.referents):
-            raise ValueError(
-                f"Number of documents ({len(references)}) does not match "
-                f"number of document referent annotations ({len(self.referents)}). "
-                f"Ensure annotations are provided for all documents in the same order."
-            )
+        results = []
+        for text, doc_references in zip(texts, references):
+            text_idx = self.texts.index(text)
+            stored_references = self.references[text_idx]
+            stored_referents = self.referents[text_idx]
 
-        for i, (doc_refs, doc_referents) in enumerate(zip(references, self.referents)):
-            if len(doc_refs) != len(doc_referents):
-                raise ValueError(
-                    f"Number of references in document {i} ({len(doc_refs)}) does not match "
-                    f"number of referent annotations ({len(doc_referents)}). "
-                    f"Ensure annotations match the structure of references."
-                )
+            doc_results = []
+            for reference in doc_references:
+                reference_idx = stored_references.index(reference)
+                doc_results.append(stored_referents[reference_idx])
 
-        return self.referents
+            results.append(doc_results)
+
+        return results

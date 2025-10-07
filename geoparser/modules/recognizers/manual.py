@@ -23,22 +23,26 @@ class ManualRecognizer(Recognizer):
 
     NAME = "ManualRecognizer"
 
-    def __init__(self, label: str, references: List[List[Tuple[int, int]]]):
+    def __init__(
+        self, label: str, texts: List[str], references: List[List[Tuple[int, int]]]
+    ):
         """
         Initialize the ManualRecognizer with a label and reference annotations.
 
         Args:
             label: Identifier for this annotation set (e.g., "annotator_A", "expert_1").
                    Different labels create separate recognizer instances in the database.
+            texts: List of document text strings corresponding to the annotations.
             references: List of reference annotations, where each element is a list of
-                       (start, end) tuples representing reference spans in the corresponding
-                       document. Must match the order and number of documents passed to run().
+                       (start, end) tuples representing reference spans. Each annotation
+                       set corresponds to the document text at the same position in texts.
         """
         # Only label goes to config and database
         super().__init__(label=label)
 
         # Store as instance attributes
         self.label = label
+        self.texts = texts
         self.references = references
 
     def predict_references(
@@ -47,8 +51,10 @@ class ManualRecognizer(Recognizer):
         """
         Return the manually provided reference annotations for the given documents.
 
-        This method validates that the number of documents matches the number of
-        annotation sets and returns the annotations in the same order.
+        This method matches each input text to the corresponding annotation by looking
+        up the text in the stored texts list. Only texts that have annotations will
+        be processed, and the order is determined by the input texts, not the stored
+        annotations.
 
         Args:
             texts: List of document text strings to annotate
@@ -56,16 +62,10 @@ class ManualRecognizer(Recognizer):
         Returns:
             List of lists of (start, end) tuples representing reference spans.
             Each inner list corresponds to references for one document.
-
-        Raises:
-            ValueError: If the number of documents doesn't match the number of
-                       reference annotation sets
         """
-        if len(texts) != len(self.references):
-            raise ValueError(
-                f"Number of documents ({len(texts)}) does not match "
-                f"number of reference annotations ({len(self.references)}). "
-                f"Ensure annotations are provided for all documents in the same order."
-            )
+        results = []
+        for text in texts:
+            idx = self.texts.index(text)
+            results.append(self.references[idx])
 
-        return self.references
+        return results
