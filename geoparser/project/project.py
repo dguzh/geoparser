@@ -1,3 +1,4 @@
+import typing as t
 import uuid
 from typing import List, Union
 
@@ -6,6 +7,12 @@ from sqlmodel import Session
 from geoparser.db.crud import DocumentRepository, ProjectRepository
 from geoparser.db.engine import engine
 from geoparser.db.models import Document, DocumentCreate, ProjectCreate
+from geoparser.services.recognition import RecognitionService
+from geoparser.services.resolution import ResolutionService
+
+if t.TYPE_CHECKING:
+    from geoparser.modules.recognizers import Recognizer
+    from geoparser.modules.resolvers import Resolver
 
 
 class Project:
@@ -92,6 +99,44 @@ class Project:
                     ref._set_resolver_context(resolver_id)
 
             return documents
+
+    def run_recognizer(self, recognizer: "Recognizer") -> None:
+        """
+        Run a recognizer module on all documents in this project.
+
+        This is a convenience method that simplifies the workflow for advanced users
+        by handling service initialization and document retrieval internally.
+
+        Args:
+            recognizer: The recognizer module to run on all project documents
+        """
+        # Get all documents in the project
+        documents = self.get_documents()
+
+        # Initialize the recognition service with the recognizer
+        recognition_service = RecognitionService(recognizer)
+
+        # Run the recognizer on all documents
+        recognition_service.run(documents)
+
+    def run_resolver(self, resolver: "Resolver") -> None:
+        """
+        Run a resolver module on all documents in this project.
+
+        This is a convenience method that simplifies the workflow for advanced users
+        by handling service initialization and document retrieval internally.
+
+        Args:
+            resolver: The resolver module to run on all project documents
+        """
+        # Get all documents in the project
+        documents = self.get_documents()
+
+        # Initialize the resolution service with the resolver
+        resolution_service = ResolutionService(resolver)
+
+        # Run the resolver on all documents
+        resolution_service.run(documents)
 
     def delete(self) -> None:
         """
