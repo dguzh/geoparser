@@ -33,23 +33,29 @@ class RecognitionService:
             recognizer: The recognizer module to use for predictions
         """
         self.recognizer = recognizer
-        self.recognizer_id = recognizer.id
 
-    def _ensure_recognizer_record(self) -> None:
+    def _ensure_recognizer_record(self, recognizer: "Recognizer") -> str:
         """
         Ensure a recognizer record exists in the database.
 
         Creates a new recognizer record if it doesn't already exist.
+
+        Args:
+            recognizer: The recognizer module to ensure exists in the database
+
+        Returns:
+            The recognizer ID from the database
         """
         with Session(engine) as db:
-            db_recognizer = RecognizerRepository.get(db, id=self.recognizer_id)
-            if db_recognizer is None:
+            recognizer_record = RecognizerRepository.get(db, id=recognizer.id)
+            if recognizer_record is None:
                 recognizer_create = RecognizerCreate(
-                    id=self.recognizer_id,
-                    name=self.recognizer.name,
-                    config=self.recognizer.config,
+                    id=recognizer.id,
+                    name=recognizer.name,
+                    config=recognizer.config,
                 )
-                RecognizerRepository.create(db, recognizer_create)
+                recognizer_record = RecognizerRepository.create(db, recognizer_create)
+            return recognizer_record.id
 
     def run(self, documents: List["Document"]) -> None:
         """
@@ -61,12 +67,14 @@ class RecognitionService:
         if not documents:
             return
 
-        # Ensure recognizer record exists in database
-        self._ensure_recognizer_record()
+        # Ensure recognizer record exists in database and get the ID
+        recognizer_id = self._ensure_recognizer_record(self.recognizer)
 
         with Session(engine) as db:
             # Filter out documents that have already been processed by this recognizer
-            unprocessed_documents = self._filter_unprocessed_documents(db, documents)
+            unprocessed_documents = self._filter_unprocessed_documents(
+                db, documents, recognizer_id
+            )
 
             if not unprocessed_documents:
                 return
@@ -81,7 +89,7 @@ class RecognitionService:
 
                 # Process predictions and update database
                 self._record_reference_predictions(
-                    db, unprocessed_documents, predicted_references, self.recognizer_id
+                    db, unprocessed_documents, predicted_references, recognizer_id
                 )
 
     def _record_reference_predictions(
@@ -152,7 +160,7 @@ class RecognitionService:
         RecognitionRepository.create(db, recognition_create)
 
     def _filter_unprocessed_documents(
-        self, db: Session, documents: List["Document"]
+        self, db: Session, documents: List["Document"], recognizer_id: str
     ) -> List["Document"]:
         """
         Filter out documents that have already been processed by this recognizer.
@@ -160,6 +168,7 @@ class RecognitionService:
         Args:
             db: Database session
             documents: List of all documents to check
+            recognizer_id: ID of the recognizer to check for
 
         Returns:
             List of documents that haven't been processed by this recognizer
@@ -168,7 +177,7 @@ class RecognitionService:
         for doc in documents:
             # Check if this document has already been processed by this recognizer
             existing_recognition = RecognitionRepository.get_by_document_and_recognizer(
-                db, doc.id, self.recognizer_id
+                db, doc.id, recognizer_id
             )
             if not existing_recognition:
                 unprocessed_documents.append(doc)

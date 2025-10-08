@@ -17,7 +17,6 @@ def test_recognition_service_initialization():
 
     service = RecognitionService(mock_recognizer)
     assert service.recognizer == mock_recognizer
-    assert service.recognizer_id == "test-recognizer-id"
 
 
 def test_ensure_recognizer_record_existing(test_db):
@@ -42,9 +41,11 @@ def test_ensure_recognizer_record_existing(test_db):
             return_value=mock_db_recognizer,
         ):
             with patch.object(RecognizerRepository, "create") as mock_create:
-                service._ensure_recognizer_record()
+                result_id = service._ensure_recognizer_record(mock_recognizer)
                 # Should not create a new record
                 mock_create.assert_not_called()
+                # Should return the existing ID
+                assert result_id == "existing-recognizer-id"
 
 
 def test_ensure_recognizer_record_new(test_db):
@@ -60,11 +61,18 @@ def test_ensure_recognizer_record_new(test_db):
         mock_session.return_value.__enter__.return_value = test_db
         mock_session.return_value.__exit__.return_value = None
 
+        mock_created_recognizer = MagicMock()
+        mock_created_recognizer.id = "new-recognizer-id"
+
         with patch.object(RecognizerRepository, "get", return_value=None):
-            with patch.object(RecognizerRepository, "create") as mock_create:
-                service._ensure_recognizer_record()
+            with patch.object(
+                RecognizerRepository, "create", return_value=mock_created_recognizer
+            ) as mock_create:
+                result_id = service._ensure_recognizer_record(mock_recognizer)
                 # Should create a new record
                 mock_create.assert_called_once()
+                # Should return the created ID
+                assert result_id == "new-recognizer-id"
 
 
 def test_recognition_service_run_no_documents():
@@ -108,7 +116,9 @@ def test_recognition_service_run_success(test_db, test_documents):
 
     service = RecognitionService(mock_recognizer)
 
-    with patch.object(service, "_ensure_recognizer_record"):
+    with patch.object(
+        service, "_ensure_recognizer_record", return_value="test-recognizer-id"
+    ):
         with patch("geoparser.services.recognition.Session") as mock_session:
             mock_session.return_value.__enter__.return_value = test_db
             mock_session.return_value.__exit__.return_value = None
@@ -124,7 +134,7 @@ def test_recognition_service_run_success(test_db, test_documents):
                         test_db,
                         test_documents,
                         [[(0, 5), (10, 15)] for _ in test_documents],
-                        service.recognizer_id,
+                        "test-recognizer-id",
                     )
 
 
@@ -136,22 +146,19 @@ def test_record_reference_predictions(test_db, test_documents):
     service = RecognitionService(mock_recognizer)
 
     predicted_references = [[(0, 5), (10, 15)] for _ in test_documents]
+    recognizer_id = "test-recognizer-id"
 
     with patch.object(service, "_create_reference_record") as mock_create_ref:
         with patch.object(service, "_create_recognition_record") as mock_create_rec:
             service._record_reference_predictions(
-                test_db, test_documents, predicted_references, service.recognizer_id
+                test_db, test_documents, predicted_references, recognizer_id
             )
 
             # Should create references for each document
             for doc in test_documents:
-                mock_create_ref.assert_any_call(
-                    test_db, doc.id, 0, 5, service.recognizer_id
-                )
-                mock_create_ref.assert_any_call(
-                    test_db, doc.id, 10, 15, service.recognizer_id
-                )
-                mock_create_rec.assert_any_call(test_db, doc.id, service.recognizer_id)
+                mock_create_ref.assert_any_call(test_db, doc.id, 0, 5, recognizer_id)
+                mock_create_ref.assert_any_call(test_db, doc.id, 10, 15, recognizer_id)
+                mock_create_rec.assert_any_call(test_db, doc.id, recognizer_id)
 
 
 def test_create_reference_record(test_db, test_document):
@@ -160,18 +167,17 @@ def test_create_reference_record(test_db, test_document):
     mock_recognizer.id = "test-recognizer-id"
 
     service = RecognitionService(mock_recognizer)
+    recognizer_id = "test-recognizer-id"
 
     with patch.object(ReferenceRepository, "create") as mock_create:
-        service._create_reference_record(
-            test_db, test_document.id, 0, 5, service.recognizer_id
-        )
+        service._create_reference_record(test_db, test_document.id, 0, 5, recognizer_id)
 
         mock_create.assert_called_once()
         created_args = mock_create.call_args[0][1]  # Get ReferenceCreate object
         assert created_args.start == 0
         assert created_args.end == 5
         assert created_args.document_id == test_document.id
-        assert created_args.recognizer_id == service.recognizer_id
+        assert created_args.recognizer_id == recognizer_id
 
 
 def test_create_recognition_record(test_db, test_document):
@@ -180,16 +186,15 @@ def test_create_recognition_record(test_db, test_document):
     mock_recognizer.id = "test-recognizer-id"
 
     service = RecognitionService(mock_recognizer)
+    recognizer_id = "test-recognizer-id"
 
     with patch.object(RecognitionRepository, "create") as mock_create:
-        service._create_recognition_record(
-            test_db, test_document.id, service.recognizer_id
-        )
+        service._create_recognition_record(test_db, test_document.id, recognizer_id)
 
         mock_create.assert_called_once()
         created_args = mock_create.call_args[0][1]  # Get RecognitionCreate object
         assert created_args.document_id == test_document.id
-        assert created_args.recognizer_id == service.recognizer_id
+        assert created_args.recognizer_id == recognizer_id
 
 
 def test_filter_unprocessed_documents(test_db, test_documents):
@@ -198,6 +203,7 @@ def test_filter_unprocessed_documents(test_db, test_documents):
     mock_recognizer.id = "test-recognizer-id"
 
     service = RecognitionService(mock_recognizer)
+    recognizer_id = "test-recognizer-id"
 
     # Mock that first document is already processed
     def mock_get_by_document_and_recognizer(db, doc_id, rec_id):
@@ -210,6 +216,8 @@ def test_filter_unprocessed_documents(test_db, test_documents):
         "get_by_document_and_recognizer",
         side_effect=mock_get_by_document_and_recognizer,
     ):
-        result = service._filter_unprocessed_documents(test_db, test_documents)
+        result = service._filter_unprocessed_documents(
+            test_db, test_documents, recognizer_id
+        )
         assert len(result) == len(test_documents) - 1
         assert test_documents[0] not in result

@@ -35,23 +35,29 @@ class ResolutionService:
             resolver: The resolver module to use for predictions
         """
         self.resolver = resolver
-        self.resolver_id = resolver.id
 
-    def _ensure_resolver_record(self) -> None:
+    def _ensure_resolver_record(self, resolver: "Resolver") -> str:
         """
         Ensure a resolver record exists in the database.
 
         Creates a new resolver record if it doesn't already exist.
+
+        Args:
+            resolver: The resolver module to ensure exists in the database
+
+        Returns:
+            The resolver ID from the database
         """
         with Session(engine) as db:
-            db_resolver = ResolverRepository.get(db, id=self.resolver_id)
-            if db_resolver is None:
+            resolver_record = ResolverRepository.get(db, id=resolver.id)
+            if resolver_record is None:
                 resolver_create = ResolverCreate(
-                    id=self.resolver_id,
-                    name=self.resolver.name,
-                    config=self.resolver.config,
+                    id=resolver.id,
+                    name=resolver.name,
+                    config=resolver.config,
                 )
-                ResolverRepository.create(db, resolver_create)
+                resolver_record = ResolverRepository.create(db, resolver_create)
+            return resolver_record.id
 
     def run(self, documents: List["Document"]) -> None:
         """
@@ -63,8 +69,8 @@ class ResolutionService:
         if not documents:
             return
 
-        # Ensure resolver record exists in database
-        self._ensure_resolver_record()
+        # Ensure resolver record exists in database and get the ID
+        resolver_id = self._ensure_resolver_record(self.resolver)
 
         with Session(engine) as db:
             # Collect data for prediction
@@ -78,7 +84,7 @@ class ResolutionService:
 
                 # Filter to unprocessed references only
                 unprocessed_references = self._filter_unprocessed_references(
-                    db, references
+                    db, references, resolver_id
                 )
 
                 # Only add to lists if there are unprocessed references
@@ -101,7 +107,7 @@ class ResolutionService:
                     reference_objects, predicted_referents
                 ):
                     self._record_referent_predictions(
-                        db, unprocessed_references, doc_referents, self.resolver_id
+                        db, unprocessed_references, doc_referents, resolver_id
                     )
 
     def _record_referent_predictions(
@@ -177,7 +183,7 @@ class ResolutionService:
         ResolutionRepository.create(db, resolution_create)
 
     def _filter_unprocessed_references(
-        self, db: Session, references: List["Reference"]
+        self, db: Session, references: List["Reference"], resolver_id: str
     ) -> List["Reference"]:
         """
         Filter out references that have already been processed by this resolver.
@@ -185,6 +191,7 @@ class ResolutionService:
         Args:
             db: Database session
             references: List of references to check
+            resolver_id: ID of the resolver to check for
 
         Returns:
             List of references that haven't been processed by this resolver.
@@ -193,7 +200,7 @@ class ResolutionService:
         for ref in references:
             # Check if this reference has already been processed by this resolver
             existing_resolution = ResolutionRepository.get_by_reference_and_resolver(
-                db, ref.id, self.resolver_id
+                db, ref.id, resolver_id
             )
             if not existing_resolution:
                 unprocessed_references.append(ref)

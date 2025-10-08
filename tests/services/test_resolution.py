@@ -19,7 +19,6 @@ def test_resolution_service_initialization():
 
     service = ResolutionService(mock_resolver)
     assert service.resolver == mock_resolver
-    assert service.resolver_id == "test-resolver-id"
 
 
 def test_ensure_resolver_record_existing(test_db):
@@ -44,9 +43,11 @@ def test_ensure_resolver_record_existing(test_db):
             return_value=mock_db_resolver,
         ):
             with patch.object(ResolverRepository, "create") as mock_create:
-                service._ensure_resolver_record()
+                result_id = service._ensure_resolver_record(mock_resolver)
                 # Should not create a new record
                 mock_create.assert_not_called()
+                # Should return the existing ID
+                assert result_id == "existing-resolver-id"
 
 
 def test_ensure_resolver_record_new(test_db):
@@ -62,11 +63,18 @@ def test_ensure_resolver_record_new(test_db):
         mock_session.return_value.__enter__.return_value = test_db
         mock_session.return_value.__exit__.return_value = None
 
+        mock_created_resolver = MagicMock()
+        mock_created_resolver.id = "new-resolver-id"
+
         with patch.object(ResolverRepository, "get", return_value=None):
-            with patch.object(ResolverRepository, "create") as mock_create:
-                service._ensure_resolver_record()
+            with patch.object(
+                ResolverRepository, "create", return_value=mock_created_resolver
+            ) as mock_create:
+                result_id = service._ensure_resolver_record(mock_resolver)
                 # Should create a new record
                 mock_create.assert_called_once()
+                # Should return the created ID
+                assert result_id == "new-resolver-id"
 
 
 def test_resolution_service_run_no_documents():
@@ -134,7 +142,9 @@ def test_resolution_service_run_success(test_db, test_documents, test_references
 
     service = ResolutionService(mock_resolver)
 
-    with patch.object(service, "_ensure_resolver_record"):
+    with patch.object(
+        service, "_ensure_resolver_record", return_value="test-resolver-id"
+    ):
         with patch("geoparser.services.resolution.Session") as mock_session:
             mock_session.return_value.__enter__.return_value = test_db
             mock_session.return_value.__exit__.return_value = None
@@ -154,7 +164,7 @@ def test_resolution_service_run_success(test_db, test_documents, test_references
                 with patch.object(
                     service,
                     "_filter_unprocessed_references",
-                    side_effect=lambda db, refs: refs,  # Return all refs as unprocessed
+                    side_effect=lambda db, refs, res_id: refs,  # Return all refs as unprocessed
                 ):
                     with patch.object(
                         service, "_record_referent_predictions"
@@ -167,14 +177,14 @@ def test_resolution_service_run_success(test_db, test_documents, test_references
                             test_db,
                             test_references[:2],
                             [("test_gazetteer", "loc1"), ("test_gazetteer", "loc1")],
-                            service.resolver_id,
+                            "test-resolver-id",
                         )
                         # Second call for doc2 with 1 reference
                         mock_record.assert_any_call(
                             test_db,
                             test_references[2:3],
                             [("test_gazetteer", "loc1")],
-                            service.resolver_id,
+                            "test-resolver-id",
                         )
 
 
@@ -186,19 +196,20 @@ def test_record_referent_predictions(test_db, test_references):
     service = ResolutionService(mock_resolver)
 
     predicted_referents = [("test_gazetteer", "loc1") for _ in test_references]
+    resolver_id = "test-resolver-id"
 
     with patch.object(service, "_create_referent_record") as mock_create_ref:
         with patch.object(service, "_create_resolution_record") as mock_create_res:
             service._record_referent_predictions(
-                test_db, test_references, predicted_referents, service.resolver_id
+                test_db, test_references, predicted_referents, resolver_id
             )
 
             # Should create referent for each reference
             for ref in test_references:
                 mock_create_ref.assert_any_call(
-                    test_db, ref.id, "test_gazetteer", "loc1", service.resolver_id
+                    test_db, ref.id, "test_gazetteer", "loc1", resolver_id
                 )
-                mock_create_res.assert_any_call(test_db, ref.id, service.resolver_id)
+                mock_create_res.assert_any_call(test_db, ref.id, resolver_id)
 
 
 def test_create_referent_record(test_db, test_reference):
@@ -207,6 +218,7 @@ def test_create_referent_record(test_db, test_reference):
     mock_resolver.id = "test-resolver-id"
 
     service = ResolutionService(mock_resolver)
+    resolver_id = "test-resolver-id"
 
     # Mock feature lookup
     mock_feature = MagicMock()
@@ -223,14 +235,14 @@ def test_create_referent_record(test_db, test_reference):
                 test_reference.id,
                 "test_gazetteer",
                 "loc1",
-                service.resolver_id,
+                resolver_id,
             )
 
             mock_create.assert_called_once()
             created_args = mock_create.call_args[0][1]  # Get ReferentCreate object
             assert created_args.reference_id == test_reference.id
             assert created_args.feature_id == 12345
-            assert created_args.resolver_id == service.resolver_id
+            assert created_args.resolver_id == resolver_id
 
 
 def test_create_resolution_record(test_db, test_reference):
@@ -239,16 +251,15 @@ def test_create_resolution_record(test_db, test_reference):
     mock_resolver.id = "test-resolver-id"
 
     service = ResolutionService(mock_resolver)
+    resolver_id = "test-resolver-id"
 
     with patch.object(ResolutionRepository, "create") as mock_create:
-        service._create_resolution_record(
-            test_db, test_reference.id, service.resolver_id
-        )
+        service._create_resolution_record(test_db, test_reference.id, resolver_id)
 
         mock_create.assert_called_once()
         created_args = mock_create.call_args[0][1]  # Get ResolutionCreate object
         assert created_args.reference_id == test_reference.id
-        assert created_args.resolver_id == service.resolver_id
+        assert created_args.resolver_id == resolver_id
 
 
 def test_filter_unprocessed_references(test_db, test_references):
@@ -257,6 +268,7 @@ def test_filter_unprocessed_references(test_db, test_references):
     mock_resolver.id = "test-resolver-id"
 
     service = ResolutionService(mock_resolver)
+    resolver_id = "test-resolver-id"
 
     # Mock that first reference is already processed
     def mock_get_by_reference_and_resolver(db, ref_id, res_id):
@@ -269,6 +281,8 @@ def test_filter_unprocessed_references(test_db, test_references):
         "get_by_reference_and_resolver",
         side_effect=mock_get_by_reference_and_resolver,
     ):
-        result = service._filter_unprocessed_references(test_db, test_references)
+        result = service._filter_unprocessed_references(
+            test_db, test_references, resolver_id
+        )
         assert len(result) == len(test_references) - 1
         assert test_references[0] not in result
