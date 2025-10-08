@@ -1,5 +1,4 @@
 import typing as t
-import uuid
 
 from sqlmodel import JSON, Field, Relationship, SQLModel
 
@@ -23,7 +22,7 @@ class Recognizer(RecognizerBase, table=True):
     recognizer instances.
     """
 
-    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    id: str = Field(primary_key=True)
     references: list["Reference"] = Relationship(
         back_populates="recognizer",
         sa_relationship_kwargs={
@@ -62,10 +61,12 @@ class Recognizer(RecognizerBase, table=True):
 class RecognizerCreate(RecognizerBase):
     """Model for creating a new recognizer record."""
 
+    id: str
+
 
 class RecognizerUpdate(SQLModel):
     """Model for updating a recognizer record."""
 
-    id: uuid.UUID
+    id: str
     name: t.Optional[str] = None
     config: t.Optional[t.Dict[str, t.Any]] = None

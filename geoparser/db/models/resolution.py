@@ -1,7 +1,7 @@
 import typing as t
 import uuid
 
-from sqlalchemy import UUID, Column, ForeignKey
+from sqlalchemy import UUID, Column, ForeignKey, String
 from sqlmodel import Field, Relationship, SQLModel
 
 if t.TYPE_CHECKING:
@@ -27,9 +27,9 @@ class Resolution(ResolutionBase, table=True):
             UUID, ForeignKey("reference.id", ondelete="CASCADE"), nullable=False
         )
     )
-    resolver_id: uuid.UUID = Field(
+    resolver_id: str = Field(
         sa_column=Column(
-            UUID, ForeignKey("resolver.id", ondelete="CASCADE"), nullable=False
+            String, ForeignKey("resolver.id", ondelete="CASCADE"), nullable=False
         )
     )
     reference: "Reference" = Relationship(back_populates="resolutions")
@@ -40,7 +40,7 @@ class ResolutionCreate(ResolutionBase):
     """Model for creating a new resolution record."""
 
     reference_id: uuid.UUID
-    resolver_id: uuid.UUID
+    resolver_id: str
 
 
 class ResolutionUpdate(SQLModel):
@@ -48,4 +48,4 @@ class ResolutionUpdate(SQLModel):
 
     id: uuid.UUID
     reference_id: t.Optional[uuid.UUID] = None
-    resolver_id: t.Optional[uuid.UUID] = None
+    resolver_id: t.Optional[str] = None

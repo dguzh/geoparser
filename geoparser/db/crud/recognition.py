@@ -33,9 +33,7 @@ class RecognitionRepository(BaseRepository[Recognition]):
         return db.exec(statement).unique().all()
 
     @classmethod
-    def get_by_recognizer(
-        cls, db: Session, recognizer_id: uuid.UUID
-    ) -> t.List[Recognition]:
+    def get_by_recognizer(cls, db: Session, recognizer_id: str) -> t.List[Recognition]:
         """
         Get all recognitions for a recognizer.
 
@@ -53,7 +51,7 @@ class RecognitionRepository(BaseRepository[Recognition]):
 
     @classmethod
     def get_by_document_and_recognizer(
-        cls, db: Session, document_id: uuid.UUID, recognizer_id: uuid.UUID
+        cls, db: Session, document_id: uuid.UUID, recognizer_id: str
     ) -> t.Optional[Recognition]:
         """
         Get a recognition for a specific document and recognizer.
@@ -74,7 +72,7 @@ class RecognitionRepository(BaseRepository[Recognition]):
 
     @classmethod
     def get_unprocessed_documents(
-        cls, db: Session, project_id: uuid.UUID, recognizer_id: uuid.UUID
+        cls, db: Session, project_id: uuid.UUID, recognizer_id: str
     ) -> t.List[Document]:
         """
         Get all documents from a project that have not been processed by a specific recognizer.

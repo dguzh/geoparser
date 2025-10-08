@@ -1,5 +1,4 @@
 import typing as t
-import uuid
 
 from sqlmodel import JSON, Field, Relationship, SQLModel
 
@@ -23,7 +22,7 @@ class Resolver(ResolverBase, table=True):
     resolver instances.
     """
 
-    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    id: str = Field(primary_key=True)
     referents: list["Referent"] = Relationship(
         back_populates="resolver",
         sa_relationship_kwargs={
@@ -62,10 +61,12 @@ class Resolver(ResolverBase, table=True):
 class ResolverCreate(ResolverBase):
     """Model for creating a new resolver record."""
 
+    id: str
+
 
 class ResolverUpdate(SQLModel):
     """Model for updating a resolver record."""
 
-    id: uuid.UUID
+    id: str
     name: t.Optional[str] = None
     config: t.Optional[t.Dict[str, t.Any]] = None
