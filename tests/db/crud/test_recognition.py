@@ -63,8 +63,12 @@ def test_get_by_document(
     """Test getting recognitions by document ID."""
     # Create another recognition module
     config = {"model": "another-model"}
-    module_create = RecognizerCreate(name="another-recognition-module", config=config)
-    module = Recognizer(name=module_create.name, config=module_create.config)
+    module_create = RecognizerCreate(
+        id="test-id", name="another-recognition-module", config=config
+    )
+    module = Recognizer(
+        id=module_create.id, name=module_create.name, config=module_create.config
+    )
     test_db.add(module)
     test_db.commit()
     test_db.refresh(module)
@@ -142,8 +146,10 @@ def test_update(test_db: Session, test_recognition: Recognition):
     """Test updating a recognition."""
     # Create a new module
     config = {"model": "updated-model"}
-    module_create = RecognizerCreate(name="updated-module", config=config)
-    module = Recognizer(name=module_create.name, config=module_create.config)
+    module_create = RecognizerCreate(id="test-id", name="updated-module", config=config)
+    module = Recognizer(
+        id=module_create.id, name=module_create.name, config=module_create.config
+    )
     test_db.add(module)
     test_db.commit()
     test_db.refresh(module)
@@ -228,10 +234,12 @@ def test_get_unprocessed_documents(
     # Process the third document with a different module
     config = {"model": "different-model"}
     new_module_create = RecognizerCreate(
-        name="different-recognition-module", config=config
+        id="test-id", name="different-recognition-module", config=config
     )
     new_module = Recognizer(
-        name=new_module_create.name, config=new_module_create.config
+        id="test-recognizer-1",
+        name=new_module_create.name,
+        config=new_module_create.config,
     )
     test_db.add(new_module)
     test_db.commit()

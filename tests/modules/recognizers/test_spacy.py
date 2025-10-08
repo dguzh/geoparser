@@ -51,13 +51,14 @@ def test_spacy_recognizer_initialization_custom():
     with patch("geoparser.modules.recognizers.spacy.spacy.load") as mock_load:
         mock_load.return_value = MagicMock()
 
-        custom_entity_types = {"GPE", "LOC"}
+        custom_entity_types = ["GPE", "LOC"]
         recognizer = SpacyRecognizer(
             model_name="en_core_web_lg", entity_types=custom_entity_types
         )
 
         assert recognizer.model_name == "en_core_web_lg"
-        assert recognizer.entity_types == custom_entity_types
+        # entity_types is converted to set for efficient lookups
+        assert recognizer.entity_types == set(custom_entity_types)
         mock_load.assert_called_once_with("en_core_web_lg")
 
 
@@ -203,7 +204,7 @@ def test_predict_references_filtered_entity_types():
 
     with patch("geoparser.modules.recognizers.spacy.spacy.load", return_value=mock_nlp):
         # Initialize with only GPE and LOC
-        recognizer = SpacyRecognizer(entity_types={"GPE", "LOC"})
+        recognizer = SpacyRecognizer(entity_types=["GPE", "LOC"])
 
         text = "Test text"
 
@@ -254,7 +255,7 @@ def test_spacy_recognizer_config():
         mock_load.return_value = MagicMock()
 
         recognizer = SpacyRecognizer(
-            model_name="en_core_web_md", entity_types={"GPE", "LOC"}
+            model_name="en_core_web_md", entity_types=["GPE", "LOC"]
         )
 
         # Check that config is properly stored (sets are normalized to lists)
@@ -383,7 +384,7 @@ def test_get_distilled_label_filtered_entity_types():
         mock_load.return_value = mock_nlp
 
         # Only GPE and LOC are valid
-        recognizer = SpacyRecognizer(entity_types={"GPE", "LOC"})
+        recognizer = SpacyRecognizer(entity_types=["GPE", "LOC"])
 
         # Mock entity with PERSON type (should be filtered)
         mock_entity = MagicMock()

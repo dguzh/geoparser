@@ -69,8 +69,12 @@ def test_get_by_reference(
     """Test getting resolutions by reference ID."""
     # Create another resolution module
     config = {"gazetteer": "test-gazetteer"}
-    module_create = ResolverCreate(name="another-resolution-module", config=config)
-    module = Resolver(name=module_create.name, config=module_create.config)
+    module_create = ResolverCreate(
+        id="test-id", name="another-resolution-module", config=config
+    )
+    module = Resolver(
+        id="auto-id", name=module_create.name, config=module_create.config
+    )
     test_db.add(module)
     test_db.commit()
     test_db.refresh(module)
@@ -150,8 +154,10 @@ def test_update(test_db: Session, test_resolution: Resolution):
     """Test updating a resolution."""
     # Create a new module
     config = {"gazetteer": "updated-gazetteer"}
-    module_create = ResolverCreate(name="updated-module", config=config)
-    module = Resolver(name=module_create.name, config=module_create.config)
+    module_create = ResolverCreate(id="test-id", name="updated-module", config=config)
+    module = Resolver(
+        id="auto-id", name=module_create.name, config=module_create.config
+    )
     test_db.add(module)
     test_db.commit()
     test_db.refresh(module)
@@ -247,9 +253,11 @@ def test_get_unprocessed_references(
     # Process one of the new references with a different module
     config = {"gazetteer": "different-gazetteer"}
     new_module_create = ResolverCreate(
-        name="different-resolution-module", config=config
+        id="test-id", name="different-resolution-module", config=config
     )
-    new_module = Resolver(name=new_module_create.name, config=new_module_create.config)
+    new_module = Resolver(
+        id="auto-id", name=new_module_create.name, config=new_module_create.config
+    )
     test_db.add(new_module)
     test_db.commit()
     test_db.refresh(new_module)

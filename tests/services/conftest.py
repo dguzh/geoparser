@@ -89,9 +89,13 @@ def test_recognizer(test_db: Session):
         "model": "test-model",
         "threshold": 0.75,
     }
-    recognizer_create = RecognizerCreate(name="test-recognizer", config=config)
+    recognizer_create = RecognizerCreate(
+        id="test-recognizer-id", name="test-recognizer", config=config
+    )
     recognizer = Recognizer(
-        name=recognizer_create.name, config=recognizer_create.config
+        id=recognizer_create.id,
+        name=recognizer_create.name,
+        config=recognizer_create.config,
     )
     test_db.add(recognizer)
     test_db.commit()
@@ -106,8 +110,12 @@ def test_resolver(test_db: Session):
         "gazetteer": "test-gazetteer",
         "max_results": 5,
     }
-    resolver_create = ResolverCreate(name="test-resolver", config=config)
-    resolver = Resolver(name=resolver_create.name, config=resolver_create.config)
+    resolver_create = ResolverCreate(
+        id="test-resolver-id", name="test-resolver", config=config
+    )
+    resolver = Resolver(
+        id=resolver_create.id, name=resolver_create.name, config=resolver_create.config
+    )
     test_db.add(resolver)
     test_db.commit()
     test_db.refresh(resolver)
