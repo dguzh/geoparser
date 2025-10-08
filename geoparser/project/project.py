@@ -23,37 +23,39 @@ class Project:
     methods to run processing pipelines on project documents.
     """
 
-    def __init__(self, project_name: str):
+    def __init__(self, name: str):
         """
         Initialize a Project instance.
 
         Args:
-            project_name: Name for the project. If the project doesn't exist,
-                         it will be created.
+            name: Name for the project. If the project doesn't exist,
+                  it will be created.
         """
-        self.project_name = project_name
-        self.id = self._load(project_name)
+        self.name = name
+        self.id = self._ensure_project_record(name)
 
-    def _load(self, project_name: str) -> uuid.UUID:
+    def _ensure_project_record(self, name: str) -> uuid.UUID:
         """
-        Load an existing project or create a new one if it doesn't exist.
+        Ensure a project record exists in the database.
+
+        Creates a new project record if it doesn't already exist.
 
         Args:
-            project_name: Name of the project to load or create
+            name: Name of the project to load or create
 
         Returns:
-            Project ID that was loaded or created
+            Project ID from the database
         """
         with Session(engine) as db:
             # Try to load existing project
-            project = ProjectRepository.get_by_name(db, project_name)
+            project_record = ProjectRepository.get_by_name(db, name)
 
             # Create new project if it doesn't exist
-            if project is None:
-                project_create = ProjectCreate(name=project_name)
-                project = ProjectRepository.create(db, project_create)
+            if project_record is None:
+                project_create = ProjectCreate(name=name)
+                project_record = ProjectRepository.create(db, project_create)
 
-            return project.id
+            return project_record.id
 
     def add_documents(self, texts: Union[str, List[str]]) -> None:
         """

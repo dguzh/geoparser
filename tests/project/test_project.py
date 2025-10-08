@@ -15,7 +15,7 @@ def test_project_initialization_new_project(test_db):
 
         project = Project(project_name)
 
-        assert project.project_name == project_name
+        assert project.name == project_name
         assert project.id is not None
 
         # Verify project was created in database
@@ -33,7 +33,7 @@ def test_project_initialization_existing_project(test_db, test_project_model):
 
         project = Project(test_project_model.name)
 
-        assert project.project_name == test_project_model.name
+        assert project.name == test_project_model.name
         assert project.id == test_project_model.id
 
 
