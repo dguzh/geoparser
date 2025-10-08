@@ -1,6 +1,6 @@
 import random
 from pathlib import Path
-from typing import List, Set, Tuple, Union
+from typing import List, Tuple, Union
 
 import spacy
 from spacy.training import Example
@@ -21,22 +21,23 @@ class SpacyRecognizer(Recognizer):
     def __init__(
         self,
         model_name: str = "en_core_web_sm",
-        entity_types: Set[str] = {"GPE", "LOC", "FAC"},
+        entity_types: List[str] = ["FAC", "GPE", "LOC"],
     ):
         """
         Initialize the SpaCy recognition module.
 
         Args:
             model_name: spaCy model to use (default: "en_core_web_sm")
-            entity_types: Set of spaCy entity types to consider as references
-                          (default: {"GPE", "LOC", "FAC"})
+            entity_types: List of spaCy entity types to consider as references
+                          (default: ["FAC", "GPE", "LOC"])
         """
         # Initialize parent with the parameters
         super().__init__(model_name=model_name, entity_types=entity_types)
 
         # Store instance attributes directly from parameters
         self.model_name = model_name
-        self.entity_types = entity_types
+        # Convert entity_types to set for efficient lookups
+        self.entity_types = set(entity_types)
 
         # Load spaCy model with optimized pipeline
         self.nlp = self._load_spacy_model()

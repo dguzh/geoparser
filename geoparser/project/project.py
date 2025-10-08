@@ -73,8 +73,8 @@ class Project:
 
     def get_documents(
         self,
-        recognizer_id: uuid.UUID = None,
-        resolver_id: uuid.UUID = None,
+        recognizer_id: str = None,
+        resolver_id: str = None,
     ) -> List[Document]:
         """
         Retrieve all documents in the project with context set for the specified recognizer/resolver.

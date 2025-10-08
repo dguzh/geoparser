@@ -33,28 +33,23 @@ class RecognitionService:
             recognizer: The recognizer module to use for predictions
         """
         self.recognizer = recognizer
-        self.recognizer_id = self._load_recognizer_record()
+        self.recognizer_id = recognizer.id
 
-    def _load_recognizer_record(self) -> uuid.UUID:
+    def _ensure_recognizer_record(self) -> None:
         """
-        Load a recognizer record from the database.
+        Ensure a recognizer record exists in the database.
 
-        Retrieves an existing recognizer record or creates a new one if it doesn't exist.
-
-        Returns:
-            Database ID of the recognizer
+        Creates a new recognizer record if it doesn't already exist.
         """
         with Session(engine) as db:
-            db_recognizer = RecognizerRepository.get_by_name_and_config(
-                db, self.recognizer.name, self.recognizer.config
-            )
+            db_recognizer = RecognizerRepository.get(db, id=self.recognizer_id)
             if db_recognizer is None:
                 recognizer_create = RecognizerCreate(
-                    name=self.recognizer.name, config=self.recognizer.config
+                    id=self.recognizer_id,
+                    name=self.recognizer.name,
+                    config=self.recognizer.config,
                 )
-                db_recognizer = RecognizerRepository.create(db, recognizer_create)
-
-            return db_recognizer.id
+                RecognizerRepository.create(db, recognizer_create)
 
     def run(self, documents: List["Document"]) -> None:
         """
@@ -65,6 +60,9 @@ class RecognitionService:
         """
         if not documents:
             return
+
+        # Ensure recognizer record exists in database
+        self._ensure_recognizer_record()
 
         with Session(engine) as db:
             # Filter out documents that have already been processed by this recognizer

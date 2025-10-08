@@ -35,28 +35,23 @@ class ResolutionService:
             resolver: The resolver module to use for predictions
         """
         self.resolver = resolver
-        self.resolver_id = self._load_resolver_record()
+        self.resolver_id = resolver.id
 
-    def _load_resolver_record(self) -> uuid.UUID:
+    def _ensure_resolver_record(self) -> None:
         """
-        Load a resolver record from the database.
+        Ensure a resolver record exists in the database.
 
-        Retrieves an existing resolver record or creates a new one if it doesn't exist.
-
-        Returns:
-            Database ID of the resolver
+        Creates a new resolver record if it doesn't already exist.
         """
         with Session(engine) as db:
-            db_resolver = ResolverRepository.get_by_name_and_config(
-                db, self.resolver.name, self.resolver.config
-            )
+            db_resolver = ResolverRepository.get(db, id=self.resolver_id)
             if db_resolver is None:
                 resolver_create = ResolverCreate(
-                    name=self.resolver.name, config=self.resolver.config
+                    id=self.resolver_id,
+                    name=self.resolver.name,
+                    config=self.resolver.config,
                 )
-                db_resolver = ResolverRepository.create(db, resolver_create)
-
-            return db_resolver.id
+                ResolverRepository.create(db, resolver_create)
 
     def run(self, documents: List["Document"]) -> None:
         """
@@ -67,6 +62,9 @@ class ResolutionService:
         """
         if not documents:
             return
+
+        # Ensure resolver record exists in database
+        self._ensure_resolver_record()
 
         with Session(engine) as db:
             # Collect data for prediction
