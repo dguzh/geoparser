@@ -54,6 +54,22 @@ class ToponymRepository(BaseRepository):
         "swissnames3d": "EPSG:2056",  # LV95 Swiss coordinate system
     }
 
+    # Filter attributes for each gazetteer
+    GAZETTEER_FILTER_ATTRIBUTES = {
+        "geonames": [
+            "feature_name",
+            "country_name",
+            "admin1_name",
+            "admin2_name",
+        ],
+        "swissnames3d": [
+            "OBJEKTART",
+            "KANTON_NAME",
+            "BEZIRK_NAME",
+            "GEMEINDE_NAME",
+        ],
+    }
+
     @classmethod
     def _generate_location_description(
         cls, feature: "Feature", gazetteer_name: str
@@ -307,9 +323,13 @@ class ToponymRepository(BaseRepository):
                 candidates_request.query_text,
             )
         )
+
+        # Get filter attributes for this gazetteer
+        filter_attributes = cls.GAZETTEER_FILTER_ATTRIBUTES.get(gazetteer_name, [])
+
         return {
             "candidates": candidate_descriptions,
-            "filter_attributes": [],  # Not needed for now, can be empty
+            "filter_attributes": filter_attributes,
             "existing_loc_id": toponym.loc_id,
             "existing_candidate": (
                 candidate_descriptions[-1] if existing_candidate_is_appended else None
