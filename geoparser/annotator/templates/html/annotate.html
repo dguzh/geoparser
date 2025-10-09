@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Annotate Document</title>
+    <!-- Bootstrap CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <!-- Bootstrap Icons CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
+    <!-- For Candidate Mapping -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <!-- Custom CSS -->
+    <link rel="stylesheet" type="text/css" href="{{url_for('static', path='/annotate.css')}}">
+</head>
+<body>
+
+<!-- Navbar -->
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+    <div class="container-fluid">
+        <a class="navbar-brand" title="Home" href="{{ url_for('index') }}">Geoparser Annotator</a>
+        <div class="ms-auto">
+            <a href="{{ url_for('download_annotations', session_id=session_id) }}" class="btn btn-outline-light me-2" title="Session Download">
+                <i class="bi bi-download"></i>
+            </a>
+            <button class="btn btn-outline-light me-2" id="settings-btn" title="Settings">
+                <i class="bi bi-gear"></i>
+            </button>
+        </div>
+    </div>
+</nav>
+
+<!-- Main content -->
+<div class="container-fluid">
+    <div class="row">
+        <!-- Left Sidebar (Documents) -->
+        <div class="col-md-2 bg-light border-end" id="sidebar">
+            <div class="d-flex align-items-center mt-3 mb-2" style="padding-right: 2rem">
+                <h2 class="flex-grow-1 mb-0">Documents</h2>
+                <!-- Add Document Button -->
+                <button type="button" class="btn btn-primary btn-sm" id="add-document-btn" title="Add Document">
+                    <i class="bi bi-file-earmark-plus"></i>
+                </button>
+            </div>
+            <ul id="document-list" class="list-unstyled">
+              {% if documents %}
+                  {% for doc_item in documents %}
+                      {% set total = doc_item['total_toponyms'] %}
+                      {% set annotated = doc_item['annotated_toponyms'] %}
+                      {% if total > 0 %}
+                          {% set percentage = (annotated / total * 100) | round(2) %}
+                      {% else %}
+                          {% set percentage = 0 %}
+                      {% endif %}
+                      <li class="mb-3">
+                          <div class="d-flex align-items-center justify-content-between">
+                              <a href="{{ url_for('annotate', session_id=session_id, doc_index=doc_item.doc_index) }}"
+                                 class="{% if doc_item.doc_index == doc_index %}text-primary{% else %}text-dark{% endif %}"
+                                 style="text-decoration: none;">
+                                  {{ doc_item['filename'] }}
+                              </a>
+                              <div class="d-flex align-items-center">
+                                  <span id="tagged-{{ doc_item.doc_index }}" style="color:green; background-color:transparent; border:1px solid green; border-radius:4px; padding:2px 6px; font-size:0.8rem; margin-right:8px; display:none; font-style:italic;">tagged</span>
+                                  <!-- Remove Document Button -->
+                                  <button type="button" class="btn btn-sec btn-sm remove-document-btn" data-doc-index="{{ doc_item.doc_index }}" title="Remove Document">
+                                      <i class="bi bi-trash"></i>
+                                  </button>
+                              </div>
+                          </div>
+                          <div class="progress">
+                              <div id="progress-bar-{{ doc_item.doc_index }}" class="progress-bar" role="progressbar"
+                                   style="width: {{ percentage }}%; transition: none;"
+                                   aria-valuenow="{{ percentage }}" aria-valuemin="0" aria-valuemax="100"></div>
+                          </div>
+                      </li>
+                  {% endfor %}
+              {% else %}
+                  <li class="text-muted text-center mt-3">
+                      No documents available. Please add a document.
+                  </li>
+              {% endif %}
+            </ul>
+        </div>
+
+        <!-- Modal for Adding Documents -->
+        <div class="modal fade" id="addDocumentModal" tabindex="-1" aria-labelledby="addDocumentModalLabel" aria-hidden="true">
+          <div class="modal-dialog">
+            <div class="modal-content">
+              <form id="add-document-form" enctype="multipart/form-data">
+                <div class="modal-header">
+                  <h5 class="modal-title">Add Documents</h5>
+                  <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                  <!-- File Upload -->
+                  <div class="mb-3">
+                    <label for="files" class="form-label">Select Documents:</label>
+                    <input type="file" class="form-control" name="files" multiple required>
+                  </div>
+                  <!-- SpaCy Model Selection -->
+                  <div class="mb-3">
+                    <label for="spacy_model" class="form-label">Select SpaCy Model:</label>
+                    <select class="form-select" id="spacy_model" name="spacy_model" required>
+                        {% for model in spacy_models %}
+                            <option value="{{ model }}">{{ model }}</option>
+                        {% endfor %}
+                    </select>
+                  </div>
+                </div>
+                <div class="modal-footer">
+                  <button type="submit" class="btn btn-primary">Add Documents</button>
+                  <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="col-md-10" id="main-content">
+          {% if doc %}
+              <div class="col-md-10" id="document-header">
+                  <h2 class="mt-3" style="text-align:left;float:left;">{{ doc.filename }}</h2>
+              </div>
+              <div class="loader" id="toponym-recognition-indicator" style="display:none;"></div>
+              <div id="document-text" style="display:none;">{{ pre_annotated_text | safe }}</div>
+          {% else %}
+              <div class="text-center mt-5">
+                  <h2>No document selected</h2>
+                  <p>Please add a document to start annotating.</p>
+              </div>
+          {% endif %}
+      </div>
+    </div>
+</div>
+
+<!-- Annotation Modal -->
+<div class="modal fade" id="annotationModal" tabindex="-1" aria-labelledby="annotationModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+        <!-- Modal Header -->
+        <div class="modal-header d-flex align-items-center">
+            <h3 class="modal-title mb-0 me-auto">{{ toponym_text }}</h3>
+            <div class="mx-auto">
+                <div class="btn-group" role="group" aria-label="View Toggle">
+                    <button type="button" class="btn btn-outline-secondary" id="list-view-btn">List</button>
+                    <button type="button" class="btn btn-outline-secondary" id="map-view-btn">Map</button>
+                </div>
+            </div>
+            <button type="button" class="btn-close ms-auto" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+      <!-- Modal Body -->
+      <div class="modal-body">
+        <!-- Query Text Input -->
+        <div class="mb-3">
+          <label for="query-text-input" class="form-label">Search Candidates for:</label>
+          <div class="input-group">
+            <input type="text" id="query-text-input" class="form-control">
+            <button id="search-button" class="btn btn-primary">Search</button>
+          </div>
+        </div>
+        <div class="row">
+          <!-- Filter Panel -->
+          <div class="col-md-4">
+            <div id="modal-filter-panel" class="form-control">
+              <!-- Filters will be populated here -->
+            </div>
+          </div>
+          <!-- Candidate List / Map -->
+          <div class="col-md-8">
+            <!-- None Option -->
+            <div id="none-option-container">
+              <div id="none-option" class="candidate p-2 border mb-2">
+                None
+              </div>
+            </div>
+            <!-- Candidate List -->
+            <div id="modal-candidate-list" style="height: 60vh; overflow-y: auto;">
+              <!-- Candidates will be populated here -->
+            </div>
+            <!-- Map -->
+            <div id="modal-map" style="height: 60vh; display: none;">
+              <!-- Map will be displayed here -->
+            </div>
+          </div>
+        </div>
+      </div>
+    </div> <!-- Close modal-content -->
+  </div> <!-- Close modal-dialog -->
+</div> <!-- Close modal -->
+
+<!-- Settings Modal -->
+<div class="modal fade" id="settingsModal" tabindex="-1" aria-labelledby="settingsModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form id="settings-form">
+        <div class="modal-header">
+          <h5 class="modal-title">Settings</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <!-- One Sense Per Discourse Option -->
+          <div class="form-check form-switch mb-3">
+            <input class="form-check-input" type="checkbox" id="one-sense-per-discourse">
+            <label class="form-check-label" for="one-sense-per-discourse">
+              One Sense Per Discourse
+            </label>
+            <div>
+              <small class="form-text text-muted">
+                Automatically assign the same location to all unannotated toponyms with the same name in a document.
+              </small>
+            </div>
+          </div>
+          <!-- Auto-Close Annotation Modal Option -->
+          <div class="form-check form-switch mb-3">
+            <input class="form-check-input" type="checkbox" id="auto-close-annotation-modal">
+            <label class="form-check-label" for="auto-close-annotation-modal">
+              Auto-Close Annotation Window
+            </label>
+            <div>
+              <small class="form-text text-muted">
+                Automatically close the annotation window after selecting a location.
+              </small>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="submit" class="btn btn-primary">Save Settings</button>
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Context Menu -->
+<div id="context-menu">
+    <ul>
+        <li id="context-create">New</li>
+        <li id="context-edit">Edit</li>
+        <li id="context-delete">Delete</li>
+    </ul>
+</div>
+
+<!-- Bootstrap JS and Dependencies -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+<!-- Leaflet JS -->
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+
+<!-- Custom JS -->
+<script>{% include 'js/url_base.js' %}</script>
+<script src="{{url_for('static', path='/annotate.js')}}"></script>
+
+</body>
+</html>
