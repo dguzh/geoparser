@@ -1,3 +1,4 @@
+import typing as t
 import uuid
 from typing import List, Union
 
@@ -6,6 +7,12 @@ from sqlmodel import Session
 from geoparser.db.crud import DocumentRepository, ProjectRepository
 from geoparser.db.engine import engine
 from geoparser.db.models import Document, DocumentCreate, ProjectCreate
+from geoparser.services.recognition import RecognitionService
+from geoparser.services.resolution import ResolutionService
+
+if t.TYPE_CHECKING:
+    from geoparser.modules.recognizers import Recognizer
+    from geoparser.modules.resolvers import Resolver
 
 
 class Project:
@@ -16,37 +23,39 @@ class Project:
     methods to run processing pipelines on project documents.
     """
 
-    def __init__(self, project_name: str):
+    def __init__(self, name: str):
         """
         Initialize a Project instance.
 
         Args:
-            project_name: Name for the project. If the project doesn't exist,
-                         it will be created.
+            name: Name for the project. If the project doesn't exist,
+                  it will be created.
         """
-        self.project_name = project_name
-        self.id = self._load(project_name)
+        self.name = name
+        self.id = self._ensure_project_record(name)
 
-    def _load(self, project_name: str) -> uuid.UUID:
+    def _ensure_project_record(self, name: str) -> uuid.UUID:
         """
-        Load an existing project or create a new one if it doesn't exist.
+        Ensure a project record exists in the database.
+
+        Creates a new project record if it doesn't already exist.
 
         Args:
-            project_name: Name of the project to load or create
+            name: Name of the project to load or create
 
         Returns:
-            Project ID that was loaded or created
+            Project ID from the database
         """
         with Session(engine) as db:
             # Try to load existing project
-            project = ProjectRepository.get_by_name(db, project_name)
+            project_record = ProjectRepository.get_by_name(db, name)
 
             # Create new project if it doesn't exist
-            if project is None:
-                project_create = ProjectCreate(name=project_name)
-                project = ProjectRepository.create(db, project_create)
+            if project_record is None:
+                project_create = ProjectCreate(name=name)
+                project_record = ProjectRepository.create(db, project_create)
 
-            return project.id
+            return project_record.id
 
     def add_documents(self, texts: Union[str, List[str]]) -> None:
         """
@@ -66,8 +75,8 @@ class Project:
 
     def get_documents(
         self,
-        recognizer_id: uuid.UUID = None,
-        resolver_id: uuid.UUID = None,
+        recognizer_id: str = None,
+        resolver_id: str = None,
     ) -> List[Document]:
         """
         Retrieve all documents in the project with context set for the specified recognizer/resolver.
@@ -92,6 +101,44 @@ class Project:
                     ref._set_resolver_context(resolver_id)
 
             return documents
+
+    def run_recognizer(self, recognizer: "Recognizer") -> None:
+        """
+        Run a recognizer module on all documents in this project.
+
+        This is a convenience method that simplifies the workflow for advanced users
+        by handling service initialization and document retrieval internally.
+
+        Args:
+            recognizer: The recognizer module to run on all project documents
+        """
+        # Get all documents in the project
+        documents = self.get_documents()
+
+        # Initialize the recognition service with the recognizer
+        recognition_service = RecognitionService(recognizer)
+
+        # Run the recognizer on all documents
+        recognition_service.run(documents)
+
+    def run_resolver(self, resolver: "Resolver") -> None:
+        """
+        Run a resolver module on all documents in this project.
+
+        This is a convenience method that simplifies the workflow for advanced users
+        by handling service initialization and document retrieval internally.
+
+        Args:
+            resolver: The resolver module to run on all project documents
+        """
+        # Get all documents in the project
+        documents = self.get_documents()
+
+        # Initialize the resolution service with the resolver
+        resolution_service = ResolutionService(resolver)
+
+        # Run the resolver on all documents
+        resolution_service.run(documents)
 
     def delete(self) -> None:
         """

@@ -1,5 +1,3 @@
-import uuid
-
 from sqlmodel import Session
 
 from geoparser.db.crud import RecognizerRepository
@@ -13,9 +11,13 @@ def test_create(test_db: Session):
         "threshold": 0.8,
     }
 
-    recognizer_create = RecognizerCreate(name="test-recognizer", config=config)
+    recognizer_create = RecognizerCreate(
+        id="test-id", name="test-recognizer", config=config
+    )
     recognizer = Recognizer(
-        name=recognizer_create.name, config=recognizer_create.config
+        id="test-recognizer-1",
+        name=recognizer_create.name,
+        config=recognizer_create.config,
     )
 
     created_recognizer = RecognizerRepository.create(test_db, recognizer)
@@ -41,7 +43,7 @@ def test_get(test_db: Session, test_recognizer: Recognizer):
     assert recognizer.config == test_recognizer.config
 
     # Test with invalid ID
-    invalid_id = uuid.uuid4()
+    invalid_id = "invalid-recognizer-id"
     recognizer = RecognizerRepository.get(test_db, invalid_id)
     assert recognizer is None
 
@@ -59,15 +61,23 @@ def test_get_by_name_and_config(test_db: Session):
         "threshold": 0.7,
     }
 
-    recognizer_create1 = RecognizerCreate(name="same-name-recognizer", config=config1)
+    recognizer_create1 = RecognizerCreate(
+        id="test-id", name="same-name-recognizer", config=config1
+    )
     recognizer1 = Recognizer(
-        name=recognizer_create1.name, config=recognizer_create1.config
+        id="test-recognizer-2",
+        name=recognizer_create1.name,
+        config=recognizer_create1.config,
     )
     test_db.add(recognizer1)
 
-    recognizer_create2 = RecognizerCreate(name="same-name-recognizer", config=config2)
+    recognizer_create2 = RecognizerCreate(
+        id="test-id", name="same-name-recognizer", config=config2
+    )
     recognizer2 = Recognizer(
-        name=recognizer_create2.name, config=recognizer_create2.config
+        id="test-recognizer-3",
+        name=recognizer_create2.name,
+        config=recognizer_create2.config,
     )
     test_db.add(recognizer2)
 
@@ -115,9 +125,13 @@ def test_get_all(test_db: Session, test_recognizer: Recognizer):
     # Create another recognizer
     config = {"model": "en_core_web_md"}
 
-    recognizer_create = RecognizerCreate(name="another-recognizer", config=config)
+    recognizer_create = RecognizerCreate(
+        id="test-id", name="another-recognizer", config=config
+    )
     recognizer = Recognizer(
-        name=recognizer_create.name, config=recognizer_create.config
+        id="test-recognizer-4",
+        name=recognizer_create.name,
+        config=recognizer_create.config,
     )
     test_db.add(recognizer)
     test_db.commit()
@@ -162,9 +176,13 @@ def test_delete(test_db: Session, test_recognizer: Recognizer):
     # Create a new recognizer to delete
     config = {"model": "to-be-deleted"}
 
-    recognizer_create = RecognizerCreate(name="recognizer-to-delete", config=config)
+    recognizer_create = RecognizerCreate(
+        id="test-id", name="recognizer-to-delete", config=config
+    )
     recognizer = Recognizer(
-        name=recognizer_create.name, config=recognizer_create.config
+        id="test-recognizer-5",
+        name=recognizer_create.name,
+        config=recognizer_create.config,
     )
     test_db.add(recognizer)
     test_db.commit()

@@ -1,3 +1,5 @@
+import hashlib
+import json
 from abc import ABC
 
 
@@ -25,33 +27,8 @@ class Module(ABC):
             raise ValueError("Module must define a NAME class attribute")
 
         self.name = self.NAME
-        self.config = self._normalize_config(kwargs)
-
-    def _normalize_config(self, kwargs_dict: dict) -> dict:
-        """
-        Normalize configuration dictionary for consistent storage.
-
-        This helper method:
-        1. Converts sets to lists for JSON serialization
-        2. Sorts items by key for order-invariant config distinction
-
-        Args:
-            kwargs_dict: Raw configuration dictionary
-
-        Returns:
-            Normalized configuration dictionary
-        """
-        # Process each value: convert sets to sorted lists
-        config_dict = {}
-        for key, value in kwargs_dict.items():
-            if isinstance(value, set):
-                config_dict[key] = sorted(list(value))
-            else:
-                config_dict[key] = value
-
-        # Sort by key for consistent ordering
-        sorted_items = sorted(config_dict.items(), key=lambda x: x[0])
-        return dict(sorted_items)
+        # Normalize config using JSON round-trip to ensure consistent serialization
+        self.config = json.loads(json.dumps(kwargs, sort_keys=True))
 
     def __str__(self) -> str:
         """
@@ -71,3 +48,20 @@ class Module(ABC):
             Same as __str__ method
         """
         return self.__str__()
+
+    @property
+    def id(self) -> str:
+        """
+        Generate a deterministic ID for this module based on name and config.
+
+        This ID is computed by hashing the module's string representation,
+        ensuring that modules with the same name and config get the same ID,
+        while modules with different configs get unique IDs.
+
+        Returns:
+            String ID uniquely identifying this module configuration
+        """
+        # Hash the string representation to create a short, deterministic ID
+        hash_object = hashlib.sha256(str(self).encode())
+        # Use first 8 characters of hex digest for a reasonably short ID
+        return hash_object.hexdigest()[:8]

@@ -33,7 +33,7 @@ class ResolutionRepository(BaseRepository[Resolution]):
         return db.exec(statement).unique().all()
 
     @classmethod
-    def get_by_resolver(cls, db: Session, resolver_id: uuid.UUID) -> t.List[Resolution]:
+    def get_by_resolver(cls, db: Session, resolver_id: str) -> t.List[Resolution]:
         """
         Get all resolutions for a resolver.
 
@@ -49,7 +49,7 @@ class ResolutionRepository(BaseRepository[Resolution]):
 
     @classmethod
     def get_by_reference_and_resolver(
-        cls, db: Session, reference_id: uuid.UUID, resolver_id: uuid.UUID
+        cls, db: Session, reference_id: uuid.UUID, resolver_id: str
     ) -> t.Optional[Resolution]:
         """
         Get a resolution for a specific reference and resolver.
@@ -70,7 +70,7 @@ class ResolutionRepository(BaseRepository[Resolution]):
 
     @classmethod
     def get_unprocessed_references(
-        cls, db: Session, project_id: uuid.UUID, resolver_id: uuid.UUID
+        cls, db: Session, project_id: uuid.UUID, resolver_id: str
     ) -> t.List[Reference]:
         """
         Get all references from a project that have not been processed by a specific resolver.

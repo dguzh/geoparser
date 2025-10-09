@@ -1,7 +1,7 @@
 import typing as t
 import uuid
 
-from sqlalchemy import UUID, Column, ForeignKey
+from sqlalchemy import UUID, Column, ForeignKey, String
 from sqlmodel import Field, Relationship, SQLModel
 
 if t.TYPE_CHECKING:
@@ -27,9 +27,9 @@ class Recognition(RecognitionBase, table=True):
             UUID, ForeignKey("document.id", ondelete="CASCADE"), nullable=False
         )
     )
-    recognizer_id: uuid.UUID = Field(
+    recognizer_id: str = Field(
         sa_column=Column(
-            UUID, ForeignKey("recognizer.id", ondelete="CASCADE"), nullable=False
+            String, ForeignKey("recognizer.id", ondelete="CASCADE"), nullable=False
         )
     )
     document: "Document" = Relationship(back_populates="recognitions")
@@ -40,7 +40,7 @@ class RecognitionCreate(RecognitionBase):
     """Model for creating a new recognition record."""
 
     document_id: uuid.UUID
-    recognizer_id: uuid.UUID
+    recognizer_id: str
 
 
 class RecognitionUpdate(SQLModel):
@@ -48,4 +48,4 @@ class RecognitionUpdate(SQLModel):
 
     id: uuid.UUID
     document_id: t.Optional[uuid.UUID] = None
-    recognizer_id: t.Optional[uuid.UUID] = None
+    recognizer_id: t.Optional[str] = None

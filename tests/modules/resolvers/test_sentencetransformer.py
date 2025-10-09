@@ -110,22 +110,19 @@ def test_sentence_transformer_resolver_initialization_default():
                 with patch(
                     "geoparser.modules.resolvers.sentencetransformer.Gazetteer"
                 ) as mock_gaz:
-                    with patch.object(
-                        SentenceTransformerResolver, "_load", return_value="mock-id"
-                    ):
-                        resolver = SentenceTransformerResolver()
+                    resolver = SentenceTransformerResolver()
 
-                        assert resolver.name == "SentenceTransformerResolver"
-                        assert resolver.model_name == "dguzh/geo-all-MiniLM-L6-v2"
-                        assert resolver.gazetteer_name == "geonames"
-                        assert resolver.min_similarity == 0.7
-                        assert resolver.max_iter == 3
+                    assert resolver.name == "SentenceTransformerResolver"
+                    assert resolver.model_name == "dguzh/geo-all-MiniLM-L6-v2"
+                    assert resolver.gazetteer_name == "geonames"
+                    assert resolver.min_similarity == 0.7
+                    assert resolver.max_iter == 3
 
-                        # Verify components were initialized
-                        mock_st.assert_called_once_with("dguzh/geo-all-MiniLM-L6-v2")
-                        mock_tokenizer.from_pretrained.assert_called_once()
-                        mock_spacy.load.assert_called_once_with("xx_sent_ud_sm")
-                        mock_gaz.assert_called_once_with("geonames")
+                    # Verify components were initialized
+                    mock_st.assert_called_once_with("dguzh/geo-all-MiniLM-L6-v2")
+                    mock_tokenizer.from_pretrained.assert_called_once()
+                    mock_spacy.load.assert_called_once_with("xx_sent_ud_sm")
+                    mock_gaz.assert_called_once_with("geonames")
 
 
 def test_sentence_transformer_resolver_initialization_custom():
@@ -134,20 +131,17 @@ def test_sentence_transformer_resolver_initialization_custom():
         with patch("geoparser.modules.resolvers.sentencetransformer.AutoTokenizer"):
             with patch("geoparser.modules.resolvers.sentencetransformer.spacy"):
                 with patch("geoparser.modules.resolvers.sentencetransformer.Gazetteer"):
-                    with patch.object(
-                        SentenceTransformerResolver, "_load", return_value="mock-id"
-                    ):
-                        resolver = SentenceTransformerResolver(
-                            model_name="custom-model",
-                            gazetteer_name="swissnames3d",
-                            min_similarity=0.8,
-                            max_iter=5,
-                        )
+                    resolver = SentenceTransformerResolver(
+                        model_name="custom-model",
+                        gazetteer_name="swissnames3d",
+                        min_similarity=0.8,
+                        max_iter=5,
+                    )
 
-                        assert resolver.model_name == "custom-model"
-                        assert resolver.gazetteer_name == "swissnames3d"
-                        assert resolver.min_similarity == 0.8
-                        assert resolver.max_iter == 5
+                    assert resolver.model_name == "custom-model"
+                    assert resolver.gazetteer_name == "swissnames3d"
+                    assert resolver.min_similarity == 0.8
+                    assert resolver.max_iter == 5
 
 
 def test_predict_referents_empty_references():
@@ -156,12 +150,9 @@ def test_predict_referents_empty_references():
         with patch("geoparser.modules.resolvers.sentencetransformer.AutoTokenizer"):
             with patch("geoparser.modules.resolvers.sentencetransformer.spacy"):
                 with patch("geoparser.modules.resolvers.sentencetransformer.Gazetteer"):
-                    with patch.object(
-                        SentenceTransformerResolver, "_load", return_value="mock-id"
-                    ):
-                        resolver = SentenceTransformerResolver()
-                        result = resolver.predict_referents([])
-                        assert result == []
+                    resolver = SentenceTransformerResolver()
+                    result = resolver.predict_referents([], [])
+                    assert result == []
 
 
 def test_extract_context_single_reference(
@@ -181,24 +172,25 @@ def test_extract_context_single_reference(
                 return_value=mock_spacy_nlp,
             ):
                 with patch("geoparser.modules.resolvers.sentencetransformer.Gazetteer"):
-                    with patch.object(
-                        SentenceTransformerResolver, "_load", return_value="mock-id"
-                    ):
-                        resolver = SentenceTransformerResolver()
+                    resolver = SentenceTransformerResolver()
 
-                        # Mock that document fits within token limit
-                        mock_tokenizer.tokenize.return_value = [
-                            "I",
-                            "visited",
-                            "London",
-                            "last",
-                            "summer",
-                            ".",
-                        ]
+                    # Mock that document fits within token limit
+                    mock_tokenizer.tokenize.return_value = [
+                        "I",
+                        "visited",
+                        "London",
+                        "last",
+                        "summer",
+                        ".",
+                    ]
 
-                        context = resolver._extract_context(mock_references[0])
+                    # Use raw data instead of Reference object
+                    text = "I visited London last summer."
+                    start = 10
+                    end = 16
+                    context = resolver._extract_context(text, start, end)
 
-                        assert context == "I visited London last summer."
+                    assert context == "I visited London last summer."
 
 
 def test_extract_context_long_document(
@@ -218,31 +210,33 @@ def test_extract_context_long_document(
                 return_value=mock_spacy_nlp,
             ):
                 with patch("geoparser.modules.resolvers.sentencetransformer.Gazetteer"):
-                    with patch.object(
-                        SentenceTransformerResolver, "_load", return_value="mock-id"
-                    ):
-                        resolver = SentenceTransformerResolver()
+                    resolver = SentenceTransformerResolver()
 
-                        # Mock that document exceeds token limit (first call returns too many tokens)
-                        def mock_tokenize(text):
-                            if text == mock_references[0].document.text:
-                                return ["token"] * 600  # Exceeds limit of 510 (512-2)
-                            else:
-                                return [
-                                    "I",
-                                    "visited",
-                                    "London",
-                                    "last",
-                                    "summer",
-                                    ".",
-                                ]  # Sentence tokens
+                    # Mock that document exceeds token limit (first call returns too many tokens)
+                    text = "I visited London last summer."
 
-                        mock_tokenizer.tokenize.side_effect = mock_tokenize
+                    def mock_tokenize(t):
+                        if t == text:
+                            return ["token"] * 600  # Exceeds limit of 510 (512-2)
+                        else:
+                            return [
+                                "I",
+                                "visited",
+                                "London",
+                                "last",
+                                "summer",
+                                ".",
+                            ]  # Sentence tokens
 
-                        context = resolver._extract_context(mock_references[0])
+                    mock_tokenizer.tokenize.side_effect = mock_tokenize
 
-                        # Should return the sentence context
-                        assert context == "I visited London last summer."
+                    # Use raw data instead of Reference object
+                    start = 10
+                    end = 16
+                    context = resolver._extract_context(text, start, end)
+
+                    # Should return the sentence context
+                    assert context == "I visited London last summer."
 
 
 def test_generate_description_geonames(mock_features):
@@ -251,17 +245,12 @@ def test_generate_description_geonames(mock_features):
         with patch("geoparser.modules.resolvers.sentencetransformer.AutoTokenizer"):
             with patch("geoparser.modules.resolvers.sentencetransformer.spacy"):
                 with patch("geoparser.modules.resolvers.sentencetransformer.Gazetteer"):
-                    with patch.object(
-                        SentenceTransformerResolver, "_load", return_value="mock-id"
-                    ):
-                        resolver = SentenceTransformerResolver(
-                            gazetteer_name="geonames"
-                        )
+                    resolver = SentenceTransformerResolver(gazetteer_name="geonames")
 
-                        description = resolver._generate_description(mock_features[0])
+                    description = resolver._generate_description(mock_features[0])
 
-                        expected = "London (populated place) in England, United Kingdom"
-                        assert description == expected
+                    expected = "London (populated place) in England, United Kingdom"
+                    assert description == expected
 
 
 def test_generate_description_swissnames3d():
@@ -278,17 +267,14 @@ def test_generate_description_swissnames3d():
         with patch("geoparser.modules.resolvers.sentencetransformer.AutoTokenizer"):
             with patch("geoparser.modules.resolvers.sentencetransformer.spacy"):
                 with patch("geoparser.modules.resolvers.sentencetransformer.Gazetteer"):
-                    with patch.object(
-                        SentenceTransformerResolver, "_load", return_value="mock-id"
-                    ):
-                        resolver = SentenceTransformerResolver(
-                            gazetteer_name="swissnames3d"
-                        )
+                    resolver = SentenceTransformerResolver(
+                        gazetteer_name="swissnames3d"
+                    )
 
-                        description = resolver._generate_description(mock_feature)
+                    description = resolver._generate_description(mock_feature)
 
-                        expected = "Zurich (Stadt) in Zürich, Zürich"
-                        assert description == expected
+                    expected = "Zurich (Stadt) in Zürich, Zürich"
+                    assert description == expected
 
 
 def test_generate_description_unsupported_gazetteer():
@@ -300,18 +286,13 @@ def test_generate_description_unsupported_gazetteer():
         with patch("geoparser.modules.resolvers.sentencetransformer.AutoTokenizer"):
             with patch("geoparser.modules.resolvers.sentencetransformer.spacy"):
                 with patch("geoparser.modules.resolvers.sentencetransformer.Gazetteer"):
-                    with patch.object(
-                        SentenceTransformerResolver, "_load", return_value="mock-id"
-                    ):
-                        resolver = SentenceTransformerResolver(
-                            gazetteer_name="unsupported"
-                        )
+                    resolver = SentenceTransformerResolver(gazetteer_name="unsupported")
 
-                        with pytest.raises(
-                            ValueError,
-                            match="Gazetteer 'unsupported' is not configured",
-                        ):
-                            resolver._generate_description(mock_feature)
+                    with pytest.raises(
+                        ValueError,
+                        match="Gazetteer 'unsupported' is not configured",
+                    ):
+                        resolver._generate_description(mock_feature)
 
 
 def test_calculate_similarities():
@@ -320,30 +301,27 @@ def test_calculate_similarities():
         with patch("geoparser.modules.resolvers.sentencetransformer.AutoTokenizer"):
             with patch("geoparser.modules.resolvers.sentencetransformer.spacy"):
                 with patch("geoparser.modules.resolvers.sentencetransformer.Gazetteer"):
-                    with patch.object(
-                        SentenceTransformerResolver, "_load", return_value="mock-id"
-                    ):
-                        resolver = SentenceTransformerResolver()
+                    resolver = SentenceTransformerResolver()
 
-                        # Create mock embeddings
-                        reference_embedding = torch.tensor([1.0, 0.0, 0.0])
-                        candidate_embeddings = [
-                            torch.tensor([1.0, 0.0, 0.0]),  # Perfect match
-                            torch.tensor([0.0, 1.0, 0.0]),  # Orthogonal
-                            torch.tensor([0.5, 0.5, 0.0]),  # Partial match
-                        ]
+                    # Create mock embeddings
+                    reference_embedding = torch.tensor([1.0, 0.0, 0.0])
+                    candidate_embeddings = [
+                        torch.tensor([1.0, 0.0, 0.0]),  # Perfect match
+                        torch.tensor([0.0, 1.0, 0.0]),  # Orthogonal
+                        torch.tensor([0.5, 0.5, 0.0]),  # Partial match
+                    ]
 
-                        similarities = resolver._calculate_similarities(
-                            reference_embedding, candidate_embeddings
-                        )
+                    similarities = resolver._calculate_similarities(
+                        reference_embedding, candidate_embeddings
+                    )
 
-                        assert len(similarities) == 3
-                        # Perfect match should have similarity ~1.0
-                        assert similarities[0] == pytest.approx(1.0, abs=1e-6)
-                        # Orthogonal should have similarity ~0.0
-                        assert similarities[1] == pytest.approx(0.0, abs=1e-6)
-                        # Partial match should be somewhere in between
-                        assert 0.0 < similarities[2] < 1.0
+                    assert len(similarities) == 3
+                    # Perfect match should have similarity ~1.0
+                    assert similarities[0] == pytest.approx(1.0, abs=1e-6)
+                    # Orthogonal should have similarity ~0.0
+                    assert similarities[1] == pytest.approx(0.0, abs=1e-6)
+                    # Partial match should be somewhere in between
+                    assert 0.0 < similarities[2] < 1.0
 
 
 def test_calculate_similarities_empty_candidates():
@@ -352,21 +330,18 @@ def test_calculate_similarities_empty_candidates():
         with patch("geoparser.modules.resolvers.sentencetransformer.AutoTokenizer"):
             with patch("geoparser.modules.resolvers.sentencetransformer.spacy"):
                 with patch("geoparser.modules.resolvers.sentencetransformer.Gazetteer"):
-                    with patch.object(
-                        SentenceTransformerResolver, "_load", return_value="mock-id"
-                    ):
-                        resolver = SentenceTransformerResolver()
+                    resolver = SentenceTransformerResolver()
 
-                        reference_embedding = torch.tensor([1.0, 0.0, 0.0])
-                        similarities = resolver._calculate_similarities(
-                            reference_embedding, []
-                        )
+                    reference_embedding = torch.tensor([1.0, 0.0, 0.0])
+                    similarities = resolver._calculate_similarities(
+                        reference_embedding, []
+                    )
 
-                        assert similarities == []
+                    assert similarities == []
 
 
-def test_embed_references_caching(mock_references):
-    """Test that _embed_references avoids duplicate work through caching."""
+def test_embed_contexts_caching():
+    """Test that _embed_contexts avoids duplicate work through caching."""
     mock_transformer = MagicMock()
     mock_transformer.encode.return_value = torch.randn(1, 384)  # Single embedding
 
@@ -377,30 +352,22 @@ def test_embed_references_caching(mock_references):
         with patch("geoparser.modules.resolvers.sentencetransformer.AutoTokenizer"):
             with patch("geoparser.modules.resolvers.sentencetransformer.spacy"):
                 with patch("geoparser.modules.resolvers.sentencetransformer.Gazetteer"):
-                    with patch.object(
-                        SentenceTransformerResolver, "_load", return_value="mock-id"
-                    ):
-                        resolver = SentenceTransformerResolver()
+                    resolver = SentenceTransformerResolver()
 
-                        # Mock _extract_context to return identical contexts
-                        with patch.object(
-                            resolver,
-                            "_extract_context",
-                            return_value="same context",
-                        ):
-                            resolver._embed_references(mock_references)
+                    # Test with identical contexts (should only encode once)
+                    contexts = [["same context", "same context"]]
+                    resolver._embed_contexts(contexts)
 
-                            # Should only encode once due to identical contexts
-                            mock_transformer.encode.assert_called_once_with(
-                                ["same context"],
-                                convert_to_tensor=True,
-                                batch_size=32,
-                                show_progress_bar=True,
-                            )
+                    # Should only encode once due to identical contexts
+                    mock_transformer.encode.assert_called_once_with(
+                        ["same context"],
+                        convert_to_tensor=True,
+                        batch_size=32,
+                        show_progress_bar=True,
+                    )
 
-                            # Both references should have embeddings stored
-                            assert 1 in resolver.reference_embeddings
-                            assert 2 in resolver.reference_embeddings
+                    # Context should have embedding stored
+                    assert "same context" in resolver.context_embeddings
 
 
 def test_sentence_transformer_resolver_config():
@@ -409,23 +376,20 @@ def test_sentence_transformer_resolver_config():
         with patch("geoparser.modules.resolvers.sentencetransformer.AutoTokenizer"):
             with patch("geoparser.modules.resolvers.sentencetransformer.spacy"):
                 with patch("geoparser.modules.resolvers.sentencetransformer.Gazetteer"):
-                    with patch.object(
-                        SentenceTransformerResolver, "_load", return_value="mock-id"
-                    ):
-                        resolver = SentenceTransformerResolver(
-                            model_name="custom-model",
-                            gazetteer_name="swissnames3d",
-                            min_similarity=0.8,
-                            max_iter=5,
-                        )
+                    resolver = SentenceTransformerResolver(
+                        model_name="custom-model",
+                        gazetteer_name="swissnames3d",
+                        min_similarity=0.8,
+                        max_iter=5,
+                    )
 
-                        expected_config = {
-                            "gazetteer_name": "swissnames3d",
-                            "max_iter": 5,
-                            "min_similarity": 0.8,
-                            "model_name": "custom-model",
-                        }
-                        assert resolver.config == expected_config
+                    expected_config = {
+                        "gazetteer_name": "swissnames3d",
+                        "max_iter": 5,
+                        "min_similarity": 0.8,
+                        "model_name": "custom-model",
+                    }
+                    assert resolver.config == expected_config
 
 
 def test_predict_referents_integration(mock_references, mock_features):
@@ -453,19 +417,20 @@ def test_predict_referents_integration(mock_references, mock_features):
                     "geoparser.modules.resolvers.sentencetransformer.Gazetteer",
                     return_value=mock_gazetteer,
                 ):
+                    resolver = SentenceTransformerResolver()
+
+                    # Mock calculate_similarities to return high similarity
                     with patch.object(
-                        SentenceTransformerResolver, "_load", return_value="mock-id"
+                        resolver, "_calculate_similarities", return_value=[0.9]
                     ):
-                        resolver = SentenceTransformerResolver()
+                        # Use raw data instead of Reference objects
+                        texts = ["I visited London last summer."]
+                        references = [[(10, 16)]]  # "London"
+                        result = resolver.predict_referents(texts, references)
 
-                        # Mock calculate_similarities to return high similarity
-                        with patch.object(
-                            resolver, "_calculate_similarities", return_value=[0.9]
-                        ):
-                            result = resolver.predict_referents(mock_references[:1])
-
-                            assert len(result) == 1
-                            assert result[0] == ("geonames", "2643743")
+                        assert len(result) == 1
+                        assert len(result[0]) == 1
+                        assert result[0][0] == ("geonames", "2643743")
 
 
 def test_prepare_training_data_empty_documents():
@@ -474,46 +439,37 @@ def test_prepare_training_data_empty_documents():
         with patch("geoparser.modules.resolvers.sentencetransformer.AutoTokenizer"):
             with patch("geoparser.modules.resolvers.sentencetransformer.spacy"):
                 with patch("geoparser.modules.resolvers.sentencetransformer.Gazetteer"):
-                    with patch.object(
-                        SentenceTransformerResolver, "_load", return_value="mock-id"
-                    ):
-                        resolver = SentenceTransformerResolver()
+                    resolver = SentenceTransformerResolver()
 
-                        result = resolver._prepare_training_data([])
+                    result = resolver._prepare_training_data([], [], [])
 
-                        assert result == {"sentence1": [], "sentence2": [], "label": []}
+                    assert result == {"sentence1": [], "sentence2": [], "label": []}
 
 
 def test_prepare_training_data_no_referents():
     """Test _prepare_training_data with documents that have no resolved references."""
-    mock_document = MagicMock()
-    mock_reference = MagicMock()
-    mock_reference.referents = []  # No resolved referents
-    mock_document.references = [mock_reference]
+    texts = ["Some text"]
+    references = [[]]  # No references
+    referents = [[]]
 
     with patch("geoparser.modules.resolvers.sentencetransformer.SentenceTransformer"):
         with patch("geoparser.modules.resolvers.sentencetransformer.AutoTokenizer"):
             with patch("geoparser.modules.resolvers.sentencetransformer.spacy"):
                 with patch("geoparser.modules.resolvers.sentencetransformer.Gazetteer"):
-                    with patch.object(
-                        SentenceTransformerResolver, "_load", return_value="mock-id"
-                    ):
-                        resolver = SentenceTransformerResolver()
+                    resolver = SentenceTransformerResolver()
 
-                        result = resolver._prepare_training_data([mock_document])
+                    result = resolver._prepare_training_data(
+                        texts, references, referents
+                    )
 
-                        assert result == {"sentence1": [], "sentence2": [], "label": []}
+                    assert result == {"sentence1": [], "sentence2": [], "label": []}
 
 
 def test_prepare_training_data_with_referents():
     """Test _prepare_training_data with documents containing resolved references."""
-    # Create mock document with resolved reference
-    mock_document = MagicMock()
-    mock_reference = MagicMock()
-    mock_reference.text = "London"
-    mock_reference.referents = [MagicMock()]
-    mock_reference.referents[0].feature.identifier_value = "2643743"
-    mock_document.references = [mock_reference]
+    texts = ["I visited London"]
+    references = [[(10, 16)]]  # "London"
+    referents = [[("geonames", "2643743")]]
 
     # Create mock candidates
     mock_candidate1 = MagicMock()
@@ -531,39 +487,36 @@ def test_prepare_training_data_with_referents():
                     "geoparser.modules.resolvers.sentencetransformer.Gazetteer",
                     return_value=mock_gazetteer,
                 ):
+                    resolver = SentenceTransformerResolver()
+
+                    # Mock the context extraction and description generation
                     with patch.object(
-                        SentenceTransformerResolver, "_load", return_value="mock-id"
+                        resolver, "_extract_context", return_value="test context"
                     ):
-                        resolver = SentenceTransformerResolver()
-
-                        # Mock the context extraction and description generation
                         with patch.object(
-                            resolver, "_extract_context", return_value="test context"
+                            resolver,
+                            "_generate_description",
+                            side_effect=["desc1", "desc2"],
                         ):
-                            with patch.object(
-                                resolver,
-                                "_generate_description",
-                                side_effect=["desc1", "desc2"],
-                            ):
-                                result = resolver._prepare_training_data(
-                                    [mock_document]
-                                )
+                            result = resolver._prepare_training_data(
+                                texts, references, referents
+                            )
 
-                                # Should have 2 training examples (positive and negative)
-                                assert len(result["sentence1"]) == 2
-                                assert len(result["sentence2"]) == 2
-                                assert len(result["label"]) == 2
+                            # Should have 2 training examples (positive and negative)
+                            assert len(result["sentence1"]) == 2
+                            assert len(result["sentence2"]) == 2
+                            assert len(result["label"]) == 2
 
-                                # Check contexts are correct
-                                assert all(
-                                    ctx == "test context" for ctx in result["sentence1"]
-                                )
+                            # Check contexts are correct
+                            assert all(
+                                ctx == "test context" for ctx in result["sentence1"]
+                            )
 
-                                # Check descriptions
-                                assert result["sentence2"] == ["desc1", "desc2"]
+                            # Check descriptions
+                            assert result["sentence2"] == ["desc1", "desc2"]
 
-                                # Check labels (first should be positive, second negative)
-                                assert result["label"] == [1, 0]
+                            # Check labels (first should be positive, second negative)
+                            assert result["label"] == [1, 0]
 
 
 def test_fit_empty_documents():
@@ -572,37 +525,32 @@ def test_fit_empty_documents():
         with patch("geoparser.modules.resolvers.sentencetransformer.AutoTokenizer"):
             with patch("geoparser.modules.resolvers.sentencetransformer.spacy"):
                 with patch("geoparser.modules.resolvers.sentencetransformer.Gazetteer"):
-                    with patch.object(
-                        SentenceTransformerResolver, "_load", return_value="mock-id"
-                    ):
-                        resolver = SentenceTransformerResolver()
+                    resolver = SentenceTransformerResolver()
 
-                        with tempfile.TemporaryDirectory() as temp_dir:
-                            with pytest.raises(
-                                ValueError, match="No training examples found"
-                            ):
-                                resolver.fit([], temp_dir)
+                    with tempfile.TemporaryDirectory() as temp_dir:
+                        with pytest.raises(
+                            ValueError, match="No training examples found"
+                        ):
+                            resolver.fit([], [], [], temp_dir)
 
 
 def test_fit_no_training_examples():
     """Test fit method with documents that produce no training examples."""
-    mock_document = MagicMock()
-    mock_document.references = []  # No references
+    texts = ["Some text"]
+    references = [[]]  # No references
+    referents = [[]]
 
     with patch("geoparser.modules.resolvers.sentencetransformer.SentenceTransformer"):
         with patch("geoparser.modules.resolvers.sentencetransformer.AutoTokenizer"):
             with patch("geoparser.modules.resolvers.sentencetransformer.spacy"):
                 with patch("geoparser.modules.resolvers.sentencetransformer.Gazetteer"):
-                    with patch.object(
-                        SentenceTransformerResolver, "_load", return_value="mock-id"
-                    ):
-                        resolver = SentenceTransformerResolver()
+                    resolver = SentenceTransformerResolver()
 
-                        with tempfile.TemporaryDirectory() as temp_dir:
-                            with pytest.raises(
-                                ValueError, match="No training examples found"
-                            ):
-                                resolver.fit([mock_document], temp_dir)
+                    with tempfile.TemporaryDirectory() as temp_dir:
+                        with pytest.raises(
+                            ValueError, match="No training examples found"
+                        ):
+                            resolver.fit(texts, references, referents, temp_dir)
 
 
 def test_fit_successful_training():
@@ -613,6 +561,10 @@ def test_fit_successful_training():
         "sentence2": ["desc1", "desc2"],
         "label": [1, 0],
     }
+
+    texts = ["Some text"]
+    references = [[(0, 4)]]
+    referents = [[("geonames", "123")]]
 
     mock_transformer = MagicMock()
     mock_trainer = MagicMock()
@@ -637,60 +589,55 @@ def test_fit_successful_training():
                                 with patch(
                                     "geoparser.modules.resolvers.sentencetransformer.Dataset.from_dict"
                                 ) as mock_dataset:
+                                    resolver = SentenceTransformerResolver()
+
+                                    # Mock _prepare_training_data to return test data
                                     with patch.object(
-                                        SentenceTransformerResolver,
-                                        "_load",
-                                        return_value="mock-id",
+                                        resolver,
+                                        "_prepare_training_data",
+                                        return_value=training_data,
                                     ):
-                                        resolver = SentenceTransformerResolver()
+                                        with tempfile.TemporaryDirectory() as temp_dir:
+                                            resolver.fit(
+                                                texts,
+                                                references,
+                                                referents,
+                                                temp_dir,
+                                                epochs=2,
+                                                batch_size=4,
+                                            )
 
-                                        # Mock _prepare_training_data to return test data
-                                        with patch.object(
-                                            resolver,
-                                            "_prepare_training_data",
-                                            return_value=training_data,
-                                        ):
-                                            with tempfile.TemporaryDirectory() as temp_dir:
-                                                resolver.fit(
-                                                    [MagicMock()],
-                                                    temp_dir,
-                                                    epochs=2,
-                                                    batch_size=4,
-                                                )
+                                            # Verify training was called
+                                            mock_trainer.train.assert_called_once()
 
-                                                # Verify training was called
-                                                mock_trainer.train.assert_called_once()
+                                            # Verify model was saved
+                                            mock_transformer.save_pretrained.assert_called_once_with(
+                                                temp_dir
+                                            )
 
-                                                # Verify model was saved
-                                                mock_transformer.save_pretrained.assert_called_once_with(
-                                                    temp_dir
-                                                )
+                                            # Verify dataset was created with correct data
+                                            mock_dataset.assert_called_once_with(
+                                                training_data
+                                            )
 
-                                                # Verify dataset was created with correct data
-                                                mock_dataset.assert_called_once_with(
-                                                    training_data
-                                                )
-
-                                                # Verify training arguments were set correctly
-                                                mock_args.assert_called_once()
-                                                args_call = mock_args.call_args[1]
-                                                assert (
-                                                    args_call["output_dir"] == temp_dir
-                                                )
-                                                assert (
-                                                    args_call["num_train_epochs"] == 2
-                                                )
-                                                assert (
-                                                    args_call[
-                                                        "per_device_train_batch_size"
-                                                    ]
-                                                    == 4
-                                                )
+                                            # Verify training arguments were set correctly
+                                            mock_args.assert_called_once()
+                                            args_call = mock_args.call_args[1]
+                                            assert args_call["output_dir"] == temp_dir
+                                            assert args_call["num_train_epochs"] == 2
+                                            assert (
+                                                args_call["per_device_train_batch_size"]
+                                                == 4
+                                            )
 
 
 def test_fit_custom_parameters():
     """Test fit method with custom training parameters."""
     training_data = {"sentence1": ["context1"], "sentence2": ["desc1"], "label": [1]}
+
+    texts = ["Some text"]
+    references = [[(0, 4)]]
+    referents = [[("geonames", "123")]]
 
     mock_transformer = MagicMock()
     mock_trainer = MagicMock()
@@ -715,48 +662,36 @@ def test_fit_custom_parameters():
                                 with patch(
                                     "geoparser.modules.resolvers.sentencetransformer.Dataset.from_dict"
                                 ):
+                                    resolver = SentenceTransformerResolver()
+
                                     with patch.object(
-                                        SentenceTransformerResolver,
-                                        "_load",
-                                        return_value="mock-id",
+                                        resolver,
+                                        "_prepare_training_data",
+                                        return_value=training_data,
                                     ):
-                                        resolver = SentenceTransformerResolver()
+                                        with tempfile.TemporaryDirectory() as temp_dir:
+                                            resolver.fit(
+                                                texts,
+                                                references,
+                                                referents,
+                                                temp_dir,
+                                                epochs=5,
+                                                batch_size=16,
+                                                learning_rate=1e-4,
+                                                warmup_ratio=0.2,
+                                                save_strategy="steps",
+                                            )
 
-                                        with patch.object(
-                                            resolver,
-                                            "_prepare_training_data",
-                                            return_value=training_data,
-                                        ):
-                                            with tempfile.TemporaryDirectory() as temp_dir:
-                                                resolver.fit(
-                                                    [MagicMock()],
-                                                    temp_dir,
-                                                    epochs=5,
-                                                    batch_size=16,
-                                                    learning_rate=1e-4,
-                                                    warmup_ratio=0.2,
-                                                    save_strategy="steps",
-                                                )
-
-                                                # Verify custom parameters were passed
-                                                args_call = mock_args.call_args[1]
-                                                assert (
-                                                    args_call["num_train_epochs"] == 5
-                                                )
-                                                assert (
-                                                    args_call[
-                                                        "per_device_train_batch_size"
-                                                    ]
-                                                    == 16
-                                                )
-                                                assert (
-                                                    args_call["learning_rate"] == 1e-4
-                                                )
-                                                assert args_call["warmup_ratio"] == 0.2
-                                                assert (
-                                                    args_call["save_strategy"]
-                                                    == "steps"
-                                                )
+                                            # Verify custom parameters were passed
+                                            args_call = mock_args.call_args[1]
+                                            assert args_call["num_train_epochs"] == 5
+                                            assert (
+                                                args_call["per_device_train_batch_size"]
+                                                == 16
+                                            )
+                                            assert args_call["learning_rate"] == 1e-4
+                                            assert args_call["warmup_ratio"] == 0.2
+                                            assert args_call["save_strategy"] == "steps"
 
 
 def test_predict_referents_exact_method_skip_on_higher_ranks():
@@ -782,47 +717,44 @@ def test_predict_referents_exact_method_skip_on_higher_ranks():
                     "geoparser.modules.resolvers.sentencetransformer.Gazetteer",
                     return_value=mock_gazetteer,
                 ):
+                    resolver = SentenceTransformerResolver(max_iter=2)
+
+                    # Mock _extract_context to return a simple context
                     with patch.object(
-                        SentenceTransformerResolver, "_load", return_value="mock-id"
+                        resolver, "_extract_context", return_value="test context"
                     ):
-                        resolver = SentenceTransformerResolver(max_iter=2)
+                        # Use raw data
+                        texts = ["I visited London"]
+                        references = [[(10, 16)]]  # "London"
+                        result = resolver.predict_referents(texts, references)
 
-                        # Mock _extract_context to return a simple context
-                        with patch.object(
-                            resolver, "_extract_context", return_value="test context"
-                        ):
-                            result = resolver.predict_referents(mock_references)
+                        # Should return default result since no candidates found
+                        assert result == [[("geonames", "")]]
 
-                            # Should return default result since no candidates found
-                            assert result == [("geonames", "")]
-
-                            # Verify exact method was called only for ranks=1
-                            search_calls = mock_gazetteer.search.call_args_list
-                            exact_calls = [
-                                call
-                                for call in search_calls
-                                if len(call[0]) > 1 and call[0][1] == "exact"
-                            ]
-                            # Should only have 1 exact call (for ranks=1)
-                            assert len(exact_calls) == 1
+                        # Verify exact method was called only for ranks=1
+                        search_calls = mock_gazetteer.search.call_args_list
+                        exact_calls = [
+                            call
+                            for call in search_calls
+                            if len(call[0]) > 1 and call[0][1] == "exact"
+                        ]
+                        # Should only have 1 exact call (for ranks=1)
+                        assert len(exact_calls) == 1
 
 
-def test_embed_references_empty_list():
-    """Test _embed_references with empty references list."""
+def test_embed_contexts_empty_list():
+    """Test _embed_contexts with empty contexts list."""
     with patch("geoparser.modules.resolvers.sentencetransformer.SentenceTransformer"):
         with patch("geoparser.modules.resolvers.sentencetransformer.AutoTokenizer"):
             with patch("geoparser.modules.resolvers.sentencetransformer.spacy"):
                 with patch("geoparser.modules.resolvers.sentencetransformer.Gazetteer"):
-                    with patch.object(
-                        SentenceTransformerResolver, "_load", return_value="mock-id"
-                    ):
-                        resolver = SentenceTransformerResolver()
+                    resolver = SentenceTransformerResolver()
 
-                        # Call with empty list should return early
-                        resolver._embed_references([])
+                    # Call with empty list should return early
+                    resolver._embed_contexts([])
 
-                        # Verify no embeddings were stored
-                        assert len(resolver.reference_embeddings) == 0
+                    # Verify no embeddings were stored
+                    assert len(resolver.context_embeddings) == 0
 
 
 def test_gather_candidates_already_resolved():
@@ -839,21 +771,20 @@ def test_gather_candidates_already_resolved():
                     "geoparser.modules.resolvers.sentencetransformer.Gazetteer",
                     return_value=mock_gazetteer,
                 ):
-                    with patch.object(
-                        SentenceTransformerResolver, "_load", return_value="mock-id"
-                    ):
-                        resolver = SentenceTransformerResolver()
+                    resolver = SentenceTransformerResolver()
 
-                        references = [mock_reference]
-                        candidates = [[]]
-                        results = [("geonames", "123")]  # Already resolved
+                    # Use new nested structure
+                    texts = ["I visited London"]
+                    references = [[(10, 16)]]  # "London"
+                    candidates = [[[]]]  # No candidates yet
+                    results = [[("geonames", "123")]]  # Already resolved
 
-                        resolver._gather_candidates(
-                            references, candidates, results, "exact", 1
-                        )
+                    resolver._gather_candidates(
+                        texts, references, candidates, results, "exact", 1
+                    )
 
-                        # Should not have called search since reference is already resolved
-                        mock_gazetteer.search.assert_not_called()
+                    # Should not have called search since reference is already resolved
+                    mock_gazetteer.search.assert_not_called()
 
 
 def test_embed_candidates_already_resolved():
@@ -865,18 +796,15 @@ def test_embed_candidates_already_resolved():
         with patch("geoparser.modules.resolvers.sentencetransformer.AutoTokenizer"):
             with patch("geoparser.modules.resolvers.sentencetransformer.spacy"):
                 with patch("geoparser.modules.resolvers.sentencetransformer.Gazetteer"):
-                    with patch.object(
-                        SentenceTransformerResolver, "_load", return_value="mock-id"
-                    ):
-                        resolver = SentenceTransformerResolver()
+                    resolver = SentenceTransformerResolver()
 
-                        candidates = [[mock_candidate]]
-                        results = [("geonames", "123")]  # Already resolved
+                    candidates = [[mock_candidate]]
+                    results = [("geonames", "123")]  # Already resolved
 
-                        resolver._embed_candidates(candidates, results)
+                    resolver._embed_candidates(candidates, results)
 
-                        # Should not have stored any embeddings since reference is resolved
-                        assert len(resolver.candidate_embeddings) == 0
+                    # Should not have stored any embeddings since reference is resolved
+                    assert len(resolver.candidate_embeddings) == 0
 
 
 def test_embed_candidates_no_candidates_to_embed():
@@ -893,21 +821,20 @@ def test_embed_candidates_no_candidates_to_embed():
         with patch("geoparser.modules.resolvers.sentencetransformer.AutoTokenizer"):
             with patch("geoparser.modules.resolvers.sentencetransformer.spacy"):
                 with patch("geoparser.modules.resolvers.sentencetransformer.Gazetteer"):
-                    with patch.object(
-                        SentenceTransformerResolver, "_load", return_value="mock-id"
-                    ):
-                        resolver = SentenceTransformerResolver()
+                    resolver = SentenceTransformerResolver()
 
-                        # Pre-populate candidate embeddings
-                        resolver.candidate_embeddings[1] = torch.randn(384)
+                    # Pre-populate candidate embeddings
+                    resolver.candidate_embeddings[1] = torch.randn(384)
 
-                        candidates = [[mock_candidate]]
-                        results = [None]  # Not resolved yet
+                    candidates = [
+                        [[mock_candidate]]
+                    ]  # Nested: doc -> ref -> candidates
+                    results = [[None]]  # Not resolved yet
 
-                        resolver._embed_candidates(candidates, results)
+                    resolver._embed_candidates(candidates, results)
 
-                        # Should not have called encode since candidate already has embedding
-                        mock_transformer.encode.assert_not_called()
+                    # Should not have called encode since candidate already has embedding
+                    mock_transformer.encode.assert_not_called()
 
 
 def test_evaluate_candidates_no_candidates():
@@ -919,22 +846,19 @@ def test_evaluate_candidates_no_candidates():
         with patch("geoparser.modules.resolvers.sentencetransformer.AutoTokenizer"):
             with patch("geoparser.modules.resolvers.sentencetransformer.spacy"):
                 with patch("geoparser.modules.resolvers.sentencetransformer.Gazetteer"):
-                    with patch.object(
-                        SentenceTransformerResolver, "_load", return_value="mock-id"
-                    ):
-                        resolver = SentenceTransformerResolver()
+                    resolver = SentenceTransformerResolver()
 
-                        # Add reference embedding
-                        resolver.reference_embeddings[1] = torch.randn(384)
+                    # Add context embedding
+                    resolver.context_embeddings["test context"] = torch.randn(384)
 
-                        references = [mock_reference]
-                        candidates = [[]]  # No candidates
-                        results = [None]
+                    contexts = [["test context"]]  # One document with one reference
+                    candidates = [[[]]]  # No candidates for that reference
+                    results = [[None]]  # Not resolved yet
 
-                        resolver._evaluate_candidates(references, candidates, results)
+                    resolver._evaluate_candidates(contexts, candidates, results)
 
-                        # Result should remain None since no candidates to evaluate
-                        assert results[0] is None
+                    # Result should remain None since no candidates to evaluate
+                    assert results[0][0] is None
 
 
 def test_extract_context_with_previous_sentence_expansion():
@@ -1003,16 +927,17 @@ def test_extract_context_with_previous_sentence_expansion():
                 return_value=mock_nlp,
             ):
                 with patch("geoparser.modules.resolvers.sentencetransformer.Gazetteer"):
-                    with patch.object(
-                        SentenceTransformerResolver, "_load", return_value="mock-id"
-                    ):
-                        resolver = SentenceTransformerResolver()
+                    resolver = SentenceTransformerResolver()
 
-                        context = resolver._extract_context(mock_reference)
+                    # Use raw data instead of Reference object
+                    text = mock_reference.document.text
+                    start = mock_reference.start
+                    end = mock_reference.end
+                    context = resolver._extract_context(text, start, end)
 
-                        # Should include previous and target sentences (and next if it fits)
-                        expected = "Previous sentence here. Target sentence with London here. Next sentence here."
-                        assert context == expected
+                    # Should include previous and target sentences (and next if it fits)
+                    expected = "Previous sentence here. Target sentence with London here. Next sentence here."
+                    assert context == expected
 
 
 def test_extract_context_with_next_sentence_expansion():
@@ -1071,15 +996,14 @@ def test_extract_context_with_next_sentence_expansion():
                 return_value=mock_nlp,
             ):
                 with patch("geoparser.modules.resolvers.sentencetransformer.Gazetteer"):
-                    with patch.object(
-                        SentenceTransformerResolver, "_load", return_value="mock-id"
-                    ):
-                        resolver = SentenceTransformerResolver()
+                    resolver = SentenceTransformerResolver()
 
-                        context = resolver._extract_context(mock_reference)
+                    # Use raw data instead of Reference object
+                    text = mock_reference.document.text
+                    start = mock_reference.start
+                    end = mock_reference.end
+                    context = resolver._extract_context(text, start, end)
 
-                        # Should include both target and next sentences
-                        expected = (
-                            "Target sentence with London here. Next sentence here."
-                        )
-                        assert context == expected
+                    # Should include both target and next sentences
+                    expected = "Target sentence with London here. Next sentence here."
+                    assert context == expected

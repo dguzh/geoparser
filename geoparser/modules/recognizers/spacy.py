@@ -1,15 +1,11 @@
 import random
-import typing as t
 from pathlib import Path
-from typing import List, Set, Tuple, Union
+from typing import List, Tuple, Union
 
 import spacy
 from spacy.training import Example
 
 from geoparser.modules.recognizers import Recognizer
-
-if t.TYPE_CHECKING:
-    from geoparser.db.models import Document
 
 
 class SpacyRecognizer(Recognizer):
@@ -25,22 +21,23 @@ class SpacyRecognizer(Recognizer):
     def __init__(
         self,
         model_name: str = "en_core_web_sm",
-        entity_types: Set[str] = {"GPE", "LOC", "FAC"},
+        entity_types: List[str] = ["FAC", "GPE", "LOC"],
     ):
         """
         Initialize the SpaCy recognition module.
 
         Args:
             model_name: spaCy model to use (default: "en_core_web_sm")
-            entity_types: Set of spaCy entity types to consider as references
-                          (default: {"GPE", "LOC", "FAC"})
+            entity_types: List of spaCy entity types to consider as references
+                          (default: ["FAC", "GPE", "LOC"])
         """
         # Initialize parent with the parameters
         super().__init__(model_name=model_name, entity_types=entity_types)
 
         # Store instance attributes directly from parameters
         self.model_name = model_name
-        self.entity_types = entity_types
+        # Convert entity_types to set for efficient lookups
+        self.entity_types = set(entity_types)
 
         # Load spaCy model with optimized pipeline
         self.nlp = self._load_spacy_model()
@@ -69,25 +66,24 @@ class SpacyRecognizer(Recognizer):
         return nlp
 
     def predict_references(
-        self, documents: List["Document"]
-    ) -> List[List[Tuple[int, int]]]:
+        self, texts: List[str]
+    ) -> List[Union[List[Tuple[int, int]], None]]:
         """
-        Identify references (location entities) in multiple documents using spaCy.
+        Identify references (location entities) in multiple document texts using spaCy.
 
         Args:
-            documents: List of Document ORM objects to process
+            texts: List of document text strings to process
 
         Returns:
-            List of lists of tuples containing (start, end) positions of references.
-            Each inner list corresponds to references found in one document.
+            List where each element is either:
+            - A list of (start, end) tuples containing positions of references found in the document
+            - None if predictions are not available for that document
+            Each element corresponds to one document at the same index in the input list.
         """
         results = []
 
-        # Extract document texts for batch processing
-        document_texts = [doc.text for doc in documents]
-
         # Process documents in batches using spaCy's nlp.pipe for efficiency
-        docs = list(self.nlp.pipe(document_texts))
+        docs = list(self.nlp.pipe(texts))
 
         # Extract reference offsets for each document
         for doc in docs:
@@ -103,7 +99,8 @@ class SpacyRecognizer(Recognizer):
 
     def fit(
         self,
-        documents: List["Document"],
+        texts: List[str],
+        references: List[List[Tuple[int, int]]],
         output_path: Union[str, Path],
         epochs: int = 10,
         batch_size: int = 8,
@@ -116,7 +113,8 @@ class SpacyRecognizer(Recognizer):
         to create training examples for fine-tuning the underlying spaCy NER model.
 
         Args:
-            documents: List of Document objects containing reference annotations
+            texts: List of document text strings
+            references: List of lists of (start, end) position tuples
             output_path: Directory path to save the fine-tuned model
             epochs: Number of training epochs (default: 10)
             batch_size: Training batch size (default: 8)
@@ -129,7 +127,7 @@ class SpacyRecognizer(Recognizer):
         print("Preparing training data from reference annotations...")
 
         # Prepare training data
-        examples = self._prepare_training_data(documents)
+        examples = self._prepare_training_data(texts, references)
 
         if not examples:
             raise ValueError(
@@ -192,13 +190,16 @@ class SpacyRecognizer(Recognizer):
 
         return "LOC"  # Default fallback
 
-    def _prepare_training_data(self, documents: List["Document"]) -> List[Example]:
+    def _prepare_training_data(
+        self, texts: List[str], references: List[List[Tuple[int, int]]]
+    ) -> List[Example]:
         """
         Convert documents with reference annotations to spaCy training format.
         Uses label distillation to assign each span the label the base model would choose.
 
         Args:
-            documents: List of Document objects with reference annotations
+            texts: List of document text strings
+            references: List of lists of (start, end) position tuples
 
         Returns:
             List of spaCy Example objects for training
@@ -208,21 +209,19 @@ class SpacyRecognizer(Recognizer):
 
         examples = []
 
-        for document in documents:
+        for text, doc_references in zip(texts, references):
             # Create spaCy doc from text (for training)
-            doc = self.nlp.make_doc(document.text)
+            doc = self.nlp.make_doc(text)
 
             # Process document with frozen base model for label distillation
-            base_doc = base_nlp(document.text)
+            base_doc = base_nlp(text)
 
             # Extract entities from references with distilled labels
             entities = []
-            for reference in document.references:
+            for start, end in doc_references:
                 # Get distilled label from base model
-                entity_label = self._get_distilled_label(
-                    reference.start, reference.end, base_doc
-                )
-                entities.append((reference.start, reference.end, entity_label))
+                entity_label = self._get_distilled_label(start, end, base_doc)
+                entities.append((start, end, entity_label))
 
             # Create training example
             entity_dict = {"entities": entities}

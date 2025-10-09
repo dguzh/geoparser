@@ -49,16 +49,37 @@ def test_project(test_db: Session):
 
 
 @pytest.fixture
-def test_document(test_db: Session, test_project: Project):
-    """Create a test document."""
+def test_document(test_db, test_project):
+    """Create a test document in the test project."""
     document_create = DocumentCreate(
-        text="This is a test document with Berlin.", project_id=test_project.id
+        text="This is a test document about London and Paris.",
+        project_id=test_project.id,
     )
-    document = Document(text=document_create.text, project_id=test_project.id)
+    document = Document.model_validate(document_create)
     test_db.add(document)
     test_db.commit()
     test_db.refresh(document)
     return document
+
+
+@pytest.fixture
+def test_documents(test_db, test_project):
+    """Create multiple test documents in the test project."""
+    documents = []
+    texts = [
+        "This is a test document about London and Paris.",
+        "Another document mentioning New York and Tokyo.",
+    ]
+
+    for text in texts:
+        document_create = DocumentCreate(text=text, project_id=test_project.id)
+        document = Document.model_validate(document_create)
+        test_db.add(document)
+        test_db.commit()
+        test_db.refresh(document)
+        documents.append(document)
+
+    return documents
 
 
 @pytest.fixture
@@ -124,6 +145,35 @@ def test_reference(
     )
     reference = ReferenceRepository.create(test_db, reference_create)
     return reference
+
+
+@pytest.fixture
+def test_references(test_db, test_documents, test_recognizer):
+    """Create multiple test references across documents."""
+    references = []
+
+    # Create 2 references for first document
+    for start, end in [(29, 35), (41, 46)]:
+        reference_create = ReferenceCreate(
+            start=start,
+            end=end,
+            document_id=test_documents[0].id,
+            recognizer_id=test_recognizer.id,
+        )
+        reference = ReferenceRepository.create(test_db, reference_create)
+        references.append(reference)
+
+    # Create 1 reference for second document
+    reference_create = ReferenceCreate(
+        start=25,
+        end=33,
+        document_id=test_documents[1].id,
+        recognizer_id=test_recognizer.id,
+    )
+    reference = ReferenceRepository.create(test_db, reference_create)
+    references.append(reference)
+
+    return references
 
 
 @pytest.fixture

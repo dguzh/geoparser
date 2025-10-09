@@ -15,7 +15,7 @@ def test_project_initialization_new_project(test_db):
 
         project = Project(project_name)
 
-        assert project.project_name == project_name
+        assert project.name == project_name
         assert project.id is not None
 
         # Verify project was created in database
@@ -33,7 +33,7 @@ def test_project_initialization_existing_project(test_db, test_project_model):
 
         project = Project(test_project_model.name)
 
-        assert project.project_name == test_project_model.name
+        assert project.name == test_project_model.name
         assert project.id == test_project_model.id
 
 
@@ -187,3 +187,79 @@ def test_get_documents_empty_project(test_db):
 
         assert len(documents) == 0
         assert documents == []
+
+
+def test_run_recognizer(test_db):
+    """Test running a recognizer on project documents."""
+    from unittest.mock import Mock
+
+    project_name = "test-project"
+    texts = ["Document 1", "Document 2"]
+
+    with patch("geoparser.project.project.Session") as mock_session:
+        mock_session.return_value.__enter__.return_value = test_db
+        mock_session.return_value.__exit__.return_value = None
+
+        project = Project(project_name)
+        project.add_documents(texts)
+
+        # Create mock recognizer
+        mock_recognizer = Mock()
+        mock_recognizer.name = "MockRecognizer"
+        mock_recognizer.config = {}
+
+        # Mock the RecognitionService (patch where it's imported in project.py)
+        with patch(
+            "geoparser.project.project.RecognitionService"
+        ) as mock_recognition_service:
+            mock_service_instance = Mock()
+            mock_recognition_service.return_value = mock_service_instance
+
+            # Run the recognizer
+            project.run_recognizer(mock_recognizer)
+
+            # Verify RecognitionService was created with the recognizer
+            mock_recognition_service.assert_called_once_with(mock_recognizer)
+
+            # Verify run was called on the service with documents
+            mock_service_instance.run.assert_called_once()
+            called_documents = mock_service_instance.run.call_args[0][0]
+            assert len(called_documents) == 2
+
+
+def test_run_resolver(test_db):
+    """Test running a resolver on project documents."""
+    from unittest.mock import Mock
+
+    project_name = "test-project"
+    texts = ["Document 1", "Document 2"]
+
+    with patch("geoparser.project.project.Session") as mock_session:
+        mock_session.return_value.__enter__.return_value = test_db
+        mock_session.return_value.__exit__.return_value = None
+
+        project = Project(project_name)
+        project.add_documents(texts)
+
+        # Create mock resolver
+        mock_resolver = Mock()
+        mock_resolver.name = "MockResolver"
+        mock_resolver.config = {}
+
+        # Mock the ResolutionService (patch where it's imported in project.py)
+        with patch(
+            "geoparser.project.project.ResolutionService"
+        ) as mock_resolution_service:
+            mock_service_instance = Mock()
+            mock_resolution_service.return_value = mock_service_instance
+
+            # Run the resolver
+            project.run_resolver(mock_resolver)
+
+            # Verify ResolutionService was created with the resolver
+            mock_resolution_service.assert_called_once_with(mock_resolver)
+
+            # Verify run was called on the service with documents
+            mock_service_instance.run.assert_called_once()
+            called_documents = mock_service_instance.run.call_args[0][0]
+            assert len(called_documents) == 2

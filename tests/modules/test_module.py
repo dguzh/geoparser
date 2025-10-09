@@ -55,34 +55,32 @@ def test_config_order_invariance(concrete_test_module_class):
     assert repr(module1) == repr(module2)
 
 
-def test_config_set_normalization(concrete_test_module_class):
-    """Test that sets are normalized to sorted lists in config."""
+def test_config_set_not_allowed(concrete_test_module_class):
+    """Test that sets are not allowed in config (must be JSON serializable)."""
     TestModule = concrete_test_module_class
 
-    # Initialize with a set parameter
-    module = TestModule(features={"b", "a", "c"})
-
-    # Set should be converted to sorted list
-    assert module.config == {"features": ["a", "b", "c"]}
+    # Initialize with a set parameter should raise TypeError
+    with pytest.raises(TypeError, match="not JSON serializable"):
+        TestModule(features={"b", "a", "c"})
 
 
 def test_config_normalization_mixed_types(concrete_test_module_class):
-    """Test config normalization with mixed parameter types."""
+    """Test config normalization with mixed JSON-serializable parameter types."""
     TestModule = concrete_test_module_class
 
-    # Initialize with mixed types including sets
+    # Initialize with mixed JSON-serializable types
     module = TestModule(
         string_param="test",
         int_param=42,
         list_param=[3, 1, 2],
-        set_param={"z", "x", "y"},
+        dict_param={"nested": "value"},
     )
 
-    # Check normalization
+    # Check normalization (keys are sorted alphabetically)
     expected_config = {
+        "dict_param": {"nested": "value"},
         "int_param": 42,
         "list_param": [3, 1, 2],  # Lists are preserved as-is
-        "set_param": ["x", "y", "z"],  # Sets become sorted lists
         "string_param": "test",
     }
     assert module.config == expected_config

@@ -1,6 +1,6 @@
 import typing as t
 import uuid
-from typing import Generic, Type, TypeVar
+from typing import Generic, Type, TypeVar, Union
 
 from sqlmodel import Session, SQLModel, select
 
@@ -36,13 +36,13 @@ class BaseRepository(Generic[T]):
         return db_obj
 
     @classmethod
-    def get(cls, db: Session, id: uuid.UUID) -> t.Optional[T]:
+    def get(cls, db: Session, id: Union[uuid.UUID, str]) -> t.Optional[T]:
         """
         Get a record by ID.
 
         Args:
             db: Database session
-            id: Record ID
+            id: Record ID (UUID or string)
 
         Returns:
             Record if found, None otherwise
@@ -87,13 +87,13 @@ class BaseRepository(Generic[T]):
         return db_obj
 
     @classmethod
-    def delete(cls, db: Session, *, id: uuid.UUID) -> t.Optional[T]:
+    def delete(cls, db: Session, *, id: Union[uuid.UUID, str]) -> t.Optional[T]:
         """
         Delete a record.
 
         Args:
             db: Database session
-            id: Record ID
+            id: Record ID (UUID or string)
 
         Returns:
             Deleted object if found, None otherwise

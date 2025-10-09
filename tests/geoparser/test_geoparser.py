@@ -1,4 +1,3 @@
-import uuid
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -22,27 +21,26 @@ def test_geoparser_initialization():
 def test_parse_single_text():
     """Test parsing a single text string."""
     mock_recognizer = MagicMock(spec=Recognizer)
+    mock_recognizer.id = "test-recognizer-id"
+    mock_recognizer.name = "test-recognizer"
+    mock_recognizer.config = {}
     mock_resolver = MagicMock(spec=Resolver)
-
-    # Mock the recognizer and resolver IDs
-    mock_recognizer.id = uuid.uuid4()
-    mock_resolver.id = uuid.uuid4()
+    mock_resolver.id = "test-resolver-id"
+    mock_resolver.name = "test-resolver"
+    mock_resolver.config = {}
 
     geoparser = Geoparser(recognizer=mock_recognizer, resolver=mock_resolver)
 
     text = "This is a test document about London."
 
-    # Mock the Project methods
+    # Mock the Project class
     with patch("geoparser.geoparser.geoparser.Project") as mock_project_class:
         mock_project = MagicMock()
         mock_project_class.return_value = mock_project
 
         # Mock return values
         mock_documents = [MagicMock(), MagicMock()]
-        mock_project.get_documents.side_effect = [
-            mock_documents,  # First call returns all documents
-            mock_documents,  # Second call returns filtered documents
-        ]
+        mock_project.get_documents.return_value = mock_documents
 
         # Call parse
         result = geoparser.parse(text)
@@ -53,9 +51,15 @@ def test_parse_single_text():
         # Verify documents were added
         mock_project.add_documents.assert_called_once_with(text)
 
-        # Verify modules were run
-        mock_recognizer.run.assert_called_once_with(mock_documents)
-        mock_resolver.run.assert_called_once_with(mock_documents)
+        # Verify recognizer and resolver were run
+        mock_project.run_recognizer.assert_called_once_with(mock_recognizer)
+        mock_project.run_resolver.assert_called_once_with(mock_resolver)
+
+        # Verify get_documents was called with recognizer and resolver IDs
+        mock_project.get_documents.assert_called_once_with(
+            recognizer_id="test-recognizer-id",
+            resolver_id="test-resolver-id",
+        )
 
         # Verify project was deleted (default behavior)
         mock_project.delete.assert_called_once()
@@ -67,11 +71,13 @@ def test_parse_single_text():
 def test_parse_multiple_texts():
     """Test parsing a list of text strings."""
     mock_recognizer = MagicMock(spec=Recognizer)
+    mock_recognizer.id = "test-recognizer-id"
+    mock_recognizer.name = "test-recognizer"
+    mock_recognizer.config = {}
     mock_resolver = MagicMock(spec=Resolver)
-
-    # Mock the recognizer and resolver IDs
-    mock_recognizer.id = uuid.uuid4()
-    mock_resolver.id = uuid.uuid4()
+    mock_resolver.id = "test-resolver-id"
+    mock_resolver.name = "test-resolver"
+    mock_resolver.config = {}
 
     geoparser = Geoparser(recognizer=mock_recognizer, resolver=mock_resolver)
 
@@ -80,17 +86,14 @@ def test_parse_multiple_texts():
         "This is the second document about Paris.",
     ]
 
-    # Mock the Project methods
+    # Mock the Project class
     with patch("geoparser.geoparser.geoparser.Project") as mock_project_class:
         mock_project = MagicMock()
         mock_project_class.return_value = mock_project
 
         # Mock return values
         mock_documents = [MagicMock(), MagicMock()]
-        mock_project.get_documents.side_effect = [
-            mock_documents,  # First call returns all documents
-            mock_documents,  # Second call returns filtered documents
-        ]
+        mock_project.get_documents.return_value = mock_documents
 
         # Call parse
         result = geoparser.parse(texts)
@@ -98,9 +101,9 @@ def test_parse_multiple_texts():
         # Verify documents were added
         mock_project.add_documents.assert_called_once_with(texts)
 
-        # Verify modules were run
-        mock_recognizer.run.assert_called_once_with(mock_documents)
-        mock_resolver.run.assert_called_once_with(mock_documents)
+        # Verify recognizer and resolver were run
+        mock_project.run_recognizer.assert_called_once_with(mock_recognizer)
+        mock_project.run_resolver.assert_called_once_with(mock_resolver)
 
         # Verify result
         assert result == mock_documents
@@ -109,27 +112,26 @@ def test_parse_multiple_texts():
 def test_parse_with_save():
     """Test parsing with save=True preserves the project."""
     mock_recognizer = MagicMock(spec=Recognizer)
+    mock_recognizer.id = "test-recognizer-id"
+    mock_recognizer.name = "test-recognizer"
+    mock_recognizer.config = {}
     mock_resolver = MagicMock(spec=Resolver)
-
-    # Mock the recognizer and resolver IDs
-    mock_recognizer.id = uuid.uuid4()
-    mock_resolver.id = uuid.uuid4()
+    mock_resolver.id = "test-resolver-id"
+    mock_resolver.name = "test-resolver"
+    mock_resolver.config = {}
 
     geoparser = Geoparser(recognizer=mock_recognizer, resolver=mock_resolver)
 
     text = "This is a test document about London."
 
-    # Mock the Project methods
+    # Mock the Project class
     with patch("geoparser.geoparser.geoparser.Project") as mock_project_class:
         mock_project = MagicMock()
         mock_project_class.return_value = mock_project
 
         # Mock return values
         mock_documents = [MagicMock()]
-        mock_project.get_documents.side_effect = [
-            mock_documents,  # First call returns all documents
-            mock_documents,  # Second call returns filtered documents
-        ]
+        mock_project.get_documents.return_value = mock_documents
 
         # Mock print function
         with patch("builtins.print") as mock_print:
@@ -148,24 +150,23 @@ def test_parse_with_save():
 def test_parse_empty_text():
     """Test parsing empty text."""
     mock_recognizer = MagicMock(spec=Recognizer)
+    mock_recognizer.id = "test-recognizer-id"
+    mock_recognizer.name = "test-recognizer"
+    mock_recognizer.config = {}
     mock_resolver = MagicMock(spec=Resolver)
-
-    # Mock the recognizer and resolver IDs
-    mock_recognizer.id = uuid.uuid4()
-    mock_resolver.id = uuid.uuid4()
+    mock_resolver.id = "test-resolver-id"
+    mock_resolver.name = "test-resolver"
+    mock_resolver.config = {}
 
     geoparser = Geoparser(recognizer=mock_recognizer, resolver=mock_resolver)
 
-    # Mock the Project methods
+    # Mock the Project class
     with patch("geoparser.geoparser.geoparser.Project") as mock_project_class:
         mock_project = MagicMock()
         mock_project_class.return_value = mock_project
 
         # Mock return values
-        mock_project.get_documents.side_effect = [
-            [],  # First call returns no documents
-            [],  # Second call returns no filtered documents
-        ]
+        mock_project.get_documents.return_value = []
 
         # Call parse
         result = geoparser.parse("")
@@ -181,22 +182,22 @@ def test_parse_empty_text():
 def test_parse_project_cleanup_on_exception():
     """Test that project is cleaned up even when an exception occurs."""
     mock_recognizer = MagicMock(spec=Recognizer)
+    mock_recognizer.id = "test-recognizer-id"
+    mock_recognizer.name = "test-recognizer"
+    mock_recognizer.config = {}
     mock_resolver = MagicMock(spec=Resolver)
-
-    # Mock the recognizer and resolver IDs
-    mock_recognizer.id = uuid.uuid4()
-    mock_resolver.id = uuid.uuid4()
+    mock_resolver.id = "test-resolver-id"
+    mock_resolver.name = "test-resolver"
+    mock_resolver.config = {}
 
     geoparser = Geoparser(recognizer=mock_recognizer, resolver=mock_resolver)
 
-    # Mock the Project methods to raise an exception
+    # Mock the Project class to raise an exception
     with patch("geoparser.geoparser.geoparser.Project") as mock_project_class:
         mock_project = MagicMock()
         mock_project_class.return_value = mock_project
-
-        # Make recognizer.run raise an exception
-        mock_recognizer.run.side_effect = Exception("Test exception")
-        mock_project.get_documents.return_value = [MagicMock()]
+        # Make run_recognizer raise an exception
+        mock_project.run_recognizer.side_effect = Exception("Test exception")
 
         # Call parse and expect exception
         with pytest.raises(Exception, match="Test exception"):
@@ -209,11 +210,13 @@ def test_parse_project_cleanup_on_exception():
 def test_parse_project_name_generation():
     """Test that project names are generated correctly."""
     mock_recognizer = MagicMock(spec=Recognizer)
+    mock_recognizer.id = "test-recognizer-id"
+    mock_recognizer.name = "test-recognizer"
+    mock_recognizer.config = {}
     mock_resolver = MagicMock(spec=Resolver)
-
-    # Mock the recognizer and resolver IDs
-    mock_recognizer.id = uuid.uuid4()
-    mock_resolver.id = uuid.uuid4()
+    mock_resolver.id = "test-resolver-id"
+    mock_resolver.name = "test-resolver"
+    mock_resolver.config = {}
 
     geoparser = Geoparser(recognizer=mock_recognizer, resolver=mock_resolver)
 

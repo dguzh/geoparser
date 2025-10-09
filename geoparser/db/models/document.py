@@ -55,9 +55,9 @@ class Document(DocumentBase, table=True):
         },
     )
 
-    _recognizer_id: Optional[uuid.UUID] = None
+    _recognizer_id: Optional[str] = None
 
-    def _set_recognizer_context(self, recognizer_id: uuid.UUID = None):
+    def _set_recognizer_context(self, recognizer_id: str = None):
         """
         Internal method to set the viewing context for references.
 

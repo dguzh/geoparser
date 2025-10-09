@@ -55,14 +55,11 @@ class Geoparser:
             # Add documents to the project
             project.add_documents(texts)
 
-            # Get all documents from the project (without filtering by recognizer/resolver)
-            documents = project.get_documents()
-
             # Run the recognizer on all documents
-            self.recognizer.run(documents)
+            project.run_recognizer(self.recognizer)
 
             # Run the resolver on all documents
-            self.resolver.run(documents)
+            project.run_resolver(self.resolver)
 
             # Get all documents with results from our specific recognizer and resolver
             documents = project.get_documents(

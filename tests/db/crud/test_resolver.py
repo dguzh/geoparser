@@ -1,5 +1,3 @@
-import uuid
-
 from sqlmodel import Session
 
 from geoparser.db.crud import ResolverRepository
@@ -13,8 +11,10 @@ def test_create(test_db: Session):
         "max_results": 5,
     }
 
-    resolver_create = ResolverCreate(name="test-resolver", config=config)
-    resolver = Resolver(name=resolver_create.name, config=resolver_create.config)
+    resolver_create = ResolverCreate(id="test-id", name="test-resolver", config=config)
+    resolver = Resolver(
+        id="auto-id", name=resolver_create.name, config=resolver_create.config
+    )
 
     created_resolver = ResolverRepository.create(test_db, resolver)
 
@@ -39,7 +39,7 @@ def test_get(test_db: Session, test_resolver: Resolver):
     assert resolver.config == test_resolver.config
 
     # Test with invalid ID
-    invalid_id = uuid.uuid4()
+    invalid_id = "invalid-resolver-id"
     resolver = ResolverRepository.get(test_db, invalid_id)
     assert resolver is None
 
@@ -57,12 +57,24 @@ def test_get_by_name_and_config(test_db: Session):
         "max_results": 10,
     }
 
-    resolver_create1 = ResolverCreate(name="same-name-resolver", config=config1)
-    resolver1 = Resolver(name=resolver_create1.name, config=resolver_create1.config)
+    resolver_create1 = ResolverCreate(
+        id="test-id-1", name="same-name-resolver", config=config1
+    )
+    resolver1 = Resolver(
+        id=resolver_create1.id,
+        name=resolver_create1.name,
+        config=resolver_create1.config,
+    )
     test_db.add(resolver1)
 
-    resolver_create2 = ResolverCreate(name="same-name-resolver", config=config2)
-    resolver2 = Resolver(name=resolver_create2.name, config=resolver_create2.config)
+    resolver_create2 = ResolverCreate(
+        id="test-id-2", name="same-name-resolver", config=config2
+    )
+    resolver2 = Resolver(
+        id=resolver_create2.id,
+        name=resolver_create2.name,
+        config=resolver_create2.config,
+    )
     test_db.add(resolver2)
 
     test_db.commit()
@@ -111,8 +123,12 @@ def test_get_all(test_db: Session, test_resolver: Resolver):
         "gazetteer": "another-gazetteer",
     }
 
-    resolver_create = ResolverCreate(name="another-resolver", config=config)
-    resolver = Resolver(name=resolver_create.name, config=resolver_create.config)
+    resolver_create = ResolverCreate(
+        id="test-id", name="another-resolver", config=config
+    )
+    resolver = Resolver(
+        id="auto-id", name=resolver_create.name, config=resolver_create.config
+    )
     test_db.add(resolver)
     test_db.commit()
 
@@ -156,8 +172,12 @@ def test_delete(test_db: Session, test_resolver: Resolver):
     # Create a new resolver to delete
     config = {"gazetteer": "to-be-deleted"}
 
-    resolver_create = ResolverCreate(name="resolver-to-delete", config=config)
-    resolver = Resolver(name=resolver_create.name, config=resolver_create.config)
+    resolver_create = ResolverCreate(
+        id="test-id", name="resolver-to-delete", config=config
+    )
+    resolver = Resolver(
+        id="auto-id", name=resolver_create.name, config=resolver_create.config
+    )
     test_db.add(resolver)
     test_db.commit()
     test_db.refresh(resolver)

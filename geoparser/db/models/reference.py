@@ -2,7 +2,7 @@ import typing as t
 import uuid
 from typing import Optional
 
-from sqlalchemy import UUID, Column, ForeignKey
+from sqlalchemy import UUID, Column, ForeignKey, String
 from sqlmodel import Field, Relationship, SQLModel
 
 if t.TYPE_CHECKING:
@@ -35,9 +35,9 @@ class Reference(ReferenceBase, table=True):
             UUID, ForeignKey("document.id", ondelete="CASCADE"), nullable=False
         )
     )
-    recognizer_id: uuid.UUID = Field(
+    recognizer_id: str = Field(
         sa_column=Column(
-            UUID, ForeignKey("recognizer.id", ondelete="CASCADE"), nullable=False
+            String, ForeignKey("recognizer.id", ondelete="CASCADE"), nullable=False
         )
     )
     document: "Document" = Relationship(
@@ -62,9 +62,9 @@ class Reference(ReferenceBase, table=True):
         },
     )
 
-    _resolver_id: Optional[uuid.UUID] = None
+    _resolver_id: Optional[str] = None
 
-    def _set_resolver_context(self, resolver_id: uuid.UUID = None):
+    def _set_resolver_context(self, resolver_id: str = None):
         """
         Internal method to set the viewing context for referents.
 
@@ -120,7 +120,7 @@ class ReferenceCreate(ReferenceBase):
     """
 
     document_id: uuid.UUID
-    recognizer_id: uuid.UUID
+    recognizer_id: str
 
 
 class ReferenceUpdate(SQLModel):
@@ -128,6 +128,6 @@ class ReferenceUpdate(SQLModel):
 
     id: uuid.UUID
     document_id: t.Optional[uuid.UUID] = None
-    recognizer_id: t.Optional[uuid.UUID] = None
+    recognizer_id: t.Optional[str] = None
     start: t.Optional[int] = None
     end: t.Optional[int] = None
