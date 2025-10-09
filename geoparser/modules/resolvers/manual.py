@@ -54,33 +54,44 @@ class ManualResolver(Resolver):
 
     def predict_referents(
         self, texts: t.List[str], references: t.List[t.List[t.Tuple[int, int]]]
-    ) -> t.List[t.List[t.Tuple[str, str]]]:
+    ) -> t.List[t.List[t.Union[t.Tuple[str, str], None]]]:
         """
         Return the manually provided referent annotations for the given references.
 
         This method matches each input text to the corresponding annotation by looking
         up the text in the stored texts list, then matches each reference within that
-        document to find the corresponding referent annotation.
+        document to find the corresponding referent annotation. For references without
+        annotations, None is returned.
 
         Args:
             texts: List of document text strings
             references: List of lists of (start, end) position tuples
 
         Returns:
-            List of lists of (gazetteer_name, identifier) tuples representing the
-            resolved referents. Each inner list corresponds to referents for one document.
+            List of lists where each element is either:
+            - A tuple (gazetteer_name, identifier) for annotated references
+            - None for references without annotations (which won't be marked as processed)
         """
         results = []
         for text, doc_references in zip(texts, references):
-            text_idx = self.texts.index(text)
-            stored_references = self.references[text_idx]
-            stored_referents = self.referents[text_idx]
+            try:
+                text_idx = self.texts.index(text)
+                stored_references = self.references[text_idx]
+                stored_referents = self.referents[text_idx]
 
-            doc_results = []
-            for reference in doc_references:
-                reference_idx = stored_references.index(reference)
-                doc_results.append(stored_referents[reference_idx])
+                doc_results = []
+                for reference in doc_references:
+                    try:
+                        reference_idx = stored_references.index(reference)
+                        doc_results.append(stored_referents[reference_idx])
+                    except ValueError:
+                        # Reference not in stored annotations - return None
+                        # This signals to the service that no annotation is available
+                        doc_results.append(None)
 
-            results.append(doc_results)
+                results.append(doc_results)
+            except ValueError:
+                # Text not in stored annotations - return None for all references in this document
+                results.append([None] * len(doc_references))
 
         return results

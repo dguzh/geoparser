@@ -27,7 +27,7 @@ class Recognizer(Module):
     @abstractmethod
     def predict_references(
         self, texts: t.List[str]
-    ) -> t.List[t.List[t.Tuple[int, int]]]:
+    ) -> t.List[t.Union[t.List[t.Tuple[int, int]], None]]:
         """
         Predict references in multiple document texts.
 
@@ -37,6 +37,9 @@ class Recognizer(Module):
             texts: List of document text strings to process
 
         Returns:
-            List of lists of tuples containing (start, end) positions of references.
-            Each inner list corresponds to references found in one document at the same index in the input list.
+            List where each element is either:
+            - A list of (start, end) tuples containing positions of references found in the document
+            - None to indicate that predictions are not available for that document
+              (e.g., unsupported language, missing data, etc.)
+            Each element corresponds to one document at the same index in the input list.
         """

@@ -114,7 +114,7 @@ class ResolutionService:
         self,
         db: Session,
         unprocessed_references: List["Reference"],
-        predicted_referents: List[Tuple[str, str]],
+        predicted_referents: List[t.Union[Tuple[str, str], None]],
         resolver_id: uuid.UUID,
     ) -> None:
         """
@@ -123,11 +123,17 @@ class ResolutionService:
         Args:
             db: Database session
             unprocessed_references: List of references to process
-            predicted_referents: List of (gazetteer_name, identifier) tuples - each reference gets exactly one referent
+            predicted_referents: List where each element is either a (gazetteer_name, identifier) tuple
+                                or None for references where predictions are not available
             resolver_id: ID of the resolver that made the predictions
         """
         # Process each reference with its predicted referent
         for reference, referent in zip(unprocessed_references, predicted_referents):
+            # Skip references where predictions are not available
+            # (None indicates the resolver couldn't process this reference)
+            if referent is None:
+                continue
+
             # Create referent record for the single prediction with resolver ID
             gazetteer_name, identifier = referent
             self._create_referent_record(

@@ -27,7 +27,7 @@ class Resolver(Module):
     @abstractmethod
     def predict_referents(
         self, texts: t.List[str], references: t.List[t.List[t.Tuple[int, int]]]
-    ) -> t.List[t.List[t.Tuple[str, str]]]:
+    ) -> t.List[t.List[t.Union[t.Tuple[str, str], None]]]:
         """
         Predict referents for multiple references across multiple documents.
 
@@ -39,9 +39,12 @@ class Resolver(Module):
                        Each inner list corresponds to references in one document at the same index in texts.
 
         Returns:
-            List of lists of tuples containing (gazetteer_name, identifier).
+            List of lists where each element is either:
+            - A tuple (gazetteer_name, identifier) for a successfully resolved reference
+            - None to indicate that prediction is not available for that specific reference
+              (e.g., missing data, unsupported format, etc.)
             Each inner list corresponds to referents for references in one document.
-            Each tuple at position [i][j] is the referent for the reference at position [i][j] in the input.
+            Each element at position [i][j] is the referent (or None) for the reference at position [i][j] in the input.
             The gazetteer_name identifies which gazetteer the identifier refers to,
             and the identifier is the value used to identify the referent in that gazetteer.
         """

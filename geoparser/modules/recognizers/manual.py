@@ -47,25 +47,32 @@ class ManualRecognizer(Recognizer):
 
     def predict_references(
         self, texts: t.List[str]
-    ) -> t.List[t.List[t.Tuple[int, int]]]:
+    ) -> t.List[t.Union[t.List[t.Tuple[int, int]], None]]:
         """
         Return the manually provided reference annotations for the given documents.
 
         This method matches each input text to the corresponding annotation by looking
-        up the text in the stored texts list. Only texts that have annotations will
-        be processed, and the order is determined by the input texts, not the stored
-        annotations.
+        up the text in the stored texts list. For texts that don't have annotations,
+        None is returned to indicate that no annotation is available (as opposed to
+        an empty list which would indicate that the document was annotated as having
+        no references).
 
         Args:
             texts: List of document text strings to annotate
 
         Returns:
-            List of lists of (start, end) tuples representing reference spans.
-            Each inner list corresponds to references for one document.
+            List where each element is either:
+            - A list of (start, end) tuples representing reference spans for annotated documents
+            - None for documents without annotations (which won't be marked as processed)
         """
         results = []
         for text in texts:
-            idx = self.texts.index(text)
-            results.append(self.references[idx])
+            try:
+                idx = self.texts.index(text)
+                results.append(self.references[idx])
+            except ValueError:
+                # Text not in stored annotations - return None
+                # This signals to the service that no annotation is available
+                results.append(None)
 
         return results

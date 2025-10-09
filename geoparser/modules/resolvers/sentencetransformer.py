@@ -94,7 +94,7 @@ class SentenceTransformerResolver(Resolver):
 
     def predict_referents(
         self, texts: t.List[str], references: t.List[t.List[t.Tuple[int, int]]]
-    ) -> t.List[t.List[t.Tuple[str, str]]]:
+    ) -> t.List[t.List[t.Union[t.Tuple[str, str], None]]]:
         """
         Predict referents for multiple references using iterative candidate generation.
 
@@ -107,8 +107,9 @@ class SentenceTransformerResolver(Resolver):
             references: List of lists of tuples containing (start, end) positions of references
 
         Returns:
-            List of lists of tuples containing (gazetteer_name, identifier) -
-            each reference gets exactly one referent
+            List of lists where each element is either:
+            - A tuple (gazetteer_name, identifier) for a successfully resolved reference
+            - None if prediction is not available for that specific reference
         """
         # Check if there are any texts to process
         if not texts:

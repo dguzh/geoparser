@@ -96,7 +96,7 @@ class RecognitionService:
         self,
         db: Session,
         documents: List["Document"],
-        predicted_references: List[List[Tuple[int, int]]],
+        predicted_references: List[t.Union[List[Tuple[int, int]], None]],
         recognizer_id: uuid.UUID,
     ) -> None:
         """
@@ -105,11 +105,17 @@ class RecognitionService:
         Args:
             db: Database session
             documents: List of document objects
-            predicted_references: Nested list of predicted references
+            predicted_references: List where each element is either a list of predicted references
+                                 or None for documents where predictions are not available
             recognizer_id: ID of the recognizer that made the predictions
         """
         # Process each document with its predicted references
         for document, references in zip(documents, predicted_references):
+            # Skip documents where predictions are not available
+            # (None indicates the recognizer couldn't process this document)
+            if references is None:
+                continue
+
             # Create references with recognizer ID
             for start, end in references:
                 self._create_reference_record(
