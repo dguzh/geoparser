@@ -1,6 +1,7 @@
 import typing as t
 import uuid
 
+from pyproj import Transformer
 from sqlmodel import Session as DBSession
 from sqlmodel import select
 
@@ -45,6 +46,12 @@ class ToponymRepository(BaseRepository):
             "level2": "BEZIRK_NAME",
             "level3": "GEMEINDE_NAME",
         },
+    }
+
+    # Coordinate reference systems for each gazetteer
+    GAZETTEER_CRS = {
+        "geonames": "EPSG:4326",  # WGS84
+        "swissnames3d": "EPSG:2056",  # LV95 Swiss coordinate system
     }
 
     @classmethod
@@ -140,6 +147,44 @@ class ToponymRepository(BaseRepository):
         return sorted(toponyms, key=lambda x: x.start)
 
     @classmethod
+    def _get_wgs84_coordinates(
+        cls, feature: "Feature", gazetteer_name: str
+    ) -> tuple[float, float]:
+        """
+        Extract WGS84 (lat, lon) coordinates from a feature's geometry.
+
+        Handles coordinate transformation if needed (e.g., Swiss coordinates to WGS84).
+
+        Args:
+            feature: Feature object with geometry
+            gazetteer_name: Name of the gazetteer to determine source CRS
+
+        Returns:
+            Tuple of (latitude, longitude) in WGS84, or (None, None) if unavailable
+        """
+        if not feature.geometry:
+            return None, None
+
+        try:
+            # Get the centroid for point representation
+            centroid = feature.geometry.centroid
+
+            # Get source CRS for this gazetteer
+            source_crs = cls.GAZETTEER_CRS.get(gazetteer_name, "EPSG:4326")
+
+            # If already in WGS84, return as-is
+            if source_crs == "EPSG:4326":
+                return centroid.y, centroid.x  # lat, lon
+
+            # Otherwise, transform to WGS84
+            transformer = Transformer.from_crs(source_crs, "EPSG:4326", always_xy=True)
+            lon, lat = transformer.transform(centroid.x, centroid.y)
+            return lat, lon
+
+        except Exception:
+            return None, None
+
+    @classmethod
     def get_candidate_descriptions(
         cls,
         gazetteer_name: str,
@@ -162,17 +207,8 @@ class ToponymRepository(BaseRepository):
             # Generate description using lightweight method
             description = cls._generate_location_description(candidate, gazetteer_name)
 
-            # Get coordinates from geometry
-            lat = None
-            lon = None
-            if candidate.geometry:
-                try:
-                    # Get centroid for point representation
-                    centroid = candidate.geometry.centroid
-                    lon = centroid.x
-                    lat = centroid.y
-                except Exception:
-                    pass
+            # Get coordinates from geometry (with CRS transformation if needed)
+            lat, lon = cls._get_wgs84_coordinates(candidate, gazetteer_name)
 
             candidate_descriptions.append(
                 {
@@ -199,16 +235,8 @@ class ToponymRepository(BaseRepository):
                     existing_feature, gazetteer_name
                 )
 
-                # Get coordinates from geometry
-                lat = None
-                lon = None
-                if existing_feature.geometry:
-                    try:
-                        centroid = existing_feature.geometry.centroid
-                        lon = centroid.x
-                        lat = centroid.y
-                    except Exception:
-                        pass
+                # Get coordinates from geometry (with CRS transformation if needed)
+                lat, lon = cls._get_wgs84_coordinates(existing_feature, gazetteer_name)
 
                 existing_annotation = {
                     "loc_id": existing_loc_id,
