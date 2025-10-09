@@ -4,13 +4,13 @@ import uuid
 from sqlalchemy import UUID, Column, ForeignKey
 from sqlmodel import Field, Relationship, SQLModel
 
-from geoparser.constants import DEFAULT_SESSION_SETTINGS
+from geoparser.annotator.constants import DEFAULT_SESSION_SETTINGS
 
 if t.TYPE_CHECKING:
-    from geoparser.annotator.db.models.session import Session
+    from geoparser.annotator.db.models.session import AnnotatorSession
 
 
-class SessionSettingsBase(SQLModel):
+class AnnotatorSessionSettingsBase(SQLModel):
     auto_close_annotation_modal: t.Optional[bool] = DEFAULT_SESSION_SETTINGS[
         "auto_close_annotation_modal"
     ]
@@ -19,21 +19,23 @@ class SessionSettingsBase(SQLModel):
     ]
 
 
-class SessionSettings(SessionSettingsBase, table=True):
+class AnnotatorSessionSettings(AnnotatorSessionSettingsBase, table=True):
+    __tablename__ = "annotatorsessionsettings"
+
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     session_id: uuid.UUID = Field(
         sa_column=Column(
-            UUID, ForeignKey("session.id", ondelete="CASCADE"), nullable=False
+            UUID, ForeignKey("annotatorsession.id", ondelete="CASCADE"), nullable=False
         )
     )
-    session: "Session" = Relationship(back_populates="settings")
+    session: "AnnotatorSession" = Relationship(back_populates="settings")
 
 
-class SessionSettingsCreate(SessionSettingsBase):
+class AnnotatorSessionSettingsCreate(AnnotatorSessionSettingsBase):
     pass
 
 
-class SessionSettingsUpdate(SQLModel):
+class AnnotatorSessionSettingsUpdate(SQLModel):
     id: uuid.UUID
     auto_close_annotation_modal: t.Optional[bool] = None
     one_sense_per_discourse: t.Optional[bool] = None

@@ -15,7 +15,7 @@ from fastapi.templating import Jinja2Templates
 from spacy.util import get_installed_models
 from sqlmodel import Session as DBSession
 
-from geoparser import Geoparser
+from geoparser.annotator.constants import GAZETTEERS
 from geoparser.annotator.db.crud import (
     DocumentRepository,
     SessionRepository,
@@ -24,16 +24,16 @@ from geoparser.annotator.db.crud import (
 )
 from geoparser.annotator.db.db import create_db_and_tables, db_location, engine, get_db
 from geoparser.annotator.db.models import (
-    Document,
-    SessionCreate,
-    SessionForTemplate,
-    SessionSettings,
-    SessionSettingsBase,
-    SessionSettingsUpdate,
-    SessionUpdate,
-    ToponymBase,
-    ToponymCreate,
-    ToponymUpdate,
+    AnnotatorDocument,
+    AnnotatorSessionCreate,
+    AnnotatorSessionForTemplate,
+    AnnotatorSessionSettings,
+    AnnotatorSessionSettingsBase,
+    AnnotatorSessionSettingsUpdate,
+    AnnotatorSessionUpdate,
+    AnnotatorToponymBase,
+    AnnotatorToponymCreate,
+    AnnotatorToponymUpdate,
 )
 from geoparser.annotator.dependencies import get_document, get_session
 from geoparser.annotator.exceptions import (
@@ -58,7 +58,6 @@ from geoparser.annotator.models.api import (
     PreAnnotatedTextResponse,
     ProgressResponse,
 )
-from geoparser.constants import GAZETTEERS
 
 app = FastAPI(
     title="Irchel Geoparser",
@@ -81,8 +80,10 @@ templates = Jinja2Templates(
     directory=os.path.join(os.path.dirname(__file__), "templates")
 )
 
-geoparser = Geoparser(skip_init=True)
 spacy_models = list(get_installed_models())
+
+# Module-level variable to track current session's gazetteer name
+current_gazetteer_name: t.Optional[str] = None
 
 
 @app.get("/", tags=["pages"])
@@ -104,7 +105,9 @@ def continue_session(
     db: t.Annotated[DBSession, Depends(get_db)], request: Request
 ) -> HTMLResponse:
     cached_sessions = [
-        SessionForTemplate(**session.model_dump(), num_documents=len(session.documents))
+        AnnotatorSessionForTemplate(
+            **session.model_dump(), num_documents=len(session.documents)
+        )
         for session in SessionRepository.read_all(db)
     ]
     return templates.TemplateResponse(
@@ -121,8 +124,11 @@ def annotate(
     session_id: uuid.UUID,
     doc_index: int = 0,
 ) -> HTMLResponse:
+    global current_gazetteer_name
+
     try:
         session = get_session(db, session_id)
+        current_gazetteer_name = session.gazetteer
     except SessionNotFoundException:
         return RedirectResponse(
             url=app.url_path_for("index"),
@@ -147,7 +153,7 @@ def annotate(
                     "doc_index": None,
                     "pre_annotated_text": None,
                     "total_docs": 0,
-                    "gazetteer": geoparser.gazetteer,
+                    "gazetteer": session.gazetteer,
                     "documents": [],
                     "total_toponyms": 0,
                     "annotated_toponyms": 0,
@@ -170,7 +176,7 @@ def annotate(
             "doc_index": doc_index,
             "pre_annotated_text": pre_annotated_text,
             "total_docs": len(session.documents),
-            "gazetteer": geoparser.gazetteer,
+            "gazetteer": session.gazetteer,
             "documents": documents,
             "session_id": session.id,
             "total_toponyms": total_toponyms,
@@ -187,11 +193,13 @@ def create_session(
     spacy_model: t.Annotated[str, Form()],
     db: t.Annotated[DBSession, Depends(get_db)],
 ) -> RedirectResponse:
-    # Re-initialize gazetteer with selected option
-    geoparser.gazetteer = geoparser.setup_gazetteer(gazetteer)
-    session = SessionRepository.create(db, SessionCreate(gazetteer=gazetteer))
+    global current_gazetteer_name
+
+    # Store the gazetteer name
+    current_gazetteer_name = gazetteer
+    session = SessionRepository.create(db, AnnotatorSessionCreate(gazetteer=gazetteer))
     DocumentRepository.create_from_text_files(
-        db, geoparser, files, session.id, spacy_model, apply_spacy=False
+        db, files, session.id, spacy_model, apply_spacy=False
     )
     return RedirectResponse(
         url=app.url_path_for("annotate", session_id=session.id, doc_index=0),
@@ -230,6 +238,8 @@ def continue_session_cached(
     db: t.Annotated[DBSession, Depends(get_db)],
     session_id: t.Annotated[uuid.UUID, Form()],
 ) -> RedirectResponse:
+    global current_gazetteer_name
+
     # Load selected session directly without creating a new session
     try:
         session = get_session(db, session_id)
@@ -237,8 +247,8 @@ def continue_session_cached(
         return RedirectResponse(
             app.url_path_for("continue_session"), status_code=status.HTTP_302_FOUND
         )
-    # Re-initialize gazetteer
-    geoparser.gazetteer = geoparser.setup_gazetteer(session.gazetteer)
+    # Store the gazetteer name
+    current_gazetteer_name = session.gazetteer
     # Redirect to annotate page
     return RedirectResponse(
         app.url_path_for("annotate", session_id=session.id, doc_index=0),
@@ -251,14 +261,16 @@ def continue_session_file(
     db: t.Annotated[DBSession, Depends(get_db)],
     session_file: t.Optional[UploadFile] = None,
 ) -> RedirectResponse:
+    global current_gazetteer_name
+
     # Handle uploaded session file
     if session_file and session_file.filename:
         # Save session to cache
         session = SessionRepository.create_from_json(
             db, session_file.file.read().decode(), keep_id=False
         )
-        # Re-initialize gazetteer
-        geoparser.gazetteer = geoparser.setup_gazetteer(session.gazetteer)
+        # Store the gazetteer name
+        current_gazetteer_name = session.gazetteer
         # Redirect to annotate page
         return RedirectResponse(
             app.url_path_for("annotate", session_id=session.id, doc_index=0),
@@ -291,13 +303,15 @@ def add_documents(
         response.status_code = status.HTTP_422_UNPROCESSABLE_ENTITY
         return BaseResponse(message="No files selected.", status="error")
     DocumentRepository.create_from_text_files(
-        db, geoparser, files, session.id, spacy_model, apply_spacy=False
+        db, files, session.id, spacy_model, apply_spacy=False
     )
     return BaseResponse()
 
 
 @app.get("/session/{session_id}/documents", tags=["document"])
-def get_documents(session: t.Annotated[dict, Depends(get_session)]) -> list[Document]:
+def get_documents(
+    session: t.Annotated[dict, Depends(get_session)],
+) -> list[AnnotatorDocument]:
     return session.documents
 
 
@@ -307,7 +321,7 @@ def parse_document(
     doc: t.Annotated[dict, Depends(get_document)],
 ) -> ParsingResponse:
     if not doc.spacy_applied:
-        doc = DocumentRepository.parse(db, geoparser, doc.id)
+        doc = DocumentRepository.parse(db, doc.id)
         return ParsingResponse(parsed=True)
     return ParsingResponse(parsed=False)
 
@@ -351,7 +365,10 @@ def get_candidates(
     doc: t.Annotated[dict, Depends(get_document)],
     candidates_request: CandidatesGet,
 ) -> dict[str, t.Any]:
-    return ToponymRepository.get_candidates(doc, geoparser, candidates_request)
+    global current_gazetteer_name
+    return ToponymRepository.get_candidates(
+        doc, current_gazetteer_name, candidates_request
+    )
 
 
 @app.post("/session/{session_id}/document/{doc_index}/annotation", tags=["annotation"])
@@ -359,16 +376,18 @@ def create_annotation(
     db: t.Annotated[DBSession, Depends(get_db)],
     session: t.Annotated[dict, Depends(get_session)],
     doc: t.Annotated[dict, Depends(get_document)],
-    annotation: ToponymBase,
+    annotation: AnnotatorToponymBase,
 ) -> BaseResponse:
     # Add new toponym
     ToponymRepository.create(
         db,
-        ToponymCreate(text=annotation.text, start=annotation.start, end=annotation.end),
+        AnnotatorToponymCreate(
+            text=annotation.text, start=annotation.start, end=annotation.end
+        ),
         additional={"document_id": doc.id},
     )
     SessionRepository.update(
-        db, SessionUpdate(id=session.id, last_updated=datetime.now())
+        db, AnnotatorSessionUpdate(id=session.id, last_updated=datetime.now())
     )
     return BaseResponse()
 
@@ -397,11 +416,11 @@ def overwrite_annotation(
     db: t.Annotated[DBSession, Depends(get_db)],
     session: t.Annotated[dict, Depends(get_session)],
     doc: t.Annotated[dict, Depends(get_document)],
-    annotation: ToponymBase,
+    annotation: AnnotatorToponymBase,
 ) -> BaseResponse:
     ToponymRepository.annotate_many(db, doc, annotation)
     SessionRepository.update(
-        db, SessionUpdate(id=session.id, last_updated=datetime.now())
+        db, AnnotatorSessionUpdate(id=session.id, last_updated=datetime.now())
     )
     return BaseResponse()
 
@@ -420,7 +439,7 @@ def update_annotation(
     # Update the toponym
     ToponymRepository.update(
         db,
-        ToponymUpdate(
+        AnnotatorToponymUpdate(
             id=toponym.id,
             start=annotation.new_start,
             end=annotation.new_end,
@@ -430,7 +449,7 @@ def update_annotation(
     )
     # Update last_updated timestamp
     SessionRepository.update(
-        db, SessionUpdate(id=session.id, last_updated=datetime.now())
+        db, AnnotatorSessionUpdate(id=session.id, last_updated=datetime.now())
     )
     return BaseResponse()
 
@@ -450,7 +469,7 @@ def delete_annotation(
     ToponymRepository.delete(db, toponym.id)
     # Update last_updated timestamp
     SessionRepository.update(
-        db, SessionUpdate(id=session.id, last_updated=datetime.now())
+        db, AnnotatorSessionUpdate(id=session.id, last_updated=datetime.now())
     )
     return BaseResponse()
 
@@ -458,7 +477,7 @@ def delete_annotation(
 @app.get("/session/{session_id}/settings", tags=["settings"])
 def get_session_settings(
     session: t.Annotated[dict, Depends(get_session)],
-) -> SessionSettings:
+) -> AnnotatorSessionSettings:
     return session.settings
 
 
@@ -466,19 +485,36 @@ def get_session_settings(
 def put_session_settings(
     db: t.Annotated[DBSession, Depends(get_db)],
     session: t.Annotated[dict, Depends(get_session)],
-    session_settings: SessionSettingsBase,
+    session_settings: AnnotatorSessionSettingsBase,
 ) -> BaseResponse:
     SessionSettingsRepository.update(
         db,
-        SessionSettingsUpdate(id=session.settings.id, **session_settings.model_dump()),
+        AnnotatorSessionSettingsUpdate(
+            id=session.settings.id, **session_settings.model_dump()
+        ),
     )
     return BaseResponse()
 
 
-def run(use_reloader=False):  # pragma: no cover
-    def open_browser():
-        webbrowser.open_new("http://127.0.0.1:5000/")
+def run(
+    use_reloader=False, host="0.0.0.0", port=5000, open_browser=True
+):  # pragma: no cover
+    """
+    Run the annotator web application.
+
+    Args:
+        use_reloader: Enable auto-reload for development (default: False)
+        host: Host to bind the server to (default: "0.0.0.0")
+        port: Port to run the server on (default: 5000)
+        open_browser: Automatically open browser on startup (default: True)
+    """
+
+    def launch_browser():
+        webbrowser.open_new(f"http://127.0.0.1:{port}/")
 
     create_db_and_tables(engine)
-    threading.Timer(1.0, open_browser).start()
-    uvicorn.run(app, host="0.0.0.0", port=5000, reload=use_reloader)
+
+    if open_browser:
+        threading.Timer(1.0, launch_browser).start()
+
+    uvicorn.run(app, host=host, port=port, reload=use_reloader)

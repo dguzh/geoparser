@@ -1,25 +1,35 @@
-from .document import Document, DocumentBase, DocumentCreate, DocumentUpdate
+from .document import (
+    AnnotatorDocument,
+    AnnotatorDocumentBase,
+    AnnotatorDocumentCreate,
+    AnnotatorDocumentUpdate,
+)
 from .session import (
-    Session,
-    SessionBase,
-    SessionCreate,
-    SessionDownload,
-    SessionForTemplate,
-    SessionUpdate,
+    AnnotatorSession,
+    AnnotatorSessionBase,
+    AnnotatorSessionCreate,
+    AnnotatorSessionDownload,
+    AnnotatorSessionForTemplate,
+    AnnotatorSessionUpdate,
 )
 from .settings import (
-    SessionSettings,
-    SessionSettingsBase,
-    SessionSettingsCreate,
-    SessionSettingsUpdate,
+    AnnotatorSessionSettings,
+    AnnotatorSessionSettingsBase,
+    AnnotatorSessionSettingsCreate,
+    AnnotatorSessionSettingsUpdate,
 )
-from .toponym import Toponym, ToponymBase, ToponymCreate, ToponymUpdate
+from .toponym import (
+    AnnotatorToponym,
+    AnnotatorToponymBase,
+    AnnotatorToponymCreate,
+    AnnotatorToponymUpdate,
+)
 
 for rebuild in [
-    Session,
-    SessionCreate,
-    SessionDownload,
-    Document,
-    DocumentCreate,
+    AnnotatorSession,
+    AnnotatorSessionCreate,
+    AnnotatorSessionDownload,
+    AnnotatorDocument,
+    AnnotatorDocumentCreate,
 ]:
     rebuild.model_rebuild()
