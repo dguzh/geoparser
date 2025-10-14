@@ -61,9 +61,9 @@ class Project:
 
             return project_record.id
 
-    def add_documents(self, texts: Union[str, List[str]]) -> None:
+    def create_documents(self, texts: Union[str, List[str]]) -> None:
         """
-        Add documents to the project.
+        Create documents in the project.
 
         Args:
             texts: Either a single document text or a list of document texts
@@ -76,6 +76,41 @@ class Project:
             for text in texts:
                 document_create = DocumentCreate(text=text, project_id=self.id)
                 DocumentRepository.create(db, document_create)
+
+    def create_references(
+        self, texts: List[str], references: List[List[tuple]], label: str
+    ) -> None:
+        """
+        Create references (toponym spans) using ManualRecognizer.
+
+        Args:
+            texts: List of document texts
+            references: List of reference tuples (start, end) for each document
+            label: Label to identify this recognition set
+        """
+        recognizer = ManualRecognizer(label=label, texts=texts, references=references)
+        self.run_recognizer(recognizer)
+
+    def create_referents(
+        self,
+        texts: List[str],
+        references: List[List[tuple]],
+        referents: List[List[tuple]],
+        label: str,
+    ) -> None:
+        """
+        Create referents (location assignments) using ManualResolver.
+
+        Args:
+            texts: List of document texts
+            references: List of reference tuples (start, end) for each document
+            referents: List of referent tuples (gazetteer_name, identifier) for each document
+            label: Label to identify this resolution set
+        """
+        resolver = ManualResolver(
+            label=label, texts=texts, references=references, referents=referents
+        )
+        self.run_resolver(resolver)
 
     def get_documents(
         self,
@@ -202,22 +237,13 @@ class Project:
 
             referents.append(doc_referents)
 
-        # Add documents to the project if requested
+        # Create documents in the project if requested
         if create_documents:
-            self.add_documents(texts)
+            self.create_documents(texts)
 
-        # Create and run ManualRecognizer to register toponym spans
-        recognizer = ManualRecognizer(label=label, texts=texts, references=references)
-        self.run_recognizer(recognizer)
-
-        # Create and run ManualResolver to register location assignments
-        resolver = ManualResolver(
-            label=label,
-            texts=texts,
-            references=references,
-            referents=referents,  # Referents list includes None for non-geocoded
-        )
-        self.run_resolver(resolver)
+        # Create references and referents using the extracted methods
+        self.create_references(texts, references, label)
+        self.create_referents(texts, references, referents, label)
 
     def delete(self) -> None:
         """

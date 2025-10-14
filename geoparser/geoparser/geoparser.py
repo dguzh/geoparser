@@ -52,8 +52,8 @@ class Geoparser:
         project = Project(project_name)
 
         try:
-            # Add documents to the project
-            project.add_documents(texts)
+            # Create documents in the project
+            project.create_documents(texts)
 
             # Run the recognizer on all documents
             project.run_recognizer(self.recognizer)

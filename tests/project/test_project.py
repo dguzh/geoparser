@@ -47,7 +47,7 @@ def test_add_documents_single_string(test_db):
         mock_session.return_value.__exit__.return_value = None
 
         project = Project(project_name)
-        project.add_documents(text)
+        project.create_documents(text)
 
         # Verify document was added
         documents = DocumentRepository.get_by_project(test_db, project.id)
@@ -70,7 +70,7 @@ def test_add_documents_multiple_strings(test_db):
         mock_session.return_value.__exit__.return_value = None
 
         project = Project(project_name)
-        project.add_documents(texts)
+        project.create_documents(texts)
 
         # Verify documents were added
         documents = DocumentRepository.get_by_project(test_db, project.id)
@@ -90,7 +90,7 @@ def test_get_documents_no_filters(test_db):
         mock_session.return_value.__exit__.return_value = None
 
         project = Project(project_name)
-        project.add_documents(texts)
+        project.create_documents(texts)
 
         # Get documents without filters
         documents = project.get_documents()
@@ -111,7 +111,7 @@ def test_get_documents_with_recognizer_filter(test_db):
         mock_session.return_value.__exit__.return_value = None
 
         project = Project(project_name)
-        project.add_documents("Test document")
+        project.create_documents("Test document")
 
         # Get documents with recognizer filter
         documents = project.get_documents(recognizer_id=recognizer_id)
@@ -133,7 +133,7 @@ def test_get_documents_with_resolver_filter(test_db):
         mock_session.return_value.__exit__.return_value = None
 
         project = Project(project_name)
-        project.add_documents("Test document")
+        project.create_documents("Test document")
 
         # Get documents with both recognizer and resolver filters
         documents = project.get_documents(
@@ -158,7 +158,7 @@ def test_delete_project(test_db):
         project_id = project.id
 
         # Add some documents
-        project.add_documents(["Document 1", "Document 2"])
+        project.create_documents(["Document 1", "Document 2"])
 
         # Verify project exists
         db_project = ProjectRepository.get_by_name(test_db, project_name)
@@ -201,7 +201,7 @@ def test_run_recognizer(test_db):
         mock_session.return_value.__exit__.return_value = None
 
         project = Project(project_name)
-        project.add_documents(texts)
+        project.create_documents(texts)
 
         # Create mock recognizer
         mock_recognizer = Mock()
@@ -239,7 +239,7 @@ def test_run_resolver(test_db):
         mock_session.return_value.__exit__.return_value = None
 
         project = Project(project_name)
-        project.add_documents(texts)
+        project.create_documents(texts)
 
         # Create mock resolver
         mock_resolver = Mock()
