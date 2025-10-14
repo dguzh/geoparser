@@ -1,5 +1,7 @@
+import json
 import typing as t
 import uuid
+from pathlib import Path
 from typing import List, Union
 
 from sqlmodel import Session
@@ -7,6 +9,8 @@ from sqlmodel import Session
 from geoparser.db.crud import DocumentRepository, ProjectRepository
 from geoparser.db.engine import engine
 from geoparser.db.models import Document, DocumentCreate, ProjectCreate
+from geoparser.modules.recognizers.manual import ManualRecognizer
+from geoparser.modules.resolvers.manual import ManualResolver
 from geoparser.services.recognition import RecognitionService
 from geoparser.services.resolution import ResolutionService
 
@@ -139,6 +143,81 @@ class Project:
 
         # Run the resolver on all documents
         resolution_service.run(documents)
+
+    def load_annotations(
+        self, path: str, label: str = "annotator", create_documents: bool = False
+    ) -> None:
+        """
+        Load annotations from an annotator JSON file and register them in the project.
+
+        This method imports annotations from the legacy annotator format and registers
+        them using ManualRecognizer for toponym spans and ManualResolver for location
+        assignments. The annotations are stored with the provided label to distinguish
+        different annotation sources.
+
+        Args:
+            path: Path to the JSON file exported from the annotator
+            label: Label to identify this annotation set (default: "annotator")
+                   This allows tracking multiple annotation sources separately
+            create_documents: Whether to create new documents from the texts in the JSON
+                             (default: False). Set to True if the documents don't exist yet,
+                             False to add annotations to existing documents.
+
+        Note:
+            - Empty loc_id ("") indicates unannotated toponyms (skipped by resolver)
+            - Null loc_id indicates toponyms annotated as having no location (skipped by resolver)
+            - Non-empty loc_id values are registered as referents with the gazetteer
+        """
+        # Load JSON file
+        path = Path(path)
+        with open(path, "r") as f:
+            data = json.load(f)
+
+        # Extract gazetteer name from annotations
+        gazetteer_name = data["gazetteer"]
+
+        # Prepare aligned lists for ManualRecognizer and ManualResolver
+        texts = []
+        references = []  # All toponyms for both recognizer and resolver
+        referents = []  # Location assignments (with None for non-geocoded toponyms)
+
+        for doc in data["documents"]:
+            text = doc["text"]
+            texts.append(text)
+
+            # Extract all toponyms as references
+            doc_references = [(t["start"], t["end"]) for t in doc["toponyms"]]
+            references.append(doc_references)
+
+            # Create referents list aligned with ALL references
+            # Use None for toponyms that are not geocoded
+            doc_referents = []
+            for toponym in doc["toponyms"]:
+                # Only include toponyms that have been geocoded (loc_id is not "" and not null)
+                if toponym["loc_id"] and toponym["loc_id"] != "":
+                    doc_referents.append((gazetteer_name, toponym["loc_id"]))
+                else:
+                    # Non-geocoded: use None so resolver skips it
+                    doc_referents.append(None)
+
+            referents.append(doc_referents)
+
+        # Add documents to the project if requested
+        if create_documents:
+            self.add_documents(texts)
+
+        # Create and run ManualRecognizer to register toponym spans
+        recognizer = ManualRecognizer(label=label, texts=texts, references=references)
+        self.run_recognizer(recognizer)
+
+        # Create and run ManualResolver to register location assignments
+        resolver = ManualResolver(
+            label=label,
+            texts=texts,
+            references=references,
+            referents=referents,  # Referents list includes None for non-geocoded
+        )
+        self.run_resolver(resolver)
 
     def delete(self) -> None:
         """
