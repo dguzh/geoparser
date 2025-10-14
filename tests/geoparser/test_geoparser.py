@@ -49,7 +49,7 @@ def test_parse_single_text():
         mock_project_class.assert_called_once()
 
         # Verify documents were added
-        mock_project.add_documents.assert_called_once_with(text)
+        mock_project.create_documents.assert_called_once_with(text)
 
         # Verify recognizer and resolver were run
         mock_project.run_recognizer.assert_called_once_with(mock_recognizer)
@@ -99,7 +99,7 @@ def test_parse_multiple_texts():
         result = geoparser.parse(texts)
 
         # Verify documents were added
-        mock_project.add_documents.assert_called_once_with(texts)
+        mock_project.create_documents.assert_called_once_with(texts)
 
         # Verify recognizer and resolver were run
         mock_project.run_recognizer.assert_called_once_with(mock_recognizer)

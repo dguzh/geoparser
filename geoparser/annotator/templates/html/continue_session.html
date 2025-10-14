@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Continue Session</title>
+    <!-- Bootstrap CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <style>
+        .session-card {
+            position: relative;
+        }
+        .delete-session-btn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+        }
+    </style>
+</head>
+<body>
+
+<!-- Navbar -->
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+    <div class="container-fluid">
+      <a class="navbar-brand" href="{{ url_for('index') }}">Geoparser Annotator</a>
+    </div>
+</nav>
+
+<!-- Main content -->
+<div class="container mt-5">
+    <h1 class="mb-4">Continue Session</h1>
+    <hr class="my-4">
+
+    <!-- Option to upload session file -->
+    <h3>Load Session from File</h3>
+    <form action="{{ url_for('continue_session_file') }}" method="post" enctype="multipart/form-data">
+        <div class="mb-3">
+            <label for="session_file" class="form-label">Select Session File:</label>
+            <input type="file" class="form-control" id="session_file" name="session_file" accept=".json">
+        </div>
+        <button type="submit" class="btn btn-primary mb-4">Load Session</button>
+    </form>
+
+    <!-- Cached Sessions -->
+    <h3>Load Session from Cache</h3>
+    {% if cached_sessions %}
+    <div class="row">
+        {% for session in cached_sessions %}
+        <div class="col-md-6" id="session-card-{{ session.id }}">
+            <div class="card session-card mb-4">
+                <div class="card-body">
+                    <h5 class="card-title">Session ID: {{ session.id }}</h5>
+                    <p class="card-text">
+                        <strong>Created:</strong> {{ session.created_at }}<br>
+                        <strong>Modified:</strong> {{ session.last_updated }}<br>
+                        <strong>Documents:</strong> {{ session.num_documents }}<br>
+                        <strong>Gazetteer:</strong> {{ session.gazetteer }}
+                    </p>
+                    <button class="btn btn-danger delete-session-btn" data-session-id="{{ session.id }}" onclick="deleteSession('{{ session.id }}')">Delete</button>
+                    <form action="{{ url_for('continue_session_cached') }}" method="post">
+                        <input type="hidden" name="session_id" value="{{ session.id }}">
+                        <button type="submit" class="btn btn-primary">Load Session</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+        <p>No cached sessions available.</p>
+    {% endif %}
+</div>
+
+<!-- Bootstrap JS -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+<!-- Custom JS -->
+<script>{% include 'js/url_base.js' %}</script>
+<script src="{{url_for('static', path='/continue_session.js')}}"></script>
+
+<script>
+    sessionStorage.clear();
+</script>
+
+</body>
+</html>

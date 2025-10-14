@@ -2,6 +2,7 @@ from pathlib import Path
 
 from appdirs import user_data_dir
 from sqlalchemy import event
+from sqlalchemy.pool import NullPool
 from sqlmodel import SQLModel, create_engine
 
 from .spatialite.loader import get_spatialite_path, load_spatialite_extension
@@ -25,7 +26,13 @@ def get_engine():
         db_location.parent.mkdir(parents=True, exist_ok=True)
         sqlite_url = f"sqlite:///{db_location}"
 
-        _engine = create_engine(sqlite_url, echo=False)
+        # Use NullPool for SQLite to avoid connection pool exhaustion
+        _engine = create_engine(
+            sqlite_url,
+            echo=False,
+            poolclass=NullPool,
+            connect_args={"check_same_thread": False},  # Allow multi-threaded access
+        )
 
         # Register event listeners
         @event.listens_for(_engine, "connect")
