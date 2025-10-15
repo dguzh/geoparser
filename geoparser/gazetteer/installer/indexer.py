@@ -21,15 +21,15 @@ class ColumnIndexer:
         # Collect all columns that need indices
         indexed_columns: List[Tuple[str, DataType]] = []
 
-        # Check attributes
-        for attr in source_config.attributes:
+        # Check original attributes
+        for attr in source_config.attributes.original:
             if attr.index and not attr.drop:
                 indexed_columns.append((attr.name, attr.type))
 
-        # Check derivations
-        for derivation in source_config.derivations:
-            if derivation.index:
-                indexed_columns.append((derivation.name, derivation.type))
+        # Check derived attributes
+        for attr in source_config.attributes.derived:
+            if attr.index:
+                indexed_columns.append((attr.name, attr.type))
 
         if not indexed_columns:
             return

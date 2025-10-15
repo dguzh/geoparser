@@ -16,28 +16,27 @@ class DataTransformer:
             source_config: Source configuration
             table_name: Name of the table to create derivations for
         """
-        if not source_config.derivations:
+        if not source_config.attributes.derived:
             return
 
         with engine.connect() as connection:
-            for derivation in source_config.derivations:
+            for attr in source_config.attributes.derived:
                 # Handle geometry derivations - store as WKT text
-                if derivation.type == DataType.GEOMETRY:
+                if attr.type == DataType.GEOMETRY:
                     update_sql = (
                         f"UPDATE {table_name} "
-                        f"SET {derivation.name}_wkt = {derivation.expression}"
+                        f"SET {attr.name}_wkt = {attr.expression}"
                     )
                 else:
                     # Regular derivation
                     update_sql = (
-                        f"UPDATE {table_name} "
-                        f"SET {derivation.name} = {derivation.expression}"
+                        f"UPDATE {table_name} " f"SET {attr.name} = {attr.expression}"
                     )
 
                 # Execute with progress bar
                 with tqdm(
                     total=1,
-                    desc=f"Deriving {table_name}.{derivation.name}",
+                    desc=f"Deriving {table_name}.{attr.name}",
                     unit="column",
                 ) as pbar:
                     connection.execute(sa.text(update_sql))
@@ -86,19 +85,19 @@ class DataTransformer:
 
     def _find_geometry_item(self, source_config: SourceConfig):
         """
-        Find the geometry attribute or derivation (if any) in the source config.
+        Find the geometry attribute (original or derived) in the source config.
 
         Returns:
-            The geometry attribute/derivation object, or None if none exists
+            The geometry attribute object, or None if none exists
         """
-        # Check attributes first
-        for attr in source_config.attributes:
+        # Check original attributes first
+        for attr in source_config.attributes.original:
             if attr.type == DataType.GEOMETRY and not attr.drop:
                 return attr
 
-        # Check derivations
-        for deriv in source_config.derivations:
-            if deriv.type == DataType.GEOMETRY:
-                return deriv
+        # Check derived attributes
+        for attr in source_config.attributes.derived:
+            if attr.type == DataType.GEOMETRY:
+                return attr
 
         return None

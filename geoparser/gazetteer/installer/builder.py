@@ -38,8 +38,8 @@ class SchemaBuilder:
         # Build column definitions
         columns = []
 
-        # Add attribute columns (excluding dropped ones)
-        for attr in source_config.attributes:
+        # Add original attribute columns (excluding dropped ones)
+        for attr in source_config.attributes.original:
             if not attr.drop:
                 if attr.type == DataType.GEOMETRY:
                     # Geometry columns start as TEXT with _wkt suffix
@@ -47,13 +47,13 @@ class SchemaBuilder:
                 else:
                     columns.append(f"{attr.name} {attr.type.value}")
 
-        # Add derivation columns
-        for derivation in source_config.derivations:
-            if derivation.type == DataType.GEOMETRY:
-                # Geometry derivations start as TEXT with _wkt suffix
-                columns.append(f"{derivation.name}_wkt TEXT")
+        # Add derived attribute columns
+        for attr in source_config.attributes.derived:
+            if attr.type == DataType.GEOMETRY:
+                # Geometry columns start as TEXT with _wkt suffix
+                columns.append(f"{attr.name}_wkt TEXT")
             else:
-                columns.append(f"{derivation.name} {derivation.type.value}")
+                columns.append(f"{attr.name} {attr.type.value}")
 
         # Create the table
         create_table_sql = f"CREATE TABLE {table_name} ({', '.join(columns)})"

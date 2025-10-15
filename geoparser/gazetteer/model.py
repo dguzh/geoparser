@@ -23,8 +23,8 @@ class DataType(str, Enum):
     GEOMETRY = "GEOMETRY"
 
 
-class AttributeConfig(BaseModel):
-    """Configuration for an attribute in a source file."""
+class OriginalAttributeConfig(BaseModel):
+    """Configuration for an original attribute from source data."""
 
     name: str
     type: DataType
@@ -33,7 +33,7 @@ class AttributeConfig(BaseModel):
     srid: t.Optional[int] = None
 
     @model_validator(mode="after")
-    def validate_geometry_srid(self) -> "AttributeConfig":
+    def validate_geometry_srid(self) -> "OriginalAttributeConfig":
         """Validate that geometry columns have SRID specified."""
         if self.type == DataType.GEOMETRY and self.srid is None:
             raise ValueError("Geometry columns must specify an SRID")
@@ -42,23 +42,30 @@ class AttributeConfig(BaseModel):
         return self
 
 
-class DerivationConfig(BaseModel):
-    """Configuration for a derived attribute in a source."""
+class DerivedAttributeConfig(BaseModel):
+    """Configuration for a derived attribute computed from expressions."""
 
     name: str
     type: DataType
-    index: bool = False
     expression: str
+    index: bool = False
     srid: t.Optional[int] = None
 
     @model_validator(mode="after")
-    def validate_geometry_srid(self) -> "DerivationConfig":
-        """Validate that geometry derivations have SRID specified."""
+    def validate_geometry_srid(self) -> "DerivedAttributeConfig":
+        """Validate that geometry columns have SRID specified."""
         if self.type == DataType.GEOMETRY and self.srid is None:
-            raise ValueError("Geometry derivations must specify an SRID")
+            raise ValueError("Geometry columns must specify an SRID")
         if self.type != DataType.GEOMETRY and self.srid is not None:
-            raise ValueError("SRID can only be specified for geometry derivations")
+            raise ValueError("SRID can only be specified for geometry columns")
         return self
+
+
+class AttributesConfig(BaseModel):
+    """Configuration for original and derived attributes."""
+
+    original: t.List[OriginalAttributeConfig]
+    derived: t.List[DerivedAttributeConfig] = []
 
 
 class SelectConfig(BaseModel):
@@ -108,14 +115,13 @@ class SourceConfig(BaseModel):
     """Configuration for a single source in a gazetteer."""
 
     name: str
-    type: SourceType
     url: str
     file: str
+    type: SourceType
     separator: t.Optional[str] = None
     skiprows: int = 0
     layer: t.Optional[str] = None
-    attributes: t.List[AttributeConfig]
-    derivations: t.List[DerivationConfig] = []
+    attributes: AttributesConfig
     view: t.Optional[ViewConfig] = None  # Nested view configuration
     features: t.Optional[FeatureConfig] = None  # Nested feature configuration
 
@@ -138,10 +144,14 @@ class SourceConfig(BaseModel):
 
             # For spatial sources, must have exactly one geometry column
             geometry_columns = [
-                attr for attr in self.attributes if attr.type == DataType.GEOMETRY
+                attr
+                for attr in self.attributes.original
+                if attr.type == DataType.GEOMETRY
             ]
             geometry_derivations = [
-                deriv for deriv in self.derivations if deriv.type == DataType.GEOMETRY
+                attr
+                for attr in self.attributes.derived
+                if attr.type == DataType.GEOMETRY
             ]
             if len(geometry_columns) + len(geometry_derivations) != 1:
                 raise ValueError(
@@ -153,18 +163,18 @@ class SourceConfig(BaseModel):
     @model_validator(mode="after")
     def validate_geometry_columns(self) -> "SourceConfig":
         """Validate that there is at most one geometry column named 'geometry'."""
-        # Collect all geometry columns from attributes and derivations
+        # Collect all geometry columns from original and derived attributes
         geometry_columns = []
 
-        # Check attributes
-        for attr in self.attributes:
+        # Check original attributes
+        for attr in self.attributes.original:
             if attr.type == DataType.GEOMETRY:
-                geometry_columns.append(("attribute", attr.name))
+                geometry_columns.append(("original", attr.name))
 
-        # Check derivations
-        for deriv in self.derivations:
-            if deriv.type == DataType.GEOMETRY:
-                geometry_columns.append(("derivation", deriv.name))
+        # Check derived attributes
+        for attr in self.attributes.derived:
+            if attr.type == DataType.GEOMETRY:
+                geometry_columns.append(("derived", attr.name))
 
         # Check that there's at most one geometry column
         if len(geometry_columns) > 1:

@@ -1,75 +1,76 @@
 name: geonames
 sources:
   - name: allCountries
-    type: tabular
     url: https://download.geonames.org/export/dump/allCountries.zip
     file: allCountries.txt
+    type: tabular
     separator: "\t"
     attributes:
-      - name: geonameid
-        type: INTEGER
-        index: true
-      - name: name
-        type: TEXT
-      - name: asciiname
-        type: TEXT
-      - name: alternatenames
-        type: TEXT
-      - name: latitude
-        type: REAL
-      - name: longitude
-        type: REAL
-      - name: feature_class
-        type: TEXT
-      - name: feature_code
-        type: TEXT
-      - name: country_code
-        type: TEXT
-        index: true
-      - name: cc2
-        type: TEXT
-      - name: admin1_code
-        type: TEXT
-      - name: admin2_code
-        type: TEXT
-      - name: admin3_code
-        type: TEXT
-      - name: admin4_code
-        type: TEXT
-      - name: population
-        type: INTEGER
-      - name: elevation
-        type: INTEGER
-      - name: dem
-        type: INTEGER
-      - name: timezone
-        type: TEXT
-      - name: modification_date
-        type: TEXT
-    derivations:
-      - name: geometry
-        type: GEOMETRY
-        index: true
-        srid: 4326
-        expression: "'POINT(' || longitude || ' ' || latitude || ')'"
-      - name: feature_code_full
-        type: TEXT
-        index: true
-        expression: "feature_class || '.' || feature_code"
-      - name: admin1_code_full
-        type: TEXT
-        index: true
-        expression: "country_code || '.' || admin1_code"
-      - name: admin2_code_full
-        type: TEXT
-        index: true
-        expression: "country_code || '.' || admin1_code || '.' || admin2_code"
-      - name: name_no_parens
-        type: TEXT
-        expression: "CASE WHEN instr(name, '(') > 0 THEN trim(substr(name, 1, instr(name, '(') - 1)) ELSE name END"
-      - name: asciiname_no_parens
-        type: TEXT
-        expression: "CASE WHEN instr(asciiname, '(') > 0 THEN trim(substr(asciiname, 1, instr(asciiname, '(') - 1)) ELSE asciiname END"
+      original:
+        - name: geonameid
+          type: INTEGER
+          index: true
+        - name: name
+          type: TEXT
+        - name: asciiname
+          type: TEXT
+        - name: alternatenames
+          type: TEXT
+        - name: latitude
+          type: REAL
+        - name: longitude
+          type: REAL
+        - name: feature_class
+          type: TEXT
+        - name: feature_code
+          type: TEXT
+        - name: country_code
+          type: TEXT
+          index: true
+        - name: cc2
+          type: TEXT
+        - name: admin1_code
+          type: TEXT
+        - name: admin2_code
+          type: TEXT
+        - name: admin3_code
+          type: TEXT
+        - name: admin4_code
+          type: TEXT
+        - name: population
+          type: INTEGER
+        - name: elevation
+          type: INTEGER
+        - name: dem
+          type: INTEGER
+        - name: timezone
+          type: TEXT
+        - name: modification_date
+          type: TEXT
+      derived:
+        - name: geometry
+          type: GEOMETRY
+          expression: "'POINT(' || longitude || ' ' || latitude || ')'"
+          index: true
+          srid: 4326
+        - name: feature_code_full
+          type: TEXT
+          expression: "feature_class || '.' || feature_code"
+          index: true
+        - name: admin1_code_full
+          type: TEXT
+          expression: "country_code || '.' || admin1_code"
+          index: true
+        - name: admin2_code_full
+          type: TEXT
+          expression: "country_code || '.' || admin1_code || '.' || admin2_code"
+          index: true
+        - name: name_no_parens
+          type: TEXT
+          expression: "CASE WHEN instr(name, '(') > 0 THEN trim(substr(name, 1, instr(name, '(') - 1)) ELSE name END"
+        - name: asciiname_no_parens
+          type: TEXT
+          expression: "CASE WHEN instr(asciiname, '(') > 0 THEN trim(substr(asciiname, 1, instr(asciiname, '(') - 1)) ELSE asciiname END"
     view:
       select:
         - source: allCountries
@@ -153,94 +154,98 @@ sources:
           separator: ","
 
   - name: admin1CodesASCII
-    type: tabular
     url: https://download.geonames.org/export/dump/admin1CodesASCII.txt
     file: admin1CodesASCII.txt
+    type: tabular
     separator: "\t"
     attributes:
-      - name: code
-        type: TEXT
-        index: true
-      - name: name
-        type: TEXT
-      - name: asciiname
-        type: TEXT
-      - name: geonameid
-        type: INTEGER
+      original:
+        - name: code
+          type: TEXT
+          index: true
+        - name: name
+          type: TEXT
+        - name: asciiname
+          type: TEXT
+        - name: geonameid
+          type: INTEGER
 
   - name: admin2Codes
-    type: tabular
     url: https://download.geonames.org/export/dump/admin2Codes.txt
     file: admin2Codes.txt
+    type: tabular
     separator: "\t"
     attributes:
-      - name: code
-        type: TEXT
-        index: true
-      - name: name
-        type: TEXT
-      - name: asciiname
-        type: TEXT
-      - name: geonameid
-        type: INTEGER
+      original:
+        - name: code
+          type: TEXT
+          index: true
+        - name: name
+          type: TEXT
+        - name: asciiname
+          type: TEXT
+        - name: geonameid
+          type: INTEGER
 
   - name: countryInfo
-    type: tabular
     url: https://download.geonames.org/export/dump/countryInfo.txt
     file: countryInfo.txt
+    type: tabular
     separator: "\t"
     skiprows: 50
     attributes:
-      - name: ISO
-        type: TEXT
-        index: true
-      - name: ISO3
-        type: TEXT
-      - name: ISO_Numeric
-        type: INTEGER
-      - name: fips
-        type: TEXT
-      - name: Country
-        type: TEXT
-      - name: Capital
-        type: TEXT
-      - name: Area
-        type: REAL
-      - name: Population
-        type: INTEGER
-      - name: Continent
-        type: TEXT
-      - name: tld
-        type: TEXT
-      - name: CurrencyCode
-        type: TEXT
-      - name: CurrencyName
-        type: TEXT
-      - name: Phone
-        type: TEXT
-      - name: PostalCodeFormat
-        type: TEXT
-      - name: PostalCodeRegex
-        type: TEXT
-      - name: Languages
-        type: TEXT
-      - name: geonameid
-        type: INTEGER
-      - name: neighbours
-        type: TEXT
-      - name: EquivalentFipsCode
-        type: TEXT
+      original:
+        - name: ISO
+          type: TEXT
+          index: true
+        - name: ISO3
+          type: TEXT
+        - name: ISO_Numeric
+          type: INTEGER
+        - name: fips
+          type: TEXT
+        - name: Country
+          type: TEXT
+        - name: Capital
+          type: TEXT
+        - name: Area
+          type: REAL
+        - name: Population
+          type: INTEGER
+        - name: Continent
+          type: TEXT
+        - name: tld
+          type: TEXT
+        - name: CurrencyCode
+          type: TEXT
+        - name: CurrencyName
+          type: TEXT
+        - name: Phone
+          type: TEXT
+        - name: PostalCodeFormat
+          type: TEXT
+        - name: PostalCodeRegex
+          type: TEXT
+        - name: Languages
+          type: TEXT
+        - name: geonameid
+          type: INTEGER
+        - name: neighbours
+          type: TEXT
+        - name: EquivalentFipsCode
+          type: TEXT
 
   - name: featureCodes
-    type: tabular
     url: https://download.geonames.org/export/dump/featureCodes_en.txt
     file: featureCodes_en.txt
+    type: tabular
     separator: "\t"
     attributes:
-      - name: code
-        type: TEXT
-        index: true
-      - name: name
-        type: TEXT
-      - name: description
-        type: TEXT
+      original:
+        - name: code
+          type: TEXT
+          index: true
+        - name: name
+          type: TEXT
+        - name: description
+          type: TEXT

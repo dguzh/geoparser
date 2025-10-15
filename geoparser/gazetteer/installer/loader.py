@@ -51,8 +51,8 @@ class TabularLoadStrategy(LoadStrategy):
         # Adjust chunksize
         chunksize = min(chunksize, total_rows)
 
-        # Get column names and dtype mapping
-        names = [attr.name for attr in source_config.attributes]
+        # Get column names and dtype mapping (only original attributes)
+        names = [attr.name for attr in source_config.attributes.original]
         dtype = self._get_pandas_dtype_mapping(source_config)
 
         # Read and process file in chunks
@@ -80,7 +80,9 @@ class TabularLoadStrategy(LoadStrategy):
     ) -> None:
         """Process a chunk of tabular data and load it to the database."""
         # Filter columns based on drop flag
-        keep_columns = [attr.name for attr in source_config.attributes if not attr.drop]
+        keep_columns = [
+            attr.name for attr in source_config.attributes.original if not attr.drop
+        ]
         chunk = chunk[keep_columns]
 
         # Load to database
@@ -90,7 +92,7 @@ class TabularLoadStrategy(LoadStrategy):
     def _get_pandas_dtype_mapping(self, source_config: SourceConfig) -> Dict:
         """Create a mapping from column names to pandas dtypes."""
         dtype_map = {}
-        for attr in source_config.attributes:
+        for attr in source_config.attributes.original:
             # Skip geometry columns
             if attr.type == DataType.GEOMETRY:
                 continue
@@ -161,7 +163,7 @@ class SpatialLoadStrategy(LoadStrategy):
         """Process a chunk of spatial data and load it to the database."""
         # Rename columns to match configuration
         chunk_cols = list(chunk.columns)
-        config_cols = [attr.name for attr in source_config.attributes]
+        config_cols = [attr.name for attr in source_config.attributes.original]
 
         rename_map = {
             col: config_cols[i]
@@ -171,7 +173,9 @@ class SpatialLoadStrategy(LoadStrategy):
         chunk = chunk.rename(columns=rename_map)
 
         # Filter columns based on drop flag
-        keep_columns = [attr.name for attr in source_config.attributes if not attr.drop]
+        keep_columns = [
+            attr.name for attr in source_config.attributes.original if not attr.drop
+        ]
         chunk = chunk[keep_columns]
 
         # Convert geometry to WKT
@@ -188,7 +192,7 @@ class SpatialLoadStrategy(LoadStrategy):
 
     def _find_geometry_attr(self, source_config: SourceConfig):
         """Find the geometry attribute in the source config."""
-        for attr in source_config.attributes:
+        for attr in source_config.attributes.original:
             if attr.type == DataType.GEOMETRY and not attr.drop:
                 return attr
         return None

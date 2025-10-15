@@ -1,44 +1,45 @@
 name: swissnames3d
 sources:
   - name: swissNAMES3D_PKT
-    type: spatial
     url: https://data.geo.admin.ch/ch.swisstopo.swissnames3d/swissnames3d_2024/swissnames3d_2024_2056.shp.zip
     file: swissNAMES3D_PKT.shp
+    type: spatial
     attributes:
-      - name: UUID
-        type: TEXT
-        index: true
-      - name: OBJEKTART
-        type: TEXT
-      - name: OBJEKTKLAS
-        type: TEXT
-      - name: HOEHE
-        type: REAL
-      - name: GEBAEUDENU
-        type: INTEGER
-      - name: NAME_UUID
-        type: TEXT
-      - name: NAME
-        type: TEXT
-      - name: STATUS
-        type: TEXT
-      - name: SPRACHCODE
-        type: TEXT
-      - name: NAMEN_TYP
-        type: TEXT
-      - name: NAMENGRUPP
-        type: TEXT
-      - name: geometry
-        type: GEOMETRY
-        index: true
-        srid: 2056
-    derivations:
-      - name: NAME_NO_PARENS
-        type: TEXT
-        expression: "CASE WHEN instr(NAME, '(') > 0 THEN trim(substr(NAME, 1, instr(NAME, '(') - 1)) ELSE NAME END"
-      - name: NAME_NO_CODE
-        type: TEXT
-        expression: "CASE WHEN length(NAME) > 3 AND substr(NAME, -3, 1) = ' ' AND substr(NAME, -2, 2) GLOB '[A-Z][A-Z]' THEN trim(substr(NAME, 1, length(NAME) - 3)) ELSE NAME END"
+      original:
+        - name: UUID
+          type: TEXT
+          index: true
+        - name: OBJEKTART
+          type: TEXT
+        - name: OBJEKTKLAS
+          type: TEXT
+        - name: HOEHE
+          type: REAL
+        - name: GEBAEUDENU
+          type: INTEGER
+        - name: NAME_UUID
+          type: TEXT
+        - name: NAME
+          type: TEXT
+        - name: STATUS
+          type: TEXT
+        - name: SPRACHCODE
+          type: TEXT
+        - name: NAMEN_TYP
+          type: TEXT
+        - name: NAMENGRUPP
+          type: TEXT
+        - name: geometry
+          type: GEOMETRY
+          index: true
+          srid: 2056
+      derived:
+        - name: NAME_NO_PARENS
+          type: TEXT
+          expression: "CASE WHEN instr(NAME, '(') > 0 THEN trim(substr(NAME, 1, instr(NAME, '(') - 1)) ELSE NAME END"
+        - name: NAME_NO_CODE
+          type: TEXT
+          expression: "CASE WHEN length(NAME) > 3 AND substr(NAME, -3, 1) = ' ' AND substr(NAME, -2, 2) GLOB '[A-Z][A-Z]' THEN trim(substr(NAME, 1, length(NAME) - 3)) ELSE NAME END"
     view:
       select:
         - source: swissNAMES3D_PKT
@@ -106,42 +107,43 @@ sources:
         - column: NAME_NO_CODE
 
   - name: swissNAMES3D_LIN
-    type: spatial
     url: https://data.geo.admin.ch/ch.swisstopo.swissnames3d/swissnames3d_2024/swissnames3d_2024_2056.shp.zip
     file: swissNAMES3D_LIN.shp
+    type: spatial
     attributes:
-      - name: UUID
-        type: TEXT
-        index: true
-      - name: OBJEKTART
-        type: TEXT
-      - name: OBJEKTKLAS
-        type: TEXT
-      - name: KUNSTBAUTE
-        type: TEXT
-      - name: NAME_UUID
-        type: TEXT
-      - name: NAME
-        type: TEXT
-      - name: STATUS
-        type: TEXT
-      - name: SPRACHCODE
-        type: TEXT
-      - name: NAMEN_TYP
-        type: TEXT
-      - name: NAMENGRUPP
-        type: TEXT
-      - name: geometry
-        type: GEOMETRY
-        index: true
-        srid: 2056
-    derivations:
-      - name: NAME_NO_PARENS
-        type: TEXT
-        expression: "CASE WHEN instr(NAME, '(') > 0 THEN trim(substr(NAME, 1, instr(NAME, '(') - 1)) ELSE NAME END"
-      - name: NAME_NO_CODE
-        type: TEXT
-        expression: "CASE WHEN length(NAME) > 3 AND substr(NAME, -3, 1) = ' ' AND substr(NAME, -2, 2) GLOB '[A-Z][A-Z]' THEN trim(substr(NAME, 1, length(NAME) - 3)) ELSE NAME END"
+      original:
+        - name: UUID
+          type: TEXT
+          index: true
+        - name: OBJEKTART
+          type: TEXT
+        - name: OBJEKTKLAS
+          type: TEXT
+        - name: KUNSTBAUTE
+          type: TEXT
+        - name: NAME_UUID
+          type: TEXT
+        - name: NAME
+          type: TEXT
+        - name: STATUS
+          type: TEXT
+        - name: SPRACHCODE
+          type: TEXT
+        - name: NAMEN_TYP
+          type: TEXT
+        - name: NAMENGRUPP
+          type: TEXT
+        - name: geometry
+          type: GEOMETRY
+          index: true
+          srid: 2056
+      derived:
+        - name: NAME_NO_PARENS
+          type: TEXT
+          expression: "CASE WHEN instr(NAME, '(') > 0 THEN trim(substr(NAME, 1, instr(NAME, '(') - 1)) ELSE NAME END"
+        - name: NAME_NO_CODE
+          type: TEXT
+          expression: "CASE WHEN length(NAME) > 3 AND substr(NAME, -3, 1) = ' ' AND substr(NAME, -2, 2) GLOB '[A-Z][A-Z]' THEN trim(substr(NAME, 1, length(NAME) - 3)) ELSE NAME END"
     view:
       select:
         - source: swissNAMES3D_LIN
@@ -207,44 +209,45 @@ sources:
         - column: NAME_NO_CODE
 
   - name: swissNAMES3D_PLY
-    type: spatial
     url: https://data.geo.admin.ch/ch.swisstopo.swissnames3d/swissnames3d_2024/swissnames3d_2024_2056.shp.zip
     file: swissNAMES3D_PLY.shp
+    type: spatial
     attributes:
-      - name: UUID
-        type: TEXT
-        index: true
-      - name: OBJEKTART
-        type: TEXT
-      - name: OBJEKTKLAS
-        type: TEXT
-      - name: EINWOHNERK
-        type: INTEGER
-      - name: NAME_UUID
-        type: TEXT
-      - name: NAME
-        type: TEXT
-      - name: STATUS
-        type: TEXT
-      - name: SPRACHCODE
-        type: TEXT
-      - name: NAMEN_TYP
-        type: TEXT
-      - name: NAMENGRUPP
-        type: TEXT
-      - name: ISCED
-        type: TEXT
-      - name: geometry
-        type: GEOMETRY
-        index: true
-        srid: 2056
-    derivations:
-      - name: NAME_NO_PARENS
-        type: TEXT
-        expression: "CASE WHEN instr(NAME, '(') > 0 THEN trim(substr(NAME, 1, instr(NAME, '(') - 1)) ELSE NAME END"
-      - name: NAME_NO_CODE
-        type: TEXT
-        expression: "CASE WHEN length(NAME) > 3 AND substr(NAME, -3, 1) = ' ' AND substr(NAME, -2, 2) GLOB '[A-Z][A-Z]' THEN trim(substr(NAME, 1, length(NAME) - 3)) ELSE NAME END"
+      original:
+        - name: UUID
+          type: TEXT
+          index: true
+        - name: OBJEKTART
+          type: TEXT
+        - name: OBJEKTKLAS
+          type: TEXT
+        - name: EINWOHNERK
+          type: INTEGER
+        - name: NAME_UUID
+          type: TEXT
+        - name: NAME
+          type: TEXT
+        - name: STATUS
+          type: TEXT
+        - name: SPRACHCODE
+          type: TEXT
+        - name: NAMEN_TYP
+          type: TEXT
+        - name: NAMENGRUPP
+          type: TEXT
+        - name: ISCED
+          type: TEXT
+        - name: geometry
+          type: GEOMETRY
+          index: true
+          srid: 2056
+      derived:
+        - name: NAME_NO_PARENS
+          type: TEXT
+          expression: "CASE WHEN instr(NAME, '(') > 0 THEN trim(substr(NAME, 1, instr(NAME, '(') - 1)) ELSE NAME END"
+        - name: NAME_NO_CODE
+          type: TEXT
+          expression: "CASE WHEN length(NAME) > 3 AND substr(NAME, -3, 1) = ' ' AND substr(NAME, -2, 2) GLOB '[A-Z][A-Z]' THEN trim(substr(NAME, 1, length(NAME) - 3)) ELSE NAME END"
     view:
       select:
         - source: swissNAMES3D_PLY
@@ -312,67 +315,68 @@ sources:
         - column: NAME_NO_CODE
 
   - name: swissBOUNDARIES3D_HOHEITSGEBIET
-    type: spatial
     url: https://data.geo.admin.ch/ch.swisstopo.swissboundaries3d/swissboundaries3d_2024-01/swissboundaries3d_2024-01_2056_5728.shp.zip
     file: swissBOUNDARIES3D_1_5_TLM_HOHEITSGEBIET.shp
+    type: spatial
     attributes:
-      - name: UUID
-        type: TEXT
-        index: true
-      - name: DATUM_AEND
-        type: TEXT
-      - name: DATUM_ERST
-        type: TEXT
-      - name: ERSTELL_J
-        type: INTEGER
-      - name: ERSTELL_M
-        type: INTEGER
-      - name: GRUND_AEND
-        type: TEXT
-      - name: HERKUNFT
-        type: TEXT
-      - name: HERKUNFT_J
-        type: INTEGER
-      - name: HERKUNFT_M
-        type: INTEGER
-      - name: REVISION_J
-        type: INTEGER
-      - name: REVISION_M
-        type: INTEGER
-      - name: REVISION_Q
-        type: INTEGER
-      - name: OBJEKTART
-        type: TEXT
-      - name: BFS_NUMMER
-        type: INTEGER
-      - name: BEZIRKSNUM
-        type: INTEGER
-        index: true
-      - name: KANTONSNUM
-        type: INTEGER
-        index: true
-      - name: NAME
-        type: TEXT
-      - name: GEM_FLAECH
-        type: REAL
-      - name: SEE_FLAECH
-        type: REAL
-      - name: ICC
-        type: TEXT
-      - name: SHN
-        type: TEXT
-      - name: EINWOHNERZ
-        type: INTEGER
-      - name: HIST_NR
-        type: INTEGER
-      - name: geometry
-        type: GEOMETRY
-        index: true
-        srid: 2056
-    derivations:
-      - name: NAME_NO_PARENS
-        type: TEXT
-        expression: "CASE WHEN instr(NAME, '(') > 0 THEN trim(substr(NAME, 1, instr(NAME, '(') - 1)) ELSE NAME END"
+      original:
+        - name: UUID
+          type: TEXT
+          index: true
+        - name: DATUM_AEND
+          type: TEXT
+        - name: DATUM_ERST
+          type: TEXT
+        - name: ERSTELL_J
+          type: INTEGER
+        - name: ERSTELL_M
+          type: INTEGER
+        - name: GRUND_AEND
+          type: TEXT
+        - name: HERKUNFT
+          type: TEXT
+        - name: HERKUNFT_J
+          type: INTEGER
+        - name: HERKUNFT_M
+          type: INTEGER
+        - name: REVISION_J
+          type: INTEGER
+        - name: REVISION_M
+          type: INTEGER
+        - name: REVISION_Q
+          type: INTEGER
+        - name: OBJEKTART
+          type: TEXT
+        - name: BFS_NUMMER
+          type: INTEGER
+        - name: BEZIRKSNUM
+          type: INTEGER
+          index: true
+        - name: KANTONSNUM
+          type: INTEGER
+          index: true
+        - name: NAME
+          type: TEXT
+        - name: GEM_FLAECH
+          type: REAL
+        - name: SEE_FLAECH
+          type: REAL
+        - name: ICC
+          type: TEXT
+        - name: SHN
+          type: TEXT
+        - name: EINWOHNERZ
+          type: INTEGER
+        - name: HIST_NR
+          type: INTEGER
+        - name: geometry
+          type: GEOMETRY
+          index: true
+          srid: 2056
+      derived:
+        - name: NAME_NO_PARENS
+          type: TEXT
+          expression: "CASE WHEN instr(NAME, '(') > 0 THEN trim(substr(NAME, 1, instr(NAME, '(') - 1)) ELSE NAME END"
     view:
       select:
         - source: swissBOUNDARIES3D_HOHEITSGEBIET
@@ -446,61 +450,62 @@ sources:
         - column: NAME_NO_PARENS
 
   - name: swissBOUNDARIES3D_BEZIRKSGEBIET
-    type: spatial
     url: https://data.geo.admin.ch/ch.swisstopo.swissboundaries3d/swissboundaries3d_2024-01/swissboundaries3d_2024-01_2056_5728.shp.zip
     file: swissBOUNDARIES3D_1_5_TLM_BEZIRKSGEBIET.shp
+    type: spatial
     attributes:
-      - name: UUID
-        type: TEXT
-        index: true
-      - name: DATUM_AEND
-        type: TEXT
-      - name: DATUM_ERST
-        type: TEXT
-      - name: ERSTELL_J
-        type: INTEGER
-      - name: ERSTELL_M
-        type: INTEGER
-      - name: GRUND_AEND
-        type: TEXT
-      - name: HERKUNFT
-        type: TEXT
-      - name: HERKUNFT_J
-        type: INTEGER
-      - name: HERKUNFT_M
-        type: INTEGER
-      - name: REVISION_J
-        type: INTEGER
-      - name: REVISION_M
-        type: INTEGER
-      - name: REVISION_Q
-        type: INTEGER
-      - name: OBJEKTART
-        type: TEXT
-      - name: BEZIRKSNUM
-        type: INTEGER
-        index: true
-      - name: SEE_FLAECH
-        type: REAL
-      - name: BEZIRKSFLA
-        type: REAL
-      - name: NAME
-        type: TEXT
-      - name: KANTONSNUM
-        type: INTEGER
-        index: true
-      - name: ICC
-        type: TEXT
-      - name: EINWOHNERZ
-        type: INTEGER
-      - name: geometry
-        type: GEOMETRY
-        index: true
-        srid: 2056
-    derivations:
-      - name: NAME_NO_PARENS
-        type: TEXT
-        expression: "CASE WHEN instr(NAME, '(') > 0 THEN trim(substr(NAME, 1, instr(NAME, '(') - 1)) ELSE NAME END"
+      original:
+        - name: UUID
+          type: TEXT
+          index: true
+        - name: DATUM_AEND
+          type: TEXT
+        - name: DATUM_ERST
+          type: TEXT
+        - name: ERSTELL_J
+          type: INTEGER
+        - name: ERSTELL_M
+          type: INTEGER
+        - name: GRUND_AEND
+          type: TEXT
+        - name: HERKUNFT
+          type: TEXT
+        - name: HERKUNFT_J
+          type: INTEGER
+        - name: HERKUNFT_M
+          type: INTEGER
+        - name: REVISION_J
+          type: INTEGER
+        - name: REVISION_M
+          type: INTEGER
+        - name: REVISION_Q
+          type: INTEGER
+        - name: OBJEKTART
+          type: TEXT
+        - name: BEZIRKSNUM
+          type: INTEGER
+          index: true
+        - name: SEE_FLAECH
+          type: REAL
+        - name: BEZIRKSFLA
+          type: REAL
+        - name: NAME
+          type: TEXT
+        - name: KANTONSNUM
+          type: INTEGER
+          index: true
+        - name: ICC
+          type: TEXT
+        - name: EINWOHNERZ
+          type: INTEGER
+        - name: geometry
+          type: GEOMETRY
+          index: true
+          srid: 2056
+      derived:
+        - name: NAME_NO_PARENS
+          type: TEXT
+          expression: "CASE WHEN instr(NAME, '(') > 0 THEN trim(substr(NAME, 1, instr(NAME, '(') - 1)) ELSE NAME END"
     view:
       select:
         - source: swissBOUNDARIES3D_BEZIRKSGEBIET
@@ -562,54 +567,55 @@ sources:
         - column: NAME_NO_PARENS
 
   - name: swissBOUNDARIES3D_KANTONSGEBIET
-    type: spatial
     url: https://data.geo.admin.ch/ch.swisstopo.swissboundaries3d/swissboundaries3d_2024-01/swissboundaries3d_2024-01_2056_5728.shp.zip
     file: swissBOUNDARIES3D_1_5_TLM_KANTONSGEBIET.shp
+    type: spatial
     attributes:
-      - name: UUID
-        type: TEXT
-        index: true
-      - name: DATUM_AEND
-        type: TEXT
-      - name: DATUM_ERST
-        type: TEXT
-      - name: ERSTELL_J
-        type: INTEGER
-      - name: ERSTELL_M
-        type: INTEGER
-      - name: GRUND_AEND
-        type: TEXT
-      - name: HERKUNFT
-        type: TEXT
-      - name: HERKUNFT_J
-        type: INTEGER
-      - name: HERKUNFT_M
-        type: INTEGER
-      - name: REVISION_J
-        type: INTEGER
-      - name: REVISION_M
-        type: INTEGER
-      - name: REVISION_Q
-        type: INTEGER
-      - name: OBJEKTART
-        type: TEXT
-      - name: KANTONSNUM
-        type: INTEGER
-        index: true
-      - name: SEE_FLAECH
-        type: REAL
-      - name: KANTONSFLA
-        type: REAL
-      - name: NAME
-        type: TEXT
-      - name: ICC
-        type: TEXT
-      - name: EINWOHNERZ
-        type: INTEGER
-      - name: geometry
-        type: GEOMETRY
-        index: true
-        srid: 2056
+      original:
+        - name: UUID
+          type: TEXT
+          index: true
+        - name: DATUM_AEND
+          type: TEXT
+        - name: DATUM_ERST
+          type: TEXT
+        - name: ERSTELL_J
+          type: INTEGER
+        - name: ERSTELL_M
+          type: INTEGER
+        - name: GRUND_AEND
+          type: TEXT
+        - name: HERKUNFT
+          type: TEXT
+        - name: HERKUNFT_J
+          type: INTEGER
+        - name: HERKUNFT_M
+          type: INTEGER
+        - name: REVISION_J
+          type: INTEGER
+        - name: REVISION_M
+          type: INTEGER
+        - name: REVISION_Q
+          type: INTEGER
+        - name: OBJEKTART
+          type: TEXT
+        - name: KANTONSNUM
+          type: INTEGER
+          index: true
+        - name: SEE_FLAECH
+          type: REAL
+        - name: KANTONSFLA
+          type: REAL
+        - name: NAME
+          type: TEXT
+        - name: ICC
+          type: TEXT
+        - name: EINWOHNERZ
+          type: INTEGER
+        - name: geometry
+          type: GEOMETRY
+          index: true
+          srid: 2056
     view:
       select:
         - source: swissBOUNDARIES3D_KANTONSGEBIET
