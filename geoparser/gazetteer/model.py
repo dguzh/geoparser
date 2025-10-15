@@ -3,7 +3,7 @@ from enum import Enum
 from pathlib import Path
 
 import yaml
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import BaseModel, field_validator, model_validator
 
 
 class SourceType(str, Enum):
@@ -64,31 +64,44 @@ class DerivationConfig(BaseModel):
 class SelectConfig(BaseModel):
     """Configuration for a SELECT clause element."""
 
-    table: str
+    source: str  # Source/view name (replaces 'table')
     column: str
     alias: t.Optional[str] = None
 
 
-class FromConfig(BaseModel):
-    """Configuration for a FROM clause element."""
-
-    table: str
-
-
-class JoinConfig(BaseModel):
-    """Configuration for a JOIN clause element."""
+class ViewJoinConfig(BaseModel):
+    """Configuration for a JOIN clause element in a view."""
 
     type: str  # e.g., "LEFT JOIN", "INNER JOIN", "RIGHT JOIN"
-    table: str  # The table to join
-    condition: str  # The ON condition
+    source: str  # The source/view to join
+    condition: str  # The join condition
 
 
-class StatementConfig(BaseModel):
-    """SQL statement configuration for a view."""
+class ColumnConfig(BaseModel):
+    """Configuration for a column reference."""
 
-    select: t.List[SelectConfig]
-    from_: FromConfig = Field(alias="from")
-    join: t.Optional[t.List[JoinConfig]] = None
+    column: str
+
+
+class NameColumnConfig(BaseModel):
+    """Configuration for extracting a name column."""
+
+    column: str
+    separator: t.Optional[str] = None
+
+
+class FeatureConfig(BaseModel):
+    """Configuration for extracting features from a source."""
+
+    identifier: t.List[ColumnConfig]  # List of identifier columns
+    names: t.List[NameColumnConfig]
+
+
+class ViewConfig(BaseModel):
+    """Configuration for a view over a source."""
+
+    select: t.List[SelectConfig]  # Explicit column selection (required)
+    join: t.Optional[t.List[ViewJoinConfig]] = None
 
 
 class SourceConfig(BaseModel):
@@ -103,6 +116,8 @@ class SourceConfig(BaseModel):
     layer: t.Optional[str] = None
     attributes: t.List[AttributeConfig]
     derivations: t.List[DerivationConfig] = []
+    view: t.Optional[ViewConfig] = None  # Nested view configuration
+    features: t.Optional[FeatureConfig] = None  # Nested feature configuration
 
     @model_validator(mode="after")
     def validate_type_specific_fields(self) -> "SourceConfig":
@@ -162,39 +177,11 @@ class SourceConfig(BaseModel):
         return self
 
 
-class ViewConfig(BaseModel):
-    """Configuration for a view over source tables."""
-
-    name: str
-    statement: StatementConfig
-
-
-class FeatureConfig(BaseModel):
-    """Configuration for extracting features from a gazetteer source."""
-
-    table: str
-    view: t.Optional[str] = None
-    identifier_column: str
-
-
-class NameConfig(BaseModel):
-    """Configuration for extracting names from a gazetteer source."""
-
-    table: str
-    view: t.Optional[str] = None
-    identifier_column: str
-    name_column: str
-    separator: t.Optional[str] = None
-
-
 class GazetteerConfig(BaseModel):
     """Configuration for a gazetteer."""
 
     name: str
     sources: t.List[SourceConfig]
-    views: t.Optional[t.List[ViewConfig]] = []
-    features: t.Optional[t.List[FeatureConfig]] = []
-    names: t.Optional[t.List[NameConfig]] = []
 
     @field_validator("name")
     @classmethod
@@ -217,88 +204,29 @@ class GazetteerConfig(BaseModel):
     @model_validator(mode="after")
     def validate_view_references(self) -> "GazetteerConfig":
         """Validate that views reference existing sources."""
-        if not self.views:
-            return self
-
         source_names = {source.name for source in self.sources}
-        view_names = {view.name for view in self.views}
 
-        # Check for duplicate view names
-        if len(view_names) != len(self.views):
-            raise ValueError("View names must be unique within a gazetteer")
+        # Check that view references are valid
+        for source in self.sources:
+            if source.view is None:
+                continue
 
-        # Check for view names that conflict with source names
-        conflicts = view_names.intersection(source_names)
-        if conflicts:
-            raise ValueError(f"View names conflict with source names: {conflicts}")
+            view_config = source.view
 
-        # Check that 'from' references existing sources or views
-        all_names = source_names.union(view_names)
-        for view in self.views:
-            # Check the from table
-            if view.statement.from_.table not in all_names:
-                raise ValueError(
-                    f"View '{view.name}' from references non-existent source/view: {view.statement.from_.table}"
-                )
-
-            # Check all select tables
-            for select_item in view.statement.select:
-                if select_item.table not in all_names:
+            # Check all select source references
+            for select_item in view_config.select:
+                if select_item.source not in source_names:
                     raise ValueError(
-                        f"View '{view.name}' select references non-existent source/view: {select_item.table}"
+                        f"View for source '{source.name}' select references non-existent source: {select_item.source}"
                     )
 
-            # Check all join tables
-            if view.statement.join:
-                for join_item in view.statement.join:
-                    if join_item.table not in all_names:
+            # Check all join source references
+            if view_config.join:
+                for join_item in view_config.join:
+                    if join_item.source not in source_names:
                         raise ValueError(
-                            f"View '{view.name}' join references non-existent source/view: {join_item.table}"
+                            f"View for source '{source.name}' join references non-existent source: {join_item.source}"
                         )
-
-        return self
-
-    @model_validator(mode="after")
-    def validate_feature_references(self) -> "GazetteerConfig":
-        """Validate that features reference existing sources or views."""
-        if not self.features:
-            return self
-
-        source_names = {source.name for source in self.sources}
-        view_names = {view.name for view in self.views} if self.views else set()
-        all_names = source_names.union(view_names)
-
-        for feature in self.features:
-            if feature.table not in all_names:
-                raise ValueError(
-                    f"Feature configuration table references non-existent source/view: {feature.table}"
-                )
-            if feature.view and feature.view not in all_names:
-                raise ValueError(
-                    f"Feature configuration view references non-existent source/view: {feature.view}"
-                )
-
-        return self
-
-    @model_validator(mode="after")
-    def validate_name_references(self) -> "GazetteerConfig":
-        """Validate that names reference existing sources or views."""
-        if not self.names:
-            return self
-
-        source_names = {source.name for source in self.sources}
-        view_names = {view.name for view in self.views} if self.views else set()
-        all_names = source_names.union(view_names)
-
-        for name_config in self.names:
-            if name_config.table not in all_names:
-                raise ValueError(
-                    f"Name configuration table references non-existent source/view: {name_config.table}"
-                )
-            if name_config.view and name_config.view not in all_names:
-                raise ValueError(
-                    f"Name configuration view references non-existent source/view: {name_config.view}"
-                )
 
         return self
 
