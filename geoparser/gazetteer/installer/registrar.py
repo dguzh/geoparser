@@ -38,9 +38,14 @@ class FeatureRegistrar:
     def _register_features(
         self, source_config: SourceConfig, gazetteer_name: str, registration_name: str
     ) -> None:
-        """Register features from a source."""
-        identifier_column = source_config.features.identifier[0].column
+        """
+        Register features from a source.
 
+        Args:
+            source_config: Source configuration
+            gazetteer_name: Name of the gazetteer
+            registration_name: Name of the table or view to register from
+        """
         with tqdm(
             total=1,
             desc=f"Registering features from {source_config.name}",
@@ -59,7 +64,14 @@ class FeatureRegistrar:
     def _register_names(
         self, source_config: SourceConfig, gazetteer_name: str, registration_name: str
     ) -> None:
-        """Register names from a source."""
+        """
+        Register names from a source.
+
+        Args:
+            source_config: Source configuration
+            gazetteer_name: Name of the gazetteer
+            registration_name: Name of the table or view to register from
+        """
         for name_config in source_config.features.names:
             name_column = name_config.column
             separator = name_config.separator

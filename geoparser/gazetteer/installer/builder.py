@@ -9,6 +9,9 @@ from geoparser.gazetteer.model import DataType, SourceConfig
 class SchemaBuilder:
     """Builds database schema (tables and views) for gazetteers."""
 
+    # Suffix appended to source names to create view names
+    VIEW_SUFFIX = "_view"
+
     def __init__(self):
         self.generator = SQLGenerator()
 
@@ -30,8 +33,9 @@ class SchemaBuilder:
                 connection.execute(
                     sa.text(f"SELECT DropTable(NULL, '{table_name}', 1)")
                 )
-            except Exception:
+            except sa.exc.DatabaseError:
                 # Fall back to regular DROP TABLE if DropTable fails
+                # (e.g., table doesn't exist or isn't a spatial table)
                 connection.execute(sa.text(f"DROP TABLE IF EXISTS {table_name}"))
             connection.commit()
 
@@ -62,7 +66,9 @@ class SchemaBuilder:
             connection.execute(sa.text(create_table_sql))
             connection.commit()
 
-        # Dispose engine to clear connection pool
+        # Dispose engine to clear connection pool after table creation.
+        # This ensures that subsequent operations start with a fresh connection
+        # and properly see the newly created table structure.
         engine.dispose()
 
         return table_name
@@ -80,8 +86,8 @@ class SchemaBuilder:
         if source_config.view is None:
             raise ValueError(f"Source '{source_config.name}' has no view configuration")
 
-        # View name is source name with "_view" suffix
-        view_name = f"{source_config.name}_view"
+        # View name is source name with VIEW_SUFFIX
+        view_name = f"{source_config.name}{self.VIEW_SUFFIX}"
 
         with tqdm(
             total=1,

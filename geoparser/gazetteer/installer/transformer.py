@@ -8,6 +8,11 @@ from geoparser.gazetteer.model import DataType, SourceConfig
 class DataTransformer:
     """Transforms data by applying derivations and building geometries."""
 
+    # SpatiaLite geometry type for AddGeometryColumn
+    GEOMETRY_TYPE = "GEOMETRY"
+    # Coordinate dimension for spatial columns (2D: XY)
+    COORDINATE_DIMENSION = "XY"
+
     def apply_derivations(self, source_config: SourceConfig, table_name: str) -> None:
         """
         Create derived columns in a table using SQL expressions.
@@ -58,30 +63,38 @@ class DataTransformer:
             return
 
         with engine.connect() as connection:
-            # Add SpatiaLite geometry column
-            add_geometry_sql = (
-                f"SELECT AddGeometryColumn('{table_name}', '{geometry_item.name}', "
-                f"{geometry_item.srid}, 'GEOMETRY', 'XY')"
-            )
-            connection.execute(sa.text(add_geometry_sql))
+            try:
+                # Add SpatiaLite geometry column
+                add_geometry_sql = (
+                    f"SELECT AddGeometryColumn('{table_name}', '{geometry_item.name}', "
+                    f"{geometry_item.srid}, '{self.GEOMETRY_TYPE}', '{self.COORDINATE_DIMENSION}')"
+                )
+                connection.execute(sa.text(add_geometry_sql))
 
-            # Populate geometry column from WKT text
-            update_sql = (
-                f"UPDATE {table_name} "
-                f"SET {geometry_item.name} = GeomFromText({geometry_item.name}_wkt, {geometry_item.srid}) "
-                f"WHERE {geometry_item.name}_wkt IS NOT NULL"
-            )
+                # Populate geometry column from WKT text
+                update_sql = (
+                    f"UPDATE {table_name} "
+                    f"SET {geometry_item.name} = GeomFromText({geometry_item.name}_wkt, {geometry_item.srid}) "
+                    f"WHERE {geometry_item.name}_wkt IS NOT NULL"
+                )
 
-            # Execute with progress bar
-            with tqdm(
-                total=1,
-                desc=f"Building {table_name}.{geometry_item.name}",
-                unit="column",
-            ) as pbar:
-                connection.execute(sa.text(update_sql))
-                pbar.update(1)
+                # Execute with progress bar
+                with tqdm(
+                    total=1,
+                    desc=f"Building {table_name}.{geometry_item.name}",
+                    unit="column",
+                ) as pbar:
+                    connection.execute(sa.text(update_sql))
+                    pbar.update(1)
 
-            connection.commit()
+                # Commit the transaction
+                connection.commit()
+            except sa.exc.DatabaseError as e:
+                # Roll back on error to maintain database consistency
+                connection.rollback()
+                raise RuntimeError(
+                    f"Failed to build geometry column {geometry_item.name} in table {table_name}: {e}"
+                )
 
     def _find_geometry_item(self, source_config: SourceConfig):
         """

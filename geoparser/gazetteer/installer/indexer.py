@@ -36,25 +36,42 @@ class ColumnIndexer:
 
         with engine.connect() as connection:
             for column_name, column_type in indexed_columns:
-                if column_type == DataType.GEOMETRY:
-                    # Create spatial index
-                    index_sql = (
-                        f"SELECT CreateSpatialIndex('{table_name}', '{column_name}')"
-                    )
-                else:
-                    # Create B-tree index
-                    index_name = f"idx_{table_name}_{column_name}"
-                    index_sql = (
-                        f"CREATE INDEX {index_name} ON {table_name}({column_name})"
-                    )
+                try:
+                    if column_type == DataType.GEOMETRY:
+                        # Create spatial index
+                        index_sql = f"SELECT CreateSpatialIndex('{table_name}', '{column_name}')"
+                    else:
+                        # Create B-tree index
+                        index_name = self._get_index_name(table_name, column_name)
+                        index_sql = (
+                            f"CREATE INDEX {index_name} ON {table_name}({column_name})"
+                        )
 
-                # Create index with progress bar
-                with tqdm(
-                    total=1,
-                    desc=f"Indexing {table_name}.{column_name}",
-                    unit="index",
-                ) as pbar:
-                    connection.execute(sa.text(index_sql))
-                    pbar.update(1)
+                    # Create index with progress bar
+                    with tqdm(
+                        total=1,
+                        desc=f"Indexing {table_name}.{column_name}",
+                        unit="index",
+                    ) as pbar:
+                        connection.execute(sa.text(index_sql))
+                        pbar.update(1)
+                except sa.exc.DatabaseError as e:
+                    # Log error but continue with other indices
+                    print(
+                        f"Warning: Failed to create index on {table_name}.{column_name}: {e}"
+                    )
 
             connection.commit()
+
+    def _get_index_name(self, table_name: str, column_name: str) -> str:
+        """
+        Generate a standard index name.
+
+        Args:
+            table_name: Name of the table
+            column_name: Name of the column
+
+        Returns:
+            Index name in the format idx_{table_name}_{column_name}
+        """
+        return f"idx_{table_name}_{column_name}"

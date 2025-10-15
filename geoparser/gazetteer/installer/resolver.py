@@ -2,6 +2,9 @@ from typing import Dict, List, Set
 
 from geoparser.gazetteer.model import SourceConfig
 
+# Type alias for dependency graph structure
+Graph = Dict[str, Set[str]]
+
 
 class DependencyResolver:
     """Resolves dependencies between sources based on view joins."""
@@ -28,13 +31,13 @@ class DependencyResolver:
         # Perform topological sort
         return self._topological_sort(sources, graph)
 
-    def _build_dependency_graph(
-        self, sources: List[SourceConfig]
-    ) -> Dict[str, Set[str]]:
+    def _build_dependency_graph(self, sources: List[SourceConfig]) -> Graph:
         """
         Build a dependency graph from source configurations.
 
-        Returns a dict mapping source names to sets of sources they depend on.
+        The graph maps source names to sets of sources they depend on.
+        For example, if source 'admin_areas' joins with 'countries',
+        the graph will contain: {'admin_areas': {'countries'}}.
 
         Args:
             sources: List of source configurations
@@ -42,7 +45,7 @@ class DependencyResolver:
         Returns:
             Dependency graph {source_name: {dependency1, dependency2, ...}}
         """
-        graph: Dict[str, Set[str]] = {source.name: set() for source in sources}
+        graph: Graph = {source.name: set() for source in sources}
 
         for source in sources:
             if source.view is None:
@@ -64,7 +67,7 @@ class DependencyResolver:
         return graph
 
     def _topological_sort(
-        self, sources: List[SourceConfig], graph: Dict[str, Set[str]]
+        self, sources: List[SourceConfig], graph: Graph
     ) -> List[SourceConfig]:
         """
         Perform topological sort on the dependency graph.

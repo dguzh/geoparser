@@ -22,7 +22,15 @@ class LoadStrategy(ABC):
         table_name: str,
         chunksize: int,
     ) -> None:
-        """Load data from file into database table."""
+        """
+        Load data from file into database table.
+
+        Args:
+            source_config: Source configuration
+            file_path: Path to the file containing the data
+            table_name: Name of the table to load into
+            chunksize: Number of records to process at once
+        """
 
 
 class TabularLoadStrategy(LoadStrategy):
@@ -78,7 +86,14 @@ class TabularLoadStrategy(LoadStrategy):
     def _process_chunk(
         self, source_config: SourceConfig, chunk: pd.DataFrame, table_name: str
     ) -> None:
-        """Process a chunk of tabular data and load it to the database."""
+        """
+        Process a chunk of tabular data and load it to the database.
+
+        Args:
+            source_config: Source configuration
+            chunk: DataFrame chunk to process
+            table_name: Name of the table to load into
+        """
         # Filter columns based on drop flag
         keep_columns = [
             attr.name for attr in source_config.attributes.original if not attr.drop
@@ -90,7 +105,15 @@ class TabularLoadStrategy(LoadStrategy):
             chunk.to_sql(table_name, connection, index=False, if_exists="append")
 
     def _get_pandas_dtype_mapping(self, source_config: SourceConfig) -> Dict:
-        """Create a mapping from column names to pandas dtypes."""
+        """
+        Create a mapping from column names to pandas dtypes.
+
+        Args:
+            source_config: Source configuration
+
+        Returns:
+            Dictionary mapping column names to pandas dtype strings
+        """
         dtype_map = {}
         for attr in source_config.attributes.original:
             # Skip geometry columns
@@ -160,7 +183,14 @@ class SpatialLoadStrategy(LoadStrategy):
     def _process_chunk(
         self, source_config: SourceConfig, chunk: gpd.GeoDataFrame, table_name: str
     ) -> None:
-        """Process a chunk of spatial data and load it to the database."""
+        """
+        Process a chunk of spatial data and load it to the database.
+
+        Args:
+            source_config: Source configuration
+            chunk: GeoDataFrame chunk to process
+            table_name: Name of the table to load into
+        """
         # Rename columns to match configuration
         chunk_cols = list(chunk.columns)
         config_cols = [attr.name for attr in source_config.attributes.original]
@@ -191,7 +221,15 @@ class SpatialLoadStrategy(LoadStrategy):
             )
 
     def _find_geometry_attr(self, source_config: SourceConfig):
-        """Find the geometry attribute in the source config."""
+        """
+        Find the geometry attribute in the source config.
+
+        Args:
+            source_config: Source configuration
+
+        Returns:
+            The geometry attribute object, or None if none exists
+        """
         for attr in source_config.attributes.original:
             if attr.type == DataType.GEOMETRY and not attr.drop:
                 return attr

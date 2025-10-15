@@ -11,22 +11,10 @@ from geoparser.gazetteer.model import SourceConfig
 class DataDownloader:
     """Handles downloading and extracting gazetteer data files."""
 
-    def download_and_extract(
-        self, source_config: SourceConfig, downloads_dir: Path
-    ) -> Path:
-        """
-        Download and extract a file for a source.
-
-        Args:
-            source_config: Source configuration
-            downloads_dir: Directory to download files to
-
-        Returns:
-            Path to the extracted/downloaded file
-        """
-        download_path = self.download(source_config, downloads_dir)
-        file_path = self.extract(source_config, download_path)
-        return file_path
+    # Default chunk size for streaming downloads (8KB)
+    DEFAULT_CHUNK_SIZE = 8192
+    # Default timeout for network requests (30 seconds)
+    DEFAULT_TIMEOUT = 30
 
     def download(self, source_config: SourceConfig, downloads_dir: Path) -> Path:
         """
@@ -44,15 +32,19 @@ class DataDownloader:
 
         if download_path.exists():
             # Check if we need to re-download by comparing file size
-            headers = requests.head(url).headers
-            remote_size = int(headers.get("content-length", 0))
-            local_size = download_path.stat().st_size
+            try:
+                headers = requests.head(url, timeout=self.DEFAULT_TIMEOUT).headers
+                remote_size = int(headers.get("content-length", 0))
+                local_size = download_path.stat().st_size
 
-            if remote_size == local_size and remote_size != 0:
-                return download_path
+                if remote_size == local_size and remote_size != 0:
+                    return download_path
+            except (requests.RequestException, ValueError):
+                # If HEAD request fails, proceed with download anyway
+                pass
 
         # Stream download with progress bar
-        with requests.get(url, stream=True) as r:
+        with requests.get(url, stream=True, timeout=self.DEFAULT_TIMEOUT) as r:
             r.raise_for_status()
             total_size = int(r.headers.get("content-length", 0))
 
@@ -63,7 +55,7 @@ class DataDownloader:
                     unit_scale=True,
                     desc=f"Downloading {download_path.name}",
                 ) as pbar:
-                    for chunk in r.iter_content(chunk_size=8192):
+                    for chunk in r.iter_content(chunk_size=self.DEFAULT_CHUNK_SIZE):
                         if chunk:
                             f.write(chunk)
                             pbar.update(len(chunk))

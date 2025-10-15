@@ -15,9 +15,11 @@ from geoparser.gazetteer.installer.loader import DataLoader
 from geoparser.gazetteer.installer.registrar import FeatureRegistrar
 from geoparser.gazetteer.installer.resolver import DependencyResolver
 from geoparser.gazetteer.installer.transformer import DataTransformer
-from geoparser.gazetteer.model import GazetteerConfig
+from geoparser.gazetteer.model import GazetteerConfig, SourceConfig
 
-# Suppress geopandas warning about geometry column
+# Suppress geopandas warning about geometry column.
+# This warning occurs when loading spatial data where the geometry column
+# temporarily contains WKT text before being converted to proper geometries.
 warnings.filterwarnings(
     "ignore",
     message="Geometry column does not contain geometry.*",
@@ -60,7 +62,7 @@ class GazetteerInstaller:
         config = GazetteerConfig.from_yaml(config_path)
 
         # Setup directories
-        downloads_dir = self._setup_directory(config)
+        downloads_dir = self._get_downloads_directory(config)
 
         # Create gazetteer record in database
         gazetteer_record = self._create_gazetteer_record(config)
@@ -76,8 +78,16 @@ class GazetteerInstaller:
         if not keep_downloads:
             self.downloader.cleanup(downloads_dir)
 
-    def _setup_directory(self, config: GazetteerConfig) -> Path:
-        """Create and return the downloads directory for this gazetteer."""
+    def _get_downloads_directory(self, config: GazetteerConfig) -> Path:
+        """
+        Create and return the downloads directory for this gazetteer.
+
+        Args:
+            config: Gazetteer configuration
+
+        Returns:
+            Path to the downloads directory
+        """
         downloads_dir = Path(user_data_dir("geoparser", "")) / "downloads" / config.name
         downloads_dir.mkdir(parents=True, exist_ok=True)
         return downloads_dir
@@ -108,7 +118,11 @@ class GazetteerInstaller:
             return GazetteerRepository.create(db, GazetteerCreate(name=name))
 
     def _process_source(
-        self, source, config: GazetteerConfig, downloads_dir: Path, chunksize: int
+        self,
+        source: SourceConfig,
+        config: GazetteerConfig,
+        downloads_dir: Path,
+        chunksize: int,
     ) -> None:
         """
         Process a single source through the full installation pipeline.
@@ -120,7 +134,8 @@ class GazetteerInstaller:
             chunksize: Number of records to process at once
         """
         # Download and extract
-        file_path = self.downloader.download_and_extract(source, downloads_dir)
+        download_path = self.downloader.download(source, downloads_dir)
+        file_path = self.downloader.extract(source, download_path)
 
         # Build schema and load data
         table_name = self.builder.create_table(source)
