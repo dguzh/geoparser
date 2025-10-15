@@ -1,6 +1,6 @@
 import warnings
 from pathlib import Path
-from typing import Union
+from typing import List, Union
 
 from appdirs import user_data_dir
 from sqlmodel import Session
@@ -8,13 +8,13 @@ from sqlmodel import Session
 from geoparser.db.crud.gazetteer import GazetteerRepository
 from geoparser.db.engine import engine
 from geoparser.db.models.gazetteer import GazetteerCreate
-from geoparser.gazetteer.installer.builder import SchemaBuilder
-from geoparser.gazetteer.installer.downloader import DataDownloader
-from geoparser.gazetteer.installer.indexer import ColumnIndexer
-from geoparser.gazetteer.installer.loader import DataLoader
-from geoparser.gazetteer.installer.registrar import FeatureRegistrar
-from geoparser.gazetteer.installer.resolver import DependencyResolver
-from geoparser.gazetteer.installer.transformer import DataTransformer
+from geoparser.gazetteer.installer.stages.acquisition import AcquisitionStage
+from geoparser.gazetteer.installer.stages.indexing import IndexingStage
+from geoparser.gazetteer.installer.stages.ingestion import IngestionStage
+from geoparser.gazetteer.installer.stages.registration import RegistrationStage
+from geoparser.gazetteer.installer.stages.schema import SchemaStage
+from geoparser.gazetteer.installer.stages.transformation import TransformationStage
+from geoparser.gazetteer.installer.utils.dependency import DependencyResolver
 from geoparser.gazetteer.model import GazetteerConfig, SourceConfig
 
 # Suppress geopandas warning about geometry column.
@@ -29,20 +29,26 @@ warnings.filterwarnings(
 
 class GazetteerInstaller:
     """
-    Orchestrates gazetteer installation workflow.
+    Orchestrates the complete gazetteer installation process.
 
-    This class coordinates the installation of gazetteer data by delegating
-    tasks to specialized components.
+    This class coordinates a pipeline of stages that download, process,
+    and load gazetteer data into the database. The pipeline follows a
+    clear, linear flow:
+
+    1. Acquisition: Download and extract source files
+    2. Schema: Create database tables and views
+    3. Ingestion: Load data into tables
+    4. Transformation: Apply derivations and build geometries
+    5. Indexing: Create database indices
+    6. Registration: Register features and names
+
+    Each stage is independent and testable, with well-defined
+    responsibilities and interfaces.
     """
 
     def __init__(self):
-        self.downloader = DataDownloader()
-        self.builder = SchemaBuilder()
-        self.loader = DataLoader()
-        self.transformer = DataTransformer()
-        self.indexer = ColumnIndexer()
-        self.registrar = FeatureRegistrar()
-        self.resolver = DependencyResolver()
+        """Initialize the orchestrator."""
+        self.dependency_resolver = DependencyResolver()
 
     def install(
         self,
@@ -57,102 +63,104 @@ class GazetteerInstaller:
             config_path: Path to the YAML configuration file
             chunksize: Number of records to process at once for chunked operations
             keep_downloads: Whether to keep downloaded files after installation
+
+        Raises:
+            Exception: If installation fails at any stage
         """
-        # Load configuration
+        # Load and validate configuration
         config = GazetteerConfig.from_yaml(config_path)
 
         # Setup directories
-        downloads_dir = self._get_downloads_directory(config)
+        downloads_dir = self._create_downloads_directory(config.name)
 
         # Create gazetteer record in database
-        gazetteer_record = self._create_gazetteer_record(config)
+        self._create_gazetteer_record(config.name)
 
-        # Resolve source dependencies and get processing order
-        ordered_sources = self.resolver.resolve(config.sources)
+        # Resolve dependencies and get processing order
+        ordered_sources = self.dependency_resolver.resolve(config.sources)
 
-        # Process each source in dependency order
+        # Create pipeline stages
+        pipeline = self._create_pipeline(config.name, downloads_dir, chunksize)
+
+        # Execute pipeline for each source
         for source in ordered_sources:
-            self._process_source(source, config, downloads_dir, chunksize)
+            self._execute_pipeline(source, pipeline)
 
-        # Cleanup downloads if requested
+        # Cleanup if requested
         if not keep_downloads:
-            self.downloader.cleanup(downloads_dir)
+            pipeline[0].cleanup()  # AcquisitionStage has cleanup method
 
-    def _get_downloads_directory(self, config: GazetteerConfig) -> Path:
+    def _create_downloads_directory(self, gazetteer_name: str) -> Path:
         """
-        Create and return the downloads directory for this gazetteer.
+        Create and return the downloads directory for a gazetteer.
 
         Args:
-            config: Gazetteer configuration
+            gazetteer_name: Name of the gazetteer
 
         Returns:
             Path to the downloads directory
         """
-        downloads_dir = Path(user_data_dir("geoparser", "")) / "downloads" / config.name
+        downloads_dir = (
+            Path(user_data_dir("geoparser", "")) / "downloads" / gazetteer_name
+        )
         downloads_dir.mkdir(parents=True, exist_ok=True)
         return downloads_dir
 
-    def _create_gazetteer_record(self, config: GazetteerConfig):
+    def _create_gazetteer_record(self, gazetteer_name: str) -> None:
         """
-        Create a new gazetteer record in the database.
+        Create or replace a gazetteer record in the database.
 
         If records with the same name already exist, they will be deleted first.
 
         Args:
-            config: Gazetteer configuration
-
-        Returns:
-            Created Gazetteer object
+            gazetteer_name: Name of the gazetteer
         """
         with Session(engine) as db:
-            name = config.name
-
-            # Get all existing gazetteers with this name
-            existing_gazetteers = GazetteerRepository.get_by_name(db, name)
-
-            # Delete each existing gazetteer
+            # Delete any existing gazetteers with this name
+            existing_gazetteers = GazetteerRepository.get_by_name(db, gazetteer_name)
             for gazetteer in existing_gazetteers:
                 GazetteerRepository.delete(db, id=gazetteer.id)
 
-            # Create a new gazetteer record
-            return GazetteerRepository.create(db, GazetteerCreate(name=name))
+            # Create new gazetteer record
+            GazetteerRepository.create(db, GazetteerCreate(name=gazetteer_name))
 
-    def _process_source(
+    def _create_pipeline(
         self,
-        source: SourceConfig,
-        config: GazetteerConfig,
+        gazetteer_name: str,
         downloads_dir: Path,
         chunksize: int,
-    ) -> None:
+    ) -> List:
         """
-        Process a single source through the full installation pipeline.
+        Create the pipeline of stages.
 
         Args:
-            source: Source configuration
-            config: Gazetteer configuration
+            gazetteer_name: Name of the gazetteer
             downloads_dir: Directory for downloaded files
             chunksize: Number of records to process at once
+
+        Returns:
+            List of pipeline stages in execution order
         """
-        # Download and extract
-        download_path = self.downloader.download(source, downloads_dir)
-        file_path = self.downloader.extract(source, download_path)
+        return [
+            AcquisitionStage(downloads_dir),
+            SchemaStage(),
+            IngestionStage(chunksize),
+            TransformationStage(),
+            IndexingStage(),
+            RegistrationStage(gazetteer_name),
+        ]
 
-        # Build schema and load data
-        table_name = self.builder.create_table(source)
-        self.loader.load(source, file_path, table_name, chunksize)
+    def _execute_pipeline(self, source: SourceConfig, pipeline: List) -> None:
+        """
+        Execute the complete pipeline for a single source.
 
-        # Transform data
-        self.transformer.apply_derivations(source, table_name)
-        self.transformer.build_geometry(source, table_name)
+        Args:
+            source: Source configuration to process
+            pipeline: List of pipeline stages
+        """
+        # Context is shared across all stages for this source
+        context = {}
 
-        # Create indices
-        self.indexer.create_indices(source, table_name)
-
-        # Create view if configured
-        view_name = None
-        if source.view:
-            view_name = self.builder.create_view(source)
-
-        # Register features and names if configured
-        if source.features:
-            self.registrar.register(source, config.name, view_name)
+        # Execute each stage in sequence
+        for stage in pipeline:
+            stage.execute(source, context)
