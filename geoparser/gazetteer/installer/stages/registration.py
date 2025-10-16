@@ -7,10 +7,10 @@ from geoparser.db.crud.gazetteer import GazetteerRepository
 from geoparser.db.crud.source import SourceRepository
 from geoparser.db.engine import engine
 from geoparser.db.models.source import SourceCreate
+from geoparser.gazetteer.installer.model import SourceConfig
 from geoparser.gazetteer.installer.queries.dml import FeatureRegistrationBuilder
 from geoparser.gazetteer.installer.stages.base import Stage
 from geoparser.gazetteer.installer.utils.progress import create_progress_bar
-from geoparser.gazetteer.model import SourceConfig
 
 
 class RegistrationStage(Stage):

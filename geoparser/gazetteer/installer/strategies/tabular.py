@@ -4,9 +4,9 @@ from typing import Dict
 import pandas as pd
 
 from geoparser.db.engine import engine
+from geoparser.gazetteer.installer.model import DataType, SourceConfig
 from geoparser.gazetteer.installer.strategies.base import LoadStrategy
 from geoparser.gazetteer.installer.utils.progress import create_progress_bar
-from geoparser.gazetteer.model import DataType, SourceConfig
 
 
 class TabularLoadStrategy(LoadStrategy):

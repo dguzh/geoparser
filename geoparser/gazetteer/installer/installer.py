@@ -8,6 +8,7 @@ from sqlmodel import Session
 from geoparser.db.crud.gazetteer import GazetteerRepository
 from geoparser.db.engine import engine
 from geoparser.db.models.gazetteer import GazetteerCreate
+from geoparser.gazetteer.installer.model import GazetteerConfig, SourceConfig
 from geoparser.gazetteer.installer.stages.acquisition import AcquisitionStage
 from geoparser.gazetteer.installer.stages.indexing import IndexingStage
 from geoparser.gazetteer.installer.stages.ingestion import IngestionStage
@@ -15,7 +16,6 @@ from geoparser.gazetteer.installer.stages.registration import RegistrationStage
 from geoparser.gazetteer.installer.stages.schema import SchemaStage
 from geoparser.gazetteer.installer.stages.transformation import TransformationStage
 from geoparser.gazetteer.installer.utils.dependency import DependencyResolver
-from geoparser.gazetteer.model import GazetteerConfig, SourceConfig
 
 # Suppress geopandas warning about geometry column.
 # This warning occurs when loading spatial data where the geometry column
