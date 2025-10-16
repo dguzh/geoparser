@@ -5,9 +5,9 @@ from typing import Any, Dict
 
 import requests
 
+from geoparser.gazetteer.installer.model import SourceConfig
 from geoparser.gazetteer.installer.stages.base import Stage
 from geoparser.gazetteer.installer.utils.progress import create_progress_bar
-from geoparser.gazetteer.model import SourceConfig
 
 
 class AcquisitionStage(Stage):

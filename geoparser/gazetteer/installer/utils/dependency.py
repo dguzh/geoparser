@@ -1,6 +1,6 @@
 from typing import Dict, List, Set
 
-from geoparser.gazetteer.model import SourceConfig
+from geoparser.gazetteer.installer.model import SourceConfig
 
 
 class DependencyResolver:

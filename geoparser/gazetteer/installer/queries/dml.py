@@ -1,5 +1,5 @@
+from geoparser.gazetteer.installer.model import SourceConfig
 from geoparser.gazetteer.installer.queries.base import QueryBuilder
-from geoparser.gazetteer.model import SourceConfig
 
 
 class TransformationBuilder(QueryBuilder):

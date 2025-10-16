@@ -3,10 +3,10 @@ from typing import Any, Dict
 import sqlalchemy as sa
 
 from geoparser.db.engine import engine
+from geoparser.gazetteer.installer.model import SourceConfig
 from geoparser.gazetteer.installer.queries.ddl import TableBuilder, ViewBuilder
 from geoparser.gazetteer.installer.stages.base import Stage
 from geoparser.gazetteer.installer.utils.progress import create_progress_bar
-from geoparser.gazetteer.model import SourceConfig
 
 
 class SchemaStage(Stage):

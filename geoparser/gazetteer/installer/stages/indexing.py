@@ -3,9 +3,9 @@ from typing import Any, Dict, List, Tuple
 import sqlalchemy as sa
 
 from geoparser.db.engine import engine
+from geoparser.gazetteer.installer.model import DataType, SourceConfig
 from geoparser.gazetteer.installer.stages.base import Stage
 from geoparser.gazetteer.installer.utils.progress import create_progress_bar
-from geoparser.gazetteer.model import DataType, SourceConfig
 
 
 class IndexingStage(Stage):

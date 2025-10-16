@@ -1,9 +1,9 @@
 from typing import Any, Dict
 
+from geoparser.gazetteer.installer.model import SourceConfig, SourceType
 from geoparser.gazetteer.installer.stages.base import Stage
 from geoparser.gazetteer.installer.strategies.spatial import SpatialLoadStrategy
 from geoparser.gazetteer.installer.strategies.tabular import TabularLoadStrategy
-from geoparser.gazetteer.model import SourceConfig, SourceType
 
 
 class IngestionStage(Stage):

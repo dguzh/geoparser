@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from pathlib import Path
 
-from geoparser.gazetteer.model import SourceConfig
+from geoparser.gazetteer.installer.model import SourceConfig
 
 
 class LoadStrategy(ABC):

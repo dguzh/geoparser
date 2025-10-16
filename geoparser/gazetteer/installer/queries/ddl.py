@@ -1,8 +1,8 @@
 from typing import List
 
+from geoparser.gazetteer.installer.model import DataType, SourceConfig
 from geoparser.gazetteer.installer.queries.base import QueryBuilder
 from geoparser.gazetteer.installer.queries.spatial import SpatialOptimizer
-from geoparser.gazetteer.model import DataType, SourceConfig
 
 
 class TableBuilder(QueryBuilder):
