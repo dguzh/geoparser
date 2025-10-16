@@ -47,8 +47,8 @@ class AcquisitionStage(Stage):
             source: Source configuration
             context: Shared context (will be populated with 'file_path')
         """
-        download_path = self._download_file(source)
-        file_path = self._extract_archive(source, download_path)
+        source_path = self._resolve_source_path(source)
+        file_path = self._resolve_file_path(source, source_path)
 
         # Store file path in context for subsequent stages
         context["file_path"] = file_path
@@ -57,6 +57,47 @@ class AcquisitionStage(Stage):
         """Remove all downloaded files and extracted contents."""
         if self.downloads_directory.exists():
             shutil.rmtree(self.downloads_directory)
+
+    def _resolve_source_path(self, source: SourceConfig) -> Path:
+        """
+        Resolve the path to the source file or directory.
+
+        For remote URLs, downloads the file. For local paths, validates
+        the path exists.
+
+        Args:
+            source: Source configuration
+
+        Returns:
+            Path to the source file or directory
+
+        Raises:
+            FileNotFoundError: If local path does not exist
+        """
+        if source.url:
+            return self._download_file(source)
+        else:
+            return self._validate_local_path(source)
+
+    def _validate_local_path(self, source: SourceConfig) -> Path:
+        """
+        Validate that a local path exists.
+
+        Args:
+            source: Source configuration
+
+        Returns:
+            Path to the local file or directory
+
+        Raises:
+            FileNotFoundError: If the path does not exist
+        """
+        local_path = Path(source.path)
+
+        if not local_path.exists():
+            raise FileNotFoundError(f"Local path does not exist: {local_path}")
+
+        return local_path
 
     def _download_file(self, source: SourceConfig) -> Path:
         """
@@ -133,17 +174,18 @@ class AcquisitionStage(Stage):
 
         return download_path
 
-    def _extract_archive(self, source: SourceConfig, download_path: Path) -> Path:
+    def _resolve_file_path(self, source: SourceConfig, source_path: Path) -> Path:
         """
-        Extract files from an archive if needed.
+        Resolve the file path from a source path.
 
-        For non-archive files, simply verifies the file exists and returns
-        its path. For ZIP archives, extracts contents and returns the path
-        to the target file.
+        Handles multiple scenarios:
+        - Directories: searches recursively for the target file
+        - ZIP archives: extracts and searches for the target file
+        - Raw files: verifies the filename matches the target
 
         Args:
             source: Source configuration
-            download_path: Path to the downloaded file
+            source_path: Path to the source file or directory
 
         Returns:
             Path to the target file
@@ -153,19 +195,23 @@ class AcquisitionStage(Stage):
         """
         target_filename = source.file
 
+        # If it's a directory, search for the target file
+        if source_path.is_dir():
+            return self._find_target_file(source_path, target_filename)
+
         # If not a ZIP file, verify it's the target file
-        if not zipfile.is_zipfile(download_path):
-            if download_path.name == target_filename:
-                return download_path
+        if not zipfile.is_zipfile(source_path):
+            if source_path.name == target_filename:
+                return source_path
             raise FileNotFoundError(f"File '{target_filename}' not found")
 
         # Extract ZIP archive
-        extraction_dir = download_path.parent / download_path.stem
+        extraction_dir = source_path.parent / source_path.stem
 
-        if self._should_skip_extraction(download_path, extraction_dir, target_filename):
+        if self._should_skip_extraction(source_path, extraction_dir, target_filename):
             return self._find_target_file(extraction_dir, target_filename)
 
-        return self._extract_zip(download_path, extraction_dir, target_filename)
+        return self._extract_zip(source_path, extraction_dir, target_filename)
 
     def _should_skip_extraction(
         self,
@@ -175,6 +221,9 @@ class AcquisitionStage(Stage):
     ) -> bool:
         """
         Check if extraction can be skipped.
+
+        Only applies to archive files, not to local directories which
+        are already "extracted".
 
         Args:
             archive_path: Path to the archive file
@@ -186,6 +235,11 @@ class AcquisitionStage(Stage):
         """
         if not extraction_dir.exists():
             return False
+
+        # For local directories (not downloaded archives), always skip extraction
+        # since they're already in their final form
+        if not archive_path.is_file():
+            return True
 
         # Check if the extraction directory itself is the target
         if extraction_dir.name == target_filename:
