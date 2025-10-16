@@ -115,7 +115,8 @@ class SourceConfig(BaseModel):
     """Configuration for a single source in a gazetteer."""
 
     name: str
-    url: str
+    url: t.Optional[str] = None
+    path: t.Optional[str] = None
     file: str
     type: SourceType
     separator: t.Optional[str] = None
@@ -124,6 +125,13 @@ class SourceConfig(BaseModel):
     attributes: AttributesConfig
     view: t.Optional[ViewConfig] = None  # Nested view configuration
     features: t.Optional[FeatureConfig] = None  # Nested feature configuration
+
+    @model_validator(mode="after")
+    def validate_source_location(self) -> "SourceConfig":
+        """Validate that exactly one of url or path is specified."""
+        if (self.url is None) == (self.path is None):
+            raise ValueError("Must specify exactly one of 'url' or 'path'")
+        return self
 
     @model_validator(mode="after")
     def validate_type_specific_fields(self) -> "SourceConfig":
