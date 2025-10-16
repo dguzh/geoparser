@@ -45,7 +45,7 @@ class ManualRecognizer(Recognizer):
         self.texts = texts
         self.references = references
 
-    def predict_references(
+    def predict(
         self, texts: t.List[str]
     ) -> t.List[t.Union[t.List[t.Tuple[int, int]], None]]:
         """

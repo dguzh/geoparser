@@ -25,7 +25,7 @@ class Recognizer(Module):
         super().__init__(**kwargs)
 
     @abstractmethod
-    def predict_references(
+    def predict(
         self, texts: t.List[str]
     ) -> t.List[t.Union[t.List[t.Tuple[int, int]], None]]:
         """

@@ -65,9 +65,7 @@ class SpacyRecognizer(Recognizer):
         nlp.disable_pipes(*[p for p in pipe_components if p in nlp.pipe_names])
         return nlp
 
-    def predict_references(
-        self, texts: List[str]
-    ) -> List[Union[List[Tuple[int, int]], None]]:
+    def predict(self, texts: List[str]) -> List[Union[List[Tuple[int, int]], None]]:
         """
         Identify references (location entities) in multiple document texts using spaCy.
 
