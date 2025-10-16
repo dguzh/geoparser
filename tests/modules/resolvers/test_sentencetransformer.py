@@ -145,13 +145,13 @@ def test_sentence_transformer_resolver_initialization_custom():
 
 
 def test_predict_referents_empty_references():
-    """Test predict_referents with empty reference list."""
+    """Test predict with empty reference list."""
     with patch("geoparser.modules.resolvers.sentencetransformer.SentenceTransformer"):
         with patch("geoparser.modules.resolvers.sentencetransformer.AutoTokenizer"):
             with patch("geoparser.modules.resolvers.sentencetransformer.spacy"):
                 with patch("geoparser.modules.resolvers.sentencetransformer.Gazetteer"):
                     resolver = SentenceTransformerResolver()
-                    result = resolver.predict_referents([], [])
+                    result = resolver.predict([], [])
                     assert result == []
 
 
@@ -393,7 +393,7 @@ def test_sentence_transformer_resolver_config():
 
 
 def test_predict_referents_integration(mock_references, mock_features):
-    """Test predict_referents integration with mocked components."""
+    """Test predict integration with mocked components."""
     # Set location_id_value on mock features
     for mock_feature in mock_features:
         mock_feature.location_id_value = "2643743"
@@ -430,7 +430,7 @@ def test_predict_referents_integration(mock_references, mock_features):
                         # Use raw data instead of Reference objects
                         texts = ["I visited London last summer."]
                         references = [[(10, 16)]]  # "London"
-                        result = resolver.predict_referents(texts, references)
+                        result = resolver.predict(texts, references)
 
                         assert len(result) == 1
                         assert len(result[0]) == 1
@@ -730,7 +730,7 @@ def test_predict_referents_exact_method_skip_on_higher_ranks():
                         # Use raw data
                         texts = ["I visited London"]
                         references = [[(10, 16)]]  # "London"
-                        result = resolver.predict_referents(texts, references)
+                        result = resolver.predict(texts, references)
 
                         # Should return default result since no candidates found
                         assert result == [[("geonames", "")]]

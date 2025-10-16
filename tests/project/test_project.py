@@ -221,9 +221,9 @@ def test_run_recognizer(test_db):
             # Verify RecognitionService was created with the recognizer
             mock_recognition_service.assert_called_once_with(mock_recognizer)
 
-            # Verify run was called on the service with documents
-            mock_service_instance.run.assert_called_once()
-            called_documents = mock_service_instance.run.call_args[0][0]
+            # Verify predict was called on the service with documents
+            mock_service_instance.predict.assert_called_once()
+            called_documents = mock_service_instance.predict.call_args[0][0]
             assert len(called_documents) == 2
 
 
@@ -259,7 +259,7 @@ def test_run_resolver(test_db):
             # Verify ResolutionService was created with the resolver
             mock_resolution_service.assert_called_once_with(mock_resolver)
 
-            # Verify run was called on the service with documents
-            mock_service_instance.run.assert_called_once()
-            called_documents = mock_service_instance.run.call_args[0][0]
+            # Verify predict was called on the service with documents
+            mock_service_instance.predict.assert_called_once()
+            called_documents = mock_service_instance.predict.call_args[0][0]
             assert len(called_documents) == 2

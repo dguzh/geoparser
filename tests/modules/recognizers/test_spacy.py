@@ -94,7 +94,7 @@ def test_load_spacy_model_partial_components(mock_spacy_model):
 
 
 def test_predict_references_single_document():
-    """Test predict_references with a single document."""
+    """Test predict with a single document."""
     # Mock spaCy entities
     mock_ent1 = MagicMock()
     mock_ent1.start_char = 10
@@ -120,7 +120,7 @@ def test_predict_references_single_document():
         # Test with text string
         text = "I visited London and Paris last year."
 
-        result = recognizer.predict_references([text])
+        result = recognizer.predict([text])
 
         # Verify the result
         assert len(result) == 1
@@ -131,7 +131,7 @@ def test_predict_references_single_document():
 
 
 def test_predict_references_multiple_documents():
-    """Test predict_references with multiple documents."""
+    """Test predict with multiple documents."""
     # Mock spaCy entities for first document
     mock_ent1 = MagicMock()
     mock_ent1.start_char = 10
@@ -168,7 +168,7 @@ def test_predict_references_multiple_documents():
             "I visited London and Paris last year.",
             "New York is a great city with many facilities.",
         ]
-        result = recognizer.predict_references(texts)
+        result = recognizer.predict(texts)
 
         # Verify the result
         assert len(result) == 2
@@ -208,7 +208,7 @@ def test_predict_references_filtered_entity_types():
 
         text = "Test text"
 
-        result = recognizer.predict_references([text])
+        result = recognizer.predict([text])
 
         # Should only include GPE and LOC entities
         assert len(result) == 1
@@ -216,20 +216,20 @@ def test_predict_references_filtered_entity_types():
 
 
 def test_predict_references_empty_documents():
-    """Test predict_references with empty document list."""
+    """Test predict with empty document list."""
     with patch("geoparser.modules.recognizers.spacy.spacy.load") as mock_load:
         mock_nlp = MagicMock()
         mock_load.return_value = mock_nlp
 
         recognizer = SpacyRecognizer()
-        result = recognizer.predict_references([])
+        result = recognizer.predict([])
 
         assert result == []
         mock_nlp.pipe.assert_called_once_with([])
 
 
 def test_predict_references_no_entities():
-    """Test predict_references when no entities are found."""
+    """Test predict when no entities are found."""
     # Mock processed document with no entities
     mock_doc = MagicMock()
     mock_doc.ents = []
@@ -243,7 +243,7 @@ def test_predict_references_no_entities():
 
         text = "This text has no location entities."
 
-        result = recognizer.predict_references([text])
+        result = recognizer.predict([text])
 
         assert len(result) == 1
         assert result[0] == []
