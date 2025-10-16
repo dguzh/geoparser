@@ -5,7 +5,9 @@ from sqlmodel import Session, select
 
 from geoparser.db.crud.base import BaseRepository
 from geoparser.db.models.feature import Feature
+from geoparser.db.models.gazetteer import Gazetteer
 from geoparser.db.models.name import Name, NameFTSTrigrams, NameFTSWords
+from geoparser.db.models.source import Source
 
 
 class FeatureRepository(BaseRepository[Feature]):
@@ -27,12 +29,17 @@ class FeatureRepository(BaseRepository[Feature]):
         Returns:
             List of features
         """
-        statement = select(Feature).where(Feature.gazetteer_name == gazetteer_name)
+        statement = (
+            select(Feature)
+            .join(Source, Feature.source_id == Source.id)
+            .join(Gazetteer, Source.gazetteer_id == Gazetteer.id)
+            .where(Gazetteer.name == gazetteer_name)
+        )
         return db.exec(statement).unique().all()
 
     @classmethod
     def get_by_gazetteer_and_identifier(
-        cls, db: Session, gazetteer_name: str, identifier_value: str
+        cls, db: Session, gazetteer_name: str, location_id_value: str
     ) -> t.Optional[Feature]:
         """
         Get a feature by gazetteer name and identifier value.
@@ -40,14 +47,19 @@ class FeatureRepository(BaseRepository[Feature]):
         Args:
             db: Database session
             gazetteer_name: Name of the gazetteer
-            identifier_value: Identifier value within that gazetteer
+            location_id_value: Identifier value within that gazetteer
 
         Returns:
             Feature if found, None otherwise
         """
-        statement = select(Feature).where(
-            Feature.gazetteer_name == gazetteer_name,
-            Feature.identifier_value == identifier_value,
+        statement = (
+            select(Feature)
+            .join(Source, Feature.source_id == Source.id)
+            .join(Gazetteer, Source.gazetteer_id == Gazetteer.id)
+            .where(
+                Gazetteer.name == gazetteer_name,
+                Feature.location_id_value == location_id_value,
+            )
         )
         return db.exec(statement).unique().first()
 
@@ -75,10 +87,12 @@ class FeatureRepository(BaseRepository[Feature]):
 
         statement = (
             select(Feature)
+            .join(Source, Feature.source_id == Source.id)
+            .join(Gazetteer, Source.gazetteer_id == Gazetteer.id)
             .join(Name, Feature.id == Name.feature_id)
             .join(NameFTSWords, Name.id == NameFTSWords.rowid)
             .where(
-                Feature.gazetteer_name == gazetteer_name,
+                Gazetteer.name == gazetteer_name,
                 NameFTSWords.text.match(query),
                 func.length(Name.text) == len(name),
             )
@@ -117,10 +131,12 @@ class FeatureRepository(BaseRepository[Feature]):
         rank = literal_column("bm25(name_fts_words)").label("rank")
         statement = (
             select(Feature, rank)
+            .join(Source, Feature.source_id == Source.id)
+            .join(Gazetteer, Source.gazetteer_id == Gazetteer.id)
             .join(Name, Feature.id == Name.feature_id)
             .join(NameFTSWords, Name.id == NameFTSWords.rowid)
             .where(
-                Feature.gazetteer_name == gazetteer_name,
+                Gazetteer.name == gazetteer_name,
                 NameFTSWords.text.match(query),
             )
             .order_by(rank)
@@ -163,10 +179,12 @@ class FeatureRepository(BaseRepository[Feature]):
         rank = literal_column("bm25(name_fts_words)").label("rank")
         statement = (
             select(Feature, rank)
+            .join(Source, Feature.source_id == Source.id)
+            .join(Gazetteer, Source.gazetteer_id == Gazetteer.id)
             .join(Name, Feature.id == Name.feature_id)
             .join(NameFTSWords, Name.id == NameFTSWords.rowid)
             .where(
-                Feature.gazetteer_name == gazetteer_name,
+                Gazetteer.name == gazetteer_name,
                 NameFTSWords.text.match(query),
             )
             .order_by(rank)
@@ -209,10 +227,12 @@ class FeatureRepository(BaseRepository[Feature]):
         rank = literal_column("bm25(name_fts_words)").label("rank")
         statement = (
             select(Feature, rank)
+            .join(Source, Feature.source_id == Source.id)
+            .join(Gazetteer, Source.gazetteer_id == Gazetteer.id)
             .join(Name, Feature.id == Name.feature_id)
             .join(NameFTSWords, Name.id == NameFTSWords.rowid)
             .where(
-                Feature.gazetteer_name == gazetteer_name,
+                Gazetteer.name == gazetteer_name,
                 NameFTSWords.text.match(query),
             )
             .order_by(rank)
@@ -257,10 +277,12 @@ class FeatureRepository(BaseRepository[Feature]):
         rank = literal_column("bm25(name_fts_trigrams)").label("rank")
         statement = (
             select(Feature, rank)
+            .join(Source, Feature.source_id == Source.id)
+            .join(Gazetteer, Source.gazetteer_id == Gazetteer.id)
             .join(Name, Feature.id == Name.feature_id)
             .join(NameFTSTrigrams, Name.id == NameFTSTrigrams.rowid)
             .where(
-                Feature.gazetteer_name == gazetteer_name,
+                Gazetteer.name == gazetteer_name,
                 NameFTSTrigrams.text.match(query),
             )
             .order_by(rank)
@@ -306,10 +328,12 @@ class FeatureRepository(BaseRepository[Feature]):
         rank = literal_column("bm25(name_fts_trigrams)").label("rank")
         statement = (
             select(Feature, rank)
+            .join(Source, Feature.source_id == Source.id)
+            .join(Gazetteer, Source.gazetteer_id == Gazetteer.id)
             .join(Name, Feature.id == Name.feature_id)
             .join(NameFTSTrigrams, Name.id == NameFTSTrigrams.rowid)
             .where(
-                Feature.gazetteer_name == gazetteer_name,
+                Gazetteer.name == gazetteer_name,
                 NameFTSTrigrams.text.match(query),
             )
             .order_by(rank)

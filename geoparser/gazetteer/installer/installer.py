@@ -73,8 +73,8 @@ class GazetteerInstaller:
         # Setup directories
         downloads_dir = self._create_downloads_directory(config.name)
 
-        # Create gazetteer record in database
-        self._create_gazetteer_record(config.name)
+        # Ensure gazetteer record exists in database
+        self._ensure_gazetteer_record(config.name)
 
         # Resolve dependencies and get processing order
         ordered_sources = self.dependency_resolver.resolve(config.sources)
@@ -106,23 +106,24 @@ class GazetteerInstaller:
         downloads_dir.mkdir(parents=True, exist_ok=True)
         return downloads_dir
 
-    def _create_gazetteer_record(self, gazetteer_name: str) -> None:
+    def _ensure_gazetteer_record(self, gazetteer_name: str) -> None:
         """
-        Create or replace a gazetteer record in the database.
+        Ensure a gazetteer record exists in the database.
 
-        If records with the same name already exist, they will be deleted first.
+        Creates a new gazetteer record if it doesn't already exist.
+        Reuses existing record if one with the same name is found.
 
         Args:
             gazetteer_name: Name of the gazetteer
         """
         with Session(engine) as db:
-            # Delete any existing gazetteers with this name
-            existing_gazetteers = GazetteerRepository.get_by_name(db, gazetteer_name)
-            for gazetteer in existing_gazetteers:
-                GazetteerRepository.delete(db, id=gazetteer.id)
+            # Check if gazetteer already exists
+            gazetteer_record = GazetteerRepository.get_by_name(db, gazetteer_name)
 
-            # Create new gazetteer record
-            GazetteerRepository.create(db, GazetteerCreate(name=gazetteer_name))
+            # Create new gazetteer record only if it doesn't exist
+            if gazetteer_record is None:
+                gazetteer_create = GazetteerCreate(name=gazetteer_name)
+                GazetteerRepository.create(db, gazetteer_create)
 
     def _create_pipeline(
         self,

@@ -72,16 +72,14 @@ class FeatureRegistrationBuilder(QueryBuilder):
     def build_feature_insert(
         self,
         source: SourceConfig,
-        gazetteer_name: str,
-        registration_table: str,
+        source_id: int,
     ) -> str:
         """
         Build an INSERT statement to register features.
 
         Args:
             source: Source configuration with feature definition
-            gazetteer_name: Name of the gazetteer
-            registration_table: Name of table or view to register from
+            source_id: ID of the source record
 
         Returns:
             SQL INSERT statement
@@ -97,12 +95,10 @@ class FeatureRegistrationBuilder(QueryBuilder):
         source_table = source.name
 
         return f"""
-            INSERT OR IGNORE INTO feature (gazetteer_name, table_name, identifier_name, identifier_value)
+            INSERT OR IGNORE INTO feature (source_id, location_id_value)
             SELECT
-                '{gazetteer_name}' as gazetteer_name,
-                '{registration_table}' as table_name,
-                '{identifier_column}' as identifier_name,
-                CAST({identifier_column} AS TEXT) as identifier_value
+                {source_id} as source_id,
+                CAST({identifier_column} AS TEXT) as location_id_value
             FROM {source_table}
             WHERE {identifier_column} IS NOT NULL
             GROUP BY CAST({identifier_column} AS TEXT)
@@ -111,8 +107,7 @@ class FeatureRegistrationBuilder(QueryBuilder):
     def build_name_insert(
         self,
         source: SourceConfig,
-        gazetteer_name: str,
-        registration_table: str,
+        source_id: int,
         name_column: str,
     ) -> str:
         """
@@ -120,8 +115,7 @@ class FeatureRegistrationBuilder(QueryBuilder):
 
         Args:
             source: Source configuration
-            gazetteer_name: Name of the gazetteer
-            registration_table: Name of table or view to register from
+            source_id: ID of the source record
             name_column: Column containing names
 
         Returns:
@@ -142,17 +136,15 @@ class FeatureRegistrationBuilder(QueryBuilder):
                 s.{name_column} as text,
                 f.id as feature_id
             FROM {source_table} s
-            JOIN feature f ON f.gazetteer_name = '{gazetteer_name}'
-                           AND f.table_name = '{registration_table}'
-                           AND f.identifier_value = CAST(s.{identifier_column} AS TEXT)
+            JOIN feature f ON f.source_id = {source_id}
+                           AND f.location_id_value = CAST(s.{identifier_column} AS TEXT)
             WHERE s.{name_column} IS NOT NULL AND s.{name_column} != ''
         """
 
     def build_name_insert_separated(
         self,
         source: SourceConfig,
-        gazetteer_name: str,
-        registration_table: str,
+        source_id: int,
         name_column: str,
         separator: str,
     ) -> str:
@@ -164,8 +156,7 @@ class FeatureRegistrationBuilder(QueryBuilder):
 
         Args:
             source: Source configuration
-            gazetteer_name: Name of the gazetteer
-            registration_table: Name of table or view to register from
+            source_id: ID of the source record
             name_column: Column containing names
             separator: String to split names on
 
@@ -190,9 +181,8 @@ class FeatureRegistrationBuilder(QueryBuilder):
                     '' as name_value,
                     s.{name_column} || '{separator}' as remaining
                 FROM {source_table} s
-                JOIN feature f ON f.gazetteer_name = '{gazetteer_name}'
-                               AND f.table_name = '{registration_table}'
-                               AND f.identifier_value = CAST(s.{identifier_column} AS TEXT)
+                JOIN feature f ON f.source_id = {source_id}
+                               AND f.location_id_value = CAST(s.{identifier_column} AS TEXT)
                 WHERE s.{name_column} IS NOT NULL AND s.{name_column} != ''
 
                 UNION ALL

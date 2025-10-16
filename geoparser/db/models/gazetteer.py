@@ -1,7 +1,10 @@
 import typing as t
 import uuid
 
-from sqlmodel import Field, SQLModel
+from sqlmodel import Field, Relationship, SQLModel
+
+if t.TYPE_CHECKING:
+    from geoparser.db.models.source import Source
 
 
 class GazetteerBase(SQLModel):
@@ -18,6 +21,7 @@ class Gazetteer(GazetteerBase, table=True):
     """
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    sources: list["Source"] = Relationship(back_populates="gazetteer")
 
 
 class GazetteerCreate(GazetteerBase):

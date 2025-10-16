@@ -9,3 +9,4 @@ from geoparser.db.crud.reference import ReferenceRepository
 from geoparser.db.crud.referent import ReferentRepository
 from geoparser.db.crud.resolution import ResolutionRepository
 from geoparser.db.crud.resolver import ResolverRepository
+from geoparser.db.crud.source import SourceRepository
