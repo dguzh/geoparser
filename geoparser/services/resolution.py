@@ -6,7 +6,6 @@ from sqlmodel import Session
 
 from geoparser.db.crud import (
     FeatureRepository,
-    ReferenceRepository,
     ReferentRepository,
     ResolutionRepository,
     ResolverRepository,
@@ -59,7 +58,7 @@ class ResolutionService:
                 resolver_record = ResolverRepository.create(db, resolver_create)
             return resolver_record.id
 
-    def run(self, documents: List["Document"]) -> None:
+    def predict(self, documents: List["Document"]) -> None:
         """
         Run the resolver on all references from the provided documents and store results in the database.
 
@@ -79,12 +78,9 @@ class ResolutionService:
             reference_objects = []
 
             for doc in documents:
-                # Get all references for this document
-                references = ReferenceRepository.get_by_document(db, doc.id)
-
                 # Filter to unprocessed references only
                 unprocessed_references = self._filter_unprocessed_references(
-                    db, references, resolver_id
+                    db, doc.references, resolver_id
                 )
 
                 # Only add to lists if there are unprocessed references
@@ -95,12 +91,10 @@ class ResolutionService:
                     )
                     reference_objects.append(unprocessed_references)
 
-            # Only call predict_referents if there are documents with unprocessed references
+            # Only call predict if there are documents with unprocessed references
             if texts:
                 # Get predictions from resolver using raw data
-                predicted_referents = self.resolver.predict_referents(
-                    texts, reference_boundaries
-                )
+                predicted_referents = self.resolver.predict(texts, reference_boundaries)
 
                 # Record predictions for each document
                 for unprocessed_references, doc_referents in zip(
@@ -109,6 +103,57 @@ class ResolutionService:
                     self._record_referent_predictions(
                         db, unprocessed_references, doc_referents, resolver_id
                     )
+
+    def fit(self, documents: List["Document"], **kwargs) -> None:
+        """
+        Train the resolver using the provided documents.
+
+        This method prepares training data from documents that have reference and referent
+        annotations and calls the resolver's fit method if it exists.
+
+        Args:
+            documents: List of Document objects with referent annotations for training
+            **kwargs: Additional training parameters (e.g., output_path, epochs, batch_size)
+
+        Raises:
+            ValueError: If the resolver does not implement a fit method
+        """
+        # Check if the resolver has a fit method
+        if not hasattr(self.resolver, "fit"):
+            raise ValueError(
+                f"Resolver '{self.resolver.name}' does not implement a fit method"
+            )
+
+        # Extract texts, references, and referents from documents
+        texts = []
+        references = []
+        referents = []
+
+        for doc in documents:
+            # Filter references that have referents from this resolver
+            # doc.toponyms returns references filtered by the recognizer context
+            doc_references = []
+            doc_referents = []
+
+            for ref in doc.toponyms:
+                # ref.location returns the feature filtered by the resolver context
+                if ref.location:
+                    doc_references.append((ref.start, ref.end))
+                    doc_referents.append(
+                        (
+                            ref.location.source.gazetteer.name,
+                            ref.location.location_id_value,
+                        )
+                    )
+
+            # Only include documents that have referent annotations
+            if doc_references:
+                texts.append(doc.text)
+                references.append(doc_references)
+                referents.append(doc_referents)
+
+        # Call the resolver's fit method with the prepared data
+        self.resolver.fit(texts, references, referents, **kwargs)
 
     def _record_referent_predictions(
         self,
