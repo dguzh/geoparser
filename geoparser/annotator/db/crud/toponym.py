@@ -91,11 +91,11 @@ class ToponymRepository(BaseRepository):
         location_data = feature.data
 
         if not location_data:
-            return feature.identifier_value
+            return feature.location_id_value
 
         # Get attribute mappings for this gazetteer
         if gazetteer_name not in cls.GAZETTEER_ATTRIBUTE_MAP:
-            return feature.identifier_value
+            return feature.location_id_value
 
         attr_map = cls.GAZETTEER_ATTRIBUTE_MAP[gazetteer_name]
 
@@ -129,7 +129,7 @@ class ToponymRepository(BaseRepository):
 
         description = " ".join(description_parts).strip()
 
-        return description if description else feature.identifier_value
+        return description if description else feature.location_id_value
 
     @classmethod
     def validate_overlap(
@@ -228,7 +228,7 @@ class ToponymRepository(BaseRepository):
 
             candidate_descriptions.append(
                 {
-                    "loc_id": candidate.identifier_value,
+                    "loc_id": candidate.location_id_value,
                     "description": description,
                     "attributes": candidate.data,  # Include all attributes for filtering
                     "latitude": lat,
@@ -238,7 +238,7 @@ class ToponymRepository(BaseRepository):
 
         # Handle existing annotation if it's not in the candidate list
         existing_loc_id = toponym.loc_id
-        candidate_ids = [c.identifier_value for c in candidates]
+        candidate_ids = [c.location_id_value for c in candidates]
         append_existing_candidate = (
             bool(existing_loc_id) and existing_loc_id not in candidate_ids
         )

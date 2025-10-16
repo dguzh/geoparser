@@ -14,16 +14,16 @@ class GazetteerRepository(BaseRepository[Gazetteer]):
     model = Gazetteer
 
     @classmethod
-    def get_by_name(cls, db: Session, name: str) -> t.List[Gazetteer]:
+    def get_by_name(cls, db: Session, name: str) -> t.Optional[Gazetteer]:
         """
-        Get all gazetteers with the given name.
+        Get a gazetteer by name.
 
         Args:
             db: Database session
             name: Name of the gazetteer
 
         Returns:
-            List of Gazetteer objects
+            Gazetteer object if found, None otherwise
         """
         statement = select(Gazetteer).where(Gazetteer.name == name)
-        return db.exec(statement).unique().all()
+        return db.exec(statement).unique().first()

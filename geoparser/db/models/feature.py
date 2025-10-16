@@ -10,15 +10,13 @@ from geoparser.db.engine import engine
 
 if t.TYPE_CHECKING:
     from geoparser.db.models.name import Name
+    from geoparser.db.models.source import Source
 
 
 class FeatureBase(SQLModel):
     """Base model for feature data."""
 
-    gazetteer_name: str = Field(index=True)
-    table_name: str
-    identifier_name: str
-    identifier_value: str
+    location_id_value: str
 
 
 class Feature(FeatureBase, table=True):
@@ -31,11 +29,16 @@ class Feature(FeatureBase, table=True):
 
     __table_args__ = (
         UniqueConstraint(
-            "gazetteer_name", "identifier_value", name="uq_feature_gazetteer_identifier"
+            "source_id", "location_id_value", name="uq_feature_source_location"
         ),
     )
 
     id: int = Field(primary_key=True)
+    source_id: int = Field(foreign_key="source.id", index=True)
+
+    source: "Source" = Relationship(
+        back_populates="features", sa_relationship_kwargs={"lazy": "joined"}
+    )
     names: list["Name"] = Relationship(
         back_populates="feature", sa_relationship_kwargs={"lazy": "joined"}
     )
@@ -55,7 +58,7 @@ class Feature(FeatureBase, table=True):
             try:
                 # Build query to get the complete row
                 query = text(
-                    f"SELECT * FROM {self.table_name} WHERE {self.identifier_name} = '{self.identifier_value}' ORDER BY rowid"
+                    f"SELECT * FROM {self.source.name} WHERE {self.source.location_id_name} = '{self.location_id_value}' ORDER BY rowid"
                 )
 
                 result = db.execute(query)
@@ -92,7 +95,7 @@ class Feature(FeatureBase, table=True):
             try:
                 # Use SpatiaLite's AsBinary() to convert to standard WKB format
                 query = text(
-                    f"SELECT AsBinary(geometry) FROM {self.table_name} WHERE {self.identifier_name} = '{self.identifier_value}' ORDER BY rowid"
+                    f"SELECT AsBinary(geometry) FROM {self.source.name} WHERE {self.source.location_id_name} = '{self.location_id_value}' ORDER BY rowid"
                 )
 
                 result = db.execute(query)
@@ -115,7 +118,7 @@ class Feature(FeatureBase, table=True):
         Returns:
             String with feature indicator showing gazetteer and identifier
         """
-        return f"Feature({self.gazetteer_name}:{self.identifier_value})"
+        return f"Feature({self.source.gazetteer.name}:{self.location_id_value})"
 
     def __repr__(self) -> str:
         """
@@ -130,12 +133,12 @@ class Feature(FeatureBase, table=True):
 class FeatureCreate(FeatureBase):
     """Model for creating a new feature."""
 
+    source_id: int
+
 
 class FeatureUpdate(SQLModel):
     """Model for updating an existing feature."""
 
     id: int
-    gazetteer_name: t.Optional[str] = None
-    table_name: t.Optional[str] = None
-    identifier_name: t.Optional[str] = None
-    identifier_value: t.Optional[str] = None
+    source_id: t.Optional[int] = None
+    location_id_value: t.Optional[str] = None

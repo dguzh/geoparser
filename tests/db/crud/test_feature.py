@@ -1,35 +1,35 @@
 from sqlmodel import Session
 
 from geoparser.db.crud import FeatureRepository
-from geoparser.db.models import Feature, FeatureCreate, FeatureUpdate
+from geoparser.db.models import (
+    Feature,
+    FeatureCreate,
+    FeatureUpdate,
+    Gazetteer,
+    Source,
+)
 
 
-def test_create(test_db: Session):
+def test_create(test_db: Session, test_source: Source):
     """Test creating a feature."""
     # Create a feature using the create model with all required fields
     feature_create = FeatureCreate(
-        gazetteer_name="test-gazetteer",
-        table_name="test_table",
-        identifier_name="test_id",
-        identifier_value="123456",
+        source_id=test_source.id,
+        location_id_value="123456",
     )
 
     # Create the feature
     created_feature = FeatureRepository.create(test_db, feature_create)
 
     assert created_feature.id is not None
-    assert created_feature.gazetteer_name == "test-gazetteer"
-    assert created_feature.table_name == "test_table"
-    assert created_feature.identifier_name == "test_id"
-    assert created_feature.identifier_value == "123456"
+    assert created_feature.source_id == test_source.id
+    assert created_feature.location_id_value == "123456"
 
     # Verify it was saved to the database
     db_feature = test_db.get(Feature, created_feature.id)
     assert db_feature is not None
-    assert db_feature.gazetteer_name == "test-gazetteer"
-    assert db_feature.table_name == "test_table"
-    assert db_feature.identifier_name == "test_id"
-    assert db_feature.identifier_value == "123456"
+    assert db_feature.source_id == test_source.id
+    assert db_feature.location_id_value == "123456"
 
 
 def test_get(test_db: Session, test_feature: Feature):
@@ -38,10 +38,8 @@ def test_get(test_db: Session, test_feature: Feature):
     feature = FeatureRepository.get(test_db, test_feature.id)
     assert feature is not None
     assert feature.id == test_feature.id
-    assert feature.gazetteer_name == test_feature.gazetteer_name
-    assert feature.table_name == test_feature.table_name
-    assert feature.identifier_name == test_feature.identifier_name
-    assert feature.identifier_value == test_feature.identifier_value
+    assert feature.source_id == test_feature.source_id
+    assert feature.location_id_value == test_feature.location_id_value
 
     # Test with invalid ID
     invalid_id = 999999
@@ -49,14 +47,12 @@ def test_get(test_db: Session, test_feature: Feature):
     assert feature is None
 
 
-def test_get_by_gazetteer(test_db: Session, test_feature: Feature):
+def test_get_by_gazetteer(test_db: Session, test_feature: Feature, test_source: Source):
     """Test getting features by gazetteer name."""
-    # Create another feature for the same gazetteer
+    # Create another feature for the same source
     feature_create = FeatureCreate(
-        gazetteer_name="test-gazetteer",
-        table_name="test_table",
-        identifier_name="test_id",
-        identifier_value="654321",
+        source_id=test_source.id,
+        location_id_value="654321",
     )
 
     # Create the feature
@@ -65,22 +61,38 @@ def test_get_by_gazetteer(test_db: Session, test_feature: Feature):
     # Get features by gazetteer
     features = FeatureRepository.get_by_gazetteer(test_db, "test-gazetteer")
     assert len(features) == 2
-    assert any(f.identifier_value == "123456" for f in features)
-    assert any(f.identifier_value == "654321" for f in features)
+    assert any(f.location_id_value == "123456" for f in features)
+    assert any(f.location_id_value == "654321" for f in features)
 
     # Test with non-existent gazetteer
     features = FeatureRepository.get_by_gazetteer(test_db, "non-existent-gazetteer")
     assert len(features) == 0
 
 
-def test_get_by_gazetteer_and_identifier(test_db: Session, test_feature: Feature):
+def test_get_by_gazetteer_and_identifier(
+    test_db: Session, test_feature: Feature, test_gazetteer: Gazetteer
+):
     """Test getting a feature by gazetteer name and identifier value."""
-    # Create another feature for a different gazetteer
+    # Create another gazetteer and source
+
+    another_gazetteer = Gazetteer(name="another-gazetteer")
+    test_db.add(another_gazetteer)
+    test_db.commit()
+    test_db.refresh(another_gazetteer)
+
+    another_source = Source(
+        name="another_table",
+        location_id_name="another_id",
+        gazetteer_id=another_gazetteer.id,
+    )
+    test_db.add(another_source)
+    test_db.commit()
+    test_db.refresh(another_source)
+
+    # Create a feature for the different source with same identifier value
     feature_create = FeatureCreate(
-        gazetteer_name="another-gazetteer",
-        table_name="another_table",
-        identifier_name="another_id",
-        identifier_value="123456",  # Same identifier value, different gazetteer
+        source_id=another_source.id,
+        location_id_value="123456",  # Same identifier value, different gazetteer
     )
 
     # Create the feature
@@ -92,16 +104,16 @@ def test_get_by_gazetteer_and_identifier(test_db: Session, test_feature: Feature
     )
     assert feature is not None
     assert feature.id == test_feature.id
-    assert feature.gazetteer_name == "test-gazetteer"
-    assert feature.identifier_value == "123456"
+    assert feature.source.gazetteer.name == "test-gazetteer"
+    assert feature.location_id_value == "123456"
 
     # Test with different gazetteer, same identifier
     feature = FeatureRepository.get_by_gazetteer_and_identifier(
         test_db, "another-gazetteer", "123456"
     )
     assert feature is not None
-    assert feature.gazetteer_name == "another-gazetteer"
-    assert feature.identifier_value == "123456"
+    assert feature.source.gazetteer.name == "another-gazetteer"
+    assert feature.location_id_value == "123456"
 
     # Test with non-existent gazetteer
     feature = FeatureRepository.get_by_gazetteer_and_identifier(
@@ -118,12 +130,25 @@ def test_get_by_gazetteer_and_identifier(test_db: Session, test_feature: Feature
 
 def test_get_all(test_db: Session, test_feature: Feature):
     """Test getting all features."""
-    # Create another feature
+    # Create another gazetteer and source
+    another_gazetteer = Gazetteer(name="another-gazetteer")
+    test_db.add(another_gazetteer)
+    test_db.commit()
+    test_db.refresh(another_gazetteer)
+
+    another_source = Source(
+        name="another_table",
+        location_id_name="another_id",
+        gazetteer_id=another_gazetteer.id,
+    )
+    test_db.add(another_source)
+    test_db.commit()
+    test_db.refresh(another_source)
+
+    # Create a feature for the different source
     feature_create = FeatureCreate(
-        gazetteer_name="another-gazetteer",
-        table_name="another_table",
-        identifier_name="another_id",
-        identifier_value="654321",
+        source_id=another_source.id,
+        location_id_value="654321",
     )
 
     # Create the feature
@@ -132,37 +157,31 @@ def test_get_all(test_db: Session, test_feature: Feature):
     # Get all features
     features = FeatureRepository.get_all(test_db)
     assert len(features) == 2
-    assert any(f.gazetteer_name == "test-gazetteer" for f in features)
-    assert any(f.gazetteer_name == "another-gazetteer" for f in features)
+    assert any(f.source.gazetteer.name == "test-gazetteer" for f in features)
+    assert any(f.source.gazetteer.name == "another-gazetteer" for f in features)
 
 
-def test_update(test_db: Session, test_feature: Feature):
+def test_update(test_db: Session, test_feature: Feature, test_source: Source):
     """Test updating a feature."""
     # Update the feature
     feature_update = FeatureUpdate(
         id=test_feature.id,
-        gazetteer_name="updated-gazetteer",
-        table_name="updated_table",
-        identifier_name="updated_id",
-        identifier_value="updated-value",
+        source_id=test_source.id,
+        location_id_value="updated-value",
     )
     updated_feature = FeatureRepository.update(
         test_db, db_obj=test_feature, obj_in=feature_update
     )
 
     assert updated_feature.id == test_feature.id
-    assert updated_feature.gazetteer_name == "updated-gazetteer"
-    assert updated_feature.table_name == "updated_table"
-    assert updated_feature.identifier_name == "updated_id"
-    assert updated_feature.identifier_value == "updated-value"
+    assert updated_feature.source_id == test_source.id
+    assert updated_feature.location_id_value == "updated-value"
 
     # Verify it was updated in the database
     db_feature = test_db.get(Feature, test_feature.id)
     assert db_feature is not None
-    assert db_feature.gazetteer_name == "updated-gazetteer"
-    assert db_feature.table_name == "updated_table"
-    assert db_feature.identifier_name == "updated_id"
-    assert db_feature.identifier_value == "updated-value"
+    assert db_feature.source_id == test_source.id
+    assert db_feature.location_id_value == "updated-value"
 
 
 def test_delete(test_db: Session, test_feature: Feature):

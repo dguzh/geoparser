@@ -83,12 +83,26 @@ def test_get_by_feature(test_db: Session, test_feature: Feature):
 
 def test_get_by_name(test_db: Session, test_feature: Feature):
     """Test getting names by name text."""
-    # Create another feature
+    # Create another gazetteer, source and feature
+    from geoparser.db.models import Gazetteer, Source
+
+    another_gazetteer = Gazetteer(name="another-gazetteer")
+    test_db.add(another_gazetteer)
+    test_db.commit()
+    test_db.refresh(another_gazetteer)
+
+    another_source = Source(
+        name="another_table",
+        location_id_name="another_id",
+        gazetteer_id=another_gazetteer.id,
+    )
+    test_db.add(another_source)
+    test_db.commit()
+    test_db.refresh(another_source)
+
     feature_create = FeatureCreate(
-        gazetteer_name="another-gazetteer",
-        table_name="another_table",
-        identifier_name="another_id",
-        identifier_value="654321",
+        source_id=another_source.id,
+        location_id_value="654321",
     )
     another_feature = FeatureRepository.create(test_db, feature_create)
 
@@ -119,12 +133,26 @@ def test_get_by_name(test_db: Session, test_feature: Feature):
 
 def test_get_all(test_db: Session, test_feature: Feature):
     """Test getting all names."""
-    # Create another feature
+    # Create another gazetteer, source and feature
+    from geoparser.db.models import Gazetteer, Source
+
+    another_gazetteer = Gazetteer(name="another-gazetteer")
+    test_db.add(another_gazetteer)
+    test_db.commit()
+    test_db.refresh(another_gazetteer)
+
+    another_source = Source(
+        name="another_table",
+        location_id_name="another_id",
+        gazetteer_id=another_gazetteer.id,
+    )
+    test_db.add(another_source)
+    test_db.commit()
+    test_db.refresh(another_source)
+
     feature_create = FeatureCreate(
-        gazetteer_name="another-gazetteer",
-        table_name="another_table",
-        identifier_name="another_id",
-        identifier_value="654321",
+        source_id=another_source.id,
+        location_id_value="654321",
     )
     another_feature = FeatureRepository.create(test_db, feature_create)
 
@@ -151,12 +179,26 @@ def test_get_all(test_db: Session, test_feature: Feature):
 
 def test_update(test_db: Session, test_feature: Feature):
     """Test updating a name."""
-    # Create another feature to update to
+    # Create another gazetteer, source and feature to update to
+    from geoparser.db.models import Gazetteer, Source
+
+    updated_gazetteer = Gazetteer(name="updated-gazetteer")
+    test_db.add(updated_gazetteer)
+    test_db.commit()
+    test_db.refresh(updated_gazetteer)
+
+    updated_source = Source(
+        name="updated_table",
+        location_id_name="updated_id",
+        gazetteer_id=updated_gazetteer.id,
+    )
+    test_db.add(updated_source)
+    test_db.commit()
+    test_db.refresh(updated_source)
+
     feature_create = FeatureCreate(
-        gazetteer_name="updated-gazetteer",
-        table_name="updated_table",
-        identifier_name="updated_id",
-        identifier_value="updated-value",
+        source_id=updated_source.id,
+        location_id_value="updated-value",
     )
     updated_feature = FeatureRepository.create(test_db, feature_create)
 

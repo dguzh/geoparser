@@ -394,6 +394,10 @@ def test_sentence_transformer_resolver_config():
 
 def test_predict_referents_integration(mock_references, mock_features):
     """Test predict_referents integration with mocked components."""
+    # Set location_id_value on mock features
+    for mock_feature in mock_features:
+        mock_feature.location_id_value = "2643743"
+
     mock_transformer = MagicMock()
     mock_transformer.encode.return_value = torch.randn(2, 384)
     mock_transformer.get_max_seq_length.return_value = 512
@@ -473,9 +477,9 @@ def test_prepare_training_data_with_referents():
 
     # Create mock candidates
     mock_candidate1 = MagicMock()
-    mock_candidate1.identifier_value = "2643743"  # Correct candidate
+    mock_candidate1.location_id_value = "2643743"  # Correct candidate
     mock_candidate2 = MagicMock()
-    mock_candidate2.identifier_value = "5128581"  # Incorrect candidate
+    mock_candidate2.location_id_value = "5128581"  # Incorrect candidate
 
     mock_gazetteer = MagicMock()
     mock_gazetteer.search.return_value = [mock_candidate1, mock_candidate2]

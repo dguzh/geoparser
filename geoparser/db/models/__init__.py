@@ -27,6 +27,7 @@ from geoparser.db.models.resolution import (
     ResolutionUpdate,
 )
 from geoparser.db.models.resolver import Resolver, ResolverCreate, ResolverUpdate
+from geoparser.db.models.source import Source, SourceCreate, SourceUpdate
 
 for rebuild in [
     Project,
@@ -52,5 +53,8 @@ for rebuild in [
     Gazetteer,
     GazetteerCreate,
     GazetteerUpdate,
+    Source,
+    SourceCreate,
+    SourceUpdate,
 ]:
     rebuild.model_rebuild()

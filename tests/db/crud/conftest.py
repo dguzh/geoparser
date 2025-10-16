@@ -9,6 +9,8 @@ from geoparser.db.models import (
     DocumentCreate,
     Feature,
     FeatureCreate,
+    Gazetteer,
+    GazetteerCreate,
     Project,
     ProjectCreate,
     Recognition,
@@ -23,6 +25,8 @@ from geoparser.db.models import (
     ResolutionCreate,
     Resolver,
     ResolverCreate,
+    Source,
+    SourceCreate,
 )
 
 
@@ -102,13 +106,41 @@ def test_resolver(test_db: Session):
 
 
 @pytest.fixture
-def test_feature(test_db: Session):
+def test_gazetteer(test_db: Session):
+    """Create a test gazetteer."""
+    gazetteer_create = GazetteerCreate(name="test-gazetteer")
+    gazetteer = Gazetteer(name=gazetteer_create.name)
+    test_db.add(gazetteer)
+    test_db.commit()
+    test_db.refresh(gazetteer)
+    return gazetteer
+
+
+@pytest.fixture
+def test_source(test_db: Session, test_gazetteer: Gazetteer):
+    """Create a test source."""
+    source_create = SourceCreate(
+        name="test_table",
+        location_id_name="test_id",
+        gazetteer_id=test_gazetteer.id,
+    )
+    source = Source(
+        name=source_create.name,
+        location_id_name=source_create.location_id_name,
+        gazetteer_id=test_gazetteer.id,
+    )
+    test_db.add(source)
+    test_db.commit()
+    test_db.refresh(source)
+    return source
+
+
+@pytest.fixture
+def test_feature(test_db: Session, test_source: Source):
     """Create a test feature."""
     feature_create = FeatureCreate(
-        gazetteer_name="test-gazetteer",
-        table_name="test_table",
-        identifier_name="test_id",
-        identifier_value="123456",
+        source_id=test_source.id,
+        location_id_value="123456",
     )
     feature = FeatureRepository.create(test_db, feature_create)
     return feature
