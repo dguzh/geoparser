@@ -52,7 +52,7 @@ class ManualResolver(Resolver):
         self.references = references
         self.referents = referents
 
-    def predict_referents(
+    def predict(
         self, texts: t.List[str], references: t.List[t.List[t.Tuple[int, int]]]
     ) -> t.List[t.List[t.Union[t.Tuple[str, str], None]]]:
         """

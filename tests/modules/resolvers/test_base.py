@@ -9,7 +9,7 @@ def test_resolver_initialization():
     class TestResolver(Resolver):
         NAME = "test_resolver"
 
-        def predict_referents(self, texts, references):
+        def predict(self, texts, references):
             return [[("gazetteer", "id1") for _ in doc_refs] for doc_refs in references]
 
     resolver = TestResolver(param1="value1")
@@ -25,17 +25,17 @@ def test_resolver_abstract():
         NAME = "invalid_resolver"
 
     # Should raise TypeError when instantiated due to abstract methods
-    with pytest.raises(TypeError, match="predict_referents"):
+    with pytest.raises(TypeError, match="predict"):
         InvalidResolver()
 
 
 def test_predict_referents_implementation():
-    """Test a valid implementation of predict_referents."""
+    """Test a valid implementation of predict."""
 
     class ValidResolver(Resolver):
         NAME = "valid_resolver"
 
-        def predict_referents(self, texts, references):
+        def predict(self, texts, references):
             return [
                 [("test_gazetteer", "loc1") for _ in doc_refs]
                 for doc_refs in references
@@ -47,7 +47,7 @@ def test_predict_referents_implementation():
     texts = ["Test document 1", "Test document 2"]
     references = [[(0, 5)], [(10, 15)]]  # One reference per document
 
-    result = resolver.predict_referents(texts, references)
+    result = resolver.predict(texts, references)
     assert len(result) == 2
     assert len(result[0]) == 1
     assert result[0][0] == ("test_gazetteer", "loc1")

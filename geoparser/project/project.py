@@ -158,7 +158,7 @@ class Project:
         recognition_service = RecognitionService(recognizer)
 
         # Run the recognizer on all documents
-        recognition_service.run(documents)
+        recognition_service.predict(documents)
 
     def run_resolver(self, resolver: "Resolver") -> None:
         """
@@ -177,7 +177,62 @@ class Project:
         resolution_service = ResolutionService(resolver)
 
         # Run the resolver on all documents
-        resolution_service.run(documents)
+        resolution_service.predict(documents)
+
+    def train_recognizer(
+        self, recognizer: "Recognizer", recognizer_id: str, **kwargs
+    ) -> None:
+        """
+        Train a recognizer module using documents with reference annotations from this project.
+
+        This method retrieves documents that have been processed by a specific recognizer,
+        prepares the training data, and calls the recognizer's fit method if available.
+
+        Args:
+            recognizer: The recognizer module to train
+            recognizer_id: ID of the recognizer whose annotations to use for training
+            **kwargs: Additional training parameters (e.g., output_path, epochs, batch_size)
+
+        Raises:
+            ValueError: If the recognizer does not implement a fit method
+        """
+        # Get all documents in the project with the specified recognizer context
+        documents = self.get_documents(recognizer_id=recognizer_id)
+
+        # Initialize the recognition service with the recognizer
+        recognition_service = RecognitionService(recognizer)
+
+        # Train the recognizer using the annotated documents
+        recognition_service.fit(documents, **kwargs)
+
+    def train_resolver(
+        self, resolver: "Resolver", recognizer_id: str, resolver_id: str, **kwargs
+    ) -> None:
+        """
+        Train a resolver module using documents with referent annotations from this project.
+
+        This method retrieves documents that have been processed by specific recognizer and resolver,
+        prepares the training data, and calls the resolver's fit method if available.
+
+        Args:
+            resolver: The resolver module to train
+            recognizer_id: ID of the recognizer whose references to use
+            resolver_id: ID of the resolver whose annotations to use for training
+            **kwargs: Additional training parameters (e.g., output_path, epochs, batch_size)
+
+        Raises:
+            ValueError: If the resolver does not implement a fit method
+        """
+        # Get all documents in the project with the specified recognizer and resolver context
+        documents = self.get_documents(
+            recognizer_id=recognizer_id, resolver_id=resolver_id
+        )
+
+        # Initialize the resolution service with the resolver
+        resolution_service = ResolutionService(resolver)
+
+        # Train the resolver using the annotated documents
+        resolution_service.fit(documents, **kwargs)
 
     def load_annotations(
         self, path: str, label: str = "annotator", create_documents: bool = False

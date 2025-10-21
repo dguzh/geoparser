@@ -78,16 +78,16 @@ def test_ensure_resolver_record_new(test_db):
 
 
 def test_resolution_service_run_no_documents():
-    """Test run with empty document list."""
+    """Test predict with empty document list."""
     mock_resolver = MagicMock()
     mock_resolver.id = "test-resolver-id"
 
     service = ResolutionService(mock_resolver)
-    service.run([])  # Should return early without error
+    service.predict([])  # Should return early without error
 
 
 def test_resolution_service_run_no_references(test_db, test_documents):
-    """Test run with documents that have no references."""
+    """Test predict with documents that have no references."""
     mock_resolver = MagicMock()
     mock_resolver.id = "test-resolver-id"
 
@@ -99,15 +99,15 @@ def test_resolution_service_run_no_references(test_db, test_documents):
             mock_session.return_value.__exit__.return_value = None
 
             with patch.object(ReferenceRepository, "get_by_document", return_value=[]):
-                with patch.object(mock_resolver, "predict_referents") as mock_predict:
-                    service.run(test_documents)
+                with patch.object(mock_resolver, "predict") as mock_predict:
+                    service.predict(test_documents)
                     mock_predict.assert_not_called()
 
 
 def test_resolution_service_run_already_processed(
     test_db, test_documents, test_references
 ):
-    """Test run with references already processed by this resolver."""
+    """Test predict with references already processed by this resolver."""
     mock_resolver = MagicMock()
     mock_resolver.id = "test-resolver-id"
 
@@ -124,18 +124,16 @@ def test_resolution_service_run_already_processed(
                 with patch.object(
                     service, "_filter_unprocessed_references", return_value=[]
                 ):
-                    with patch.object(
-                        mock_resolver, "predict_referents"
-                    ) as mock_predict:
-                        service.run(test_documents)
+                    with patch.object(mock_resolver, "predict") as mock_predict:
+                        service.predict(test_documents)
                         mock_predict.assert_not_called()
 
 
 def test_resolution_service_run_success(test_db, test_documents, test_references):
-    """Test successful run with unprocessed references."""
+    """Test successful predict with unprocessed references."""
     mock_resolver = MagicMock()
     mock_resolver.id = "test-resolver-id"
-    mock_resolver.predict_referents.return_value = [
+    mock_resolver.predict.return_value = [
         [("test_gazetteer", "loc1") for _ in doc_refs]
         for doc_refs in [test_references[:2], test_references[2:3]]
     ]
@@ -169,7 +167,7 @@ def test_resolution_service_run_success(test_db, test_documents, test_references
                     with patch.object(
                         service, "_record_referent_predictions"
                     ) as mock_record:
-                        service.run(test_documents)
+                        service.predict(test_documents)
                         # Should be called once per document with unprocessed references
                         assert mock_record.call_count == 2
                         # First call for doc1 with 2 references

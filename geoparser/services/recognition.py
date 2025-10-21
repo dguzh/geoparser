@@ -57,7 +57,7 @@ class RecognitionService:
                 recognizer_record = RecognizerRepository.create(db, recognizer_create)
             return recognizer_record.id
 
-    def run(self, documents: List["Document"]) -> None:
+    def predict(self, documents: List["Document"]) -> None:
         """
         Run the recognizer on the provided documents and store results in the database.
 
@@ -82,15 +82,49 @@ class RecognitionService:
             # Extract text from documents for prediction
             texts = [doc.text for doc in unprocessed_documents]
 
-            # Only call predict_references if there are texts to process
+            # Only call predict if there are texts to process
             if texts:
                 # Get predictions from recognizer using raw text
-                predicted_references = self.recognizer.predict_references(texts)
+                predicted_references = self.recognizer.predict(texts)
 
                 # Process predictions and update database
                 self._record_reference_predictions(
                     db, unprocessed_documents, predicted_references, recognizer_id
                 )
+
+    def fit(self, documents: List["Document"], **kwargs) -> None:
+        """
+        Train the recognizer using the provided documents.
+
+        This method prepares training data from documents that have reference annotations
+        and calls the recognizer's fit method if it exists.
+
+        Args:
+            documents: List of Document objects with reference annotations for training
+            **kwargs: Additional training parameters (e.g., output_path, epochs, batch_size)
+
+        Raises:
+            ValueError: If the recognizer does not implement a fit method
+        """
+        # Check if the recognizer has a fit method
+        if not hasattr(self.recognizer, "fit"):
+            raise ValueError(
+                f"Recognizer '{self.recognizer.name}' does not implement a fit method"
+            )
+
+        # Extract texts and references from documents
+        texts = []
+        references = []
+
+        for doc in documents:
+            # Only include documents that have reference annotations
+            # doc.toponyms returns references filtered by the recognizer context
+            if doc.toponyms:
+                texts.append(doc.text)
+                references.append([(ref.start, ref.end) for ref in doc.toponyms])
+
+        # Call the recognizer's fit method with the prepared data
+        self.recognizer.fit(texts, references, **kwargs)
 
     def _record_reference_predictions(
         self,

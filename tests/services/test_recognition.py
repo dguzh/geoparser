@@ -76,16 +76,16 @@ def test_ensure_recognizer_record_new(test_db):
 
 
 def test_recognition_service_run_no_documents():
-    """Test run with empty document list."""
+    """Test predict with empty document list."""
     mock_recognizer = MagicMock()
     mock_recognizer.id = "test-recognizer-id"
 
     service = RecognitionService(mock_recognizer)
-    service.run([])  # Should return early without error
+    service.predict([])  # Should return early without error
 
 
 def test_recognition_service_run_already_processed(test_db, test_documents):
-    """Test run with documents already processed by this recognizer."""
+    """Test predict with documents already processed by this recognizer."""
     mock_recognizer = MagicMock()
     mock_recognizer.id = "test-recognizer-id"
 
@@ -99,20 +99,16 @@ def test_recognition_service_run_already_processed(test_db, test_documents):
             with patch.object(
                 service, "_filter_unprocessed_documents", return_value=[]
             ):
-                with patch.object(
-                    mock_recognizer, "predict_references"
-                ) as mock_predict:
-                    service.run(test_documents)
+                with patch.object(mock_recognizer, "predict") as mock_predict:
+                    service.predict(test_documents)
                     mock_predict.assert_not_called()
 
 
 def test_recognition_service_run_success(test_db, test_documents):
-    """Test successful run with unprocessed documents."""
+    """Test successful predict with unprocessed documents."""
     mock_recognizer = MagicMock()
     mock_recognizer.id = "test-recognizer-id"
-    mock_recognizer.predict_references.return_value = [
-        [(0, 5), (10, 15)] for _ in test_documents
-    ]
+    mock_recognizer.predict.return_value = [[(0, 5), (10, 15)] for _ in test_documents]
 
     service = RecognitionService(mock_recognizer)
 
@@ -129,7 +125,7 @@ def test_recognition_service_run_success(test_db, test_documents):
                 with patch.object(
                     service, "_record_reference_predictions"
                 ) as mock_record:
-                    service.run(test_documents)
+                    service.predict(test_documents)
                     mock_record.assert_called_once_with(
                         test_db,
                         test_documents,
