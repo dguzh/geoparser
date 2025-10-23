@@ -319,3 +319,223 @@ class TestSpacyRecognizerPredict:
 
         # Assert
         assert results[0][0] == (10, 20)  # Character offsets, not token positions
+
+
+@pytest.mark.unit
+class TestSpacyRecognizerGetDistilledLabel:
+    """Test SpacyRecognizer _get_distilled_label method."""
+
+    @patch("geoparser.modules.recognizers.spacy.spacy.load")
+    def test_returns_entity_label_when_found_in_span(self, mock_spacy_load):
+        """Test that _get_distilled_label returns entity label when found in span."""
+        # Arrange
+        mock_nlp = Mock()
+        mock_nlp.pipe_names = []
+        mock_spacy_load.return_value = mock_nlp
+
+        recognizer = SpacyRecognizer(entity_types=["GPE", "LOC"])
+
+        # Create mock base doc with char_span
+        mock_entity = Mock()
+        mock_entity.label_ = "GPE"
+
+        mock_span = Mock()
+        mock_span.ents = [mock_entity]
+
+        mock_base_doc = Mock()
+        mock_base_doc.char_span.return_value = mock_span
+
+        # Act
+        label = recognizer._get_distilled_label(0, 5, mock_base_doc)
+
+        # Assert
+        assert label == "GPE"
+        mock_base_doc.char_span.assert_called_once_with(0, 5, alignment_mode="expand")
+
+    @patch("geoparser.modules.recognizers.spacy.spacy.load")
+    def test_returns_loc_as_fallback_when_no_entity_found(self, mock_spacy_load):
+        """Test that _get_distilled_label returns LOC as fallback."""
+        # Arrange
+        mock_nlp = Mock()
+        mock_nlp.pipe_names = []
+        mock_spacy_load.return_value = mock_nlp
+
+        recognizer = SpacyRecognizer()
+
+        # Create mock base doc with no entities
+        mock_span = Mock()
+        mock_span.ents = []
+
+        mock_token = Mock()
+        mock_token.ent_type_ = ""
+        mock_span.__iter__ = Mock(return_value=iter([mock_token]))
+
+        mock_base_doc = Mock()
+        mock_base_doc.char_span.return_value = mock_span
+
+        # Act
+        label = recognizer._get_distilled_label(0, 5, mock_base_doc)
+
+        # Assert
+        assert label == "LOC"
+
+    @patch("geoparser.modules.recognizers.spacy.spacy.load")
+    def test_returns_token_entity_type_when_found(self, mock_spacy_load):
+        """Test that _get_distilled_label returns token entity type when no span entities."""
+        # Arrange
+        mock_nlp = Mock()
+        mock_nlp.pipe_names = []
+        mock_spacy_load.return_value = mock_nlp
+
+        recognizer = SpacyRecognizer(entity_types=["GPE", "LOC"])
+
+        # Create mock base doc with token entity
+        mock_span = Mock()
+        mock_span.ents = []
+
+        mock_token = Mock()
+        mock_token.ent_type_ = "LOC"
+        mock_span.__iter__ = Mock(return_value=iter([mock_token]))
+
+        mock_base_doc = Mock()
+        mock_base_doc.char_span.return_value = mock_span
+
+        # Act
+        label = recognizer._get_distilled_label(0, 5, mock_base_doc)
+
+        # Assert
+        assert label == "LOC"
+
+    @patch("geoparser.modules.recognizers.spacy.spacy.load")
+    def test_returns_loc_when_char_span_is_none(self, mock_spacy_load):
+        """Test that _get_distilled_label returns LOC when char_span returns None."""
+        # Arrange
+        mock_nlp = Mock()
+        mock_nlp.pipe_names = []
+        mock_spacy_load.return_value = mock_nlp
+
+        recognizer = SpacyRecognizer()
+
+        mock_base_doc = Mock()
+        mock_base_doc.char_span.return_value = None
+
+        # Act
+        label = recognizer._get_distilled_label(0, 5, mock_base_doc)
+
+        # Assert
+        assert label == "LOC"
+
+
+@pytest.mark.unit
+class TestSpacyRecognizerPrepareTrainingData:
+    """Test SpacyRecognizer _prepare_training_data method."""
+
+    @patch("geoparser.modules.recognizers.spacy.spacy.load")
+    def test_creates_training_examples_from_references(self, mock_spacy_load):
+        """Test that _prepare_training_data creates training examples."""
+        # Arrange
+        mock_nlp = Mock()
+        mock_nlp.pipe_names = []
+
+        # Mock make_doc for creating training docs
+        mock_doc = Mock()
+        mock_nlp.make_doc.return_value = mock_doc
+
+        mock_spacy_load.return_value = mock_nlp
+
+        recognizer = SpacyRecognizer()
+
+        # Mock the _load_spacy_model to return a base NLP
+        mock_base_nlp = Mock()
+        mock_base_doc = Mock()
+        mock_base_nlp.return_value = mock_base_doc
+
+        with patch.object(recognizer, "_load_spacy_model", return_value=mock_base_nlp):
+            with patch.object(recognizer, "_get_distilled_label", return_value="GPE"):
+                # Create mock Example.from_dict
+                with patch(
+                    "geoparser.modules.recognizers.spacy.Example"
+                ) as mock_example:
+                    mock_example_instance = Mock()
+                    mock_example.from_dict.return_value = mock_example_instance
+
+                    texts = ["Paris is beautiful"]
+                    references = [[(0, 5)]]
+
+                    # Act
+                    examples = recognizer._prepare_training_data(texts, references)
+
+                    # Assert
+                    assert len(examples) == 1
+                    assert examples[0] == mock_example_instance
+                    mock_example.from_dict.assert_called_once()
+
+    @patch("geoparser.modules.recognizers.spacy.spacy.load")
+    def test_handles_multiple_references_in_document(self, mock_spacy_load):
+        """Test that _prepare_training_data handles multiple references."""
+        # Arrange
+        mock_nlp = Mock()
+        mock_nlp.pipe_names = []
+        mock_doc = Mock()
+        mock_nlp.make_doc.return_value = mock_doc
+        mock_spacy_load.return_value = mock_nlp
+
+        recognizer = SpacyRecognizer()
+
+        mock_base_nlp = Mock()
+        mock_base_doc = Mock()
+        mock_base_nlp.return_value = mock_base_doc
+
+        with patch.object(recognizer, "_load_spacy_model", return_value=mock_base_nlp):
+            with patch.object(recognizer, "_get_distilled_label", return_value="GPE"):
+                with patch(
+                    "geoparser.modules.recognizers.spacy.Example"
+                ) as mock_example:
+                    mock_example_instance = Mock()
+                    mock_example.from_dict.return_value = mock_example_instance
+
+                    texts = ["Paris and London"]
+                    references = [[(0, 5), (10, 16)]]
+
+                    # Act
+                    examples = recognizer._prepare_training_data(texts, references)
+
+                    # Assert
+                    assert len(examples) == 1
+                    # Should have created one example with 2 entities
+                    call_args = mock_example.from_dict.call_args[0]
+                    entity_dict = call_args[1]
+                    assert len(entity_dict["entities"]) == 2
+
+    @patch("geoparser.modules.recognizers.spacy.spacy.load")
+    def test_handles_multiple_documents(self, mock_spacy_load):
+        """Test that _prepare_training_data handles multiple documents."""
+        # Arrange
+        mock_nlp = Mock()
+        mock_nlp.pipe_names = []
+        mock_doc = Mock()
+        mock_nlp.make_doc.return_value = mock_doc
+        mock_spacy_load.return_value = mock_nlp
+
+        recognizer = SpacyRecognizer()
+
+        mock_base_nlp = Mock()
+        mock_base_doc = Mock()
+        mock_base_nlp.return_value = mock_base_doc
+
+        with patch.object(recognizer, "_load_spacy_model", return_value=mock_base_nlp):
+            with patch.object(recognizer, "_get_distilled_label", return_value="GPE"):
+                with patch(
+                    "geoparser.modules.recognizers.spacy.Example"
+                ) as mock_example:
+                    mock_example_instance = Mock()
+                    mock_example.from_dict.return_value = mock_example_instance
+
+                    texts = ["Paris", "London"]
+                    references = [[(0, 5)], [(0, 6)]]
+
+                    # Act
+                    examples = recognizer._prepare_training_data(texts, references)
+
+                    # Assert
+                    assert len(examples) == 2

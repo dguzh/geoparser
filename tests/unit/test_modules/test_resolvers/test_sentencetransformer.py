@@ -469,3 +469,219 @@ class TestSentenceTransformerResolverHelperMethods:
 
         # Assert
         assert similarities == []
+
+    @patch("geoparser.modules.resolvers.sentencetransformer.spacy.load")
+    @patch(
+        "geoparser.modules.resolvers.sentencetransformer.AutoTokenizer.from_pretrained"
+    )
+    @patch("geoparser.modules.resolvers.sentencetransformer.SentenceTransformer")
+    @patch("geoparser.modules.resolvers.sentencetransformer.Gazetteer")
+    def test_extract_context_returns_full_text_when_within_limit(
+        self, mock_gazetteer, mock_transformer, mock_tokenizer, mock_spacy_load
+    ):
+        """Test that _extract_context returns full text when within token limit."""
+        # Arrange
+        from geoparser.modules.resolvers.sentencetransformer import (
+            SentenceTransformerResolver,
+        )
+
+        mock_transformer_instance = mock_transformer.return_value
+        mock_transformer_instance.get_max_seq_length.return_value = 512
+
+        mock_tokenizer_instance = mock_tokenizer.return_value
+        # Short text - only 3 tokens
+        mock_tokenizer_instance.tokenize.return_value = ["Paris", "is", "beautiful"]
+
+        resolver = SentenceTransformerResolver()
+
+        text = "Paris is beautiful"
+
+        # Act
+        context = resolver._extract_context(text, 0, 5)
+
+        # Assert
+        assert context == text
+
+    @patch("geoparser.modules.resolvers.sentencetransformer.spacy.load")
+    @patch(
+        "geoparser.modules.resolvers.sentencetransformer.AutoTokenizer.from_pretrained"
+    )
+    @patch("geoparser.modules.resolvers.sentencetransformer.SentenceTransformer")
+    @patch("geoparser.modules.resolvers.sentencetransformer.Gazetteer")
+    def test_extract_context_expands_bidirectionally(
+        self, mock_gazetteer, mock_transformer, mock_tokenizer, mock_spacy_load
+    ):
+        """Test that _extract_context expands context bidirectionally around reference."""
+        # Arrange
+        from geoparser.modules.resolvers.sentencetransformer import (
+            SentenceTransformerResolver,
+        )
+
+        mock_transformer_instance = mock_transformer.return_value
+        mock_transformer_instance.get_max_seq_length.return_value = 512
+
+        mock_tokenizer_instance = mock_tokenizer.return_value
+
+        # Return different lengths for different calls
+        def tokenize_side_effect(text):
+            # Simulate that full text is too long
+            if len(text) > 20:
+                return ["token"] * 600  # Exceeds limit
+            # But sentences are short
+            return ["token"] * 3
+
+        mock_tokenizer_instance.tokenize.side_effect = tokenize_side_effect
+
+        # Mock spaCy sentence splitter
+        mock_nlp = Mock()
+        mock_sent1 = Mock()
+        mock_sent1.start_char = 0
+        mock_sent1.end_char = (
+            26  # Cover the full text including "Paris" at position 10-15
+        )
+        mock_sent1.text = "I went to Paris yesterday."
+
+        mock_doc = Mock()
+        mock_doc.sents = [mock_sent1]
+        mock_nlp.return_value = mock_doc
+
+        resolver = SentenceTransformerResolver()
+        resolver.nlp = mock_nlp
+
+        text = "I went to Paris yesterday."
+
+        # Act
+        context = resolver._extract_context(text, 10, 15)  # "Paris"
+
+        # Assert
+        # Should at least include the sentence containing the reference
+        assert isinstance(context, str)
+        # Should contain the reference text
+        assert "Paris" in context or context == text
+
+    @patch("geoparser.modules.resolvers.sentencetransformer.spacy.load")
+    @patch(
+        "geoparser.modules.resolvers.sentencetransformer.AutoTokenizer.from_pretrained"
+    )
+    @patch("geoparser.modules.resolvers.sentencetransformer.SentenceTransformer")
+    @patch("geoparser.modules.resolvers.sentencetransformer.Gazetteer")
+    def test_generate_description_handles_missing_attributes(
+        self, mock_gazetteer, mock_transformer, mock_tokenizer, mock_spacy_load
+    ):
+        """Test that _generate_description handles missing attributes gracefully."""
+        # Arrange
+        from geoparser.modules.resolvers.sentencetransformer import (
+            SentenceTransformerResolver,
+        )
+
+        resolver = SentenceTransformerResolver(gazetteer_name="geonames")
+
+        mock_candidate = Mock()
+        mock_candidate.data = {
+            "name": "Paris",
+            # Missing feature_name and admin levels
+        }
+
+        # Act
+        description = resolver._generate_description(mock_candidate)
+
+        # Assert
+        assert "Paris" in description
+        # Should not crash, just include what's available
+
+    @patch("geoparser.modules.resolvers.sentencetransformer.spacy.load")
+    @patch(
+        "geoparser.modules.resolvers.sentencetransformer.AutoTokenizer.from_pretrained"
+    )
+    @patch("geoparser.modules.resolvers.sentencetransformer.SentenceTransformer")
+    @patch("geoparser.modules.resolvers.sentencetransformer.Gazetteer")
+    def test_generate_description_includes_all_admin_levels(
+        self, mock_gazetteer, mock_transformer, mock_tokenizer, mock_spacy_load
+    ):
+        """Test that _generate_description includes all available admin levels."""
+        # Arrange
+        from geoparser.modules.resolvers.sentencetransformer import (
+            SentenceTransformerResolver,
+        )
+
+        resolver = SentenceTransformerResolver(gazetteer_name="geonames")
+
+        mock_candidate = Mock()
+        mock_candidate.data = {
+            "name": "Paris",
+            "feature_name": "city",
+            "country_name": "France",
+            "admin1_name": "Île-de-France",
+            "admin2_name": "Paris",
+        }
+
+        # Act
+        description = resolver._generate_description(mock_candidate)
+
+        # Assert
+        assert "Paris" in description
+        assert "city" in description
+        assert "France" in description
+        assert "Île-de-France" in description
+        # Should be in hierarchical order: level3, level2, level1
+        assert "in" in description
+
+    @patch("geoparser.modules.resolvers.sentencetransformer.spacy.load")
+    @patch(
+        "geoparser.modules.resolvers.sentencetransformer.AutoTokenizer.from_pretrained"
+    )
+    @patch("geoparser.modules.resolvers.sentencetransformer.SentenceTransformer")
+    @patch("geoparser.modules.resolvers.sentencetransformer.Gazetteer")
+    def test_generate_description_raises_error_for_unknown_gazetteer(
+        self, mock_gazetteer, mock_transformer, mock_tokenizer, mock_spacy_load
+    ):
+        """Test that _generate_description raises error for unknown gazetteer."""
+        # Arrange
+        from geoparser.modules.resolvers.sentencetransformer import (
+            SentenceTransformerResolver,
+        )
+
+        resolver = SentenceTransformerResolver(gazetteer_name="unknown_gazetteer")
+
+        mock_candidate = Mock()
+        mock_candidate.data = {"name": "Paris"}
+
+        # Act & Assert
+        with pytest.raises(ValueError, match="not configured"):
+            resolver._generate_description(mock_candidate)
+
+    @patch("geoparser.modules.resolvers.sentencetransformer.spacy.load")
+    @patch(
+        "geoparser.modules.resolvers.sentencetransformer.AutoTokenizer.from_pretrained"
+    )
+    @patch("geoparser.modules.resolvers.sentencetransformer.SentenceTransformer")
+    @patch("geoparser.modules.resolvers.sentencetransformer.Gazetteer")
+    def test_calculate_similarities_returns_correct_values(
+        self, mock_gazetteer, mock_transformer, mock_tokenizer, mock_spacy_load
+    ):
+        """Test that _calculate_similarities returns correct cosine similarity values."""
+        # Arrange
+        from geoparser.modules.resolvers.sentencetransformer import (
+            SentenceTransformerResolver,
+        )
+
+        resolver = SentenceTransformerResolver()
+
+        # Create embeddings with known similarities
+        context_embedding = torch.tensor([1.0, 0.0, 0.0])
+        candidate_embeddings = [
+            torch.tensor([1.0, 0.0, 0.0]),  # Similarity = 1.0 (identical)
+            torch.tensor([0.5, 0.866, 0.0]),  # Similarity ≈ 0.5 (60 degree angle)
+            torch.tensor([-1.0, 0.0, 0.0]),  # Similarity = -1.0 (opposite)
+        ]
+
+        # Act
+        similarities = resolver._calculate_similarities(
+            context_embedding, candidate_embeddings
+        )
+
+        # Assert
+        assert len(similarities) == 3
+        assert abs(similarities[0] - 1.0) < 0.01  # First is perfect match
+        assert abs(similarities[1] - 0.5) < 0.1  # Second is ~0.5
+        assert abs(similarities[2] - (-1.0)) < 0.01  # Third is opposite
