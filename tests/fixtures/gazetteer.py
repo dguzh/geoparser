@@ -27,8 +27,8 @@ def install_andorra_gazetteer(engine: Engine, config_path: Path) -> None:
     """
     Install the Andorra gazetteer into the given database engine.
 
-    This helper function patches all engine references in the installer
-    to use the provided test engine, then installs the Andorra gazetteer.
+    This helper function patches the global engine to use the provided test engine,
+    then installs the Andorra gazetteer.
 
     Use this in integration tests that need gazetteer data.
 
@@ -38,24 +38,7 @@ def install_andorra_gazetteer(engine: Engine, config_path: Path) -> None:
     """
     from geoparser.gazetteer.installer import GazetteerInstaller
 
-    with patch("geoparser.gazetteer.installer.installer.engine", engine):
-        with patch("geoparser.db.engine.engine", engine):
-            with patch("geoparser.db.crud.gazetteer.engine", engine):
-                with patch(
-                    "geoparser.gazetteer.installer.stages.registration.engine", engine
-                ):
-                    with patch(
-                        "geoparser.gazetteer.installer.stages.schema.engine", engine
-                    ):
-                        with patch(
-                            "geoparser.gazetteer.installer.stages.transformation.engine",
-                            engine,
-                        ):
-                            with patch(
-                                "geoparser.gazetteer.installer.stages.ingestion.engine",
-                                engine,
-                            ):
-                                installer = GazetteerInstaller()
-                                installer.install(
-                                    config_path, chunksize=5000, keep_downloads=False
-                                )
+    # Patch the single source of truth for the engine
+    with patch("geoparser.db.engine.engine", engine):
+        installer = GazetteerInstaller()
+        installer.install(config_path, chunksize=5000, keep_downloads=False)
