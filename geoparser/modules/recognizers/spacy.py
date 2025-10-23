@@ -46,7 +46,7 @@ class SpacyRecognizer(Recognizer):
         """
         Load and configure the spaCy model with optimized pipeline.
 
-        Loads the specified model and disables unnecessary pipeline components
+        Loads the specified model and removes unnecessary pipeline components
         to optimize performance for NER tasks.
 
         Returns:
@@ -55,14 +55,15 @@ class SpacyRecognizer(Recognizer):
         # Load spaCy model
         nlp = spacy.load(self.model_name)
 
-        # Disable non-NER components to optimize performance
+        # Remove non-NER components to optimize performance
         pipe_components = [
             "tagger",
             "parser",
             "attribute_ruler",
             "lemmatizer",
         ]
-        nlp.disable_pipes(*[p for p in pipe_components if p in nlp.pipe_names])
+        for pipe_name in [p for p in pipe_components if p in nlp.pipe_names]:
+            nlp.remove_pipe(pipe_name)
         return nlp
 
     def predict(self, texts: List[str]) -> List[Union[List[Tuple[int, int]], None]]:
