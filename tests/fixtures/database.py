@@ -1,10 +1,9 @@
 """
 Database fixtures for testing.
 
-Provides a single session-scoped in-memory test database configured exactly
-like production. All tests share the same database engine, but each test gets
-a fresh transaction that is rolled back after the test completes, ensuring
-complete isolation between tests.
+Provides function-scoped in-memory test databases configured exactly like production.
+Each test gets a completely fresh database, ensuring perfect isolation without
+needing transaction rollback.
 """
 
 import pytest
@@ -15,14 +14,14 @@ from sqlmodel import Session, SQLModel, create_engine
 from geoparser.db.engine import setup_foreign_keys, setup_spatialite
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="function")
 def test_engine() -> Engine:
     """
-    Create a session-scoped in-memory test database configured like production.
+    Create a fresh in-memory test database for each test.
 
-    This engine includes SpatiaLite and is created ONCE for the entire test session.
-    All tests share this engine, but each test gets an isolated transaction via
-    the test_session fixture.
+    Each test gets its own isolated database engine configured exactly like
+    production (with SpatiaLite). Since SpatiaLite initialization is now fast
+    (<0.01s), the overhead is minimal while providing perfect test isolation.
 
     Returns:
         SQLAlchemy Engine instance with in-memory database and SpatiaLite
@@ -42,29 +41,20 @@ def test_engine() -> Engine:
 @pytest.fixture(scope="function")
 def test_session(test_engine: Engine) -> Session:
     """
-    Provide an isolated database session for each test.
+    Provide a database session for each test.
 
-    Creates a new connection and transaction for each test. The transaction is
-    rolled back after the test completes, ensuring that changes made during the
-    test do not affect other tests. This provides complete isolation while sharing
-    a single database engine across all tests.
+    Since each test gets a fresh engine, there's no need for transaction rollback -
+    the entire database is discarded after the test. This provides perfect isolation
+    with a simpler implementation.
 
-    Uses expire_on_commit=False so that ORM objects remain accessible even after
-    the session commits, which matches the pattern used in production code (e.g.,
-    Project.get_documents()).
+    Uses expire_on_commit=False to match production patterns (e.g., Project.get_documents()).
 
     Args:
-        test_engine: Session-scoped test database engine
+        test_engine: Function-scoped test database engine
 
     Yields:
         SQLModel Session for database operations
     """
-    connection = test_engine.connect()
-    transaction = connection.begin()
-    session = Session(bind=connection, expire_on_commit=False)
-
+    session = Session(bind=test_engine, expire_on_commit=False)
     yield session
-
     session.close()
-    transaction.rollback()
-    connection.close()
