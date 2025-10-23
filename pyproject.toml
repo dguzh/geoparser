@@ -71,7 +71,10 @@ exclude_also = [
 
 [tool.coverage.run]
 source = ["geoparser"]
-omit = ["tests/*"]
+omit = [
+    "tests/*",
+    "geoparser/annotator/*",
+]
 relative_files = true
 
 [tool.coverage.paths]
