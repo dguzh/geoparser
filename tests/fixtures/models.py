@@ -13,17 +13,25 @@ from sqlmodel import Session
 
 from geoparser.db.crud import (
     DocumentRepository,
+    FeatureRepository,
+    GazetteerRepository,
+    NameRepository,
     ProjectRepository,
     RecognizerRepository,
     ReferenceRepository,
     ResolverRepository,
+    SourceRepository,
 )
 from geoparser.db.models import (
     DocumentCreate,
+    FeatureCreate,
+    GazetteerCreate,
+    NameCreate,
     ProjectCreate,
     RecognizerCreate,
     ReferenceCreate,
     ResolverCreate,
+    SourceCreate,
 )
 
 
@@ -97,6 +105,65 @@ def document_factory(test_session: Session, project_factory: Callable) -> Callab
         return DocumentRepository.create(test_session, document_create)
 
     return _create_document
+
+
+@pytest.fixture
+def reference_factory(
+    test_session: Session, document_factory: Callable, recognizer_factory: Callable
+) -> Callable:
+    """
+    Factory for creating test references.
+
+    Args:
+        test_session: Database session fixture
+        document_factory: Document factory fixture
+        recognizer_factory: Recognizer factory fixture
+
+    Returns:
+        Function that creates references with optional custom attributes
+    """
+
+    def _create_reference(
+        start: int = 0,
+        end: int = 4,
+        text: Optional[str] = None,
+        document_id: Optional[uuid.UUID] = None,
+        recognizer_id: Optional[str] = None,
+        **kwargs,
+    ):
+        """
+        Create a reference with the given attributes.
+
+        Args:
+            start: Start position in document (default: 0)
+            end: End position in document (default: 4)
+            text: Reference text (optional, extracted from document if not provided)
+            document_id: ID of parent document (creates new document if not provided)
+            recognizer_id: ID of recognizer (creates new recognizer if not provided)
+            **kwargs: Additional attributes to set on the reference
+
+        Returns:
+            Created Reference instance
+        """
+        if document_id is None:
+            document = document_factory()
+            document_id = document.id
+
+        if recognizer_id is None:
+            recognizer = recognizer_factory()
+            recognizer_id = recognizer.id
+
+        reference_create = ReferenceCreate(
+            start=start,
+            end=end,
+            text=text,
+            document_id=document_id,
+            recognizer_id=recognizer_id,
+            **kwargs,
+        )
+        return ReferenceRepository.create(test_session, reference_create)
+
+    return _create_reference
 
 
 @pytest.fixture
@@ -190,59 +257,168 @@ def resolver_factory(test_session: Session) -> Callable:
 
 
 @pytest.fixture
-def reference_factory(
-    test_session: Session, document_factory: Callable, recognizer_factory: Callable
-) -> Callable:
+def gazetteer_factory(test_session: Session) -> Callable:
     """
-    Factory for creating test references.
+    Factory for creating test gazetteers.
 
     Args:
         test_session: Database session fixture
-        document_factory: Document factory fixture
-        recognizer_factory: Recognizer factory fixture
 
     Returns:
-        Function that creates references with optional custom attributes
+        Function that creates gazetteers with optional custom attributes
     """
 
-    def _create_reference(
-        start: int = 0,
-        end: int = 4,
-        text: Optional[str] = None,
-        document_id: Optional[uuid.UUID] = None,
-        recognizer_id: Optional[str] = None,
+    def _create_gazetteer(name: Optional[str] = None, **kwargs):
+        """
+        Create a gazetteer with the given attributes.
+
+        Args:
+            name: Gazetteer name (auto-generated if not provided)
+            **kwargs: Additional attributes to set on the gazetteer
+
+        Returns:
+            Created Gazetteer instance
+        """
+        if name is None:
+            name = f"test_gazetteer_{uuid.uuid4().hex[:8]}"
+
+        gazetteer_create = GazetteerCreate(name=name, **kwargs)
+        return GazetteerRepository.create(test_session, gazetteer_create)
+
+    return _create_gazetteer
+
+
+@pytest.fixture
+def source_factory(test_session: Session, gazetteer_factory: Callable) -> Callable:
+    """
+    Factory for creating test sources.
+
+    Args:
+        test_session: Database session fixture
+        gazetteer_factory: Gazetteer factory fixture
+
+    Returns:
+        Function that creates sources with optional custom attributes
+    """
+
+    def _create_source(
+        name: Optional[str] = None,
+        location_id_name: Optional[str] = None,
+        gazetteer_id: Optional[uuid.UUID] = None,
         **kwargs,
     ):
         """
-        Create a reference with the given attributes.
+        Create a source with the given attributes.
 
         Args:
-            start: Start position in document (default: 0)
-            end: End position in document (default: 4)
-            text: Reference text (optional, extracted from document if not provided)
-            document_id: ID of parent document (creates new document if not provided)
-            recognizer_id: ID of recognizer (creates new recognizer if not provided)
-            **kwargs: Additional attributes to set on the reference
+            name: Source name (auto-generated if not provided)
+            location_id_name: Name of the location ID field (default: "id")
+            gazetteer_id: ID of parent gazetteer (creates new gazetteer if not provided)
+            **kwargs: Additional attributes to set on the source
 
         Returns:
-            Created Reference instance
+            Created Source instance
         """
-        if document_id is None:
-            document = document_factory()
-            document_id = document.id
+        if name is None:
+            name = f"test_source_{uuid.uuid4().hex[:8]}"
 
-        if recognizer_id is None:
-            recognizer = recognizer_factory()
-            recognizer_id = recognizer.id
+        if location_id_name is None:
+            location_id_name = "id"
 
-        reference_create = ReferenceCreate(
-            start=start,
-            end=end,
-            text=text,
-            document_id=document_id,
-            recognizer_id=recognizer_id,
+        if gazetteer_id is None:
+            gazetteer = gazetteer_factory()
+            gazetteer_id = gazetteer.id
+
+        source_create = SourceCreate(
+            name=name,
+            location_id_name=location_id_name,
+            gazetteer_id=gazetteer_id,
             **kwargs,
         )
-        return ReferenceRepository.create(test_session, reference_create)
+        return SourceRepository.create(test_session, source_create)
 
-    return _create_reference
+    return _create_source
+
+
+@pytest.fixture
+def feature_factory(test_session: Session, source_factory: Callable) -> Callable:
+    """
+    Factory for creating test features.
+
+    Args:
+        test_session: Database session fixture
+        source_factory: Source factory fixture
+
+    Returns:
+        Function that creates features with optional custom attributes
+    """
+
+    def _create_feature(
+        location_id_value: Optional[str] = None,
+        source_id: Optional[int] = None,
+        **kwargs,
+    ):
+        """
+        Create a feature with the given attributes.
+
+        Args:
+            location_id_value: Location ID value (auto-generated if not provided)
+            source_id: ID of parent source (creates new source if not provided)
+            **kwargs: Additional attributes to set on the feature
+
+        Returns:
+            Created Feature instance
+        """
+        if location_id_value is None:
+            location_id_value = str(uuid.uuid4().int)[:8]
+
+        if source_id is None:
+            source = source_factory()
+            source_id = source.id
+
+        feature_create = FeatureCreate(
+            location_id_value=location_id_value, source_id=source_id, **kwargs
+        )
+        return FeatureRepository.create(test_session, feature_create)
+
+    return _create_feature
+
+
+@pytest.fixture
+def name_factory(test_session: Session, feature_factory: Callable) -> Callable:
+    """
+    Factory for creating test names.
+
+    Args:
+        test_session: Database session fixture
+        feature_factory: Feature factory fixture
+
+    Returns:
+        Function that creates names with optional custom attributes
+    """
+
+    def _create_name(
+        text: Optional[str] = None, feature_id: Optional[int] = None, **kwargs
+    ):
+        """
+        Create a name with the given attributes.
+
+        Args:
+            text: Name text (auto-generated if not provided)
+            feature_id: ID of parent feature (creates new feature if not provided)
+            **kwargs: Additional attributes to set on the name
+
+        Returns:
+            Created Name instance
+        """
+        if text is None:
+            text = f"test_name_{uuid.uuid4().hex[:8]}"
+
+        if feature_id is None:
+            feature = feature_factory()
+            feature_id = feature.id
+
+        name_create = NameCreate(text=text, feature_id=feature_id, **kwargs)
+        return NameRepository.create(test_session, name_create)
+
+    return _create_name
