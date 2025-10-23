@@ -1,0 +1,321 @@
+"""
+Unit tests for geoparser/modules/recognizers/spacy.py
+
+Tests the SpacyRecognizer module with mocked spaCy models.
+"""
+
+from unittest.mock import Mock, patch
+
+import pytest
+
+from geoparser.modules.recognizers.spacy import SpacyRecognizer
+
+
+@pytest.mark.unit
+class TestSpacyRecognizerInitialization:
+    """Test SpacyRecognizer initialization."""
+
+    @patch("geoparser.modules.recognizers.spacy.spacy.load")
+    def test_creates_with_default_parameters(self, mock_spacy_load):
+        """Test that SpacyRecognizer can be created with default parameters."""
+        # Arrange
+        mock_nlp = Mock()
+        mock_nlp.pipe_names = []
+        mock_spacy_load.return_value = mock_nlp
+
+        # Act
+        recognizer = SpacyRecognizer()
+
+        # Assert
+        assert recognizer.name == "SpacyRecognizer"
+        assert recognizer.model_name == "en_core_web_sm"
+        assert recognizer.entity_types == {"FAC", "GPE", "LOC"}
+
+    @patch("geoparser.modules.recognizers.spacy.spacy.load")
+    def test_creates_with_custom_model_name(self, mock_spacy_load):
+        """Test that SpacyRecognizer can be created with custom model name."""
+        # Arrange
+        mock_nlp = Mock()
+        mock_nlp.pipe_names = []
+        mock_spacy_load.return_value = mock_nlp
+
+        # Act
+        recognizer = SpacyRecognizer(model_name="en_core_web_lg")
+
+        # Assert
+        assert recognizer.model_name == "en_core_web_lg"
+        mock_spacy_load.assert_called_once_with("en_core_web_lg")
+
+    @patch("geoparser.modules.recognizers.spacy.spacy.load")
+    def test_creates_with_custom_entity_types(self, mock_spacy_load):
+        """Test that SpacyRecognizer can be created with custom entity types."""
+        # Arrange
+        mock_nlp = Mock()
+        mock_nlp.pipe_names = []
+        mock_spacy_load.return_value = mock_nlp
+
+        # Act
+        recognizer = SpacyRecognizer(entity_types=["GPE"])
+
+        # Assert
+        assert recognizer.entity_types == {"GPE"}
+
+    @patch("geoparser.modules.recognizers.spacy.spacy.load")
+    def test_converts_entity_types_to_set(self, mock_spacy_load):
+        """Test that entity_types list is converted to set for efficient lookups."""
+        # Arrange
+        mock_nlp = Mock()
+        mock_nlp.pipe_names = []
+        mock_spacy_load.return_value = mock_nlp
+
+        # Act
+        recognizer = SpacyRecognizer(entity_types=["GPE", "LOC"])
+
+        # Assert
+        assert isinstance(recognizer.entity_types, set)
+
+    @patch("geoparser.modules.recognizers.spacy.spacy.load")
+    def test_config_contains_model_and_entity_types(self, mock_spacy_load):
+        """Test that config stores model_name and entity_types."""
+        # Arrange
+        mock_nlp = Mock()
+        mock_nlp.pipe_names = []
+        mock_spacy_load.return_value = mock_nlp
+
+        # Act
+        recognizer = SpacyRecognizer(
+            model_name="en_core_web_sm", entity_types=["GPE", "LOC"]
+        )
+
+        # Assert
+        assert recognizer.config["model_name"] == "en_core_web_sm"
+        assert recognizer.config["entity_types"] == ["GPE", "LOC"]
+
+    @patch("geoparser.modules.recognizers.spacy.spacy.load")
+    def test_removes_non_ner_pipeline_components(self, mock_spacy_load):
+        """Test that non-NER pipeline components are removed for optimization."""
+        # Arrange
+        mock_nlp = Mock()
+        mock_nlp.pipe_names = ["tagger", "parser", "ner", "lemmatizer"]
+        mock_spacy_load.return_value = mock_nlp
+
+        # Act
+        recognizer = SpacyRecognizer()
+
+        # Assert
+        # Should remove tagger, parser, lemmatizer but keep ner
+        assert mock_nlp.remove_pipe.call_count == 3
+        removed_pipes = [call[0][0] for call in mock_nlp.remove_pipe.call_args_list]
+        assert "tagger" in removed_pipes
+        assert "parser" in removed_pipes
+        assert "lemmatizer" in removed_pipes
+
+    @patch("geoparser.modules.recognizers.spacy.spacy.load")
+    def test_only_removes_existing_pipeline_components(self, mock_spacy_load):
+        """Test that only existing pipeline components are removed."""
+        # Arrange
+        mock_nlp = Mock()
+        mock_nlp.pipe_names = ["ner"]  # Only NER, no other components
+        mock_spacy_load.return_value = mock_nlp
+
+        # Act
+        recognizer = SpacyRecognizer()
+
+        # Assert
+        # Should not call remove_pipe since no unnecessary components exist
+        mock_nlp.remove_pipe.assert_not_called()
+
+    @patch("geoparser.modules.recognizers.spacy.spacy.load")
+    def test_different_configs_produce_different_ids(self, mock_spacy_load):
+        """Test that different configurations produce different module IDs."""
+        # Arrange
+        mock_nlp = Mock()
+        mock_nlp.pipe_names = []
+        mock_spacy_load.return_value = mock_nlp
+
+        # Act
+        recognizer1 = SpacyRecognizer(model_name="en_core_web_sm", entity_types=["GPE"])
+        recognizer2 = SpacyRecognizer(model_name="en_core_web_sm", entity_types=["LOC"])
+
+        # Assert
+        assert recognizer1.id != recognizer2.id
+
+    @patch("geoparser.modules.recognizers.spacy.spacy.load")
+    def test_same_config_produces_same_id(self, mock_spacy_load):
+        """Test that same configuration produces same module ID."""
+        # Arrange
+        mock_nlp = Mock()
+        mock_nlp.pipe_names = []
+        mock_spacy_load.return_value = mock_nlp
+
+        # Act
+        recognizer1 = SpacyRecognizer(
+            model_name="en_core_web_sm", entity_types=["GPE", "LOC"]
+        )
+        recognizer2 = SpacyRecognizer(
+            model_name="en_core_web_sm", entity_types=["GPE", "LOC"]
+        )
+
+        # Assert
+        assert recognizer1.id == recognizer2.id
+
+
+@pytest.mark.unit
+class TestSpacyRecognizerPredict:
+    """Test SpacyRecognizer predict method."""
+
+    @patch("geoparser.modules.recognizers.spacy.spacy.load")
+    def test_calls_nlp_pipe_with_texts(self, mock_spacy_load):
+        """Test that predict calls nlp.pipe with input texts."""
+        # Arrange
+        mock_nlp = Mock()
+        mock_nlp.pipe_names = []
+        mock_doc = Mock()
+        mock_doc.ents = []
+        mock_nlp.pipe.return_value = [mock_doc]
+        mock_spacy_load.return_value = mock_nlp
+
+        recognizer = SpacyRecognizer()
+        texts = ["Test text"]
+
+        # Act
+        recognizer.predict(texts)
+
+        # Assert
+        mock_nlp.pipe.assert_called_once_with(texts)
+
+    @patch("geoparser.modules.recognizers.spacy.spacy.load")
+    def test_extracts_entities_with_matching_types(self, mock_spacy_load):
+        """Test that predict extracts only entities matching configured types."""
+        # Arrange
+        mock_nlp = Mock()
+        mock_nlp.pipe_names = []
+
+        # Create mock entities
+        mock_entity_gpe = Mock()
+        mock_entity_gpe.label_ = "GPE"
+        mock_entity_gpe.start_char = 0
+        mock_entity_gpe.end_char = 8
+
+        mock_entity_person = Mock()
+        mock_entity_person.label_ = "PERSON"
+        mock_entity_person.start_char = 10
+        mock_entity_person.end_char = 15
+
+        mock_doc = Mock()
+        mock_doc.ents = [mock_entity_gpe, mock_entity_person]
+        mock_nlp.pipe.return_value = [mock_doc]
+        mock_spacy_load.return_value = mock_nlp
+
+        recognizer = SpacyRecognizer(entity_types=["GPE"])
+        texts = ["New York and John"]
+
+        # Act
+        results = recognizer.predict(texts)
+
+        # Assert
+        assert len(results) == 1
+        assert len(results[0]) == 1  # Only GPE entity
+        assert results[0][0] == (0, 8)
+
+    @patch("geoparser.modules.recognizers.spacy.spacy.load")
+    def test_returns_empty_list_when_no_matching_entities(self, mock_spacy_load):
+        """Test that predict returns empty list when no matching entities found."""
+        # Arrange
+        mock_nlp = Mock()
+        mock_nlp.pipe_names = []
+
+        mock_doc = Mock()
+        mock_doc.ents = []
+        mock_nlp.pipe.return_value = [mock_doc]
+        mock_spacy_load.return_value = mock_nlp
+
+        recognizer = SpacyRecognizer()
+        texts = ["No entities here"]
+
+        # Act
+        results = recognizer.predict(texts)
+
+        # Assert
+        assert len(results) == 1
+        assert results[0] == []
+
+    @patch("geoparser.modules.recognizers.spacy.spacy.load")
+    def test_processes_multiple_texts(self, mock_spacy_load):
+        """Test that predict processes multiple texts correctly."""
+        # Arrange
+        mock_nlp = Mock()
+        mock_nlp.pipe_names = []
+
+        # Mock documents
+        mock_doc1 = Mock()
+        mock_entity1 = Mock()
+        mock_entity1.label_ = "GPE"
+        mock_entity1.start_char = 0
+        mock_entity1.end_char = 5
+        mock_doc1.ents = [mock_entity1]
+
+        mock_doc2 = Mock()
+        mock_entity2 = Mock()
+        mock_entity2.label_ = "LOC"
+        mock_entity2.start_char = 0
+        mock_entity2.end_char = 4
+        mock_doc2.ents = [mock_entity2]
+
+        mock_nlp.pipe.return_value = [mock_doc1, mock_doc2]
+        mock_spacy_load.return_value = mock_nlp
+
+        recognizer = SpacyRecognizer(entity_types=["GPE", "LOC"])
+        texts = ["Paris", "Rome"]
+
+        # Act
+        results = recognizer.predict(texts)
+
+        # Assert
+        assert len(results) == 2
+        assert results[0] == [(0, 5)]
+        assert results[1] == [(0, 4)]
+
+    @patch("geoparser.modules.recognizers.spacy.spacy.load")
+    def test_handles_empty_text_list(self, mock_spacy_load):
+        """Test that predict handles empty text list."""
+        # Arrange
+        mock_nlp = Mock()
+        mock_nlp.pipe_names = []
+        mock_nlp.pipe.return_value = []
+        mock_spacy_load.return_value = mock_nlp
+
+        recognizer = SpacyRecognizer()
+        texts = []
+
+        # Act
+        results = recognizer.predict(texts)
+
+        # Assert
+        assert results == []
+
+    @patch("geoparser.modules.recognizers.spacy.spacy.load")
+    def test_returns_character_offsets(self, mock_spacy_load):
+        """Test that predict returns character offsets, not token offsets."""
+        # Arrange
+        mock_nlp = Mock()
+        mock_nlp.pipe_names = []
+
+        mock_entity = Mock()
+        mock_entity.label_ = "GPE"
+        mock_entity.start_char = 10  # Character offset
+        mock_entity.end_char = 20
+
+        mock_doc = Mock()
+        mock_doc.ents = [mock_entity]
+        mock_nlp.pipe.return_value = [mock_doc]
+        mock_spacy_load.return_value = mock_nlp
+
+        recognizer = SpacyRecognizer()
+        texts = ["Some text New York here"]
+
+        # Act
+        results = recognizer.predict(texts)
+
+        # Assert
+        assert results[0][0] == (10, 20)  # Character offsets, not token positions
