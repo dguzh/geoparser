@@ -49,6 +49,10 @@ def test_session(test_engine: Engine) -> Session:
     test do not affect other tests. This provides complete isolation while sharing
     a single database engine across all tests.
 
+    Uses expire_on_commit=False so that ORM objects remain accessible even after
+    the session commits, which matches the pattern used in production code (e.g.,
+    Project.get_documents()).
+
     Args:
         test_engine: Session-scoped test database engine
 
@@ -57,7 +61,7 @@ def test_session(test_engine: Engine) -> Session:
     """
     connection = test_engine.connect()
     transaction = connection.begin()
-    session = Session(bind=connection)
+    session = Session(bind=connection, expire_on_commit=False)
 
     yield session
 
