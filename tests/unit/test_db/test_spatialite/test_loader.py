@@ -165,10 +165,9 @@ class TestLoadSpatialiteExtension:
         # Act
         load_spatialite_extension(mock_connection, spatialite_path)
 
-        # Assert
-        mock_connection.load_extension.assert_called_once_with(
-            "/fake/path/mod_spatialite"
-        )
+        # Assert - Check that the path without suffix was used (platform-agnostic)
+        expected_path = str(spatialite_path.with_suffix(""))
+        mock_connection.load_extension.assert_called_once_with(expected_path)
 
     @patch("geoparser.db.spatialite.loader.platform.system")
     @patch("geoparser.db.spatialite.loader.os.environ", {"PATH": "/original/path"})
