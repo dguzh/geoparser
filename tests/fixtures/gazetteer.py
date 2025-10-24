@@ -23,22 +23,21 @@ def andorra_config_path() -> Path:
     return Path(__file__).parent / "gazetteer" / "andorranames.yaml"
 
 
-def install_andorra_gazetteer(test_engine: Engine, config_path: Path) -> None:
+@pytest.fixture(scope="function")
+def andorra_gazetteer(test_engine: Engine, andorra_config_path: Path) -> None:
     """
-    Install the Andorra gazetteer into the given database engine.
+    Install the Andorra gazetteer into the test database.
 
-    This helper function patches the global engine to use the provided test engine,
-    then installs the Andorra gazetteer.
-
-    Use this in integration tests that need gazetteer data.
+    This fixture automatically installs the Andorra gazetteer for tests that need it.
+    It uses the test_engine fixture and installs the gazetteer before the test runs.
 
     Args:
-        test_engine: SQLAlchemy Engine instance to install gazetteer into
-        config_path: Path to andorranames.yaml configuration file
+        test_engine: Function-scoped test database engine (from database fixtures)
+        andorra_config_path: Path to andorranames.yaml configuration file
     """
     from geoparser.gazetteer.installer import GazetteerInstaller
 
-    # Patch the single source of truth for the engine
-    with patch("geoparser.db.engine.engine", test_engine):
+    # Patch the engine getter to return our test engine
+    with patch("geoparser.db.engine.get_engine", return_value=test_engine):
         installer = GazetteerInstaller()
-        installer.install(config_path, chunksize=5000, keep_downloads=False)
+        installer.install(andorra_config_path, chunksize=5000, keep_downloads=False)

@@ -18,15 +18,21 @@ from geoparser.project import Project
 class TestCompleteGeoparsingPipeline:
     """End-to-end tests for complete geoparsing workflow."""
 
-    def test_project_workflow_with_manual_modules(self, test_engine):
+    def test_project_workflow_with_manual_modules(self, test_engine, andorra_gazetteer):
         """Test complete Project API workflow with manual recognizer and resolver."""
         # Arrange
-        texts = ["Paris is the capital of France."]
-        references = [[(0, 5), (24, 30)]]  # "Paris" and "France"
-        referents = [[("geonames", "2988507"), ("geonames", "3017382")]]  # Sample IDs
+        texts = ["Andorra la Vella is the capital of Andorra."]
+        references = [[(0, 17), (39, 46)]]  # "Andorra la Vella" and "Andorra"
+        referents = [
+            [
+                ("andorranames", "3041563"),  # Andorra la Vella
+                ("andorranames", "3041565"),  # Principality of Andorra
+            ]
+        ]
 
-        # Patch the single source of truth for the engine
-        with patch("geoparser.db.engine.engine", test_engine):
+        # Patch the engine getter to return our test engine
+        # Note: andorra_gazetteer fixture already installed the gazetteer
+        with patch("geoparser.db.engine.get_engine", return_value=test_engine):
             # Act - Create project and documents
             project = Project("e2e_test_project")
             project.create_documents(texts)
@@ -56,27 +62,32 @@ class TestCompleteGeoparsingPipeline:
             doc = documents[0]
             assert len(doc.toponyms) == 2
 
-            # Check first toponym
+            # Check first toponym (Andorra la Vella)
             toponym1 = doc.toponyms[0]
             assert toponym1.start == 0
-            assert toponym1.end == 5
+            assert toponym1.end == 17
             assert toponym1.location is not None
 
-            # Check second toponym
+            # Check second toponym (Andorra)
             toponym2 = doc.toponyms[1]
-            assert toponym2.start == 24
-            assert toponym2.end == 30
+            assert toponym2.start == 39
+            assert toponym2.end == 46
             assert toponym2.location is not None
 
             # Cleanup
             project.delete()
 
-    def test_geoparser_stateless_workflow(self, test_engine):
+    def test_geoparser_stateless_workflow(self, test_engine, andorra_gazetteer):
         """Test Geoparser stateless API workflow."""
         # Arrange
-        texts = ["London is a city in England."]
-        references = [[(0, 6), (20, 27)]]  # "London" and "England"
-        referents = [[("geonames", "2643743"), ("geonames", "6269131")]]
+        texts = ["les Escaldes is a city in Andorra."]
+        references = [[(0, 12), (27, 34)]]  # "les Escaldes" and "Andorra"
+        referents = [
+            [
+                ("andorranames", "3040051"),  # les Escaldes
+                ("andorranames", "3041565"),  # Principality of Andorra
+            ]
+        ]
 
         recognizer = ManualRecognizer(
             label="manual_rec", texts=texts, references=references
@@ -88,8 +99,9 @@ class TestCompleteGeoparsingPipeline:
             referents=referents,
         )
 
-        # Patch the single source of truth for the engine
-        with patch("geoparser.db.engine.engine", test_engine):
+        # Patch the engine getter to return our test engine
+        # Note: andorra_gazetteer fixture already installed the gazetteer
+        with patch("geoparser.db.engine.get_engine", return_value=test_engine):
             # Act
             geoparser = Geoparser(recognizer=recognizer, resolver=resolver)
             documents = geoparser.parse(texts, save=False)
@@ -102,27 +114,28 @@ class TestCompleteGeoparsingPipeline:
             # Both toponyms should have locations
             assert all(toponym.location is not None for toponym in doc.toponyms)
 
-    def test_multiple_documents_workflow(self, test_engine):
+    def test_multiple_documents_workflow(self, test_engine, andorra_gazetteer):
         """Test workflow with multiple documents."""
-        # Arrange
+        # Arrange - Using actual Andorra locations
         texts = [
-            "Berlin is in Germany.",
-            "Tokyo is in Japan.",
+            "Andorra la Vella is the capital.",
+            "les Escaldes is nearby.",
             "No locations here.",
         ]
         references = [
-            [(0, 6), (13, 20)],  # Doc 1: "Berlin", "Germany"
-            [(0, 5), (12, 17)],  # Doc 2: "Tokyo", "Japan"
+            [(0, 17)],  # Doc 1: "Andorra la Vella"
+            [(0, 12)],  # Doc 2: "les Escaldes"
             [],  # Doc 3: no references
         ]
         referents = [
-            [("geonames", "2950159"), ("geonames", "2921044")],
-            [("geonames", "1850144"), ("geonames", "1861060")],
+            [("andorranames", "3041563")],  # Andorra la Vella
+            [("andorranames", "3040051")],  # les Escaldes
             [],
         ]
 
-        # Patch the single source of truth for the engine
-        with patch("geoparser.db.engine.engine", test_engine):
+        # Patch the engine getter to return our test engine
+        # Note: andorra_gazetteer fixture already installed the gazetteer
+        with patch("geoparser.db.engine.get_engine", return_value=test_engine):
             # Act
             project = Project("multi_doc_test")
             project.create_documents(texts)
@@ -147,13 +160,13 @@ class TestCompleteGeoparsingPipeline:
             # Assert
             assert len(documents) == 3
 
-            # Doc 1: 2 toponyms
-            assert len(documents[0].toponyms) == 2
-            assert all(t.location is not None for t in documents[0].toponyms)
+            # Doc 1: 1 toponym (Andorra la Vella)
+            assert len(documents[0].toponyms) == 1
+            assert documents[0].toponyms[0].location is not None
 
-            # Doc 2: 2 toponyms
-            assert len(documents[1].toponyms) == 2
-            assert all(t.location is not None for t in documents[1].toponyms)
+            # Doc 2: 1 toponym (les Escaldes)
+            assert len(documents[1].toponyms) == 1
+            assert documents[1].toponyms[0].location is not None
 
             # Doc 3: 0 toponyms
             assert len(documents[2].toponyms) == 0
@@ -170,8 +183,8 @@ class TestCompleteGeoparsingPipeline:
         references1 = [[(0, 5)]]  # Just "Paris"
         references2 = [[(0, 5), (11, 15)]]  # "Paris" and "city"
 
-        # Patch the single source of truth for the engine
-        with patch("geoparser.db.engine.engine", test_engine):
+        # Patch the engine getter to return our test engine
+        with patch("geoparser.db.engine.get_engine", return_value=test_engine):
             # Act
             project = Project("context_test")
             project.create_documents(texts)
@@ -213,8 +226,8 @@ class TestErrorHandling:
 
     def test_handles_empty_text_list(self, test_engine):
         """Test that pipeline handles empty text list gracefully."""
-        # Patch the single source of truth for the engine
-        with patch("geoparser.db.engine.engine", test_engine):
+        # Patch the engine getter to return our test engine
+        with patch("geoparser.db.engine.get_engine", return_value=test_engine):
             # Act
             project = Project("empty_test")
             project.create_documents([])
@@ -232,8 +245,8 @@ class TestErrorHandling:
         texts = ["Test text"]
         references = [[(0, 4)]]
 
-        # Patch the single source of truth for the engine
-        with patch("geoparser.db.engine.engine", test_engine):
+        # Patch the engine getter to return our test engine
+        with patch("geoparser.db.engine.get_engine", return_value=test_engine):
             project = Project("delete_test")
             project.create_documents(texts)
 
