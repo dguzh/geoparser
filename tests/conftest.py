@@ -28,7 +28,3 @@ def pytest_configure(config):
         "markers", "integration: Integration tests with real dependencies"
     )
     config.addinivalue_line("markers", "e2e: End-to-end pipeline tests")
-    config.addinivalue_line("markers", "slow: Tests that take >1 second")
-    config.addinivalue_line(
-        "markers", "requires_gazetteer: Tests requiring Andorra gazetteer"
-    )
