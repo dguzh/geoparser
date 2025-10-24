@@ -52,6 +52,7 @@ class SentenceTransformerResolver(Resolver):
         gazetteer_name: str = "geonames",
         min_similarity: float = 0.7,
         max_iter: int = 3,
+        attribute_map: dict = None,
     ):
         """
         Initialize the SentenceTransformerResolver.
@@ -61,6 +62,10 @@ class SentenceTransformerResolver(Resolver):
             gazetteer_name: Name of the gazetteer to search
             min_similarity: Minimum similarity threshold to stop candidate generation
             max_iter: Maximum number of iterations through search methods with increasing ranks
+            attribute_map: Optional custom attribute mapping for gazetteer.
+                          If None, will look up gazetteer_name in GAZETTEER_ATTRIBUTE_MAP.
+                          If provided, will be used directly.
+                          Should have keys: "name", "type", "level1", "level2", "level3"
         """
         # Initialize parent with the parameters
         super().__init__(
@@ -68,6 +73,7 @@ class SentenceTransformerResolver(Resolver):
             gazetteer_name=gazetteer_name,
             min_similarity=min_similarity,
             max_iter=max_iter,
+            attribute_map=attribute_map,
         )
 
         # Store instance attributes directly from parameters
@@ -75,6 +81,11 @@ class SentenceTransformerResolver(Resolver):
         self.gazetteer_name = gazetteer_name
         self.min_similarity = min_similarity
         self.max_iter = max_iter
+
+        # Validate and set attribute map
+        self.attribute_map = self._validate_and_set_attribute_map(
+            gazetteer_name, attribute_map
+        )
 
         # Initialize transformer and tokenizer
         self.transformer = SentenceTransformer(model_name)
@@ -91,6 +102,33 @@ class SentenceTransformerResolver(Resolver):
         self.candidate_embeddings: Dict[int, torch.Tensor] = (
             {}
         )  # feature_id -> embedding
+
+    def _validate_and_set_attribute_map(
+        self, gazetteer_name: str, attribute_map: dict = None
+    ) -> dict:
+        """
+        Validate and set the attribute map for the gazetteer.
+
+        Args:
+            gazetteer_name: Name of the gazetteer
+            attribute_map: Optional custom attribute mapping
+
+        Returns:
+            The validated attribute map dictionary
+
+        Raises:
+            ValueError: If gazetteer is not configured and no custom map is provided
+        """
+        if attribute_map is None:
+            # Look up in GAZETTEER_ATTRIBUTE_MAP
+            if gazetteer_name not in self.GAZETTEER_ATTRIBUTE_MAP:
+                raise ValueError(
+                    f"Gazetteer '{gazetteer_name}' is not configured in GAZETTEER_ATTRIBUTE_MAP. "
+                    f"Please provide a custom attribute_map parameter."
+                )
+            return self.GAZETTEER_ATTRIBUTE_MAP[gazetteer_name]
+        else:
+            return attribute_map
 
     def predict(
         self, texts: t.List[str], references: t.List[t.List[t.Tuple[int, int]]]
@@ -461,13 +499,8 @@ class SentenceTransformerResolver(Resolver):
         # Get location data
         location_data = candidate.data
 
-        # Get attribute mappings for this gazetteer
-        if self.gazetteer_name not in self.GAZETTEER_ATTRIBUTE_MAP:
-            raise ValueError(
-                f"Gazetteer '{self.gazetteer_name}' is not configured in GAZETTEER_ATTRIBUTE_MAP"
-            )
-
-        attr_map = self.GAZETTEER_ATTRIBUTE_MAP[self.gazetteer_name]
+        # Use the attribute map that was set during initialization
+        attr_map = self.attribute_map
 
         # Extract attributes
         feature_name = location_data.get(attr_map["name"])

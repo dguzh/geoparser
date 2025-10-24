@@ -148,11 +148,20 @@ def real_sentencetransformer_resolver():
         SentenceTransformerResolver instance with loaded model
     """
     # Use a small model for faster testing
+    # Andorra gazetteer uses GeoNames format, so provide that attribute map
+    andorra_attribute_map = {
+        "name": "name",
+        "type": "feature_name",
+        "level1": "country_name",
+        "level2": "admin1_name",
+        "level3": "admin2_name",
+    }
     return SentenceTransformerResolver(
         model_name="sentence-transformers/all-MiniLM-L6-v2",
         gazetteer_name="andorranames",
         min_similarity=0.5,
         max_iter=2,
+        attribute_map=andorra_attribute_map,
     )
 
 
@@ -161,12 +170,15 @@ def real_manual_resolver():
     """
     Create a real ManualResolver with test data.
 
+    Uses Andorra gazetteer data for referents.
+
     Returns:
         ManualResolver instance with sample annotations
     """
     texts = ["Test text"]
     references = [[(0, 4)]]
-    referents = [[("geonames", "123")]]
+    # Use a known feature from Andorra gazetteer (Andorra la Vella, geonameid 3041563)
+    referents = [[("andorranames", "3041563")]]
     return ManualResolver(
         label="test", texts=texts, references=references, referents=referents
     )

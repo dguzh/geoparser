@@ -54,12 +54,21 @@ class TestSentenceTransformerResolverInitialization:
             SentenceTransformerResolver,
         )
 
+        custom_map = {
+            "name": "name",
+            "type": "type",
+            "level1": "level1",
+            "level2": "level2",
+            "level3": "level3",
+        }
+
         # Act
         resolver = SentenceTransformerResolver(
             model_name="custom-model",
             gazetteer_name="custom-gazetteer",
             min_similarity=0.8,
             max_iter=5,
+            attribute_map=custom_map,
         )
 
         # Assert
@@ -83,12 +92,21 @@ class TestSentenceTransformerResolverInitialization:
             SentenceTransformerResolver,
         )
 
+        custom_map = {
+            "name": "name",
+            "type": "type",
+            "level1": "level1",
+            "level2": "level2",
+            "level3": "level3",
+        }
+
         # Act
         resolver = SentenceTransformerResolver(
             model_name="test-model",
             gazetteer_name="test-gazetteer",
             min_similarity=0.75,
             max_iter=4,
+            attribute_map=custom_map,
         )
 
         # Assert
@@ -175,8 +193,18 @@ class TestSentenceTransformerResolverInitialization:
             SentenceTransformerResolver,
         )
 
+        custom_map = {
+            "name": "name",
+            "type": "type",
+            "level1": "level1",
+            "level2": "level2",
+            "level3": "level3",
+        }
+
         # Act
-        resolver = SentenceTransformerResolver(gazetteer_name="test-gazetteer")
+        resolver = SentenceTransformerResolver(
+            gazetteer_name="test-gazetteer", attribute_map=custom_map
+        )
 
         # Assert
         mock_gazetteer_class.assert_called_once_with("test-gazetteer")
@@ -242,14 +270,175 @@ class TestSentenceTransformerResolverInitialization:
 
         # Act
         resolver1 = SentenceTransformerResolver(
-            model_name="model1", gazetteer_name="gaz1", min_similarity=0.7, max_iter=3
+            model_name="model1",
+            gazetteer_name="geonames",
+            min_similarity=0.7,
+            max_iter=3,
         )
         resolver2 = SentenceTransformerResolver(
-            model_name="model1", gazetteer_name="gaz1", min_similarity=0.7, max_iter=3
+            model_name="model1",
+            gazetteer_name="geonames",
+            min_similarity=0.7,
+            max_iter=3,
         )
 
         # Assert
         assert resolver1.id == resolver2.id
+
+    @patch("geoparser.modules.resolvers.sentencetransformer.spacy.load")
+    @patch(
+        "geoparser.modules.resolvers.sentencetransformer.AutoTokenizer.from_pretrained"
+    )
+    @patch("geoparser.modules.resolvers.sentencetransformer.SentenceTransformer")
+    @patch("geoparser.modules.resolvers.sentencetransformer.Gazetteer")
+    def test_accepts_custom_attribute_map(
+        self, mock_gazetteer, mock_transformer, mock_tokenizer, mock_spacy_load
+    ):
+        """Test that custom attribute_map is accepted and stored."""
+        # Arrange
+        from geoparser.modules.resolvers.sentencetransformer import (
+            SentenceTransformerResolver,
+        )
+
+        custom_map = {
+            "name": "custom_name",
+            "type": "custom_type",
+            "level1": "custom_level1",
+            "level2": "custom_level2",
+            "level3": "custom_level3",
+        }
+
+        # Act
+        resolver = SentenceTransformerResolver(
+            gazetteer_name="custom_gazetteer", attribute_map=custom_map
+        )
+
+        # Assert
+        assert resolver.attribute_map == custom_map
+
+    @patch("geoparser.modules.resolvers.sentencetransformer.spacy.load")
+    @patch(
+        "geoparser.modules.resolvers.sentencetransformer.AutoTokenizer.from_pretrained"
+    )
+    @patch("geoparser.modules.resolvers.sentencetransformer.SentenceTransformer")
+    @patch("geoparser.modules.resolvers.sentencetransformer.Gazetteer")
+    def test_raises_error_for_unknown_gazetteer_without_attribute_map(
+        self, mock_gazetteer, mock_transformer, mock_tokenizer, mock_spacy_load
+    ):
+        """Test that error is raised for unknown gazetteer when no attribute_map provided."""
+        # Arrange
+        from geoparser.modules.resolvers.sentencetransformer import (
+            SentenceTransformerResolver,
+        )
+
+        # Act & Assert
+        with pytest.raises(
+            ValueError, match="not configured in GAZETTEER_ATTRIBUTE_MAP"
+        ):
+            SentenceTransformerResolver(gazetteer_name="unknown_gazetteer")
+
+    @patch("geoparser.modules.resolvers.sentencetransformer.spacy.load")
+    @patch(
+        "geoparser.modules.resolvers.sentencetransformer.AutoTokenizer.from_pretrained"
+    )
+    @patch("geoparser.modules.resolvers.sentencetransformer.SentenceTransformer")
+    @patch("geoparser.modules.resolvers.sentencetransformer.Gazetteer")
+    def test_uses_gazetteer_attribute_map_when_no_custom_map(
+        self, mock_gazetteer, mock_transformer, mock_tokenizer, mock_spacy_load
+    ):
+        """Test that GAZETTEER_ATTRIBUTE_MAP is used when no custom map provided."""
+        # Arrange
+        from geoparser.modules.resolvers.sentencetransformer import (
+            SentenceTransformerResolver,
+        )
+
+        # Act
+        resolver = SentenceTransformerResolver(gazetteer_name="geonames")
+
+        # Assert
+        expected_map = SentenceTransformerResolver.GAZETTEER_ATTRIBUTE_MAP["geonames"]
+        assert resolver.attribute_map == expected_map
+
+    @patch("geoparser.modules.resolvers.sentencetransformer.spacy.load")
+    @patch(
+        "geoparser.modules.resolvers.sentencetransformer.AutoTokenizer.from_pretrained"
+    )
+    @patch("geoparser.modules.resolvers.sentencetransformer.SentenceTransformer")
+    @patch("geoparser.modules.resolvers.sentencetransformer.Gazetteer")
+    def test_validate_and_set_attribute_map_returns_custom_map(
+        self, mock_gazetteer, mock_transformer, mock_tokenizer, mock_spacy_load
+    ):
+        """Test that _validate_and_set_attribute_map returns custom map when provided."""
+        # Arrange
+        from geoparser.modules.resolvers.sentencetransformer import (
+            SentenceTransformerResolver,
+        )
+
+        custom_map = {
+            "name": "test_name",
+            "type": "test_type",
+            "level1": "test_level1",
+            "level2": "test_level2",
+            "level3": "test_level3",
+        }
+
+        # Act
+        resolver = SentenceTransformerResolver(
+            gazetteer_name="any-gazetteer", attribute_map=custom_map
+        )
+        result = resolver._validate_and_set_attribute_map("any-gazetteer", custom_map)
+
+        # Assert
+        assert result == custom_map
+
+    @patch("geoparser.modules.resolvers.sentencetransformer.spacy.load")
+    @patch(
+        "geoparser.modules.resolvers.sentencetransformer.AutoTokenizer.from_pretrained"
+    )
+    @patch("geoparser.modules.resolvers.sentencetransformer.SentenceTransformer")
+    @patch("geoparser.modules.resolvers.sentencetransformer.Gazetteer")
+    def test_validate_and_set_attribute_map_looks_up_configured_gazetteer(
+        self, mock_gazetteer, mock_transformer, mock_tokenizer, mock_spacy_load
+    ):
+        """Test that _validate_and_set_attribute_map looks up configured gazetteer."""
+        # Arrange
+        from geoparser.modules.resolvers.sentencetransformer import (
+            SentenceTransformerResolver,
+        )
+
+        # Act
+        resolver = SentenceTransformerResolver(gazetteer_name="geonames")
+        result = resolver._validate_and_set_attribute_map("geonames", None)
+
+        # Assert
+        expected_map = SentenceTransformerResolver.GAZETTEER_ATTRIBUTE_MAP["geonames"]
+        assert result == expected_map
+
+    @patch("geoparser.modules.resolvers.sentencetransformer.spacy.load")
+    @patch(
+        "geoparser.modules.resolvers.sentencetransformer.AutoTokenizer.from_pretrained"
+    )
+    @patch("geoparser.modules.resolvers.sentencetransformer.SentenceTransformer")
+    @patch("geoparser.modules.resolvers.sentencetransformer.Gazetteer")
+    def test_validate_and_set_attribute_map_raises_for_unknown_gazetteer(
+        self, mock_gazetteer, mock_transformer, mock_tokenizer, mock_spacy_load
+    ):
+        """Test that _validate_and_set_attribute_map raises error for unknown gazetteer."""
+        # Arrange
+        from geoparser.modules.resolvers.sentencetransformer import (
+            SentenceTransformerResolver,
+        )
+
+        # Create a resolver first (to access the method)
+        resolver = SentenceTransformerResolver(
+            gazetteer_name="geonames"
+        )  # Use valid gazetteer
+
+        # Act & Assert
+        with pytest.raises(
+            ValueError, match="not configured in GAZETTEER_ATTRIBUTE_MAP"
+        ):
+            resolver._validate_and_set_attribute_map("unknown_gazetteer", None)
 
 
 @pytest.mark.unit
@@ -632,23 +821,41 @@ class TestSentenceTransformerResolverHelperMethods:
     )
     @patch("geoparser.modules.resolvers.sentencetransformer.SentenceTransformer")
     @patch("geoparser.modules.resolvers.sentencetransformer.Gazetteer")
-    def test_generate_description_raises_error_for_unknown_gazetteer(
+    def test_generate_description_uses_custom_attribute_map(
         self, mock_gazetteer, mock_transformer, mock_tokenizer, mock_spacy_load
     ):
-        """Test that _generate_description raises error for unknown gazetteer."""
+        """Test that _generate_description uses custom attribute_map."""
         # Arrange
         from geoparser.modules.resolvers.sentencetransformer import (
             SentenceTransformerResolver,
         )
 
-        resolver = SentenceTransformerResolver(gazetteer_name="unknown_gazetteer")
+        custom_map = {
+            "name": "custom_name",
+            "type": "custom_type",
+            "level1": "custom_level1",
+            "level2": "custom_level2",
+            "level3": "custom_level3",
+        }
+
+        resolver = SentenceTransformerResolver(
+            gazetteer_name="custom_gazetteer", attribute_map=custom_map
+        )
 
         mock_candidate = Mock()
-        mock_candidate.data = {"name": "Paris"}
+        mock_candidate.data = {
+            "custom_name": "Paris",
+            "custom_type": "city",
+            "custom_level1": "France",
+        }
 
-        # Act & Assert
-        with pytest.raises(ValueError, match="not configured"):
-            resolver._generate_description(mock_candidate)
+        # Act
+        description = resolver._generate_description(mock_candidate)
+
+        # Assert - Should use custom attribute names
+        assert "Paris" in description
+        assert "city" in description
+        assert "France" in description
 
     @patch("geoparser.modules.resolvers.sentencetransformer.spacy.load")
     @patch(
