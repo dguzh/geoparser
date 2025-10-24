@@ -38,7 +38,7 @@ class TestResolutionServicePredict:
         service = ResolutionService(mock_sentencetransformer_resolver)
 
         # Act
-        with patch("geoparser.db.engine.engine"):
+        with patch("geoparser.db.engine.get_engine"):
             with patch(
                 "geoparser.services.resolution.Session", return_value=test_session
             ):
@@ -72,7 +72,7 @@ class TestResolutionServicePredict:
         service = ResolutionService(mock_sentencetransformer_resolver)
 
         # Act
-        with patch("geoparser.db.engine.engine"):
+        with patch("geoparser.db.engine.get_engine"):
             with patch(
                 "geoparser.services.resolution.Session", return_value=test_session
             ):
@@ -112,7 +112,7 @@ class TestResolutionServicePredict:
             mock_get_feature.return_value = feature
 
             # Act
-            with patch("geoparser.db.engine.engine"):
+            with patch("geoparser.db.engine.get_engine"):
                 with patch(
                     "geoparser.services.resolution.Session", return_value=test_session
                 ):
@@ -158,7 +158,7 @@ class TestResolutionServicePredict:
         service = ResolutionService(mock_sentencetransformer_resolver)
 
         # Act
-        with patch("geoparser.db.engine.engine"):
+        with patch("geoparser.db.engine.get_engine"):
             with patch(
                 "geoparser.services.resolution.Session", return_value=test_session
             ):
@@ -186,7 +186,7 @@ class TestResolutionServicePredict:
         service = ResolutionService(mock_sentencetransformer_resolver)
 
         # Act
-        with patch("geoparser.db.engine.engine"):
+        with patch("geoparser.db.engine.get_engine"):
             with patch(
                 "geoparser.services.resolution.Session", return_value=test_session
             ):
@@ -251,7 +251,7 @@ class TestResolutionServicePredict:
             mock_get_feature.return_value = feature
 
             # Act
-            with patch("geoparser.db.engine.engine"):
+            with patch("geoparser.db.engine.get_engine"):
                 with patch(
                     "geoparser.services.resolution.Session", return_value=test_session
                 ):

@@ -38,7 +38,7 @@ class TestRecognitionServicePredict:
         service = RecognitionService(mock_spacy_recognizer)
 
         # Act
-        with patch("geoparser.db.engine.engine"):
+        with patch("geoparser.db.engine.get_engine"):
             with patch(
                 "geoparser.services.recognition.Session", return_value=test_session
             ):
@@ -61,7 +61,7 @@ class TestRecognitionServicePredict:
         service = RecognitionService(mock_spacy_recognizer)
 
         # Act
-        with patch("geoparser.db.engine.engine"):
+        with patch("geoparser.db.engine.get_engine"):
             with patch(
                 "geoparser.services.recognition.Session", return_value=test_session
             ):
@@ -83,7 +83,7 @@ class TestRecognitionServicePredict:
         service = RecognitionService(mock_spacy_recognizer)
 
         # Act
-        with patch("geoparser.db.engine.engine"):
+        with patch("geoparser.db.engine.get_engine"):
             with patch(
                 "geoparser.services.recognition.Session", return_value=test_session
             ):
@@ -112,7 +112,7 @@ class TestRecognitionServicePredict:
         service = RecognitionService(mock_spacy_recognizer)
 
         # Act
-        with patch("geoparser.db.engine.engine"):
+        with patch("geoparser.db.engine.get_engine"):
             with patch(
                 "geoparser.services.recognition.Session", return_value=test_session
             ):
@@ -153,7 +153,7 @@ class TestRecognitionServicePredict:
         service = RecognitionService(mock_spacy_recognizer)
 
         # Act
-        with patch("geoparser.db.engine.engine"):
+        with patch("geoparser.db.engine.get_engine"):
             with patch(
                 "geoparser.services.recognition.Session", return_value=test_session
             ):
@@ -172,7 +172,7 @@ class TestRecognitionServicePredict:
         service = RecognitionService(mock_spacy_recognizer)
 
         # Act
-        with patch("geoparser.db.engine.engine"):
+        with patch("geoparser.db.engine.get_engine"):
             with patch(
                 "geoparser.services.recognition.Session", return_value=test_session
             ):
@@ -215,7 +215,7 @@ class TestRecognitionServicePredict:
         service = RecognitionService(mock_spacy_recognizer)
 
         # Act
-        with patch("geoparser.db.engine.engine"):
+        with patch("geoparser.db.engine.get_engine"):
             with patch(
                 "geoparser.services.recognition.Session", return_value=test_session
             ):
