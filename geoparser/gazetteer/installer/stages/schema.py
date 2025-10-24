@@ -68,9 +68,6 @@ class SchemaStage(Stage):
                 connection.execute(sa.text(create_sql))
                 connection.commit()
 
-            # Dispose engine to ensure subsequent operations see the new table
-            engine.dispose()
-
             pbar.update(1)
 
         return table_name
