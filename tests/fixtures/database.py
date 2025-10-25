@@ -6,8 +6,6 @@ Each test gets a completely fresh database, ensuring perfect isolation without
 needing transaction rollback.
 """
 
-from unittest.mock import patch
-
 import pytest
 from sqlalchemy import Engine
 from sqlalchemy.pool import StaticPool
@@ -70,17 +68,16 @@ def patch_get_engine(test_engine):
     This fixture runs automatically for every test function, ensuring that any code
     calling get_engine() will use the test database instead of the production database.
 
-    We patch BOTH get_engine() and _engine for maximum compatibility:
-    1. Patching get_engine() ensures direct calls return test_engine
-    2. Patching _engine ensures the global variable points to test_engine
-
-    This dual approach handles all code paths and works reliably across platforms.
+    We directly modify the _engine variable in the module's namespace rather than
+    using unittest.mock.patch, as patch() has proven unreliable on Windows for
+    module-level variables.
 
     Yields:
-        The active patch context
+        None
     """
-    # Patch both get_engine() and _engine to cover all possible code paths
-    with patch("geoparser.db.engine.get_engine", return_value=test_engine), patch(
-        "geoparser.db.engine._engine", test_engine
-    ):
-        yield
+    import geoparser.db.engine
+
+    # Directly set _engine to test_engine
+    geoparser.db.engine._engine = test_engine
+
+    yield
