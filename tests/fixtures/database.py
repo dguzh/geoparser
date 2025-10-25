@@ -75,16 +75,20 @@ def patch_get_engine(request):
     This fixture uses pytest's request object to get the test_engine fixture,
     ensuring proper ordering and avoiding dependency issues on Windows.
 
+    We patch both get_engine() and _engine:
+    - get_engine() returns test_engine when called by the lazy proxy
+    - _engine is set to None to force reinitialization (in case it was set before patching)
+
     Yields:
         The active patch context
     """
     # Get the test_engine fixture from the request
     test_engine = request.getfixturevalue("test_engine")
 
-    # We patch:
-    # 1. geoparser.db.engine.get_engine - returns test engine when called by lazy proxy
-    # 2. geoparser.db.models.feature.engine - used in @cached_property closures
+    # Patch get_engine() and reset _engine to None
+    # This ensures that even if _engine was initialized before patching,
+    # it will be reinitialized with our test_engine
     with patch("geoparser.db.engine.get_engine", return_value=test_engine), patch(
-        "geoparser.db.models.feature.engine", test_engine
+        "geoparser.db.engine._engine", None
     ):
         yield
