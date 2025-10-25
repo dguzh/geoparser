@@ -69,15 +69,11 @@ def patch_get_engine(request):
 
     This fixture runs automatically for every test function, ensuring that any code
     calling geoparser.db.engine.get_engine() will receive the test database instead
-    of the production database. This eliminates the need to manually patch get_engine
-    in every test.
+    of the production database.
 
-    This fixture uses pytest's request object to get the test_engine fixture,
-    ensuring proper ordering and avoiding dependency issues on Windows.
-
-    We patch both get_engine() and _engine:
-    - get_engine() returns test_engine when called by the lazy proxy
-    - _engine is set to None to force reinitialization (in case it was set before patching)
+    The _EngineProxy class in geoparser.db.engine delegates all attribute access to
+    get_engine(), so patching get_engine() is sufficient to redirect all database
+    operations to the test database. This works reliably across all platforms.
 
     Yields:
         The active patch context
@@ -85,10 +81,6 @@ def patch_get_engine(request):
     # Get the test_engine fixture from the request
     test_engine = request.getfixturevalue("test_engine")
 
-    # Patch get_engine() and reset _engine to None
-    # This ensures that even if _engine was initialized before patching,
-    # it will be reinitialized with our test_engine
-    with patch("geoparser.db.engine.get_engine", return_value=test_engine), patch(
-        "geoparser.db.engine._engine", None
-    ):
+    # Patch get_engine() - the _EngineProxy calls this for every attribute access
+    with patch("geoparser.db.engine.get_engine", return_value=test_engine):
         yield

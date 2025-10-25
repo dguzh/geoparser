@@ -82,7 +82,23 @@ def get_engine() -> Engine:
     return _engine
 
 
+class _EngineProxy:
+    """
+    A simple proxy that delegates all attribute access to get_engine().
+
+    This allows 'engine' to be imported and used like a normal Engine object,
+    while still maintaining lazy initialization and being easily testable.
+    """
+
+    def __getattr__(self, name):
+        """Delegate all attribute access to the result of get_engine()."""
+        return getattr(get_engine(), name)
+
+    def __repr__(self):
+        """Return a helpful representation."""
+        return f"<EngineProxy to {get_engine()!r}>"
+
+
 # Export engine for direct use - it will be created lazily when accessed
-engine = type(
-    "LazyEngine", (), {"__getattr__": lambda self, name: getattr(get_engine(), name)}
-)()
+# This can be imported and used like: from geoparser.db.engine import engine
+engine = _EngineProxy()
