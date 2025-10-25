@@ -35,94 +35,104 @@ class TestGazetteerInstallerIntegration:
         assert gazetteer is not None
         assert gazetteer.name == "andorranames"
 
-    def test_creates_source_records(self, andorra_gazetteer, test_session):
+    def test_creates_source_records(self, test_engine, andorra_gazetteer, test_session):
         """Test that installer creates source records."""
         # Arrange & Act - andorra_gazetteer fixture installs the gazetteer
 
         # Assert
-        statement = (
-            select(Source).join(Gazetteer).where(Gazetteer.name == "andorranames")
-        )
-        sources = test_session.exec(statement).all()
-        assert len(sources) > 0
+        with patch("geoparser.db.engine.get_engine", return_value=test_engine):
+            statement = (
+                select(Source).join(Gazetteer).where(Gazetteer.name == "andorranames")
+            )
+            sources = test_session.exec(statement).all()
+            assert len(sources) > 0
 
-    def test_creates_feature_records(self, andorra_gazetteer, test_session):
+    def test_creates_feature_records(
+        self, test_engine, andorra_gazetteer, test_session
+    ):
         """Test that installer creates feature records from data files."""
         # Arrange & Act - andorra_gazetteer fixture installs the gazetteer
 
         # Assert
-        statement = (
-            select(Feature)
-            .join(Source)
-            .join(Gazetteer)
-            .where(Gazetteer.name == "andorranames")
-        )
-        features = test_session.exec(statement).unique().all()
-        assert len(features) > 0  # Should have loaded Andorra features
+        with patch("geoparser.db.engine.get_engine", return_value=test_engine):
+            statement = (
+                select(Feature)
+                .join(Source)
+                .join(Gazetteer)
+                .where(Gazetteer.name == "andorranames")
+            )
+            features = test_session.exec(statement).unique().all()
+            assert len(features) > 0  # Should have loaded Andorra features
 
-    def test_creates_name_records(self, andorra_gazetteer, test_session):
+    def test_creates_name_records(self, test_engine, andorra_gazetteer, test_session):
         """Test that installer creates name records for features."""
         # Arrange & Act - andorra_gazetteer fixture installs the gazetteer
 
         # Assert
-        statement = (
-            select(Name)
-            .join(Feature)
-            .join(Source)
-            .join(Gazetteer)
-            .where(Gazetteer.name == "andorranames")
-        )
-        names = test_session.exec(statement).all()
-        assert len(names) > 0  # Should have loaded feature names
+        with patch("geoparser.db.engine.get_engine", return_value=test_engine):
+            statement = (
+                select(Name)
+                .join(Feature)
+                .join(Source)
+                .join(Gazetteer)
+                .where(Gazetteer.name == "andorranames")
+            )
+            names = test_session.exec(statement).all()
+            assert len(names) > 0  # Should have loaded feature names
 
-    def test_features_have_geometry(self, andorra_gazetteer, test_session):
+    def test_features_have_geometry(self, test_engine, andorra_gazetteer, test_session):
         """Test that installed features have geometry information."""
         # Arrange & Act - andorra_gazetteer fixture installs the gazetteer
 
         # Assert
-        statement = (
-            select(Feature)
-            .join(Source)
-            .join(Gazetteer)
-            .where(Gazetteer.name == "andorranames")
-            .limit(10)
-        )
-        features = test_session.exec(statement).unique().all()
-        # Check that features have geometry (at least some should)
-        features_with_geometry = [f for f in features if hasattr(f, "geometry")]
-        assert len(features_with_geometry) > 0
+        with patch("geoparser.db.engine.get_engine", return_value=test_engine):
+            statement = (
+                select(Feature)
+                .join(Source)
+                .join(Gazetteer)
+                .where(Gazetteer.name == "andorranames")
+                .limit(10)
+            )
+            features = test_session.exec(statement).unique().all()
+            # Check that features have geometry (at least some should)
+            features_with_geometry = [f for f in features if hasattr(f, "geometry")]
+            assert len(features_with_geometry) > 0
 
-    def test_creates_fts_indexes(self, andorra_gazetteer, test_session):
+    def test_creates_fts_indexes(self, test_engine, andorra_gazetteer, test_session):
         """Test that FTS (Full-Text Search) indexes are created."""
         # Arrange & Act - andorra_gazetteer fixture installs the gazetteer
 
         # Assert - Check that FTS tables exist
-        sql = text(
-            """
-            SELECT 1 FROM sqlite_master 
-            WHERE type='table' AND name LIKE '%_fts'
-            """
-        )
-        results = test_session.exec(sql).all()
-        # FTS indexes may not be created for all gazetteers
-        # Just verify the query runs without error
-        assert isinstance(results, list)
+        with patch("geoparser.db.engine.get_engine", return_value=test_engine):
+            sql = text(
+                """
+                SELECT 1 FROM sqlite_master 
+                WHERE type='table' AND name LIKE '%_fts'
+                """
+            )
+            results = test_session.exec(sql).all()
+            # FTS indexes may not be created for all gazetteers
+            # Just verify the query runs without error
+            assert isinstance(results, list)
 
-    def test_creates_spatial_indexes(self, andorra_gazetteer, test_session):
+    def test_creates_spatial_indexes(
+        self, test_engine, andorra_gazetteer, test_session
+    ):
         """Test that spatial indexes are created."""
         # Arrange & Act - andorra_gazetteer fixture installs the gazetteer
 
         # Assert - Check that spatial indexes exist
-        sql = text(
-            """
-            SELECT 1 FROM sqlite_master 
-            WHERE type='table' AND name LIKE 'idx_%'
-            """
-        )
-        results = test_session.exec(sql).all()
-        # Note: Spatial indexes may be created differently
-        # Just verify query runs without error
-        assert isinstance(results, list)
+        with patch("geoparser.db.engine.get_engine", return_value=test_engine):
+            sql = text(
+                """
+                SELECT 1 FROM sqlite_master 
+                WHERE type='table' AND name LIKE 'idx_%'
+                """
+            )
+            results = test_session.exec(sql).all()
+            # Note: Spatial indexes may be created differently
+            # Just verify query runs without error
+            assert isinstance(results, list)
 
     def test_installs_specific_andorra_location(self, test_engine, andorra_gazetteer):
         """Test that specific known Andorra location is installed."""
@@ -241,21 +251,24 @@ class TestGazetteerInstallerIntegration:
         assert gazetteer is not None
         assert not downloads_dir.exists(), "Downloads directory should be removed"
 
-    def test_features_have_location_id(self, andorra_gazetteer, test_session):
+    def test_features_have_location_id(
+        self, test_engine, andorra_gazetteer, test_session
+    ):
         """Test that all features have a location_id_value."""
         # Arrange & Act - andorra_gazetteer fixture installs the gazetteer
 
         # Assert
-        statement = (
-            select(Feature)
-            .join(Source)
-            .join(Gazetteer)
-            .where(Gazetteer.name == "andorranames")
-            .limit(10)
-        )
-        features = test_session.exec(statement).unique().all()
-        # All features should have location_id_value
-        assert all(f.location_id_value is not None for f in features)
+        with patch("geoparser.db.engine.get_engine", return_value=test_engine):
+            statement = (
+                select(Feature)
+                .join(Source)
+                .join(Gazetteer)
+                .where(Gazetteer.name == "andorranames")
+                .limit(10)
+            )
+            features = test_session.exec(statement).unique().all()
+            # All features should have location_id_value
+            assert all(f.location_id_value is not None for f in features)
 
     def test_installs_into_empty_database(
         self, test_engine, test_session, andorra_config_path
