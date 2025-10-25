@@ -2,7 +2,7 @@ from typing import Any, Dict
 
 import sqlalchemy as sa
 
-from geoparser.db.engine import engine
+from geoparser.db.engine import get_engine
 from geoparser.gazetteer.installer.model import SourceConfig
 from geoparser.gazetteer.installer.queries.ddl import TableBuilder, ViewBuilder
 from geoparser.gazetteer.installer.stages.base import Stage
@@ -64,7 +64,7 @@ class SchemaStage(Stage):
             # Create new table
             create_sql = self.table_builder.build_create_table(source, table_name)
 
-            with engine.connect() as connection:
+            with get_engine().connect() as connection:
                 connection.execute(sa.text(create_sql))
                 connection.commit()
 
@@ -82,7 +82,7 @@ class SchemaStage(Stage):
         Args:
             table_name: Name of the table to drop
         """
-        with engine.connect() as connection:
+        with get_engine().connect() as connection:
             try:
                 # Try SpatiaLite's DropTable first (handles spatial tables)
                 connection.execute(
@@ -108,14 +108,14 @@ class SchemaStage(Stage):
 
         with create_progress_bar(1, f"Creating {view_name}", "view") as pbar:
             # Drop existing view if it exists
-            with engine.connect() as connection:
+            with get_engine().connect() as connection:
                 connection.execute(sa.text(f"DROP VIEW IF EXISTS {view_name}"))
                 connection.commit()
 
             # Create new view
             create_sql = self.view_builder.build_create_view(source, view_name)
 
-            with engine.connect() as connection:
+            with get_engine().connect() as connection:
                 connection.execute(sa.text(create_sql))
                 connection.commit()
 

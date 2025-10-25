@@ -5,7 +5,7 @@ import geopandas as gpd
 import pandas as pd
 import pyogrio
 
-from geoparser.db.engine import engine
+from geoparser.db.engine import get_engine
 from geoparser.gazetteer.installer.model import DataType, SourceConfig
 from geoparser.gazetteer.installer.strategies.base import LoadStrategy
 from geoparser.gazetteer.installer.utils.progress import create_progress_bar
@@ -121,7 +121,7 @@ class SpatialLoadStrategy(LoadStrategy):
             chunk = chunk.drop(columns=[geometry_attr.name])
 
         # Load to database
-        with engine.connect() as connection:
+        with get_engine().connect() as connection:
             pd.DataFrame(chunk).to_sql(
                 table_name, connection, index=False, if_exists="append"
             )

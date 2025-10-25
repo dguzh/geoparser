@@ -10,7 +10,7 @@ from geoparser.db.crud import (
     ResolutionRepository,
     ResolverRepository,
 )
-from geoparser.db.engine import engine
+from geoparser.db.engine import get_engine
 from geoparser.db.models import ReferentCreate, ResolutionCreate, ResolverCreate
 
 if t.TYPE_CHECKING:
@@ -47,7 +47,7 @@ class ResolutionService:
         Returns:
             The resolver ID from the database
         """
-        with Session(engine) as db:
+        with Session(get_engine()) as db:
             resolver_record = ResolverRepository.get(db, id=resolver.id)
             if resolver_record is None:
                 resolver_create = ResolverCreate(
@@ -71,7 +71,7 @@ class ResolutionService:
         # Ensure resolver record exists in database and get the ID
         resolver_id = self._ensure_resolver_record(self.resolver)
 
-        with Session(engine) as db:
+        with Session(get_engine()) as db:
             # Collect data for prediction
             texts = []
             reference_boundaries = []

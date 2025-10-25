@@ -6,7 +6,7 @@ from appdirs import user_data_dir
 from sqlmodel import Session
 
 from geoparser.db.crud.gazetteer import GazetteerRepository
-from geoparser.db.engine import engine
+from geoparser.db.engine import get_engine
 from geoparser.db.models.gazetteer import GazetteerCreate
 from geoparser.gazetteer.installer.model import GazetteerConfig, SourceConfig
 from geoparser.gazetteer.installer.stages.acquisition import AcquisitionStage
@@ -116,7 +116,7 @@ class GazetteerInstaller:
         Args:
             gazetteer_name: Name of the gazetteer
         """
-        with Session(engine) as db:
+        with Session(get_engine()) as db:
             # Check if gazetteer already exists
             gazetteer_record = GazetteerRepository.get_by_name(db, gazetteer_name)
 

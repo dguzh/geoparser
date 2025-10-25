@@ -6,7 +6,7 @@ from shapely.geometry.base import BaseGeometry
 from sqlalchemy import UniqueConstraint
 from sqlmodel import Field, Relationship, Session, SQLModel, text
 
-from geoparser.db.engine import engine
+from geoparser.db.engine import get_engine
 
 if t.TYPE_CHECKING:
     from geoparser.db.models.name import Name
@@ -54,7 +54,7 @@ class Feature(FeatureBase, table=True):
         Returns:
             Dictionary containing all columns from the gazetteer row, or None if not found
         """
-        with Session(engine) as db:
+        with Session(get_engine()) as db:
             try:
                 # Build query to get the complete row
                 query = text(
@@ -91,7 +91,7 @@ class Feature(FeatureBase, table=True):
         Returns:
             Shapely geometry object, or None if no geometry exists for this feature
         """
-        with Session(engine) as db:
+        with Session(get_engine()) as db:
             try:
                 # Use SpatiaLite's AsBinary() to convert to standard WKB format
                 query = text(

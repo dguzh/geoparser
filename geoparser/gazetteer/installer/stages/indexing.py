@@ -2,7 +2,7 @@ from typing import Any, Dict, List, Tuple
 
 import sqlalchemy as sa
 
-from geoparser.db.engine import engine
+from geoparser.db.engine import get_engine
 from geoparser.gazetteer.installer.model import DataType, SourceConfig
 from geoparser.gazetteer.installer.stages.base import Stage
 from geoparser.gazetteer.installer.utils.progress import create_progress_bar
@@ -78,7 +78,7 @@ class IndexingStage(Stage):
             table_name: Name of the table
             indexed_columns: List of (column_name, column_type) tuples
         """
-        with engine.connect() as connection:
+        with get_engine().connect() as connection:
             for column_name, column_type in indexed_columns:
                 try:
                     if column_type == DataType.GEOMETRY:

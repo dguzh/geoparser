@@ -5,7 +5,7 @@ from sqlmodel import Session
 
 from geoparser.db.crud.gazetteer import GazetteerRepository
 from geoparser.db.crud.source import SourceRepository
-from geoparser.db.engine import engine
+from geoparser.db.engine import get_engine
 from geoparser.db.models.source import SourceCreate
 from geoparser.gazetteer.installer.model import SourceConfig
 from geoparser.gazetteer.installer.queries.dml import FeatureRegistrationBuilder
@@ -71,7 +71,7 @@ class RegistrationStage(Stage):
         Returns:
             Source record
         """
-        with Session(engine) as db:
+        with Session(get_engine()) as db:
             # Get gazetteer record
             gazetteer_record = GazetteerRepository.get_by_name(db, self.gazetteer_name)
 
@@ -105,7 +105,7 @@ class RegistrationStage(Stage):
             f"Registering {source.name}",
             "source",
         ) as pbar:
-            with engine.connect() as connection:
+            with get_engine().connect() as connection:
                 connection.execute(sa.text(insert_sql))
                 connection.commit()
             pbar.update(1)
@@ -143,7 +143,7 @@ class RegistrationStage(Stage):
                 f"Registering {source.name}.{name_column}",
                 "column",
             ) as pbar:
-                with engine.connect() as connection:
+                with get_engine().connect() as connection:
                     connection.execute(sa.text(insert_sql))
                     connection.commit()
                 pbar.update(1)

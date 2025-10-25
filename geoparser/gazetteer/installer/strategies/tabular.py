@@ -3,7 +3,7 @@ from typing import Dict
 
 import pandas as pd
 
-from geoparser.db.engine import engine
+from geoparser.db.engine import get_engine
 from geoparser.gazetteer.installer.model import DataType, SourceConfig
 from geoparser.gazetteer.installer.strategies.base import LoadStrategy
 from geoparser.gazetteer.installer.utils.progress import create_progress_bar
@@ -130,5 +130,5 @@ class TabularLoadStrategy(LoadStrategy):
         chunk = chunk[keep_columns]
 
         # Load to database
-        with engine.connect() as connection:
+        with get_engine().connect() as connection:
             chunk.to_sql(table_name, connection, index=False, if_exists="append")

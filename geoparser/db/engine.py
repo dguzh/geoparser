@@ -80,30 +80,3 @@ def get_engine() -> Engine:
         SQLModel.metadata.create_all(_engine)
 
     return _engine
-
-
-class _EngineProxy:
-    """
-    A simple proxy that delegates all attribute and method access to get_engine().
-
-    This allows 'engine' to be imported and used like a normal Engine object,
-    while still maintaining lazy initialization and being easily testable.
-
-    The proxy implements special methods to ensure it behaves like the actual
-    Engine object in all contexts, including type checks and method calls.
-    """
-
-    def __getattribute__(self, name):
-        """
-        Override attribute access to delegate to get_engine() for all non-special attributes.
-
-        This ensures that even attributes checked during initialization (like by SQLAlchemy's
-        Session) are properly delegated to the actual engine.
-        """
-        # Delegate to the actual engine
-        return getattr(get_engine(), name)
-
-
-# Export engine for direct use - it will be created lazily when accessed
-# This can be imported and used like: from geoparser.db.engine import engine
-engine = _EngineProxy()

@@ -4,7 +4,7 @@ from typing import List
 from sqlmodel import Session
 
 from geoparser.db.crud.feature import FeatureRepository
-from geoparser.db.engine import engine
+from geoparser.db.engine import get_engine
 from geoparser.db.models.feature import Feature
 
 
@@ -72,7 +72,7 @@ class Gazetteer:
         if method not in method_map:
             raise ValueError(f"Unknown search method: {method}")
 
-        with Session(engine) as db:
+        with Session(get_engine()) as db:
             return method_map[method](db)
 
     def find(self, identifier: str) -> Feature | None:
@@ -85,7 +85,7 @@ class Gazetteer:
         Returns:
             Feature object if found, None otherwise
         """
-        with Session(engine) as db:
+        with Session(get_engine()) as db:
             return FeatureRepository.get_by_gazetteer_and_identifier(
                 db, self.gazetteer_name, identifier
             )

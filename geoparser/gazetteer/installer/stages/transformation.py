@@ -2,7 +2,7 @@ from typing import Any, Dict, Optional
 
 import sqlalchemy as sa
 
-from geoparser.db.engine import engine
+from geoparser.db.engine import get_engine
 from geoparser.gazetteer.installer.model import DataType, SourceConfig
 from geoparser.gazetteer.installer.queries.ddl import TableBuilder
 from geoparser.gazetteer.installer.queries.dml import TransformationBuilder
@@ -55,7 +55,7 @@ class TransformationStage(Stage):
         if not source.attributes.derived:
             return
 
-        with engine.connect() as connection:
+        with get_engine().connect() as connection:
             for attr in source.attributes.derived:
                 # Build appropriate UPDATE statement
                 if attr.type == DataType.GEOMETRY:
@@ -92,7 +92,7 @@ class TransformationStage(Stage):
         if geometry_attr is None:
             return
 
-        with engine.connect() as connection:
+        with get_engine().connect() as connection:
             try:
                 # Add SpatiaLite geometry column
                 add_geometry_sql = self.table_builder.build_add_geometry_column(

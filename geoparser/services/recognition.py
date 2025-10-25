@@ -9,7 +9,7 @@ from geoparser.db.crud import (
     RecognizerRepository,
     ReferenceRepository,
 )
-from geoparser.db.engine import engine
+from geoparser.db.engine import get_engine
 from geoparser.db.models import RecognitionCreate, RecognizerCreate, ReferenceCreate
 
 if t.TYPE_CHECKING:
@@ -46,7 +46,7 @@ class RecognitionService:
         Returns:
             The recognizer ID from the database
         """
-        with Session(engine) as db:
+        with Session(get_engine()) as db:
             recognizer_record = RecognizerRepository.get(db, id=recognizer.id)
             if recognizer_record is None:
                 recognizer_create = RecognizerCreate(
@@ -70,7 +70,7 @@ class RecognitionService:
         # Ensure recognizer record exists in database and get the ID
         recognizer_id = self._ensure_recognizer_record(self.recognizer)
 
-        with Session(engine) as db:
+        with Session(get_engine()) as db:
             # Filter out documents that have already been processed by this recognizer
             unprocessed_documents = self._filter_unprocessed_documents(
                 db, documents, recognizer_id

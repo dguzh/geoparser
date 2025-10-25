@@ -7,7 +7,7 @@ from typing import List, Union
 from sqlmodel import Session
 
 from geoparser.db.crud import DocumentRepository, ProjectRepository
-from geoparser.db.engine import engine
+from geoparser.db.engine import get_engine
 from geoparser.db.models import Document, DocumentCreate, ProjectCreate
 from geoparser.modules.recognizers.manual import ManualRecognizer
 from geoparser.modules.resolvers.manual import ManualResolver
@@ -50,7 +50,7 @@ class Project:
         Returns:
             Project ID from the database
         """
-        with Session(engine) as db:
+        with Session(get_engine()) as db:
             # Try to load existing project
             project_record = ProjectRepository.get_by_name(db, name)
 
@@ -72,7 +72,7 @@ class Project:
         if isinstance(texts, str):
             texts = [texts]
 
-        with Session(engine) as db:
+        with Session(get_engine()) as db:
             for text in texts:
                 document_create = DocumentCreate(text=text, project_id=self.id)
                 DocumentRepository.create(db, document_create)
@@ -127,7 +127,7 @@ class Project:
         Returns:
             List of Document objects with context set for filtering.
         """
-        with Session(engine, expire_on_commit=False) as db:
+        with Session(get_engine(), expire_on_commit=False) as db:
             # Retrieve all documents for the project
             documents = DocumentRepository.get_by_project(db, self.id)
 
@@ -307,5 +307,5 @@ class Project:
         This will remove the project, all its documents, references, referents,
         recognitions, and resolutions due to cascade delete relationships.
         """
-        with Session(engine) as db:
+        with Session(get_engine()) as db:
             ProjectRepository.delete(db, id=self.id)
