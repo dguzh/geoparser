@@ -239,7 +239,7 @@ class TestErrorHandling:
             # Cleanup
             project.delete()
 
-    def test_project_delete_removes_all_data(self, test_engine):
+    def test_project_delete_removes_all_data(self, test_engine, test_session):
         """Test that project.delete() removes all associated data."""
         # Arrange
         texts = ["Test text"]
@@ -259,10 +259,7 @@ class TestErrorHandling:
             project.delete()
 
             # Assert - Project should no longer exist
-            from sqlmodel import Session
-
             from geoparser.db.crud import ProjectRepository
 
-            with Session(test_engine) as test_db:
-                retrieved_project = ProjectRepository.get(test_db, project.id)
-                assert retrieved_project is None
+            retrieved_project = ProjectRepository.get(test_session, project.id)
+            assert retrieved_project is None
