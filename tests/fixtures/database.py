@@ -6,6 +6,8 @@ Each test gets a completely fresh database, ensuring perfect isolation without
 needing transaction rollback.
 """
 
+from unittest.mock import patch
+
 import pytest
 from sqlalchemy import Engine
 from sqlalchemy.pool import StaticPool
@@ -68,19 +70,39 @@ def patch_get_engine(test_engine):
     This fixture runs automatically for every test function, ensuring that any code
     calling get_engine() will use the test database instead of the production database.
 
-    We directly modify the _engine variable and get_engine() function in the module's
-    namespace rather than using unittest.mock.patch, as patch() has proven unreliable
-    on Windows for module-level variables.
-
     Yields:
-        None
+        The active patch context
     """
-    import geoparser.db.engine
-
-    # Set _engine directly
-    geoparser.db.engine._engine = test_engine
-
-    # Replace get_engine() to always return test_engine
-    geoparser.db.engine.get_engine = lambda: test_engine
-
-    yield
+    # Patch get_engine() in every module that imports it
+    with patch(
+        "geoparser.db.models.feature.get_engine", return_value=test_engine
+    ), patch(
+        "geoparser.gazetteer.gazetteer.get_engine", return_value=test_engine
+    ), patch(
+        "geoparser.project.project.get_engine", return_value=test_engine
+    ), patch(
+        "geoparser.services.recognition.get_engine", return_value=test_engine
+    ), patch(
+        "geoparser.services.resolution.get_engine", return_value=test_engine
+    ), patch(
+        "geoparser.gazetteer.installer.installer.get_engine", return_value=test_engine
+    ), patch(
+        "geoparser.gazetteer.installer.stages.registration.get_engine",
+        return_value=test_engine,
+    ), patch(
+        "geoparser.gazetteer.installer.stages.schema.get_engine",
+        return_value=test_engine,
+    ), patch(
+        "geoparser.gazetteer.installer.stages.transformation.get_engine",
+        return_value=test_engine,
+    ), patch(
+        "geoparser.gazetteer.installer.stages.indexing.get_engine",
+        return_value=test_engine,
+    ), patch(
+        "geoparser.gazetteer.installer.strategies.spatial.get_engine",
+        return_value=test_engine,
+    ), patch(
+        "geoparser.gazetteer.installer.strategies.tabular.get_engine",
+        return_value=test_engine,
+    ):
+        yield
