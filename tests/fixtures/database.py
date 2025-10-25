@@ -63,7 +63,7 @@ def test_session(test_engine: Engine) -> Session:
 
 
 @pytest.fixture(scope="function", autouse=True)
-def patch_get_engine(test_engine: Engine):
+def patch_get_engine(request):
     """
     Automatically patch get_engine() to return test_engine for all tests.
 
@@ -72,11 +72,16 @@ def patch_get_engine(test_engine: Engine):
     of the production database. This eliminates the need to manually patch get_engine
     in every test.
 
-    Args:
-        test_engine: Function-scoped test database engine
+    This fixture uses pytest's request object to get the test_engine fixture,
+    ensuring proper ordering and avoiding dependency issues on Windows.
 
     Yields:
         The active patch context
     """
+    # Get the test_engine fixture from the request
+    test_engine = request.getfixturevalue("test_engine")
+
+    # Patch get_engine() to return our test engine
+    # The lazy engine proxy will automatically use this patched function
     with patch("geoparser.db.engine.get_engine", return_value=test_engine):
         yield
