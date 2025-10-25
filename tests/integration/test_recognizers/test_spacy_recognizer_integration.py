@@ -154,7 +154,6 @@ class TestSpacyRecognizerIntegration:
             for i in range(len(results[0]) - 1):
                 assert results[0][i][0] < results[0][i + 1][0]
 
-    @pytest.mark.slow
     def test_handles_long_text(self, real_spacy_recognizer):
         """Test that SpacyRecognizer can process longer texts."""
         # Arrange
