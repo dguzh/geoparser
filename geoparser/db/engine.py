@@ -84,19 +84,24 @@ def get_engine() -> Engine:
 
 class _EngineProxy:
     """
-    A simple proxy that delegates all attribute access to get_engine().
+    A simple proxy that delegates all attribute and method access to get_engine().
 
     This allows 'engine' to be imported and used like a normal Engine object,
     while still maintaining lazy initialization and being easily testable.
+
+    The proxy implements special methods to ensure it behaves like the actual
+    Engine object in all contexts, including type checks and method calls.
     """
 
-    def __getattr__(self, name):
-        """Delegate all attribute access to the result of get_engine()."""
-        return getattr(get_engine(), name)
+    def __getattribute__(self, name):
+        """
+        Override attribute access to delegate to get_engine() for all non-special attributes.
 
-    def __repr__(self):
-        """Return a helpful representation."""
-        return f"<EngineProxy to {get_engine()!r}>"
+        This ensures that even attributes checked during initialization (like by SQLAlchemy's
+        Session) are properly delegated to the actual engine.
+        """
+        # Delegate to the actual engine
+        return getattr(get_engine(), name)
 
 
 # Export engine for direct use - it will be created lazily when accessed
