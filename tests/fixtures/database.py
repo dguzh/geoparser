@@ -6,8 +6,6 @@ Each test gets a completely fresh database, ensuring perfect isolation without
 needing transaction rollback.
 """
 
-from unittest.mock import patch
-
 import pytest
 from sqlalchemy import Engine
 from sqlalchemy.pool import StaticPool
@@ -63,46 +61,53 @@ def test_session(test_engine: Engine) -> Session:
 
 
 @pytest.fixture(scope="function", autouse=True)
-def patch_get_engine(test_engine):
+def patch_get_engine(test_engine, monkeypatch):
     """
     Automatically redirect get_engine() to use test_engine for all tests.
 
     This fixture runs automatically for every test function, ensuring that any code
     calling get_engine() will use the test database instead of the production database.
 
-    Yields:
-        The active patch context
+    We use monkeypatch instead of unittest.mock.patch because monkeypatch can modify
+    already-imported module attributes. When modules do "from X import Y", they create
+    a local binding to the function object. We must patch the function in each module's
+    namespace where it was imported.
+
+    Args:
+        test_engine: The test database engine
+        monkeypatch: Pytest's monkeypatch fixture
     """
+
+    # Create a function that returns the test_engine
+    def mock_get_engine():
+        return test_engine
+
     # Patch get_engine() in every module that imports it
-    with patch(
-        "geoparser.db.models.feature.get_engine", return_value=test_engine
-    ), patch(
-        "geoparser.gazetteer.gazetteer.get_engine", return_value=test_engine
-    ), patch(
-        "geoparser.project.project.get_engine", return_value=test_engine
-    ), patch(
-        "geoparser.services.recognition.get_engine", return_value=test_engine
-    ), patch(
-        "geoparser.services.resolution.get_engine", return_value=test_engine
-    ), patch(
-        "geoparser.gazetteer.installer.installer.get_engine", return_value=test_engine
-    ), patch(
-        "geoparser.gazetteer.installer.stages.registration.get_engine",
-        return_value=test_engine,
-    ), patch(
-        "geoparser.gazetteer.installer.stages.schema.get_engine",
-        return_value=test_engine,
-    ), patch(
+    # We must patch each module's local binding, not just the source
+    monkeypatch.setattr("geoparser.db.models.feature.get_engine", mock_get_engine)
+    monkeypatch.setattr("geoparser.gazetteer.gazetteer.get_engine", mock_get_engine)
+    monkeypatch.setattr("geoparser.project.project.get_engine", mock_get_engine)
+    monkeypatch.setattr("geoparser.services.recognition.get_engine", mock_get_engine)
+    monkeypatch.setattr("geoparser.services.resolution.get_engine", mock_get_engine)
+    monkeypatch.setattr(
+        "geoparser.gazetteer.installer.installer.get_engine", mock_get_engine
+    )
+    monkeypatch.setattr(
+        "geoparser.gazetteer.installer.stages.registration.get_engine", mock_get_engine
+    )
+    monkeypatch.setattr(
+        "geoparser.gazetteer.installer.stages.schema.get_engine", mock_get_engine
+    )
+    monkeypatch.setattr(
         "geoparser.gazetteer.installer.stages.transformation.get_engine",
-        return_value=test_engine,
-    ), patch(
-        "geoparser.gazetteer.installer.stages.indexing.get_engine",
-        return_value=test_engine,
-    ), patch(
-        "geoparser.gazetteer.installer.strategies.spatial.get_engine",
-        return_value=test_engine,
-    ), patch(
-        "geoparser.gazetteer.installer.strategies.tabular.get_engine",
-        return_value=test_engine,
-    ):
-        yield
+        mock_get_engine,
+    )
+    monkeypatch.setattr(
+        "geoparser.gazetteer.installer.stages.indexing.get_engine", mock_get_engine
+    )
+    monkeypatch.setattr(
+        "geoparser.gazetteer.installer.strategies.spatial.get_engine", mock_get_engine
+    )
+    monkeypatch.setattr(
+        "geoparser.gazetteer.installer.strategies.tabular.get_engine", mock_get_engine
+    )
