@@ -68,16 +68,19 @@ def patch_get_engine(test_engine):
     This fixture runs automatically for every test function, ensuring that any code
     calling get_engine() will use the test database instead of the production database.
 
-    We directly modify the _engine variable in the module's namespace rather than
-    using unittest.mock.patch, as patch() has proven unreliable on Windows for
-    module-level variables.
+    We directly modify the _engine variable and get_engine() function in the module's
+    namespace rather than using unittest.mock.patch, as patch() has proven unreliable
+    on Windows for module-level variables.
 
     Yields:
         None
     """
     import geoparser.db.engine
 
-    # Directly set _engine to test_engine
+    # Set _engine directly
     geoparser.db.engine._engine = test_engine
+
+    # Replace get_engine() to always return test_engine
+    geoparser.db.engine.get_engine = lambda: test_engine
 
     yield
