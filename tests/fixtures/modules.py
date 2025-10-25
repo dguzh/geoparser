@@ -60,13 +60,14 @@ def mock_manual_recognizer():
 # Real Recognizers for Integration Tests
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="function")
 def real_spacy_recognizer():
     """
     Create a real SpacyRecognizer with actual spaCy model.
 
-    This fixture is session-scoped because loading the spaCy model is expensive.
-    The model is loaded once and reused across all integration tests.
+    This fixture is function-scoped to ensure proper test isolation. While loading
+    the spaCy model is expensive (~1-2s per test), this approach guarantees that
+    each test has its own isolated state and no cross-test contamination.
 
     Returns:
         SpacyRecognizer instance with loaded model
@@ -133,16 +134,20 @@ def mock_manual_resolver():
 # Real Resolvers for Integration Tests
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="function")
 def real_sentencetransformer_resolver():
     """
     Create a real SentenceTransformerResolver with actual transformer model.
 
-    This fixture is session-scoped because loading the transformer model is expensive.
-    The model is loaded once and reused across all integration tests.
+    This fixture is function-scoped to ensure proper test isolation. While loading
+    the transformer model is expensive (~2-3s per test), this approach guarantees
+    that each test has its own isolated state and no cross-test contamination.
 
-    Note: Uses a small model for faster testing. Integration tests should use
-    the Andorra gazetteer for realistic candidate generation.
+    Note: Uses a small model for faster testing. Tests that need gazetteer access
+    should explicitly request the andorra_gazetteer fixture to populate the database.
+
+    IMPORTANT: Tests using this fixture MUST patch get_engine to return test_engine
+    to prevent production database access.
 
     Returns:
         SentenceTransformerResolver instance with loaded model
@@ -156,8 +161,9 @@ def real_sentencetransformer_resolver():
         "level2": "admin1_name",
         "level3": "admin2_name",
     }
+
     return SentenceTransformerResolver(
-        model_name="sentence-transformers/all-MiniLM-L6-v2",
+        model_name="dguzh/geo-all-MiniLM-L6-v2",
         gazetteer_name="andorranames",
         min_similarity=0.5,
         max_iter=2,

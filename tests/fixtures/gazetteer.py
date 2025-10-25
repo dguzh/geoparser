@@ -29,7 +29,8 @@ def andorra_gazetteer(test_engine: Engine, andorra_config_path: Path) -> None:
     Install the Andorra gazetteer into the test database.
 
     This fixture automatically installs the Andorra gazetteer for tests that need it.
-    It uses the test_engine fixture and installs the gazetteer before the test runs.
+    It uses the function-scoped test_engine fixture to ensure each test has its own
+    isolated database with fresh gazetteer data.
 
     Args:
         test_engine: Function-scoped test database engine (from database fixtures)
