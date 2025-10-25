@@ -177,10 +177,9 @@ class TestSpacyRecognizerIntegration:
         # Should find many entities in the long text
         assert len(results[0]) > 10
 
-    def test_fit_trains_model_with_annotations(self, tmp_path):
+    def test_fit_trains_model_with_annotations(self, real_spacy_recognizer, tmp_path):
         """Test that fit method trains the model with provided annotations."""
         # Arrange
-        recognizer = SpacyRecognizer(model_name="en_core_web_sm")
         texts = [
             "New York is a city.",
             "Paris is in France.",
@@ -194,7 +193,7 @@ class TestSpacyRecognizerIntegration:
         output_path = tmp_path / "trained_model"
 
         # Act
-        recognizer.fit(
+        real_spacy_recognizer.fit(
             texts=texts,
             references=references,
             output_path=str(output_path),
@@ -207,33 +206,35 @@ class TestSpacyRecognizerIntegration:
         # Check that model files were created
         assert len(list(output_path.iterdir())) > 0
 
-    def test_fit_raises_error_with_no_training_data(self, tmp_path):
+    def test_fit_raises_error_with_no_training_data(
+        self, real_spacy_recognizer, tmp_path
+    ):
         """Test that fit raises error when no training examples can be created."""
         # Arrange
-        recognizer = SpacyRecognizer(model_name="en_core_web_sm")
         texts = []
         references = []
         output_path = tmp_path / "trained_model"
 
         # Act & Assert
         with pytest.raises(ValueError, match="No training examples found"):
-            recognizer.fit(
+            real_spacy_recognizer.fit(
                 texts=texts,
                 references=references,
                 output_path=str(output_path),
                 epochs=1,
             )
 
-    def test_fit_creates_training_examples_from_references(self, tmp_path):
+    def test_fit_creates_training_examples_from_references(
+        self, real_spacy_recognizer, tmp_path
+    ):
         """Test that fit creates proper training examples from reference annotations."""
         # Arrange
-        recognizer = SpacyRecognizer(model_name="en_core_web_sm")
         texts = ["Berlin is in Germany.", "London is in England."]
         references = [[(0, 6)], [(0, 6)]]  # "Berlin", "London"
         output_path = tmp_path / "trained_model"
 
         # Act - Should not raise exception
-        recognizer.fit(
+        real_spacy_recognizer.fit(
             texts=texts,
             references=references,
             output_path=str(output_path),
@@ -244,16 +245,17 @@ class TestSpacyRecognizerIntegration:
         # Assert - Training completed successfully
         assert output_path.exists()
 
-    def test_fit_handles_multiple_references_per_document(self, tmp_path):
+    def test_fit_handles_multiple_references_per_document(
+        self, real_spacy_recognizer, tmp_path
+    ):
         """Test that fit handles documents with multiple references."""
         # Arrange
-        recognizer = SpacyRecognizer(model_name="en_core_web_sm")
         texts = ["Travel from Paris to London."]
         references = [[(12, 17), (21, 27)]]  # "Paris", "London"
         output_path = tmp_path / "trained_model"
 
         # Act
-        recognizer.fit(
+        real_spacy_recognizer.fit(
             texts=texts,
             references=references,
             output_path=str(output_path),
@@ -263,16 +265,17 @@ class TestSpacyRecognizerIntegration:
         # Assert
         assert output_path.exists()
 
-    def test_fit_accepts_custom_training_parameters(self, tmp_path):
+    def test_fit_accepts_custom_training_parameters(
+        self, real_spacy_recognizer, tmp_path
+    ):
         """Test that fit accepts and uses custom training parameters."""
         # Arrange
-        recognizer = SpacyRecognizer(model_name="en_core_web_sm")
         texts = ["Sydney is in Australia."]
         references = [[(0, 6)]]  # "Sydney"
         output_path = tmp_path / "trained_model"
 
         # Act - Use custom parameters
-        recognizer.fit(
+        real_spacy_recognizer.fit(
             texts=texts,
             references=references,
             output_path=str(output_path),

@@ -284,12 +284,15 @@ class TestRecognitionServiceIntegration:
             assert len(recognitions) == 1
 
     def test_fit_trains_recognizer_with_annotated_documents(
-        self, test_engine, test_session, document_factory, tmp_path
+        self,
+        test_engine,
+        test_session,
+        real_spacy_recognizer,
+        document_factory,
+        tmp_path,
     ):
         """Test that fit method trains a recognizer using annotated documents."""
         # Arrange
-        from geoparser.modules.recognizers.spacy import SpacyRecognizer
-
         # Create documents with references
         doc1 = document_factory(text="Paris is beautiful.")
         doc2 = document_factory(text="London is historic.")
@@ -306,9 +309,8 @@ class TestRecognitionServiceIntegration:
             annotation_service = RecognitionService(annotator)
             annotation_service.predict([doc1, doc2])
 
-        # Create a new recognizer to train
-        trainable_recognizer = SpacyRecognizer(model_name="en_core_web_sm")
-        service = RecognitionService(trainable_recognizer)
+        # Create a service with trainable recognizer
+        service = RecognitionService(real_spacy_recognizer)
 
         # Get documents with annotations
         test_session.refresh(doc1)
@@ -337,12 +339,15 @@ class TestRecognitionServiceIntegration:
             service.fit([document], output_path="/tmp/model")
 
     def test_fit_extracts_references_from_document_toponyms(
-        self, test_engine, test_session, document_factory, tmp_path
+        self,
+        test_engine,
+        test_session,
+        real_spacy_recognizer,
+        document_factory,
+        tmp_path,
     ):
         """Test that fit correctly extracts references from document toponyms."""
         # Arrange
-        from geoparser.modules.recognizers.spacy import SpacyRecognizer
-
         # Create and annotate documents
         doc = document_factory(text="Berlin is in Germany.")
         texts = ["Berlin is in Germany."]
@@ -355,9 +360,8 @@ class TestRecognitionServiceIntegration:
             annotation_service = RecognitionService(annotator)
             annotation_service.predict([doc])
 
-        # Create trainable recognizer
-        trainable_recognizer = SpacyRecognizer(model_name="en_core_web_sm")
-        service = RecognitionService(trainable_recognizer)
+        # Create service with trainable recognizer
+        service = RecognitionService(real_spacy_recognizer)
 
         # Set context for document
         test_session.refresh(doc)
@@ -372,18 +376,15 @@ class TestRecognitionServiceIntegration:
         assert output_path.exists()
 
     def test_fit_handles_documents_without_annotations(
-        self, test_engine, document_factory, tmp_path
+        self, test_engine, real_spacy_recognizer, document_factory, tmp_path
     ):
         """Test that fit handles documents without reference annotations."""
         # Arrange
-        from geoparser.modules.recognizers.spacy import SpacyRecognizer
-
         # Create documents without annotations
         doc1 = document_factory(text="No annotations here.")
         doc2 = document_factory(text="Also no annotations.")
 
-        trainable_recognizer = SpacyRecognizer(model_name="en_core_web_sm")
-        service = RecognitionService(trainable_recognizer)
+        service = RecognitionService(real_spacy_recognizer)
 
         output_path = tmp_path / "trained_model"
 
@@ -393,12 +394,15 @@ class TestRecognitionServiceIntegration:
             service.fit([doc1, doc2], output_path=str(output_path), epochs=1)
 
     def test_fit_passes_custom_parameters_to_recognizer(
-        self, test_engine, test_session, document_factory, tmp_path
+        self,
+        test_engine,
+        test_session,
+        real_spacy_recognizer,
+        document_factory,
+        tmp_path,
     ):
         """Test that fit passes custom training parameters to recognizer."""
         # Arrange
-        from geoparser.modules.recognizers.spacy import SpacyRecognizer
-
         # Create and annotate document
         doc = document_factory(text="Tokyo is in Japan.")
         texts = ["Tokyo is in Japan."]
@@ -411,8 +415,7 @@ class TestRecognitionServiceIntegration:
             annotation_service = RecognitionService(annotator)
             annotation_service.predict([doc])
 
-        trainable_recognizer = SpacyRecognizer(model_name="en_core_web_sm")
-        service = RecognitionService(trainable_recognizer)
+        service = RecognitionService(real_spacy_recognizer)
 
         test_session.refresh(doc)
         doc._set_recognizer_context(annotator.id)
