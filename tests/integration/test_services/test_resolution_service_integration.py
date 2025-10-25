@@ -465,7 +465,8 @@ class TestResolutionServiceIntegration:
         output_path = tmp_path / "trained_model"
 
         # Act
-        service.fit([doc1, doc2], output_path=str(output_path), epochs=1)
+        with patch("geoparser.db.engine.get_engine", return_value=test_engine):
+            service.fit([doc1, doc2], output_path=str(output_path), epochs=1)
 
         # Assert - Model should be saved
         assert output_path.exists()
@@ -537,7 +538,8 @@ class TestResolutionServiceIntegration:
         output_path = tmp_path / "trained_model"
 
         # Act - Should extract referents from toponyms
-        service.fit([doc], output_path=str(output_path), epochs=1)
+        with patch("geoparser.db.engine.get_engine", return_value=test_engine):
+            service.fit([doc], output_path=str(output_path), epochs=1)
 
         # Assert
         assert output_path.exists()
@@ -635,13 +637,14 @@ class TestResolutionServiceIntegration:
         output_path = tmp_path / "trained_model"
 
         # Act - Pass custom parameters
-        service.fit(
-            [doc],
-            output_path=str(output_path),
-            epochs=2,
-            batch_size=4,
-            learning_rate=1e-5,
-        )
+        with patch("geoparser.db.engine.get_engine", return_value=test_engine):
+            service.fit(
+                [doc],
+                output_path=str(output_path),
+                epochs=2,
+                batch_size=4,
+                learning_rate=1e-5,
+            )
 
         # Assert
         assert output_path.exists()
