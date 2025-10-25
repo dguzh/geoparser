@@ -81,12 +81,10 @@ def patch_get_engine(request):
     # Get the test_engine fixture from the request
     test_engine = request.getfixturevalue("test_engine")
 
-    # Patch all three critical points to ensure test engine is used everywhere:
-    # 1. _engine: The cached singleton - prevents get_engine() from creating production DB
-    # 2. get_engine: The function - returns test engine directly when called
-    # 3. engine: The lazy proxy object - code that imported it gets test engine, not the proxy
-    # This comprehensive approach ensures all code paths use the test engine on all platforms
-    with patch("geoparser.db.engine._engine", test_engine), patch(
-        "geoparser.db.engine.get_engine", return_value=test_engine
-    ), patch("geoparser.db.engine.engine", test_engine):
+    # We patch:
+    # 1. geoparser.db.engine.get_engine - returns test engine when called by lazy proxy
+    # 2. geoparser.db.models.feature.engine - used in @cached_property closures
+    with patch("geoparser.db.engine.get_engine", return_value=test_engine), patch(
+        "geoparser.db.models.feature.engine", test_engine
+    ):
         yield
