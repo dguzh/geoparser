@@ -304,3 +304,144 @@ class TestSentenceTransformerResolverIntegration:
         assert results[0][0] is not None
         gazetteer_name, identifier = results[0][0]
         assert gazetteer_name == "andorranames"
+
+    def test_fit_trains_model_with_referent_annotations(
+        self, andorra_gazetteer, tmp_path
+    ):
+        """Test that fit method trains the model with provided referent annotations."""
+        # Arrange
+        resolver = SentenceTransformerResolver(
+            model_name="sentence-transformers/all-MiniLM-L6-v2",
+            gazetteer_name="andorranames",
+            attribute_map=ANDORRA_ATTRIBUTE_MAP,
+        )
+        texts = [
+            "Andorra la Vella is the capital.",
+            "Visit les Escaldes for shopping.",
+        ]
+        references = [[(0, 17)], [(6, 18)]]  # "Andorra la Vella", "les Escaldes"
+        referents = [
+            [("andorranames", "3041563")],
+            [("andorranames", "3041565")],
+        ]
+        output_path = tmp_path / "trained_model"
+
+        # Act
+        resolver.fit(
+            texts=texts,
+            references=references,
+            referents=referents,
+            output_path=str(output_path),
+            epochs=1,
+            batch_size=2,
+        )
+
+        # Assert - Model should be saved
+        assert output_path.exists()
+        # Check that model files were created
+        assert len(list(output_path.iterdir())) > 0
+
+    def test_fit_raises_error_with_no_training_data(self, andorra_gazetteer, tmp_path):
+        """Test that fit raises error when no training examples can be created."""
+        # Arrange
+        resolver = SentenceTransformerResolver(
+            model_name="sentence-transformers/all-MiniLM-L6-v2",
+            gazetteer_name="andorranames",
+            attribute_map=ANDORRA_ATTRIBUTE_MAP,
+        )
+        texts = []
+        references = []
+        referents = []
+        output_path = tmp_path / "trained_model"
+
+        # Act & Assert
+        with pytest.raises(ValueError, match="No training examples found"):
+            resolver.fit(
+                texts=texts,
+                references=references,
+                referents=referents,
+                output_path=str(output_path),
+                epochs=1,
+            )
+
+    def test_fit_creates_positive_and_negative_examples(
+        self, andorra_gazetteer, tmp_path
+    ):
+        """Test that fit creates both positive and negative training examples."""
+        # Arrange
+        resolver = SentenceTransformerResolver(
+            model_name="sentence-transformers/all-MiniLM-L6-v2",
+            gazetteer_name="andorranames",
+            attribute_map=ANDORRA_ATTRIBUTE_MAP,
+        )
+        texts = ["Andorra la Vella is beautiful."]
+        references = [[(0, 17)]]  # "Andorra la Vella"
+        referents = [[("andorranames", "3041563")]]
+        output_path = tmp_path / "trained_model"
+
+        # Act - Should create positive example for correct referent and negatives for others
+        resolver.fit(
+            texts=texts,
+            references=references,
+            referents=referents,
+            output_path=str(output_path),
+            epochs=1,
+        )
+
+        # Assert
+        assert output_path.exists()
+
+    def test_fit_handles_multiple_references_per_document(
+        self, andorra_gazetteer, tmp_path
+    ):
+        """Test that fit handles documents with multiple references."""
+        # Arrange
+        resolver = SentenceTransformerResolver(
+            model_name="sentence-transformers/all-MiniLM-L6-v2",
+            gazetteer_name="andorranames",
+            attribute_map=ANDORRA_ATTRIBUTE_MAP,
+        )
+        texts = ["Visit Andorra la Vella and les Escaldes."]
+        references = [[(6, 23), (28, 40)]]  # "Andorra la Vella", "les Escaldes"
+        referents = [[("andorranames", "3041563"), ("andorranames", "3041565")]]
+        output_path = tmp_path / "trained_model"
+
+        # Act
+        resolver.fit(
+            texts=texts,
+            references=references,
+            referents=referents,
+            output_path=str(output_path),
+            epochs=1,
+        )
+
+        # Assert
+        assert output_path.exists()
+
+    def test_fit_accepts_custom_training_parameters(self, andorra_gazetteer, tmp_path):
+        """Test that fit accepts and uses custom training parameters."""
+        # Arrange
+        resolver = SentenceTransformerResolver(
+            model_name="sentence-transformers/all-MiniLM-L6-v2",
+            gazetteer_name="andorranames",
+            attribute_map=ANDORRA_ATTRIBUTE_MAP,
+        )
+        texts = ["Encamp is a parish."]
+        references = [[(0, 6)]]  # "Encamp"
+        referents = [[("andorranames", "3041204")]]
+        output_path = tmp_path / "trained_model"
+
+        # Act - Use custom parameters
+        resolver.fit(
+            texts=texts,
+            references=references,
+            referents=referents,
+            output_path=str(output_path),
+            epochs=2,
+            batch_size=4,
+            learning_rate=1e-5,
+            warmup_ratio=0.2,
+        )
+
+        # Assert
+        assert output_path.exists()
