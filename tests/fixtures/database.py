@@ -6,6 +6,8 @@ Each test gets a completely fresh database, ensuring perfect isolation without
 needing transaction rollback.
 """
 
+from unittest.mock import patch
+
 import pytest
 from sqlalchemy import Engine
 from sqlalchemy.pool import StaticPool
@@ -58,3 +60,23 @@ def test_session(test_engine: Engine) -> Session:
     session = Session(bind=test_engine, expire_on_commit=False)
     yield session
     session.close()
+
+
+@pytest.fixture(scope="function", autouse=True)
+def patch_get_engine(test_engine: Engine):
+    """
+    Automatically patch get_engine() to return test_engine for all tests.
+
+    This fixture runs automatically for every test function, ensuring that any code
+    calling geoparser.db.engine.get_engine() will receive the test database instead
+    of the production database. This eliminates the need to manually patch get_engine
+    in every test.
+
+    Args:
+        test_engine: Function-scoped test database engine
+
+    Yields:
+        The active patch context
+    """
+    with patch("geoparser.db.engine.get_engine", return_value=test_engine):
+        yield

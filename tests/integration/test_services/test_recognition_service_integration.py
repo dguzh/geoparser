@@ -4,8 +4,6 @@ Integration tests for geoparser/services/recognition.py
 Tests RecognitionService with real database and recognizers.
 """
 
-from unittest.mock import patch
-
 import pytest
 
 from geoparser.modules.recognizers.manual import ManualRecognizer
@@ -17,7 +15,7 @@ class TestRecognitionServiceIntegration:
     """Integration tests for RecognitionService with real database."""
 
     def test_processes_document_with_real_spacy_recognizer(
-        self, test_engine, test_session, real_spacy_recognizer, document_factory
+        self, test_session, real_spacy_recognizer, document_factory
     ):
         """Test that service processes documents with real spaCy recognizer."""
         # Arrange
@@ -25,8 +23,7 @@ class TestRecognitionServiceIntegration:
         service = RecognitionService(recognizer=real_spacy_recognizer)
 
         # Act
-        with patch("geoparser.db.engine.get_engine", return_value=test_engine):
-            service.predict([document])
+        service.predict([document])
 
         # Assert
         # Verify recognition record was created
@@ -37,7 +34,7 @@ class TestRecognitionServiceIntegration:
         assert recognitions[0].recognizer_id == real_spacy_recognizer.id
 
     def test_creates_references_in_database(
-        self, test_engine, test_session, real_spacy_recognizer, document_factory
+        self, test_session, real_spacy_recognizer, document_factory
     ):
         """Test that service creates reference records in database."""
         # Arrange
@@ -45,8 +42,7 @@ class TestRecognitionServiceIntegration:
         service = RecognitionService(recognizer=real_spacy_recognizer)
 
         # Act
-        with patch("geoparser.db.engine.get_engine", return_value=test_engine):
-            service.predict([document])
+        service.predict([document])
 
         # Assert
         # Verify references were created
@@ -56,7 +52,7 @@ class TestRecognitionServiceIntegration:
         assert len(references) > 0  # Should find at least some locations
 
     def test_skips_already_processed_documents(
-        self, test_engine, test_session, real_spacy_recognizer, document_factory
+        self, test_session, real_spacy_recognizer, document_factory
     ):
         """Test that service doesn't reprocess already recognized documents."""
         # Arrange
@@ -64,26 +60,25 @@ class TestRecognitionServiceIntegration:
         service = RecognitionService(recognizer=real_spacy_recognizer)
 
         # Act - Process twice
-        with patch("geoparser.db.engine.get_engine", return_value=test_engine):
-            service.predict([document])
+        service.predict([document])
 
-            from geoparser.db.crud import ReferenceRepository
+        from geoparser.db.crud import ReferenceRepository
 
-            initial_ref_count = len(
-                ReferenceRepository.get_by_document(test_session, document.id)
-            )
+        initial_ref_count = len(
+            ReferenceRepository.get_by_document(test_session, document.id)
+        )
 
-            service.predict([document])
+        service.predict([document])
 
-            final_ref_count = len(
-                ReferenceRepository.get_by_document(test_session, document.id)
-            )
+        final_ref_count = len(
+            ReferenceRepository.get_by_document(test_session, document.id)
+        )
 
         # Assert - Should not create duplicate references
         assert final_ref_count == initial_ref_count
 
     def test_processes_multiple_documents(
-        self, test_engine, test_session, real_spacy_recognizer, document_factory
+        self, test_session, real_spacy_recognizer, document_factory
     ):
         """Test that service processes multiple documents in one batch."""
         # Arrange
@@ -93,8 +88,7 @@ class TestRecognitionServiceIntegration:
         service = RecognitionService(recognizer=real_spacy_recognizer)
 
         # Act
-        with patch("geoparser.db.engine.get_engine", return_value=test_engine):
-            service.predict([doc1, doc2, doc3])
+        service.predict([doc1, doc2, doc3])
 
         # Assert
         from geoparser.db.crud import RecognitionRepository
@@ -108,7 +102,7 @@ class TestRecognitionServiceIntegration:
         assert len(recognitions3) == 1
 
     def test_creates_recognizer_record_in_database(
-        self, test_engine, test_session, real_spacy_recognizer, document_factory
+        self, test_session, real_spacy_recognizer, document_factory
     ):
         """Test that service ensures recognizer record exists in database."""
         # Arrange
@@ -116,8 +110,7 @@ class TestRecognitionServiceIntegration:
         service = RecognitionService(recognizer=real_spacy_recognizer)
 
         # Act
-        with patch("geoparser.db.engine.get_engine", return_value=test_engine):
-            service.predict([document])
+        service.predict([document])
 
         # Assert
         from geoparser.db.crud import RecognizerRepository
@@ -129,7 +122,7 @@ class TestRecognitionServiceIntegration:
         assert recognizer_record.name == "SpacyRecognizer"
 
     def test_handles_document_with_no_locations(
-        self, test_engine, test_session, real_spacy_recognizer, document_factory
+        self, test_session, real_spacy_recognizer, document_factory
     ):
         """Test that service handles documents where no locations are found."""
         # Arrange
@@ -137,8 +130,7 @@ class TestRecognitionServiceIntegration:
         service = RecognitionService(recognizer=real_spacy_recognizer)
 
         # Act
-        with patch("geoparser.db.engine.get_engine", return_value=test_engine):
-            service.predict([document])
+        service.predict([document])
 
         # Assert
         from geoparser.db.crud import RecognitionRepository, ReferenceRepository
@@ -152,7 +144,7 @@ class TestRecognitionServiceIntegration:
         assert len(references) == 0
 
     def test_links_references_to_recognizer(
-        self, test_engine, test_session, real_spacy_recognizer, document_factory
+        self, test_session, real_spacy_recognizer, document_factory
     ):
         """Test that created references are linked to the correct recognizer."""
         # Arrange
@@ -160,8 +152,7 @@ class TestRecognitionServiceIntegration:
         service = RecognitionService(recognizer=real_spacy_recognizer)
 
         # Act
-        with patch("geoparser.db.engine.get_engine", return_value=test_engine):
-            service.predict([document])
+        service.predict([document])
 
         # Assert
         from geoparser.db.crud import ReferenceRepository
@@ -170,7 +161,7 @@ class TestRecognitionServiceIntegration:
         assert all(ref.recognizer_id == real_spacy_recognizer.id for ref in references)
 
     def test_works_with_manual_recognizer(
-        self, test_engine, test_session, real_manual_recognizer, document_factory
+        self, test_session, real_manual_recognizer, document_factory
     ):
         """Test that service works with ManualRecognizer."""
         # Arrange
@@ -180,8 +171,7 @@ class TestRecognitionServiceIntegration:
         service = RecognitionService(recognizer=real_manual_recognizer)
 
         # Act
-        with patch("geoparser.db.engine.get_engine", return_value=test_engine):
-            service.predict([document])
+        service.predict([document])
 
         # Assert
         from geoparser.db.crud import ReferenceRepository
@@ -190,17 +180,16 @@ class TestRecognitionServiceIntegration:
         assert len(references) == 1
         assert references[0].text == "toponym"
 
-    def test_handles_empty_document_list(self, test_engine, real_spacy_recognizer):
+    def test_handles_empty_document_list(self, real_spacy_recognizer):
         """Test that service handles empty document list gracefully."""
         # Arrange
         service = RecognitionService(recognizer=real_spacy_recognizer)
 
         # Act & Assert - Should not raise exception
-        with patch("geoparser.db.engine.get_engine", return_value=test_engine):
-            service.predict([])
+        service.predict([])
 
     def test_stores_correct_reference_positions(
-        self, test_engine, test_session, real_manual_recognizer, document_factory
+        self, test_session, real_manual_recognizer, document_factory
     ):
         """Test that reference start and end positions are stored correctly."""
         # Arrange
@@ -209,8 +198,7 @@ class TestRecognitionServiceIntegration:
         service = RecognitionService(recognizer=real_manual_recognizer)
 
         # Act
-        with patch("geoparser.db.engine.get_engine", return_value=test_engine):
-            service.predict([document])
+        service.predict([document])
 
         # Assert
         from geoparser.db.crud import ReferenceRepository
@@ -224,7 +212,7 @@ class TestRecognitionServiceIntegration:
         assert toponym_ref.text == "toponym"
 
     def test_transactions_are_committed(
-        self, test_engine, test_session, real_spacy_recognizer, document_factory
+        self, test_session, real_spacy_recognizer, document_factory
     ):
         """Test that changes are actually committed to database."""
         # Arrange
@@ -232,8 +220,7 @@ class TestRecognitionServiceIntegration:
         service = RecognitionService(recognizer=real_spacy_recognizer)
 
         # Act
-        with patch("geoparser.db.engine.get_engine", return_value=test_engine):
-            service.predict([document])
+        service.predict([document])
 
         # Assert - Verify using test_session
         from geoparser.db.crud import RecognitionRepository
@@ -242,7 +229,7 @@ class TestRecognitionServiceIntegration:
         assert len(recognitions) >= 1
 
     def test_handles_text_with_multiple_entity_types(
-        self, test_engine, test_session, real_spacy_recognizer, document_factory
+        self, test_session, real_spacy_recognizer, document_factory
     ):
         """Test that service handles texts with various entity types."""
         # Arrange
@@ -252,8 +239,7 @@ class TestRecognitionServiceIntegration:
         service = RecognitionService(recognizer=real_spacy_recognizer)
 
         # Act
-        with patch("geoparser.db.engine.get_engine", return_value=test_engine):
-            service.predict([document])
+        service.predict([document])
 
         # Assert
         from geoparser.db.crud import ReferenceRepository
@@ -263,7 +249,7 @@ class TestRecognitionServiceIntegration:
         assert any(ref.text == "Paris" for ref in references)
 
     def test_processes_large_batch_of_documents(
-        self, test_engine, test_session, real_spacy_recognizer, document_factory
+        self, test_session, real_spacy_recognizer, document_factory
     ):
         """Test that service can handle large batches efficiently."""
         # Arrange
@@ -273,8 +259,7 @@ class TestRecognitionServiceIntegration:
         service = RecognitionService(recognizer=real_spacy_recognizer)
 
         # Act
-        with patch("geoparser.db.engine.get_engine", return_value=test_engine):
-            service.predict(documents)
+        service.predict(documents)
 
         # Assert
         from geoparser.db.crud import RecognitionRepository
@@ -285,7 +270,6 @@ class TestRecognitionServiceIntegration:
 
     def test_fit_trains_recognizer_with_annotated_documents(
         self,
-        test_engine,
         test_session,
         real_spacy_recognizer,
         document_factory,
@@ -305,9 +289,8 @@ class TestRecognitionServiceIntegration:
         )
 
         # Annotate documents
-        with patch("geoparser.db.engine.get_engine", return_value=test_engine):
-            annotation_service = RecognitionService(annotator)
-            annotation_service.predict([doc1, doc2])
+        annotation_service = RecognitionService(annotator)
+        annotation_service.predict([doc1, doc2])
 
         # Create a service with trainable recognizer
         service = RecognitionService(real_spacy_recognizer)
@@ -327,7 +310,7 @@ class TestRecognitionServiceIntegration:
         assert output_path.exists()
 
     def test_fit_raises_error_for_recognizer_without_fit_method(
-        self, test_engine, document_factory, real_manual_recognizer
+        self, document_factory, real_manual_recognizer
     ):
         """Test that fit raises error when recognizer doesn't have fit method."""
         # Arrange
@@ -340,7 +323,6 @@ class TestRecognitionServiceIntegration:
 
     def test_fit_extracts_references_from_document_toponyms(
         self,
-        test_engine,
         test_session,
         real_spacy_recognizer,
         document_factory,
@@ -356,9 +338,8 @@ class TestRecognitionServiceIntegration:
             label="annotator", texts=texts, references=references
         )
 
-        with patch("geoparser.db.engine.get_engine", return_value=test_engine):
-            annotation_service = RecognitionService(annotator)
-            annotation_service.predict([doc])
+        annotation_service = RecognitionService(annotator)
+        annotation_service.predict([doc])
 
         # Create service with trainable recognizer
         service = RecognitionService(real_spacy_recognizer)
@@ -376,7 +357,7 @@ class TestRecognitionServiceIntegration:
         assert output_path.exists()
 
     def test_fit_handles_documents_without_annotations(
-        self, test_engine, real_spacy_recognizer, document_factory, tmp_path
+        self, real_spacy_recognizer, document_factory, tmp_path
     ):
         """Test that fit handles documents without reference annotations."""
         # Arrange
@@ -395,7 +376,6 @@ class TestRecognitionServiceIntegration:
 
     def test_fit_passes_custom_parameters_to_recognizer(
         self,
-        test_engine,
         test_session,
         real_spacy_recognizer,
         document_factory,
@@ -411,9 +391,8 @@ class TestRecognitionServiceIntegration:
             label="annotator", texts=texts, references=references
         )
 
-        with patch("geoparser.db.engine.get_engine", return_value=test_engine):
-            annotation_service = RecognitionService(annotator)
-            annotation_service.predict([doc])
+        annotation_service = RecognitionService(annotator)
+        annotation_service.predict([doc])
 
         service = RecognitionService(real_spacy_recognizer)
 

@@ -4,8 +4,6 @@ Integration tests for geoparser/services/resolution.py
 Tests ResolutionService with real database, resolvers, and Andorra gazetteer.
 """
 
-from unittest.mock import patch
-
 import pytest
 
 from geoparser.modules.resolvers.manual import ManualResolver
@@ -18,7 +16,6 @@ class TestResolutionServiceIntegration:
 
     def test_processes_references_with_manual_resolver(
         self,
-        test_engine,
         test_session,
         real_manual_resolver,
         document_factory,
@@ -34,8 +31,7 @@ class TestResolutionServiceIntegration:
         service = ResolutionService(resolver=real_manual_resolver)
 
         # Act
-        with patch("geoparser.db.engine.get_engine", return_value=test_engine):
-            service.predict([document])
+        service.predict([document])
 
         # Assert
         # Verify resolution record was created
@@ -47,7 +43,6 @@ class TestResolutionServiceIntegration:
 
     def test_creates_referents_in_database(
         self,
-        test_engine,
         test_session,
         real_manual_resolver,
         document_factory,
@@ -63,8 +58,7 @@ class TestResolutionServiceIntegration:
         service = ResolutionService(resolver=real_manual_resolver)
 
         # Act
-        with patch("geoparser.db.engine.get_engine", return_value=test_engine):
-            service.predict([document])
+        service.predict([document])
 
         # Assert
         # Verify referent was created
@@ -75,7 +69,6 @@ class TestResolutionServiceIntegration:
 
     def test_skips_already_processed_references(
         self,
-        test_engine,
         test_session,
         real_manual_resolver,
         document_factory,
@@ -91,27 +84,25 @@ class TestResolutionServiceIntegration:
         service = ResolutionService(resolver=real_manual_resolver)
 
         # Act - Process twice
-        with patch("geoparser.db.engine.get_engine", return_value=test_engine):
-            service.predict([document])
+        service.predict([document])
 
-            from geoparser.db.crud import ReferentRepository
+        from geoparser.db.crud import ReferentRepository
 
-            initial_referent_count = len(
-                ReferentRepository.get_by_reference(test_session, reference.id)
-            )
+        initial_referent_count = len(
+            ReferentRepository.get_by_reference(test_session, reference.id)
+        )
 
-            service.predict([document])
+        service.predict([document])
 
-            final_referent_count = len(
-                ReferentRepository.get_by_reference(test_session, reference.id)
-            )
+        final_referent_count = len(
+            ReferentRepository.get_by_reference(test_session, reference.id)
+        )
 
         # Assert - Should not create duplicate referents
         assert final_referent_count == initial_referent_count
 
     def test_processes_multiple_documents_with_references(
         self,
-        test_engine,
         test_session,
         real_manual_resolver,
         document_factory,
@@ -131,8 +122,7 @@ class TestResolutionServiceIntegration:
         service = ResolutionService(resolver=real_manual_resolver)
 
         # Act
-        with patch("geoparser.db.engine.get_engine", return_value=test_engine):
-            service.predict([doc1, doc2])
+        service.predict([doc1, doc2])
 
         # Assert
         from geoparser.db.crud import ResolutionRepository
@@ -145,7 +135,6 @@ class TestResolutionServiceIntegration:
 
     def test_creates_resolver_record_in_database(
         self,
-        test_engine,
         test_session,
         real_manual_resolver,
         document_factory,
@@ -160,8 +149,7 @@ class TestResolutionServiceIntegration:
         service = ResolutionService(resolver=real_manual_resolver)
 
         # Act
-        with patch("geoparser.db.engine.get_engine", return_value=test_engine):
-            service.predict([document])
+        service.predict([document])
 
         # Assert
         from geoparser.db.crud import ResolverRepository
@@ -172,7 +160,6 @@ class TestResolutionServiceIntegration:
 
     def test_handles_document_with_no_references(
         self,
-        test_engine,
         real_manual_resolver,
         document_factory,
         andorra_gazetteer,
@@ -183,12 +170,10 @@ class TestResolutionServiceIntegration:
         service = ResolutionService(resolver=real_manual_resolver)
 
         # Act & Assert - Should not raise exception
-        with patch("geoparser.db.engine.get_engine", return_value=test_engine):
-            service.predict([document])
+        service.predict([document])
 
     def test_links_referents_to_resolver(
         self,
-        test_engine,
         test_session,
         real_manual_resolver,
         document_factory,
@@ -204,8 +189,7 @@ class TestResolutionServiceIntegration:
         service = ResolutionService(resolver=real_manual_resolver)
 
         # Act
-        with patch("geoparser.db.engine.get_engine", return_value=test_engine):
-            service.predict([document])
+        service.predict([document])
 
         # Assert
         from geoparser.db.crud import ReferentRepository
@@ -213,20 +197,16 @@ class TestResolutionServiceIntegration:
         referents = ReferentRepository.get_by_reference(test_session, reference.id)
         assert all(ref.resolver_id == real_manual_resolver.id for ref in referents)
 
-    def test_handles_empty_document_list(
-        self, test_engine, real_manual_resolver, andorra_gazetteer
-    ):
+    def test_handles_empty_document_list(self, real_manual_resolver, andorra_gazetteer):
         """Test that service handles empty document list gracefully."""
         # Arrange
         service = ResolutionService(resolver=real_manual_resolver)
 
         # Act & Assert - Should not raise exception
-        with patch("geoparser.db.engine.get_engine", return_value=test_engine):
-            service.predict([])
+        service.predict([])
 
     def test_referent_links_to_feature(
         self,
-        test_engine,
         test_session,
         real_manual_resolver,
         document_factory,
@@ -242,8 +222,7 @@ class TestResolutionServiceIntegration:
         service = ResolutionService(resolver=real_manual_resolver)
 
         # Act
-        with patch("geoparser.db.engine.get_engine", return_value=test_engine):
-            service.predict([document])
+        service.predict([document])
 
         # Assert
         from geoparser.db.crud import ReferentRepository
@@ -254,7 +233,6 @@ class TestResolutionServiceIntegration:
 
     def test_transactions_are_committed(
         self,
-        test_engine,
         test_session,
         real_manual_resolver,
         document_factory,
@@ -270,8 +248,7 @@ class TestResolutionServiceIntegration:
         service = ResolutionService(resolver=real_manual_resolver)
 
         # Act
-        with patch("geoparser.db.engine.get_engine", return_value=test_engine):
-            service.predict([document])
+        service.predict([document])
 
         # Assert - Verify using test_session
         from geoparser.db.crud import ResolutionRepository
@@ -281,7 +258,6 @@ class TestResolutionServiceIntegration:
 
     def test_handles_multiple_references_in_document(
         self,
-        test_engine,
         test_session,
         real_manual_resolver,
         document_factory,
@@ -298,8 +274,7 @@ class TestResolutionServiceIntegration:
         service = ResolutionService(resolver=real_manual_resolver)
 
         # Act
-        with patch("geoparser.db.engine.get_engine", return_value=test_engine):
-            service.predict([document])
+        service.predict([document])
 
         # Assert
         from geoparser.db.crud import ReferentRepository
@@ -314,7 +289,6 @@ class TestResolutionServiceIntegration:
 
     def test_handles_references_without_annotation(
         self,
-        test_engine,
         test_session,
         real_manual_resolver,
         document_factory,
@@ -329,8 +303,7 @@ class TestResolutionServiceIntegration:
         service = ResolutionService(resolver=real_manual_resolver)
 
         # Act
-        with patch("geoparser.db.engine.get_engine", return_value=test_engine):
-            service.predict([document])
+        service.predict([document])
 
         # Assert
         from geoparser.db.crud import ResolutionRepository
@@ -341,7 +314,6 @@ class TestResolutionServiceIntegration:
 
     def test_works_with_sentencetransformer_resolver(
         self,
-        test_engine,
         test_session,
         real_sentencetransformer_resolver,
         document_factory,
@@ -357,8 +329,7 @@ class TestResolutionServiceIntegration:
         service = ResolutionService(resolver=real_sentencetransformer_resolver)
 
         # Act
-        with patch("geoparser.db.engine.get_engine", return_value=test_engine):
-            service.predict([document])
+        service.predict([document])
 
         # Assert
         from geoparser.db.crud import ReferentRepository
@@ -369,7 +340,6 @@ class TestResolutionServiceIntegration:
 
     def test_processes_large_batch_of_references(
         self,
-        test_engine,
         test_session,
         real_manual_resolver,
         document_factory,
@@ -386,8 +356,7 @@ class TestResolutionServiceIntegration:
         service = ResolutionService(resolver=real_manual_resolver)
 
         # Act
-        with patch("geoparser.db.engine.get_engine", return_value=test_engine):
-            service.predict(documents)
+        service.predict(documents)
 
         # Assert
         from geoparser.db.crud import ResolutionRepository
@@ -402,7 +371,6 @@ class TestResolutionServiceIntegration:
 
     def test_fit_trains_resolver_with_annotated_documents(
         self,
-        test_engine,
         test_session,
         real_sentencetransformer_resolver,
         document_factory,
@@ -428,35 +396,34 @@ class TestResolutionServiceIntegration:
             label="annotator", texts=texts, references=references, referents=referents
         )
 
-        with patch("geoparser.db.engine.get_engine", return_value=test_engine):
-            annotation_service = ResolutionService(annotator)
-            test_session.refresh(doc1)
-            test_session.refresh(doc2)
-            annotation_service.predict([doc1, doc2])
+        annotation_service = ResolutionService(annotator)
+        test_session.refresh(doc1)
+        test_session.refresh(doc2)
+        annotation_service.predict([doc1, doc2])
 
-            # Create service with trainable resolver
-            service = ResolutionService(real_sentencetransformer_resolver)
+        # Create service with trainable resolver
+        service = ResolutionService(real_sentencetransformer_resolver)
 
-            # Set context for documents
-            test_session.refresh(doc1)
-            test_session.refresh(doc2)
-            doc1._set_recognizer_context(ref1.recognizer_id)
-            doc2._set_recognizer_context(ref2.recognizer_id)
-            for ref in doc1.references:
-                ref._set_resolver_context(annotator.id)
-            for ref in doc2.references:
-                ref._set_resolver_context(annotator.id)
+        # Set context for documents
+        test_session.refresh(doc1)
+        test_session.refresh(doc2)
+        doc1._set_recognizer_context(ref1.recognizer_id)
+        doc2._set_recognizer_context(ref2.recognizer_id)
+        for ref in doc1.references:
+            ref._set_resolver_context(annotator.id)
+        for ref in doc2.references:
+            ref._set_resolver_context(annotator.id)
 
-            output_path = tmp_path / "trained_model"
+        output_path = tmp_path / "trained_model"
 
-            # Act
-            service.fit([doc1, doc2], output_path=str(output_path), epochs=1)
+        # Act
+        service.fit([doc1, doc2], output_path=str(output_path), epochs=1)
 
         # Assert - Model should be saved
         assert output_path.exists()
 
     def test_fit_raises_error_for_resolver_without_fit_method(
-        self, test_engine, document_factory, real_manual_resolver, andorra_gazetteer
+        self, document_factory, real_manual_resolver, andorra_gazetteer
     ):
         """Test that fit raises error when resolver doesn't have fit method."""
         # Arrange
@@ -469,7 +436,6 @@ class TestResolutionServiceIntegration:
 
     def test_fit_extracts_referents_from_document_toponyms(
         self,
-        test_engine,
         test_session,
         real_sentencetransformer_resolver,
         document_factory,
@@ -490,31 +456,29 @@ class TestResolutionServiceIntegration:
             label="annotator", texts=texts, references=references, referents=referents
         )
 
-        with patch("geoparser.db.engine.get_engine", return_value=test_engine):
-            annotation_service = ResolutionService(annotator)
-            test_session.refresh(doc)
-            annotation_service.predict([doc])
+        annotation_service = ResolutionService(annotator)
+        test_session.refresh(doc)
+        annotation_service.predict([doc])
 
-            # Create service with trainable resolver
-            service = ResolutionService(real_sentencetransformer_resolver)
+        # Create service with trainable resolver
+        service = ResolutionService(real_sentencetransformer_resolver)
 
-            # Set context
-            test_session.refresh(doc)
-            doc._set_recognizer_context(ref.recognizer_id)
-            for reference in doc.references:
-                reference._set_resolver_context(annotator.id)
+        # Set context
+        test_session.refresh(doc)
+        doc._set_recognizer_context(ref.recognizer_id)
+        for reference in doc.references:
+            reference._set_resolver_context(annotator.id)
 
-            output_path = tmp_path / "trained_model"
+        output_path = tmp_path / "trained_model"
 
-            # Act - Should extract referents from toponyms
-            service.fit([doc], output_path=str(output_path), epochs=1)
+        # Act - Should extract referents from toponyms
+        service.fit([doc], output_path=str(output_path), epochs=1)
 
         # Assert
         assert output_path.exists()
 
     def test_fit_handles_documents_without_referent_annotations(
         self,
-        test_engine,
         real_sentencetransformer_resolver,
         document_factory,
         reference_factory,
@@ -530,17 +494,15 @@ class TestResolutionServiceIntegration:
         reference_factory(start=0, end=4, document_id=doc2.id)
 
         # Act & Assert - Should handle gracefully (no training data)
-        with patch("geoparser.db.engine.get_engine", return_value=test_engine):
-            service = ResolutionService(real_sentencetransformer_resolver)
+        service = ResolutionService(real_sentencetransformer_resolver)
 
-            output_path = tmp_path / "trained_model"
+        output_path = tmp_path / "trained_model"
 
-            with pytest.raises(ValueError, match="No training examples found"):
-                service.fit([doc1, doc2], output_path=str(output_path), epochs=1)
+        with pytest.raises(ValueError, match="No training examples found"):
+            service.fit([doc1, doc2], output_path=str(output_path), epochs=1)
 
     def test_fit_passes_custom_parameters_to_resolver(
         self,
-        test_engine,
         test_session,
         real_sentencetransformer_resolver,
         document_factory,
@@ -561,28 +523,27 @@ class TestResolutionServiceIntegration:
             label="annotator", texts=texts, references=references, referents=referents
         )
 
-        with patch("geoparser.db.engine.get_engine", return_value=test_engine):
-            annotation_service = ResolutionService(annotator)
-            test_session.refresh(doc)
-            annotation_service.predict([doc])
+        annotation_service = ResolutionService(annotator)
+        test_session.refresh(doc)
+        annotation_service.predict([doc])
 
-            service = ResolutionService(real_sentencetransformer_resolver)
+        service = ResolutionService(real_sentencetransformer_resolver)
 
-            test_session.refresh(doc)
-            doc._set_recognizer_context(ref.recognizer_id)
-            for reference in doc.references:
-                reference._set_resolver_context(annotator.id)
+        test_session.refresh(doc)
+        doc._set_recognizer_context(ref.recognizer_id)
+        for reference in doc.references:
+            reference._set_resolver_context(annotator.id)
 
-            output_path = tmp_path / "trained_model"
+        output_path = tmp_path / "trained_model"
 
-            # Act - Pass custom parameters
-            service.fit(
-                [doc],
-                output_path=str(output_path),
-                epochs=2,
-                batch_size=4,
-                learning_rate=1e-5,
-            )
+        # Act - Pass custom parameters
+        service.fit(
+            [doc],
+            output_path=str(output_path),
+            epochs=2,
+            batch_size=4,
+            learning_rate=1e-5,
+        )
 
         # Assert
         assert output_path.exists()

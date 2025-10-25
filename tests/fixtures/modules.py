@@ -146,8 +146,8 @@ def real_sentencetransformer_resolver():
     Note: Uses a small model for faster testing. Tests that need gazetteer access
     should explicitly request the andorra_gazetteer fixture to populate the database.
 
-    IMPORTANT: Tests using this fixture MUST patch get_engine to return test_engine
-    to prevent production database access.
+    The autouse patch_get_engine fixture automatically ensures that get_engine()
+    returns test_engine, so no manual patching is needed.
 
     Returns:
         SentenceTransformerResolver instance with loaded model

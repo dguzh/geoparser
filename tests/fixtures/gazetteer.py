@@ -6,7 +6,6 @@ including paths to configuration files and a helper to install the gazetteer.
 """
 
 from pathlib import Path
-from unittest.mock import patch
 
 import pytest
 from sqlalchemy import Engine
@@ -32,13 +31,14 @@ def andorra_gazetteer(test_engine: Engine, andorra_config_path: Path) -> None:
     It uses the function-scoped test_engine fixture to ensure each test has its own
     isolated database with fresh gazetteer data.
 
+    The autouse patch_get_engine fixture ensures that get_engine() returns test_engine,
+    so no manual patching is needed here.
+
     Args:
         test_engine: Function-scoped test database engine (from database fixtures)
         andorra_config_path: Path to andorranames.yaml configuration file
     """
     from geoparser.gazetteer.installer import GazetteerInstaller
 
-    # Patch the engine getter to return our test engine
-    with patch("geoparser.db.engine.get_engine", return_value=test_engine):
-        installer = GazetteerInstaller()
-        installer.install(andorra_config_path, chunksize=5000, keep_downloads=False)
+    installer = GazetteerInstaller()
+    installer.install(andorra_config_path, chunksize=5000, keep_downloads=False)
