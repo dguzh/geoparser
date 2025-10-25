@@ -70,14 +70,17 @@ def patch_get_engine(test_engine):
     This fixture runs automatically for every test function, ensuring that any code
     calling get_engine() will use the test database instead of the production database.
 
-    We patch the global _engine variable to be test_engine. Since get_engine() checks
-    if _engine is None and returns it if not, this ensures all calls to get_engine()
-    return test_engine.
+    We patch BOTH get_engine() and _engine for maximum compatibility:
+    1. Patching get_engine() ensures direct calls return test_engine
+    2. Patching _engine ensures the global variable points to test_engine
+
+    This dual approach handles all code paths and works reliably across platforms.
 
     Yields:
         The active patch context
     """
-    # Patch _engine to be test_engine
-    # This ensures get_engine() returns test_engine (since it checks _engine first)
-    with patch("geoparser.db.engine._engine", test_engine):
+    # Patch both get_engine() and _engine to cover all possible code paths
+    with patch("geoparser.db.engine.get_engine", return_value=test_engine), patch(
+        "geoparser.db.engine._engine", test_engine
+    ):
         yield
