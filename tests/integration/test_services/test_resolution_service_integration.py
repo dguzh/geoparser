@@ -8,6 +8,7 @@ from unittest.mock import patch
 
 import pytest
 
+from geoparser.modules.resolvers.manual import ManualResolver
 from geoparser.services.resolution import ResolutionService
 
 
@@ -398,3 +399,249 @@ class TestResolutionServiceIntegration:
                     test_session, ref.id
                 )
                 assert len(resolutions) == 1
+
+    def test_fit_trains_resolver_with_annotated_documents(
+        self,
+        test_engine,
+        test_session,
+        document_factory,
+        reference_factory,
+        andorra_gazetteer,
+        tmp_path,
+    ):
+        """Test that fit method trains a resolver using annotated documents."""
+        # Arrange
+        from geoparser.modules.resolvers.sentencetransformer import (
+            SentenceTransformerResolver,
+        )
+
+        # Create documents with references and referents
+        doc1 = document_factory(text="Andorra la Vella is the capital.")
+        doc2 = document_factory(text="Visit les Escaldes.")
+
+        # Create references
+        ref1 = reference_factory(start=0, end=17, document_id=doc1.id)
+        ref2 = reference_factory(start=6, end=18, document_id=doc2.id)
+
+        # Annotate with referents
+        texts = ["Andorra la Vella is the capital.", "Visit les Escaldes."]
+        references = [[(0, 17)], [(6, 18)]]
+        referents = [[("andorranames", "3041563")], [("andorranames", "3041565")]]
+        annotator = ManualResolver(
+            label="annotator", texts=texts, references=references, referents=referents
+        )
+
+        with patch("geoparser.db.engine.get_engine", return_value=test_engine):
+            annotation_service = ResolutionService(annotator)
+            test_session.refresh(doc1)
+            test_session.refresh(doc2)
+            annotation_service.predict([doc1, doc2])
+
+        # Create trainable resolver
+        andorra_attribute_map = {
+            "name": "name",
+            "type": "feature_name",
+            "level1": "country_name",
+            "level2": "admin1_name",
+            "level3": "admin2_name",
+        }
+        trainable_resolver = SentenceTransformerResolver(
+            model_name="sentence-transformers/all-MiniLM-L6-v2",
+            gazetteer_name="andorranames",
+            attribute_map=andorra_attribute_map,
+        )
+        service = ResolutionService(trainable_resolver)
+
+        # Set context for documents
+        test_session.refresh(doc1)
+        test_session.refresh(doc2)
+        doc1._set_recognizer_context(ref1.recognizer_id)
+        doc2._set_recognizer_context(ref2.recognizer_id)
+        for ref in doc1.references:
+            ref._set_resolver_context(annotator.id)
+        for ref in doc2.references:
+            ref._set_resolver_context(annotator.id)
+
+        output_path = tmp_path / "trained_model"
+
+        # Act
+        service.fit([doc1, doc2], output_path=str(output_path), epochs=1)
+
+        # Assert - Model should be saved
+        assert output_path.exists()
+
+    def test_fit_raises_error_for_resolver_without_fit_method(
+        self, test_engine, document_factory, real_manual_resolver, andorra_gazetteer
+    ):
+        """Test that fit raises error when resolver doesn't have fit method."""
+        # Arrange
+        document = document_factory(text="Test text.")
+        service = ResolutionService(real_manual_resolver)
+
+        # Act & Assert
+        with pytest.raises(ValueError, match="does not implement a fit method"):
+            service.fit([document], output_path="/tmp/model")
+
+    def test_fit_extracts_referents_from_document_toponyms(
+        self,
+        test_engine,
+        test_session,
+        document_factory,
+        reference_factory,
+        andorra_gazetteer,
+        tmp_path,
+    ):
+        """Test that fit correctly extracts referents from document toponyms."""
+        # Arrange
+        from geoparser.modules.resolvers.sentencetransformer import (
+            SentenceTransformerResolver,
+        )
+
+        # Create and annotate document
+        doc = document_factory(text="Encamp is a parish.")
+        ref = reference_factory(start=0, end=6, document_id=doc.id)
+
+        texts = ["Encamp is a parish."]
+        references = [[(0, 6)]]
+        referents = [[("andorranames", "3041204")]]
+        annotator = ManualResolver(
+            label="annotator", texts=texts, references=references, referents=referents
+        )
+
+        with patch("geoparser.db.engine.get_engine", return_value=test_engine):
+            annotation_service = ResolutionService(annotator)
+            test_session.refresh(doc)
+            annotation_service.predict([doc])
+
+        # Create trainable resolver
+        andorra_attribute_map = {
+            "name": "name",
+            "type": "feature_name",
+            "level1": "country_name",
+            "level2": "admin1_name",
+            "level3": "admin2_name",
+        }
+        trainable_resolver = SentenceTransformerResolver(
+            model_name="sentence-transformers/all-MiniLM-L6-v2",
+            gazetteer_name="andorranames",
+            attribute_map=andorra_attribute_map,
+        )
+        service = ResolutionService(trainable_resolver)
+
+        # Set context
+        test_session.refresh(doc)
+        doc._set_recognizer_context(ref.recognizer_id)
+        for reference in doc.references:
+            reference._set_resolver_context(annotator.id)
+
+        output_path = tmp_path / "trained_model"
+
+        # Act - Should extract referents from toponyms
+        service.fit([doc], output_path=str(output_path), epochs=1)
+
+        # Assert
+        assert output_path.exists()
+
+    def test_fit_handles_documents_without_referent_annotations(
+        self,
+        test_engine,
+        document_factory,
+        reference_factory,
+        andorra_gazetteer,
+        tmp_path,
+    ):
+        """Test that fit handles documents without referent annotations."""
+        # Arrange
+        from geoparser.modules.resolvers.sentencetransformer import (
+            SentenceTransformerResolver,
+        )
+
+        # Create documents with references but no referents
+        doc1 = document_factory(text="No referents here.")
+        doc2 = document_factory(text="Also no referents.")
+        reference_factory(start=0, end=4, document_id=doc1.id)
+        reference_factory(start=0, end=4, document_id=doc2.id)
+
+        andorra_attribute_map = {
+            "name": "name",
+            "type": "feature_name",
+            "level1": "country_name",
+            "level2": "admin1_name",
+            "level3": "admin2_name",
+        }
+        trainable_resolver = SentenceTransformerResolver(
+            model_name="sentence-transformers/all-MiniLM-L6-v2",
+            gazetteer_name="andorranames",
+            attribute_map=andorra_attribute_map,
+        )
+        service = ResolutionService(trainable_resolver)
+
+        output_path = tmp_path / "trained_model"
+
+        # Act & Assert - Should handle gracefully (no training data)
+        with pytest.raises(ValueError, match="No training examples found"):
+            service.fit([doc1, doc2], output_path=str(output_path), epochs=1)
+
+    def test_fit_passes_custom_parameters_to_resolver(
+        self,
+        test_engine,
+        test_session,
+        document_factory,
+        reference_factory,
+        andorra_gazetteer,
+        tmp_path,
+    ):
+        """Test that fit passes custom training parameters to resolver."""
+        # Arrange
+        from geoparser.modules.resolvers.sentencetransformer import (
+            SentenceTransformerResolver,
+        )
+
+        # Create and annotate document
+        doc = document_factory(text="Ordino is beautiful.")
+        ref = reference_factory(start=0, end=6, document_id=doc.id)
+
+        texts = ["Ordino is beautiful."]
+        references = [[(0, 6)]]
+        referents = [[("andorranames", "3040684")]]
+        annotator = ManualResolver(
+            label="annotator", texts=texts, references=references, referents=referents
+        )
+
+        with patch("geoparser.db.engine.get_engine", return_value=test_engine):
+            annotation_service = ResolutionService(annotator)
+            test_session.refresh(doc)
+            annotation_service.predict([doc])
+
+        andorra_attribute_map = {
+            "name": "name",
+            "type": "feature_name",
+            "level1": "country_name",
+            "level2": "admin1_name",
+            "level3": "admin2_name",
+        }
+        trainable_resolver = SentenceTransformerResolver(
+            model_name="sentence-transformers/all-MiniLM-L6-v2",
+            gazetteer_name="andorranames",
+            attribute_map=andorra_attribute_map,
+        )
+        service = ResolutionService(trainable_resolver)
+
+        test_session.refresh(doc)
+        doc._set_recognizer_context(ref.recognizer_id)
+        for reference in doc.references:
+            reference._set_resolver_context(annotator.id)
+
+        output_path = tmp_path / "trained_model"
+
+        # Act - Pass custom parameters
+        service.fit(
+            [doc],
+            output_path=str(output_path),
+            epochs=2,
+            batch_size=4,
+            learning_rate=1e-5,
+        )
+
+        # Assert
+        assert output_path.exists()
