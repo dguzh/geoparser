@@ -63,24 +63,21 @@ def test_session(test_engine: Engine) -> Session:
 
 
 @pytest.fixture(scope="function", autouse=True)
-def patch_get_engine(request):
+def patch_get_engine(test_engine):
     """
-    Automatically patch get_engine() to return test_engine for all tests.
+    Automatically redirect get_engine() to use test_engine for all tests.
 
     This fixture runs automatically for every test function, ensuring that any code
-    calling geoparser.db.engine.get_engine() will receive the test database instead
-    of the production database.
+    calling get_engine() will use the test database instead of the production database.
 
-    The _EngineProxy class in geoparser.db.engine delegates all attribute access to
-    get_engine(), so patching get_engine() is sufficient to redirect all database
-    operations to the test database. This works reliably across all platforms.
+    We patch the global _engine variable to be test_engine. Since get_engine() checks
+    if _engine is None and returns it if not, this ensures all calls to get_engine()
+    return test_engine.
 
     Yields:
         The active patch context
     """
-    # Get the test_engine fixture from the request
-    test_engine = request.getfixturevalue("test_engine")
-
-    # Patch get_engine() - the _EngineProxy calls this for every attribute access
-    with patch("geoparser.db.engine.get_engine", return_value=test_engine):
+    # Patch _engine to be test_engine
+    # This ensures get_engine() returns test_engine (since it checks _engine first)
+    with patch("geoparser.db.engine._engine", test_engine):
         yield
