@@ -46,7 +46,7 @@ class TestSentenceTransformerResolverIntegration:
         with patch("geoparser.db.engine.get_engine", return_value=test_engine):
             # Act
             resolver = SentenceTransformerResolver(
-                model_name="sentence-transformers/all-MiniLM-L6-v2",
+                model_name="dguzh/geo-all-MiniLM-L6-v2",
                 gazetteer_name="andorranames",
                 min_similarity=0.6,
                 max_iter=5,
@@ -54,7 +54,7 @@ class TestSentenceTransformerResolverIntegration:
             )
 
             # Assert
-            assert resolver.model_name == "sentence-transformers/all-MiniLM-L6-v2"
+            assert resolver.model_name == "dguzh/geo-all-MiniLM-L6-v2"
             assert resolver.gazetteer_name == "andorranames"
             assert resolver.min_similarity == 0.6
             assert resolver.max_iter == 5
@@ -344,17 +344,16 @@ class TestSentenceTransformerResolverIntegration:
             assert gazetteer_name == "andorranames"
 
     def test_fit_trains_model_with_referent_annotations(
-        self, test_engine, andorra_gazetteer, tmp_path
+        self,
+        test_engine,
+        real_sentencetransformer_resolver,
+        andorra_gazetteer,
+        tmp_path,
     ):
         """Test that fit method trains the model with provided referent annotations."""
         # Patch the engine getter to return our test engine
         with patch("geoparser.db.engine.get_engine", return_value=test_engine):
             # Arrange
-            resolver = SentenceTransformerResolver(
-                model_name="sentence-transformers/all-MiniLM-L6-v2",
-                gazetteer_name="andorranames",
-                attribute_map=ANDORRA_ATTRIBUTE_MAP,
-            )
             texts = [
                 "Andorra la Vella is the capital.",
                 "Visit les Escaldes for shopping.",
@@ -367,7 +366,7 @@ class TestSentenceTransformerResolverIntegration:
             output_path = tmp_path / "trained_model"
 
             # Act
-            resolver.fit(
+            real_sentencetransformer_resolver.fit(
                 texts=texts,
                 references=references,
                 referents=referents,
@@ -382,17 +381,16 @@ class TestSentenceTransformerResolverIntegration:
             assert len(list(output_path.iterdir())) > 0
 
     def test_fit_raises_error_with_no_training_data(
-        self, test_engine, andorra_gazetteer, tmp_path
+        self,
+        test_engine,
+        real_sentencetransformer_resolver,
+        andorra_gazetteer,
+        tmp_path,
     ):
         """Test that fit raises error when no training examples can be created."""
         # Patch the engine getter to return our test engine
         with patch("geoparser.db.engine.get_engine", return_value=test_engine):
             # Arrange
-            resolver = SentenceTransformerResolver(
-                model_name="sentence-transformers/all-MiniLM-L6-v2",
-                gazetteer_name="andorranames",
-                attribute_map=ANDORRA_ATTRIBUTE_MAP,
-            )
             texts = []
             references = []
             referents = []
@@ -400,7 +398,7 @@ class TestSentenceTransformerResolverIntegration:
 
             # Act & Assert
             with pytest.raises(ValueError, match="No training examples found"):
-                resolver.fit(
+                real_sentencetransformer_resolver.fit(
                     texts=texts,
                     references=references,
                     referents=referents,
@@ -409,24 +407,23 @@ class TestSentenceTransformerResolverIntegration:
                 )
 
     def test_fit_creates_positive_and_negative_examples(
-        self, test_engine, andorra_gazetteer, tmp_path
+        self,
+        test_engine,
+        real_sentencetransformer_resolver,
+        andorra_gazetteer,
+        tmp_path,
     ):
         """Test that fit creates both positive and negative training examples."""
         # Patch the engine getter to return our test engine
         with patch("geoparser.db.engine.get_engine", return_value=test_engine):
             # Arrange
-            resolver = SentenceTransformerResolver(
-                model_name="sentence-transformers/all-MiniLM-L6-v2",
-                gazetteer_name="andorranames",
-                attribute_map=ANDORRA_ATTRIBUTE_MAP,
-            )
             texts = ["Andorra la Vella is beautiful."]
             references = [[(0, 17)]]  # "Andorra la Vella"
             referents = [[("andorranames", "3041563")]]
             output_path = tmp_path / "trained_model"
 
             # Act - Should create positive example for correct referent and negatives for others
-            resolver.fit(
+            real_sentencetransformer_resolver.fit(
                 texts=texts,
                 references=references,
                 referents=referents,
@@ -438,24 +435,23 @@ class TestSentenceTransformerResolverIntegration:
             assert output_path.exists()
 
     def test_fit_handles_multiple_references_per_document(
-        self, test_engine, andorra_gazetteer, tmp_path
+        self,
+        test_engine,
+        real_sentencetransformer_resolver,
+        andorra_gazetteer,
+        tmp_path,
     ):
         """Test that fit handles documents with multiple references."""
         # Patch the engine getter to return our test engine
         with patch("geoparser.db.engine.get_engine", return_value=test_engine):
             # Arrange
-            resolver = SentenceTransformerResolver(
-                model_name="sentence-transformers/all-MiniLM-L6-v2",
-                gazetteer_name="andorranames",
-                attribute_map=ANDORRA_ATTRIBUTE_MAP,
-            )
             texts = ["Visit Andorra la Vella and les Escaldes."]
             references = [[(6, 23), (28, 40)]]  # "Andorra la Vella", "les Escaldes"
             referents = [[("andorranames", "3041563"), ("andorranames", "3041565")]]
             output_path = tmp_path / "trained_model"
 
             # Act
-            resolver.fit(
+            real_sentencetransformer_resolver.fit(
                 texts=texts,
                 references=references,
                 referents=referents,
@@ -467,24 +463,23 @@ class TestSentenceTransformerResolverIntegration:
             assert output_path.exists()
 
     def test_fit_accepts_custom_training_parameters(
-        self, test_engine, andorra_gazetteer, tmp_path
+        self,
+        test_engine,
+        real_sentencetransformer_resolver,
+        andorra_gazetteer,
+        tmp_path,
     ):
         """Test that fit accepts and uses custom training parameters."""
         # Patch the engine getter to return our test engine
         with patch("geoparser.db.engine.get_engine", return_value=test_engine):
             # Arrange
-            resolver = SentenceTransformerResolver(
-                model_name="sentence-transformers/all-MiniLM-L6-v2",
-                gazetteer_name="andorranames",
-                attribute_map=ANDORRA_ATTRIBUTE_MAP,
-            )
             texts = ["Encamp is a parish."]
             references = [[(0, 6)]]  # "Encamp"
             referents = [[("andorranames", "3041204")]]
             output_path = tmp_path / "trained_model"
 
             # Act - Use custom parameters
-            resolver.fit(
+            real_sentencetransformer_resolver.fit(
                 texts=texts,
                 references=references,
                 referents=referents,

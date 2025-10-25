@@ -412,14 +412,12 @@ class TestProjectIntegration:
             project.delete()
 
     def test_train_recognizer_with_annotated_documents(
-        self, test_engine, test_session, tmp_path
+        self, test_engine, test_session, real_spacy_recognizer, tmp_path
     ):
         """Test that train_recognizer trains a recognizer using annotated documents."""
         # Patch the engine getter to return our test engine
         with patch("geoparser.db.engine.get_engine", return_value=test_engine):
             # Arrange
-            from geoparser.modules.recognizers.spacy import SpacyRecognizer
-
             project = Project("train_rec_test")
             texts = ["Paris is beautiful.", "London is historic."]
             references = [[(0, 5)], [(0, 6)]]
@@ -435,13 +433,11 @@ class TestProjectIntegration:
             recognizers = RecognizerRepository.get_all(test_session)
             recognizer_id = recognizers[0].id
 
-            # Create a trainable recognizer
-            trainable_recognizer = SpacyRecognizer(model_name="en_core_web_sm")
             output_path = tmp_path / "trained_recognizer"
 
             # Act
             project.train_recognizer(
-                recognizer=trainable_recognizer,
+                recognizer=real_spacy_recognizer,
                 recognizer_id=recognizer_id,
                 output_path=str(output_path),
                 epochs=1,
@@ -454,16 +450,17 @@ class TestProjectIntegration:
             project.delete()
 
     def test_train_resolver_with_annotated_documents(
-        self, test_engine, test_session, andorra_gazetteer, tmp_path
+        self,
+        test_engine,
+        test_session,
+        real_sentencetransformer_resolver,
+        andorra_gazetteer,
+        tmp_path,
     ):
         """Test that train_resolver trains a resolver using annotated documents."""
         # Patch the engine getter to return our test engine
         with patch("geoparser.db.engine.get_engine", return_value=test_engine):
             # Arrange
-            from geoparser.modules.resolvers.sentencetransformer import (
-                SentenceTransformerResolver,
-            )
-
             project = Project("train_res_test")
             texts = ["Andorra la Vella is the capital.", "Visit les Escaldes."]
             references = [[(0, 17)], [(6, 18)]]
@@ -488,24 +485,11 @@ class TestProjectIntegration:
             resolvers = ResolverRepository.get_all(test_session)
             resolver_id = resolvers[0].id
 
-            # Create a trainable resolver
-            andorra_attribute_map = {
-                "name": "name",
-                "type": "feature_name",
-                "level1": "country_name",
-                "level2": "admin1_name",
-                "level3": "admin2_name",
-            }
-            trainable_resolver = SentenceTransformerResolver(
-                model_name="sentence-transformers/all-MiniLM-L6-v2",
-                gazetteer_name="andorranames",
-                attribute_map=andorra_attribute_map,
-            )
             output_path = tmp_path / "trained_resolver"
 
             # Act
             project.train_resolver(
-                resolver=trainable_resolver,
+                resolver=real_sentencetransformer_resolver,
                 recognizer_id=recognizer_id,
                 resolver_id=resolver_id,
                 output_path=str(output_path),
@@ -519,14 +503,12 @@ class TestProjectIntegration:
             project.delete()
 
     def test_train_recognizer_passes_custom_parameters(
-        self, test_engine, test_session, tmp_path
+        self, test_engine, test_session, real_spacy_recognizer, tmp_path
     ):
         """Test that train_recognizer passes custom training parameters."""
         # Patch the engine getter to return our test engine
         with patch("geoparser.db.engine.get_engine", return_value=test_engine):
             # Arrange
-            from geoparser.modules.recognizers.spacy import SpacyRecognizer
-
             project = Project("train_rec_params_test")
             texts = ["Berlin is in Germany."]
             references = [[(0, 6)]]
@@ -541,12 +523,11 @@ class TestProjectIntegration:
             recognizers = RecognizerRepository.get_all(test_session)
             recognizer_id = recognizers[0].id
 
-            trainable_recognizer = SpacyRecognizer(model_name="en_core_web_sm")
             output_path = tmp_path / "trained_recognizer"
 
             # Act - Pass custom parameters
             project.train_recognizer(
-                recognizer=trainable_recognizer,
+                recognizer=real_spacy_recognizer,
                 recognizer_id=recognizer_id,
                 output_path=str(output_path),
                 epochs=2,
@@ -561,16 +542,17 @@ class TestProjectIntegration:
             project.delete()
 
     def test_train_resolver_passes_custom_parameters(
-        self, test_engine, test_session, andorra_gazetteer, tmp_path
+        self,
+        test_engine,
+        test_session,
+        real_sentencetransformer_resolver,
+        andorra_gazetteer,
+        tmp_path,
     ):
         """Test that train_resolver passes custom training parameters."""
         # Patch the engine getter to return our test engine
         with patch("geoparser.db.engine.get_engine", return_value=test_engine):
             # Arrange
-            from geoparser.modules.resolvers.sentencetransformer import (
-                SentenceTransformerResolver,
-            )
-
             project = Project("train_res_params_test")
             texts = ["Encamp is a parish."]
             references = [[(0, 6)]]
@@ -594,23 +576,11 @@ class TestProjectIntegration:
             resolvers = ResolverRepository.get_all(test_session)
             resolver_id = resolvers[0].id
 
-            andorra_attribute_map = {
-                "name": "name",
-                "type": "feature_name",
-                "level1": "country_name",
-                "level2": "admin1_name",
-                "level3": "admin2_name",
-            }
-            trainable_resolver = SentenceTransformerResolver(
-                model_name="sentence-transformers/all-MiniLM-L6-v2",
-                gazetteer_name="andorranames",
-                attribute_map=andorra_attribute_map,
-            )
             output_path = tmp_path / "trained_resolver"
 
             # Act - Pass custom parameters
             project.train_resolver(
-                resolver=trainable_resolver,
+                resolver=real_sentencetransformer_resolver,
                 recognizer_id=recognizer_id,
                 resolver_id=resolver_id,
                 output_path=str(output_path),
