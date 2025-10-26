@@ -70,57 +70,15 @@ def patch_get_engine(test_engine):
     This fixture runs automatically for every test function, ensuring that any code
     calling get_engine() will use the test database instead of the production database.
 
+    We patch the _engine global variable in geoparser.db.engine, which get_engine()
+    checks. This is more elegant than patching get_engine() in every module that
+    imports it, since all calls to get_engine() will see the patched _engine value.
+
     Args:
         test_engine: The test database engine
 
     Yields:
         None (patches are active during the test)
     """
-    # Import all modules that use get_engine so we can patch them
-    import geoparser.db.engine
-    import geoparser.db.models.feature
-    import geoparser.gazetteer.gazetteer
-    import geoparser.gazetteer.installer.installer
-    import geoparser.gazetteer.installer.stages.indexing
-    import geoparser.gazetteer.installer.stages.registration
-    import geoparser.gazetteer.installer.stages.schema
-    import geoparser.gazetteer.installer.stages.transformation
-    import geoparser.gazetteer.installer.strategies.spatial
-    import geoparser.gazetteer.installer.strategies.tabular
-    import geoparser.project.project
-    import geoparser.services.recognition
-    import geoparser.services.resolution
-
-    # Create a single mock function
-    def mock_get_engine():
-        return test_engine
-
-    # Use patch.object to directly replace get_engine in each module
-    with patch.object(geoparser.db.engine, "get_engine", mock_get_engine), patch.object(
-        geoparser.db.models.feature, "get_engine", mock_get_engine
-    ), patch.object(
-        geoparser.gazetteer.gazetteer, "get_engine", mock_get_engine
-    ), patch.object(
-        geoparser.project.project, "get_engine", mock_get_engine
-    ), patch.object(
-        geoparser.services.recognition, "get_engine", mock_get_engine
-    ), patch.object(
-        geoparser.services.resolution, "get_engine", mock_get_engine
-    ), patch.object(
-        geoparser.gazetteer.installer.installer, "get_engine", mock_get_engine
-    ), patch.object(
-        geoparser.gazetteer.installer.stages.registration, "get_engine", mock_get_engine
-    ), patch.object(
-        geoparser.gazetteer.installer.stages.schema, "get_engine", mock_get_engine
-    ), patch.object(
-        geoparser.gazetteer.installer.stages.transformation,
-        "get_engine",
-        mock_get_engine,
-    ), patch.object(
-        geoparser.gazetteer.installer.stages.indexing, "get_engine", mock_get_engine
-    ), patch.object(
-        geoparser.gazetteer.installer.strategies.spatial, "get_engine", mock_get_engine
-    ), patch.object(
-        geoparser.gazetteer.installer.strategies.tabular, "get_engine", mock_get_engine
-    ):
+    with patch("geoparser.db.engine._engine", test_engine):
         yield

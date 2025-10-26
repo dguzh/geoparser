@@ -58,7 +58,7 @@ class Feature(FeatureBase, table=True):
             try:
                 # Build query to get the complete row
                 query = text(
-                    f"SELECT * FROM {self.source.name} WHERE {self.source.location_id_name} = '{self.location_id_value}' ORDER BY rowid"
+                    f"SELECT * FROM {self.source.name} WHERE {self.source.location_id_name} = '{self.location_id_value}' LIMIT 1"
                 )
 
                 result = db.execute(query)
@@ -95,7 +95,7 @@ class Feature(FeatureBase, table=True):
             try:
                 # Use SpatiaLite's AsBinary() to convert to standard WKB format
                 query = text(
-                    f"SELECT AsBinary(geometry) FROM {self.source.name} WHERE {self.source.location_id_name} = '{self.location_id_value}' ORDER BY rowid"
+                    f"SELECT AsBinary(geometry) FROM {self.source.name} WHERE {self.source.location_id_name} = '{self.location_id_value}' LIMIT 1"
                 )
 
                 result = db.execute(query)
