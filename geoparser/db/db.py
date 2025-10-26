@@ -15,7 +15,7 @@ from typing import Iterator
 
 from appdirs import user_data_dir
 from sqlalchemy import Engine, event
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.engine import Connection
 from sqlalchemy.pool import NullPool
 from sqlmodel import Session, SQLModel, create_engine
 
@@ -74,13 +74,6 @@ engine: Engine = create_engine(
     pool_pre_ping=True,  # Keeps connections fresh for long-lived apps
 )
 
-# Session factory
-SessionLocal = sessionmaker(
-    bind=engine,
-    class_=Session,
-    expire_on_commit=False,  # Allows objects to be used after commit without refetching
-)
-
 
 def create_db_and_tables() -> None:
     """
@@ -103,15 +96,26 @@ def get_session() -> Iterator[Session]:
 
     Yields:
         SQLModel Session for database operations
-
-    Example:
-        with get_session() as session:
-            # Use session here
-            ...
     """
-    with SessionLocal() as session:
+    session = Session(engine, expire_on_commit=False)
+    try:
         yield session
+    finally:
+        session.close()
 
 
-# Create tables at module import time
-create_db_and_tables()
+@contextmanager
+def get_connection() -> Iterator[Connection]:
+    """
+    Get a database connection using context manager pattern.
+
+    For operations that need direct connection access (like executing
+    raw SQL in installer stages). This is the preferred way to get a
+    connection as it accesses the engine at runtime, respecting any
+    patches applied during testing.
+
+    Yields:
+        SQLAlchemy Connection for database operations
+    """
+    with engine.connect() as connection:
+        yield connection

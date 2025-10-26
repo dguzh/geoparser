@@ -4,7 +4,7 @@ import sqlalchemy as sa
 
 from geoparser.db.crud.gazetteer import GazetteerRepository
 from geoparser.db.crud.source import SourceRepository
-from geoparser.db.db import engine, get_session
+from geoparser.db.db import get_connection, get_session
 from geoparser.db.models.source import SourceCreate
 from geoparser.gazetteer.installer.model import SourceConfig
 from geoparser.gazetteer.installer.queries.dml import FeatureRegistrationBuilder
@@ -106,7 +106,7 @@ class RegistrationStage(Stage):
             f"Registering {source.name}",
             "source",
         ) as pbar:
-            with engine.connect() as connection:
+            with get_connection() as connection:
                 connection.execute(sa.text(insert_sql))
                 connection.commit()
             pbar.update(1)
@@ -144,7 +144,7 @@ class RegistrationStage(Stage):
                 f"Registering {source.name}.{name_column}",
                 "column",
             ) as pbar:
-                with engine.connect() as connection:
+                with get_connection() as connection:
                     connection.execute(sa.text(insert_sql))
                     connection.commit()
                 pbar.update(1)

@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import List, Union
 
 from geoparser.db.crud import DocumentRepository, ProjectRepository
-from geoparser.db.db import get_session
+from geoparser.db.db import create_db_and_tables, get_session
 from geoparser.db.models import Document, DocumentCreate, ProjectCreate
 from geoparser.modules.recognizers.manual import ManualRecognizer
 from geoparser.modules.resolvers.manual import ManualResolver
@@ -33,6 +33,9 @@ class Project:
             name: Name for the project. If the project doesn't exist,
                   it will be created.
         """
+        # Ensure database tables exist
+        create_db_and_tables()
+
         self.name = name
         self.id = self._ensure_project_record(name)
 

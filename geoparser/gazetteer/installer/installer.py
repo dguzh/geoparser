@@ -5,7 +5,7 @@ from typing import List, Union
 from appdirs import user_data_dir
 
 from geoparser.db.crud.gazetteer import GazetteerRepository
-from geoparser.db.db import get_session
+from geoparser.db.db import create_db_and_tables, get_session
 from geoparser.db.models.gazetteer import GazetteerCreate
 from geoparser.gazetteer.installer.model import GazetteerConfig, SourceConfig
 from geoparser.gazetteer.installer.stages.acquisition import AcquisitionStage
@@ -66,6 +66,9 @@ class GazetteerInstaller:
         Raises:
             Exception: If installation fails at any stage
         """
+        # Ensure database tables exist
+        create_db_and_tables()
+
         # Load and validate configuration
         config = GazetteerConfig.from_yaml(config_path)
 
