@@ -27,7 +27,7 @@ def andorra_gazetteer(andorra_config_path: Path) -> None:
     Install the Andorra gazetteer into the test database.
 
     This fixture automatically installs the Andorra gazetteer for tests that need it.
-    The autouse patch_get_engine fixture ensures that get_engine() returns the test
+    The autouse patch_db fixture redirects all database operations to use the test
     database, so the installer will use the test database automatically.
 
     Args:

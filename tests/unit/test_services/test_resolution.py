@@ -38,11 +38,7 @@ class TestResolutionServicePredict:
         service = ResolutionService(mock_sentencetransformer_resolver)
 
         # Act
-        with patch("geoparser.db.engine.get_engine"):
-            with patch(
-                "geoparser.services.resolution.Session", return_value=test_session
-            ):
-                service.predict([document])
+        service.predict([document])
 
         # Assert - Resolver record should be created
         from geoparser.db.crud import ResolverRepository
@@ -72,11 +68,7 @@ class TestResolutionServicePredict:
         service = ResolutionService(mock_sentencetransformer_resolver)
 
         # Act
-        with patch("geoparser.db.engine.get_engine"):
-            with patch(
-                "geoparser.services.resolution.Session", return_value=test_session
-            ):
-                service.predict([document])
+        service.predict([document])
 
         # Assert
         mock_sentencetransformer_resolver.predict.assert_called_once()
@@ -112,11 +104,7 @@ class TestResolutionServicePredict:
             mock_get_feature.return_value = feature
 
             # Act
-            with patch("geoparser.db.engine.get_engine"):
-                with patch(
-                    "geoparser.services.resolution.Session", return_value=test_session
-                ):
-                    service.predict([document])
+            service.predict([document])
 
         # Assert - Resolution record should exist
         from geoparser.db.crud import ResolutionRepository
@@ -158,11 +146,7 @@ class TestResolutionServicePredict:
         service = ResolutionService(mock_sentencetransformer_resolver)
 
         # Act
-        with patch("geoparser.db.engine.get_engine"):
-            with patch(
-                "geoparser.services.resolution.Session", return_value=test_session
-            ):
-                service.predict([document])
+        service.predict([document])
 
         # Assert - Predict should not be called since reference was already processed
         mock_sentencetransformer_resolver.predict.assert_not_called()
@@ -186,11 +170,7 @@ class TestResolutionServicePredict:
         service = ResolutionService(mock_sentencetransformer_resolver)
 
         # Act
-        with patch("geoparser.db.engine.get_engine"):
-            with patch(
-                "geoparser.services.resolution.Session", return_value=test_session
-            ):
-                service.predict([document])
+        service.predict([document])
 
         # Assert - No referents should be created, no resolution record
         from sqlmodel import select
@@ -251,11 +231,7 @@ class TestResolutionServicePredict:
             mock_get_feature.return_value = feature
 
             # Act
-            with patch("geoparser.db.engine.get_engine"):
-                with patch(
-                    "geoparser.services.resolution.Session", return_value=test_session
-                ):
-                    service.predict([doc1, doc2])
+            service.predict([doc1, doc2])
 
         # Assert - Both references should have resolutions
         from geoparser.db.crud import ResolutionRepository

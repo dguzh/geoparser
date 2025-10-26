@@ -68,13 +68,10 @@ class TestGazetteerInstallerCreateDownloadsDirectory:
 class TestGazetteerInstallerEnsureGazetteerRecord:
     """Test _ensure_gazetteer_record method."""
 
-    @patch("geoparser.gazetteer.installer.installer.Session")
     @patch("geoparser.gazetteer.installer.installer.GazetteerRepository")
-    def test_creates_new_gazetteer_when_doesnt_exist(self, mock_repo, mock_session):
+    def test_creates_new_gazetteer_when_doesnt_exist(self, mock_repo):
         """Test creating new gazetteer record when it doesn't exist."""
         # Arrange
-        mock_db = Mock()
-        mock_session.return_value.__enter__.return_value = mock_db
         mock_repo.get_by_name.return_value = None  # Doesn't exist
 
         installer = GazetteerInstaller()
@@ -87,13 +84,10 @@ class TestGazetteerInstallerEnsureGazetteerRecord:
         create_call_args = mock_repo.create.call_args[0]
         assert create_call_args[1].name == "test_gaz"
 
-    @patch("geoparser.gazetteer.installer.installer.Session")
     @patch("geoparser.gazetteer.installer.installer.GazetteerRepository")
-    def test_reuses_existing_gazetteer_when_exists(self, mock_repo, mock_session):
+    def test_reuses_existing_gazetteer_when_exists(self, mock_repo):
         """Test reusing existing gazetteer record."""
         # Arrange
-        mock_db = Mock()
-        mock_session.return_value.__enter__.return_value = mock_db
 
         mock_existing = Mock()
         mock_repo.get_by_name.return_value = mock_existing  # Already exists
@@ -238,11 +232,10 @@ class TestGazetteerInstallerInstall:
     """Test install method."""
 
     @patch("geoparser.gazetteer.installer.installer.user_data_dir")
-    @patch("geoparser.gazetteer.installer.installer.Session")
     @patch("geoparser.gazetteer.installer.installer.GazetteerRepository")
     @patch("geoparser.gazetteer.installer.installer.GazetteerConfig")
     def test_loads_config_from_yaml(
-        self, mock_config_class, mock_repo, mock_session, mock_user_data_dir
+        self, mock_config_class, mock_repo, mock_user_data_dir
     ):
         """Test that configuration is loaded from YAML file."""
         # Arrange
@@ -251,8 +244,6 @@ class TestGazetteerInstallerInstall:
         mock_config.sources = []
         mock_config_class.from_yaml.return_value = mock_config
 
-        mock_db = Mock()
-        mock_session.return_value.__enter__.return_value = mock_db
         mock_repo.get_by_name.return_value = Mock()  # Existing gazetteer
 
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -381,7 +372,6 @@ class TestGazetteerInstallerInstall:
                             assert mock_exec.call_count == 2
 
     @patch("geoparser.gazetteer.installer.installer.user_data_dir")
-    @patch("geoparser.gazetteer.installer.installer.Session")
     @patch("geoparser.gazetteer.installer.installer.GazetteerRepository")
     @patch("geoparser.gazetteer.installer.installer.GazetteerConfig")
     @patch("geoparser.gazetteer.installer.installer.AcquisitionStage")
@@ -390,7 +380,6 @@ class TestGazetteerInstallerInstall:
         mock_acquisition,
         mock_config_class,
         mock_repo,
-        mock_session,
         mock_user_data_dir,
     ):
         """Test that downloads are kept when keep_downloads=True."""
@@ -400,8 +389,6 @@ class TestGazetteerInstallerInstall:
         mock_config.sources = []
         mock_config_class.from_yaml.return_value = mock_config
 
-        mock_db = Mock()
-        mock_session.return_value.__enter__.return_value = mock_db
         mock_repo.get_by_name.return_value = Mock()
 
         mock_stage = Mock()
@@ -421,7 +408,6 @@ class TestGazetteerInstallerInstall:
             mock_stage.cleanup.assert_not_called()
 
     @patch("geoparser.gazetteer.installer.installer.user_data_dir")
-    @patch("geoparser.gazetteer.installer.installer.Session")
     @patch("geoparser.gazetteer.installer.installer.GazetteerRepository")
     @patch("geoparser.gazetteer.installer.installer.GazetteerConfig")
     @patch("geoparser.gazetteer.installer.installer.AcquisitionStage")
@@ -430,7 +416,6 @@ class TestGazetteerInstallerInstall:
         mock_acquisition,
         mock_config_class,
         mock_repo,
-        mock_session,
         mock_user_data_dir,
     ):
         """Test that downloads are cleaned up by default."""
@@ -440,8 +425,6 @@ class TestGazetteerInstallerInstall:
         mock_config.sources = []
         mock_config_class.from_yaml.return_value = mock_config
 
-        mock_db = Mock()
-        mock_session.return_value.__enter__.return_value = mock_db
         mock_repo.get_by_name.return_value = Mock()
 
         mock_stage = Mock()

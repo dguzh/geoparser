@@ -8,7 +8,7 @@ from the fixtures directory, making them available to all tests.
 # Import all fixtures from the fixtures directory
 # This makes them available to all tests without explicit imports
 pytest_plugins = [
-    "tests.fixtures.database",
+    "tests.fixtures.db",
     "tests.fixtures.models",
     "tests.fixtures.modules",
     "tests.fixtures.gazetteer",

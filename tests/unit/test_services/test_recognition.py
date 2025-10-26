@@ -4,8 +4,6 @@ Unit tests for geoparser/services/recognition.py
 Tests the RecognitionService class with mocked recognizers.
 """
 
-from unittest.mock import patch
-
 import pytest
 
 from geoparser.services.recognition import RecognitionService
@@ -38,11 +36,7 @@ class TestRecognitionServicePredict:
         service = RecognitionService(mock_spacy_recognizer)
 
         # Act
-        with patch("geoparser.db.engine.get_engine"):
-            with patch(
-                "geoparser.services.recognition.Session", return_value=test_session
-            ):
-                service.predict([document])
+        service.predict([document])
 
         # Assert - Recognizer record should be created
         from geoparser.db.crud import RecognizerRepository
@@ -61,11 +55,7 @@ class TestRecognitionServicePredict:
         service = RecognitionService(mock_spacy_recognizer)
 
         # Act
-        with patch("geoparser.db.engine.get_engine"):
-            with patch(
-                "geoparser.services.recognition.Session", return_value=test_session
-            ):
-                service.predict([document])
+        service.predict([document])
 
         # Assert
         mock_spacy_recognizer.predict.assert_called_once()
@@ -83,11 +73,7 @@ class TestRecognitionServicePredict:
         service = RecognitionService(mock_spacy_recognizer)
 
         # Act
-        with patch("geoparser.db.engine.get_engine"):
-            with patch(
-                "geoparser.services.recognition.Session", return_value=test_session
-            ):
-                service.predict([document])
+        service.predict([document])
 
         # Assert - References should be created
         from sqlmodel import select
@@ -112,11 +98,7 @@ class TestRecognitionServicePredict:
         service = RecognitionService(mock_spacy_recognizer)
 
         # Act
-        with patch("geoparser.db.engine.get_engine"):
-            with patch(
-                "geoparser.services.recognition.Session", return_value=test_session
-            ):
-                service.predict([document])
+        service.predict([document])
 
         # Assert - Recognition record should exist
         from geoparser.db.crud import RecognitionRepository
@@ -153,11 +135,7 @@ class TestRecognitionServicePredict:
         service = RecognitionService(mock_spacy_recognizer)
 
         # Act
-        with patch("geoparser.db.engine.get_engine"):
-            with patch(
-                "geoparser.services.recognition.Session", return_value=test_session
-            ):
-                service.predict([document])
+        service.predict([document])
 
         # Assert - Predict should not be called since document was already processed
         mock_spacy_recognizer.predict.assert_not_called()
@@ -172,11 +150,7 @@ class TestRecognitionServicePredict:
         service = RecognitionService(mock_spacy_recognizer)
 
         # Act
-        with patch("geoparser.db.engine.get_engine"):
-            with patch(
-                "geoparser.services.recognition.Session", return_value=test_session
-            ):
-                service.predict([document])
+        service.predict([document])
 
         # Assert - No references should be created, no recognition record
         from sqlmodel import select
@@ -215,11 +189,7 @@ class TestRecognitionServicePredict:
         service = RecognitionService(mock_spacy_recognizer)
 
         # Act
-        with patch("geoparser.db.engine.get_engine"):
-            with patch(
-                "geoparser.services.recognition.Session", return_value=test_session
-            ):
-                service.predict([doc1, doc2])
+        service.predict([doc1, doc2])
 
         # Assert - Both documents should have references
         from sqlmodel import select

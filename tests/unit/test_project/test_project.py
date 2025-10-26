@@ -4,7 +4,7 @@ Unit tests for geoparser/project/project.py
 Tests the Project class with mocked dependencies.
 """
 
-from unittest.mock import Mock, patch
+from unittest.mock import ANY, Mock, patch
 from uuid import UUID
 
 import pytest
@@ -16,15 +16,10 @@ from geoparser.project.project import Project
 class TestProjectInitialization:
     """Test Project initialization."""
 
-    @patch("geoparser.project.project.Session")
     @patch("geoparser.project.project.ProjectRepository")
-    def test_creates_new_project_when_doesnt_exist(
-        self, mock_project_repo, mock_session
-    ):
+    def test_creates_new_project_when_doesnt_exist(self, mock_project_repo):
         """Test that Project creates a new project record when it doesn't exist."""
         # Arrange
-        mock_db = Mock()
-        mock_session.return_value.__enter__.return_value = mock_db
         mock_project_repo.get_by_name.return_value = None  # Project doesn't exist
 
         mock_created_project = Mock()
@@ -39,13 +34,10 @@ class TestProjectInitialization:
         assert project.id == UUID("12345678-1234-5678-1234-567812345678")
         mock_project_repo.create.assert_called_once()
 
-    @patch("geoparser.project.project.Session")
     @patch("geoparser.project.project.ProjectRepository")
-    def test_loads_existing_project_when_exists(self, mock_project_repo, mock_session):
+    def test_loads_existing_project_when_exists(self, mock_project_repo):
         """Test that Project loads existing project record when it exists."""
         # Arrange
-        mock_db = Mock()
-        mock_session.return_value.__enter__.return_value = mock_db
 
         mock_existing_project = Mock()
         mock_existing_project.id = UUID("87654321-4321-8765-4321-876543218765")
@@ -64,16 +56,11 @@ class TestProjectInitialization:
 class TestProjectCreateDocuments:
     """Test Project create_documents method."""
 
-    @patch("geoparser.project.project.Session")
     @patch("geoparser.project.project.ProjectRepository")
     @patch("geoparser.project.project.DocumentRepository")
-    def test_creates_single_document(
-        self, mock_doc_repo, mock_project_repo, mock_session
-    ):
+    def test_creates_single_document(self, mock_doc_repo, mock_project_repo):
         """Test that create_documents creates a single document from a string."""
         # Arrange
-        mock_db = Mock()
-        mock_session.return_value.__enter__.return_value = mock_db
 
         mock_existing_project = Mock()
         mock_existing_project.id = UUID("12345678-1234-5678-1234-567812345678")
@@ -90,16 +77,11 @@ class TestProjectCreateDocuments:
         assert call_args[1].text == "Test document text"
         assert call_args[1].project_id == project.id
 
-    @patch("geoparser.project.project.Session")
     @patch("geoparser.project.project.ProjectRepository")
     @patch("geoparser.project.project.DocumentRepository")
-    def test_creates_multiple_documents(
-        self, mock_doc_repo, mock_project_repo, mock_session
-    ):
+    def test_creates_multiple_documents(self, mock_doc_repo, mock_project_repo):
         """Test that create_documents creates multiple documents from a list."""
         # Arrange
-        mock_db = Mock()
-        mock_session.return_value.__enter__.return_value = mock_db
 
         mock_existing_project = Mock()
         mock_existing_project.id = UUID("12345678-1234-5678-1234-567812345678")
@@ -124,16 +106,11 @@ class TestProjectCreateDocuments:
 class TestProjectGetDocuments:
     """Test Project get_documents method."""
 
-    @patch("geoparser.project.project.Session")
     @patch("geoparser.project.project.ProjectRepository")
     @patch("geoparser.project.project.DocumentRepository")
-    def test_retrieves_documents_for_project(
-        self, mock_doc_repo, mock_project_repo, mock_session
-    ):
+    def test_retrieves_documents_for_project(self, mock_doc_repo, mock_project_repo):
         """Test that get_documents retrieves all documents for the project."""
         # Arrange
-        mock_db = Mock()
-        mock_session.return_value.__enter__.return_value = mock_db
 
         mock_existing_project = Mock()
         mock_existing_project.id = UUID("12345678-1234-5678-1234-567812345678")
@@ -152,18 +129,15 @@ class TestProjectGetDocuments:
 
         # Assert
         assert len(documents) == 2
-        mock_doc_repo.get_by_project.assert_called_once_with(mock_db, project.id)
+        mock_doc_repo.get_by_project.assert_called_once_with(ANY, project.id)
 
-    @patch("geoparser.project.project.Session")
     @patch("geoparser.project.project.ProjectRepository")
     @patch("geoparser.project.project.DocumentRepository")
     def test_sets_recognizer_context_on_documents(
-        self, mock_doc_repo, mock_project_repo, mock_session
+        self, mock_doc_repo, mock_project_repo
     ):
         """Test that get_documents sets recognizer context on documents."""
         # Arrange
-        mock_db = Mock()
-        mock_session.return_value.__enter__.return_value = mock_db
 
         mock_existing_project = Mock()
         mock_existing_project.id = UUID("12345678-1234-5678-1234-567812345678")
@@ -181,16 +155,13 @@ class TestProjectGetDocuments:
         # Assert
         mock_doc._set_recognizer_context.assert_called_once_with("test_recognizer")
 
-    @patch("geoparser.project.project.Session")
     @patch("geoparser.project.project.ProjectRepository")
     @patch("geoparser.project.project.DocumentRepository")
     def test_sets_resolver_context_on_references(
-        self, mock_doc_repo, mock_project_repo, mock_session
+        self, mock_doc_repo, mock_project_repo
     ):
         """Test that get_documents sets resolver context on references."""
         # Arrange
-        mock_db = Mock()
-        mock_session.return_value.__enter__.return_value = mock_db
 
         mock_existing_project = Mock()
         mock_existing_project.id = UUID("12345678-1234-5678-1234-567812345678")
@@ -216,17 +187,14 @@ class TestProjectGetDocuments:
 class TestProjectRunRecognizer:
     """Test Project run_recognizer method."""
 
-    @patch("geoparser.project.project.Session")
     @patch("geoparser.project.project.ProjectRepository")
     @patch("geoparser.project.project.RecognitionService")
     @patch("geoparser.project.project.DocumentRepository")
     def test_runs_recognizer_on_all_documents(
-        self, mock_doc_repo, mock_recognition_service, mock_project_repo, mock_session
+        self, mock_doc_repo, mock_recognition_service, mock_project_repo
     ):
         """Test that run_recognizer runs recognizer on all project documents."""
         # Arrange
-        mock_db = Mock()
-        mock_session.return_value.__enter__.return_value = mock_db
 
         mock_existing_project = Mock()
         mock_existing_project.id = UUID("12345678-1234-5678-1234-567812345678")
@@ -258,17 +226,14 @@ class TestProjectRunRecognizer:
 class TestProjectRunResolver:
     """Test Project run_resolver method."""
 
-    @patch("geoparser.project.project.Session")
     @patch("geoparser.project.project.ProjectRepository")
     @patch("geoparser.project.project.ResolutionService")
     @patch("geoparser.project.project.DocumentRepository")
     def test_runs_resolver_on_all_documents(
-        self, mock_doc_repo, mock_resolution_service, mock_project_repo, mock_session
+        self, mock_doc_repo, mock_resolution_service, mock_project_repo
     ):
         """Test that run_resolver runs resolver on all project documents."""
         # Arrange
-        mock_db = Mock()
-        mock_session.return_value.__enter__.return_value = mock_db
 
         mock_existing_project = Mock()
         mock_existing_project.id = UUID("12345678-1234-5678-1234-567812345678")
@@ -300,13 +265,10 @@ class TestProjectRunResolver:
 class TestProjectDelete:
     """Test Project delete method."""
 
-    @patch("geoparser.project.project.Session")
     @patch("geoparser.project.project.ProjectRepository")
-    def test_deletes_project_from_database(self, mock_project_repo, mock_session):
+    def test_deletes_project_from_database(self, mock_project_repo):
         """Test that delete removes the project from the database."""
         # Arrange
-        mock_db = Mock()
-        mock_session.return_value.__enter__.return_value = mock_db
 
         mock_existing_project = Mock()
         mock_existing_project.id = UUID("12345678-1234-5678-1234-567812345678")
@@ -318,14 +280,13 @@ class TestProjectDelete:
         project.delete()
 
         # Assert
-        mock_project_repo.delete.assert_called_once_with(mock_db, id=project.id)
+        mock_project_repo.delete.assert_called_once_with(ANY, id=project.id)
 
 
 @pytest.mark.unit
 class TestProjectCreateReferences:
     """Test Project create_references method."""
 
-    @patch("geoparser.project.project.Session")
     @patch("geoparser.project.project.ProjectRepository")
     @patch("geoparser.project.project.ManualRecognizer")
     @patch("geoparser.project.project.RecognitionService")
@@ -336,12 +297,9 @@ class TestProjectCreateReferences:
         mock_recognition_service,
         mock_manual_recognizer,
         mock_project_repo,
-        mock_session,
     ):
         """Test that create_references creates ManualRecognizer and runs it."""
         # Arrange
-        mock_db = Mock()
-        mock_session.return_value.__enter__.return_value = mock_db
 
         mock_existing_project = Mock()
         mock_existing_project.id = UUID("12345678-1234-5678-1234-567812345678")
@@ -377,7 +335,6 @@ class TestProjectCreateReferences:
 class TestProjectCreateReferents:
     """Test Project create_referents method."""
 
-    @patch("geoparser.project.project.Session")
     @patch("geoparser.project.project.ProjectRepository")
     @patch("geoparser.project.project.ManualResolver")
     @patch("geoparser.project.project.ResolutionService")
@@ -388,12 +345,9 @@ class TestProjectCreateReferents:
         mock_resolution_service,
         mock_manual_resolver,
         mock_project_repo,
-        mock_session,
     ):
         """Test that create_referents creates ManualResolver and runs it."""
         # Arrange
-        mock_db = Mock()
-        mock_session.return_value.__enter__.return_value = mock_db
 
         mock_existing_project = Mock()
         mock_existing_project.id = UUID("12345678-1234-5678-1234-567812345678")
@@ -433,16 +387,11 @@ class TestProjectCreateReferents:
 class TestProjectLoadAnnotations:
     """Test Project load_annotations method."""
 
-    @patch("geoparser.project.project.Session")
     @patch("geoparser.project.project.ProjectRepository")
     @patch("geoparser.project.project.open", create=True)
-    def test_loads_annotations_from_json_file(
-        self, mock_file_open, mock_project_repo, mock_session
-    ):
+    def test_loads_annotations_from_json_file(self, mock_file_open, mock_project_repo):
         """Test that load_annotations loads and parses JSON file."""
         # Arrange
-        mock_db = Mock()
-        mock_session.return_value.__enter__.return_value = mock_db
 
         mock_existing_project = Mock()
         mock_existing_project.id = UUID("12345678-1234-5678-1234-567812345678")
@@ -477,16 +426,11 @@ class TestProjectLoadAnnotations:
                     # Assert - Verify file was opened
                     mock_file_open.assert_called_once()
 
-    @patch("geoparser.project.project.Session")
     @patch("geoparser.project.project.ProjectRepository")
     @patch("geoparser.project.project.open", create=True)
-    def test_creates_documents_when_requested(
-        self, mock_file_open, mock_project_repo, mock_session
-    ):
+    def test_creates_documents_when_requested(self, mock_file_open, mock_project_repo):
         """Test that load_annotations creates documents when create_documents=True."""
         # Arrange
-        mock_db = Mock()
-        mock_session.return_value.__enter__.return_value = mock_db
 
         mock_existing_project = Mock()
         mock_existing_project.id = UUID("12345678-1234-5678-1234-567812345678")
@@ -509,16 +453,13 @@ class TestProjectLoadAnnotations:
                         # Assert
                         mock_create_docs.assert_called_once_with(["Paris"])
 
-    @patch("geoparser.project.project.Session")
     @patch("geoparser.project.project.ProjectRepository")
     @patch("geoparser.project.project.open", create=True)
     def test_skips_document_creation_by_default(
-        self, mock_file_open, mock_project_repo, mock_session
+        self, mock_file_open, mock_project_repo
     ):
         """Test that load_annotations doesn't create documents by default."""
         # Arrange
-        mock_db = Mock()
-        mock_session.return_value.__enter__.return_value = mock_db
 
         mock_existing_project = Mock()
         mock_existing_project.id = UUID("12345678-1234-5678-1234-567812345678")
@@ -541,16 +482,13 @@ class TestProjectLoadAnnotations:
                         # Assert
                         mock_create_docs.assert_not_called()
 
-    @patch("geoparser.project.project.Session")
     @patch("geoparser.project.project.ProjectRepository")
     @patch("geoparser.project.project.open", create=True)
     def test_filters_out_non_geocoded_referents(
-        self, mock_file_open, mock_project_repo, mock_session
+        self, mock_file_open, mock_project_repo
     ):
         """Test that load_annotations filters out non-geocoded referents (empty or null loc_id)."""
         # Arrange
-        mock_db = Mock()
-        mock_session.return_value.__enter__.return_value = mock_db
 
         mock_existing_project = Mock()
         mock_existing_project.id = UUID("12345678-1234-5678-1234-567812345678")
