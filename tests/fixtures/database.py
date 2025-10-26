@@ -6,6 +6,8 @@ Each test gets a completely fresh database, ensuring perfect isolation without
 needing transaction rollback.
 """
 
+from unittest.mock import patch
+
 import pytest
 from sqlalchemy import Engine
 from sqlalchemy.pool import StaticPool
@@ -61,53 +63,64 @@ def test_session(test_engine: Engine) -> Session:
 
 
 @pytest.fixture(scope="function", autouse=True)
-def patch_get_engine(test_engine, monkeypatch):
+def patch_get_engine(test_engine):
     """
     Automatically redirect get_engine() to use test_engine for all tests.
 
     This fixture runs automatically for every test function, ensuring that any code
     calling get_engine() will use the test database instead of the production database.
 
-    We use monkeypatch instead of unittest.mock.patch because monkeypatch can modify
-    already-imported module attributes. When modules do "from X import Y", they create
-    a local binding to the function object. We must patch the function in each module's
-    namespace where it was imported.
-
     Args:
         test_engine: The test database engine
-        monkeypatch: Pytest's monkeypatch fixture
-    """
 
-    # Create a function that returns the test_engine
+    Yields:
+        None (patches are active during the test)
+    """
+    # Import all modules that use get_engine so we can patch them
+    import geoparser.db.engine
+    import geoparser.db.models.feature
+    import geoparser.gazetteer.gazetteer
+    import geoparser.gazetteer.installer.installer
+    import geoparser.gazetteer.installer.stages.indexing
+    import geoparser.gazetteer.installer.stages.registration
+    import geoparser.gazetteer.installer.stages.schema
+    import geoparser.gazetteer.installer.stages.transformation
+    import geoparser.gazetteer.installer.strategies.spatial
+    import geoparser.gazetteer.installer.strategies.tabular
+    import geoparser.project.project
+    import geoparser.services.recognition
+    import geoparser.services.resolution
+
+    # Create a single mock function
     def mock_get_engine():
         return test_engine
 
-    # Patch get_engine() in every module that imports it
-    # We must patch each module's local binding, not just the source
-    monkeypatch.setattr("geoparser.db.models.feature.get_engine", mock_get_engine)
-    monkeypatch.setattr("geoparser.gazetteer.gazetteer.get_engine", mock_get_engine)
-    monkeypatch.setattr("geoparser.project.project.get_engine", mock_get_engine)
-    monkeypatch.setattr("geoparser.services.recognition.get_engine", mock_get_engine)
-    monkeypatch.setattr("geoparser.services.resolution.get_engine", mock_get_engine)
-    monkeypatch.setattr(
-        "geoparser.gazetteer.installer.installer.get_engine", mock_get_engine
-    )
-    monkeypatch.setattr(
-        "geoparser.gazetteer.installer.stages.registration.get_engine", mock_get_engine
-    )
-    monkeypatch.setattr(
-        "geoparser.gazetteer.installer.stages.schema.get_engine", mock_get_engine
-    )
-    monkeypatch.setattr(
-        "geoparser.gazetteer.installer.stages.transformation.get_engine",
+    # Use patch.object to directly replace get_engine in each module
+    with patch.object(geoparser.db.engine, "get_engine", mock_get_engine), patch.object(
+        geoparser.db.models.feature, "get_engine", mock_get_engine
+    ), patch.object(
+        geoparser.gazetteer.gazetteer, "get_engine", mock_get_engine
+    ), patch.object(
+        geoparser.project.project, "get_engine", mock_get_engine
+    ), patch.object(
+        geoparser.services.recognition, "get_engine", mock_get_engine
+    ), patch.object(
+        geoparser.services.resolution, "get_engine", mock_get_engine
+    ), patch.object(
+        geoparser.gazetteer.installer.installer, "get_engine", mock_get_engine
+    ), patch.object(
+        geoparser.gazetteer.installer.stages.registration, "get_engine", mock_get_engine
+    ), patch.object(
+        geoparser.gazetteer.installer.stages.schema, "get_engine", mock_get_engine
+    ), patch.object(
+        geoparser.gazetteer.installer.stages.transformation,
+        "get_engine",
         mock_get_engine,
-    )
-    monkeypatch.setattr(
-        "geoparser.gazetteer.installer.stages.indexing.get_engine", mock_get_engine
-    )
-    monkeypatch.setattr(
-        "geoparser.gazetteer.installer.strategies.spatial.get_engine", mock_get_engine
-    )
-    monkeypatch.setattr(
-        "geoparser.gazetteer.installer.strategies.tabular.get_engine", mock_get_engine
-    )
+    ), patch.object(
+        geoparser.gazetteer.installer.stages.indexing, "get_engine", mock_get_engine
+    ), patch.object(
+        geoparser.gazetteer.installer.strategies.spatial, "get_engine", mock_get_engine
+    ), patch.object(
+        geoparser.gazetteer.installer.strategies.tabular, "get_engine", mock_get_engine
+    ):
+        yield
