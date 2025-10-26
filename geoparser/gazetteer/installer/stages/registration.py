@@ -1,11 +1,10 @@
 from typing import Any, Dict
 
 import sqlalchemy as sa
-from sqlmodel import Session
 
 from geoparser.db.crud.gazetteer import GazetteerRepository
 from geoparser.db.crud.source import SourceRepository
-from geoparser.db.engine import get_engine
+from geoparser.db.db import engine, get_session
 from geoparser.db.models.source import SourceCreate
 from geoparser.gazetteer.installer.model import SourceConfig
 from geoparser.gazetteer.installer.queries.dml import FeatureRegistrationBuilder
@@ -71,13 +70,15 @@ class RegistrationStage(Stage):
         Returns:
             Source record
         """
-        with Session(get_engine()) as db:
+        with get_session() as session:
             # Get gazetteer record
-            gazetteer_record = GazetteerRepository.get_by_name(db, self.gazetteer_name)
+            gazetteer_record = GazetteerRepository.get_by_name(
+                session, self.gazetteer_name
+            )
 
             # Try to get existing source
             source_record = SourceRepository.get_by_gazetteer_and_name(
-                db, gazetteer_record.id, table_name
+                session, gazetteer_record.id, table_name
             )
 
             if source_record is None:
@@ -86,7 +87,7 @@ class RegistrationStage(Stage):
                     location_id_name=location_id_name,
                     gazetteer_id=gazetteer_record.id,
                 )
-                source_record = SourceRepository.create(db, source_create)
+                source_record = SourceRepository.create(session, source_create)
 
             return source_record
 
@@ -105,7 +106,7 @@ class RegistrationStage(Stage):
             f"Registering {source.name}",
             "source",
         ) as pbar:
-            with get_engine().connect() as connection:
+            with engine.connect() as connection:
                 connection.execute(sa.text(insert_sql))
                 connection.commit()
             pbar.update(1)
@@ -143,7 +144,7 @@ class RegistrationStage(Stage):
                 f"Registering {source.name}.{name_column}",
                 "column",
             ) as pbar:
-                with get_engine().connect() as connection:
+                with engine.connect() as connection:
                     connection.execute(sa.text(insert_sql))
                     connection.commit()
                 pbar.update(1)
