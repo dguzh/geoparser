@@ -9,7 +9,7 @@ from geoparser.db.crud import (
     RecognizerRepository,
     ReferenceRepository,
 )
-from geoparser.db.engine import engine
+from geoparser.db.db import get_session
 from geoparser.db.models import RecognitionCreate, RecognizerCreate, ReferenceCreate
 
 if t.TYPE_CHECKING:
@@ -46,15 +46,17 @@ class RecognitionService:
         Returns:
             The recognizer ID from the database
         """
-        with Session(engine) as db:
-            recognizer_record = RecognizerRepository.get(db, id=recognizer.id)
+        with get_session() as session:
+            recognizer_record = RecognizerRepository.get(session, id=recognizer.id)
             if recognizer_record is None:
                 recognizer_create = RecognizerCreate(
                     id=recognizer.id,
                     name=recognizer.name,
                     config=recognizer.config,
                 )
-                recognizer_record = RecognizerRepository.create(db, recognizer_create)
+                recognizer_record = RecognizerRepository.create(
+                    session, recognizer_create
+                )
             return recognizer_record.id
 
     def predict(self, documents: List["Document"]) -> None:
@@ -70,10 +72,10 @@ class RecognitionService:
         # Ensure recognizer record exists in database and get the ID
         recognizer_id = self._ensure_recognizer_record(self.recognizer)
 
-        with Session(engine) as db:
+        with get_session() as session:
             # Filter out documents that have already been processed by this recognizer
             unprocessed_documents = self._filter_unprocessed_documents(
-                db, documents, recognizer_id
+                session, documents, recognizer_id
             )
 
             if not unprocessed_documents:
@@ -89,7 +91,7 @@ class RecognitionService:
 
                 # Process predictions and update database
                 self._record_reference_predictions(
-                    db, unprocessed_documents, predicted_references, recognizer_id
+                    session, unprocessed_documents, predicted_references, recognizer_id
                 )
 
     def fit(self, documents: List["Document"], **kwargs) -> None:
@@ -128,7 +130,7 @@ class RecognitionService:
 
     def _record_reference_predictions(
         self,
-        db: Session,
+        session: Session,
         documents: List["Document"],
         predicted_references: List[t.Union[List[Tuple[int, int]], None]],
         recognizer_id: uuid.UUID,
@@ -137,7 +139,7 @@ class RecognitionService:
         Process reference predictions and update the database.
 
         Args:
-            db: Database session
+            session: Database session
             documents: List of document objects
             predicted_references: List where each element is either a list of predicted references
                                  or None for documents where predictions are not available
@@ -153,15 +155,15 @@ class RecognitionService:
             # Create references with recognizer ID
             for start, end in references:
                 self._create_reference_record(
-                    db, document.id, start, end, recognizer_id
+                    session, document.id, start, end, recognizer_id
                 )
 
             # Mark document as processed
-            self._create_recognition_record(db, document.id, recognizer_id)
+            self._create_recognition_record(session, document.id, recognizer_id)
 
     def _create_reference_record(
         self,
-        db: Session,
+        session: Session,
         document_id: uuid.UUID,
         start: int,
         end: int,
@@ -171,7 +173,7 @@ class RecognitionService:
         Create a reference record with the recognizer ID.
 
         Args:
-            db: Database session
+            session: Database session
             document_id: ID of the document containing the reference
             start: Start position of the reference
             end: End position of the reference
@@ -181,32 +183,32 @@ class RecognitionService:
         reference_create = ReferenceCreate(
             start=start, end=end, document_id=document_id, recognizer_id=recognizer_id
         )
-        ReferenceRepository.create(db, reference_create)
+        ReferenceRepository.create(session, reference_create)
 
     def _create_recognition_record(
-        self, db: Session, document_id: uuid.UUID, recognizer_id: uuid.UUID
+        self, session: Session, document_id: uuid.UUID, recognizer_id: uuid.UUID
     ) -> None:
         """
         Create a recognition record for a document processed by a specific recognizer.
 
         Args:
-            db: Database session
+            session: Database session
             document_id: ID of the document that was processed
             recognizer_id: ID of the recognizer that processed it
         """
         recognition_create = RecognitionCreate(
             document_id=document_id, recognizer_id=recognizer_id
         )
-        RecognitionRepository.create(db, recognition_create)
+        RecognitionRepository.create(session, recognition_create)
 
     def _filter_unprocessed_documents(
-        self, db: Session, documents: List["Document"], recognizer_id: str
+        self, session: Session, documents: List["Document"], recognizer_id: str
     ) -> List["Document"]:
         """
         Filter out documents that have already been processed by this recognizer.
 
         Args:
-            db: Database session
+            session: Database session
             documents: List of all documents to check
             recognizer_id: ID of the recognizer to check for
 
@@ -217,7 +219,7 @@ class RecognitionService:
         for doc in documents:
             # Check if this document has already been processed by this recognizer
             existing_recognition = RecognitionRepository.get_by_document_and_recognizer(
-                db, doc.id, recognizer_id
+                session, doc.id, recognizer_id
             )
             if not existing_recognition:
                 unprocessed_documents.append(doc)

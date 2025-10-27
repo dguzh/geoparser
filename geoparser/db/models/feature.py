@@ -4,9 +4,7 @@ from functools import cached_property
 from shapely import wkb
 from shapely.geometry.base import BaseGeometry
 from sqlalchemy import UniqueConstraint
-from sqlmodel import Field, Relationship, Session, SQLModel, text
-
-from geoparser.db.engine import engine
+from sqlmodel import Field, Relationship, SQLModel, text
 
 if t.TYPE_CHECKING:
     from geoparser.db.models.name import Name
@@ -54,14 +52,17 @@ class Feature(FeatureBase, table=True):
         Returns:
             Dictionary containing all columns from the gazetteer row, or None if not found
         """
-        with Session(engine) as db:
+        # Lazy import to avoid circular dependency
+        from geoparser.db.db import get_session
+
+        with get_session() as session:
             try:
                 # Build query to get the complete row
                 query = text(
-                    f"SELECT * FROM {self.source.name} WHERE {self.source.location_id_name} = '{self.location_id_value}' ORDER BY rowid"
+                    f"SELECT * FROM {self.source.name} WHERE {self.source.location_id_name} = '{self.location_id_value}' LIMIT 1"
                 )
 
-                result = db.execute(query)
+                result = session.execute(query)
                 row = result.fetchone()
 
                 if row is None:
@@ -91,14 +92,17 @@ class Feature(FeatureBase, table=True):
         Returns:
             Shapely geometry object, or None if no geometry exists for this feature
         """
-        with Session(engine) as db:
+        # Lazy import to avoid circular dependency
+        from geoparser.db.db import get_session
+
+        with get_session() as session:
             try:
                 # Use SpatiaLite's AsBinary() to convert to standard WKB format
                 query = text(
-                    f"SELECT AsBinary(geometry) FROM {self.source.name} WHERE {self.source.location_id_name} = '{self.location_id_value}' ORDER BY rowid"
+                    f"SELECT AsBinary(geometry) FROM {self.source.name} WHERE {self.source.location_id_name} = '{self.location_id_value}' LIMIT 1"
                 )
 
-                result = db.execute(query)
+                result = session.execute(query)
                 row = result.fetchone()
 
                 if row is None or row[0] is None:

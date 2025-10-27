@@ -3,10 +3,9 @@ from pathlib import Path
 from typing import List, Union
 
 from appdirs import user_data_dir
-from sqlmodel import Session
 
 from geoparser.db.crud.gazetteer import GazetteerRepository
-from geoparser.db.engine import engine
+from geoparser.db.db import create_db_and_tables, get_session
 from geoparser.db.models.gazetteer import GazetteerCreate
 from geoparser.gazetteer.installer.model import GazetteerConfig, SourceConfig
 from geoparser.gazetteer.installer.stages.acquisition import AcquisitionStage
@@ -67,6 +66,9 @@ class GazetteerInstaller:
         Raises:
             Exception: If installation fails at any stage
         """
+        # Ensure database tables exist
+        create_db_and_tables()
+
         # Load and validate configuration
         config = GazetteerConfig.from_yaml(config_path)
 
@@ -116,14 +118,14 @@ class GazetteerInstaller:
         Args:
             gazetteer_name: Name of the gazetteer
         """
-        with Session(engine) as db:
+        with get_session() as session:
             # Check if gazetteer already exists
-            gazetteer_record = GazetteerRepository.get_by_name(db, gazetteer_name)
+            gazetteer_record = GazetteerRepository.get_by_name(session, gazetteer_name)
 
             # Create new gazetteer record only if it doesn't exist
             if gazetteer_record is None:
                 gazetteer_create = GazetteerCreate(name=gazetteer_name)
-                GazetteerRepository.create(db, gazetteer_create)
+                GazetteerRepository.create(session, gazetteer_create)
 
     def _create_pipeline(
         self,

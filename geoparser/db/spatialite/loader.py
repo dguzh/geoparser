@@ -83,8 +83,7 @@ def load_spatialite_extension(dbapi_connection, spatialite_path: Path):
 
         # Initialize spatial metadata only if it doesn't exist
         if cursor.fetchone() is None:
-            print("One-time SpatiaLite setup... (this may take a moment)")
-            cursor.execute("SELECT InitSpatialMetaData()")
+            cursor.execute("SELECT InitSpatialMetaData(1)")
         cursor.close()
 
     finally:

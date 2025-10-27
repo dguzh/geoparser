@@ -25,7 +25,9 @@ class Geoparser:
 
         Args:
             recognizer: The recognizer module to use for identifying references.
+                       Can be explicitly set to None to skip recognition step.
             resolver: The resolver module to use for resolving references to referents.
+                     Can be explicitly set to None to skip resolution step.
         """
         self.recognizer = recognizer
         self.resolver = resolver
@@ -55,16 +57,18 @@ class Geoparser:
             # Create documents in the project
             project.create_documents(texts)
 
-            # Run the recognizer on all documents
-            project.run_recognizer(self.recognizer)
+            # Run the recognizer on all documents (if provided)
+            if self.recognizer is not None:
+                project.run_recognizer(self.recognizer)
 
-            # Run the resolver on all documents
-            project.run_resolver(self.resolver)
+            # Run the resolver on all documents (if provided)
+            if self.resolver is not None:
+                project.run_resolver(self.resolver)
 
             # Get all documents with results from our specific recognizer and resolver
             documents = project.get_documents(
-                recognizer_id=self.recognizer.id,
-                resolver_id=self.resolver.id,
+                recognizer_id=self.recognizer.id if self.recognizer else None,
+                resolver_id=self.resolver.id if self.resolver else None,
             )
 
             # If save is True, inform the user about the project name

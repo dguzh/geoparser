@@ -4,10 +4,8 @@ import uuid
 from pathlib import Path
 from typing import List, Union
 
-from sqlmodel import Session
-
 from geoparser.db.crud import DocumentRepository, ProjectRepository
-from geoparser.db.engine import engine
+from geoparser.db.db import create_db_and_tables, get_session
 from geoparser.db.models import Document, DocumentCreate, ProjectCreate
 from geoparser.modules.recognizers.manual import ManualRecognizer
 from geoparser.modules.resolvers.manual import ManualResolver
@@ -35,6 +33,9 @@ class Project:
             name: Name for the project. If the project doesn't exist,
                   it will be created.
         """
+        # Ensure database tables exist
+        create_db_and_tables()
+
         self.name = name
         self.id = self._ensure_project_record(name)
 
@@ -50,14 +51,14 @@ class Project:
         Returns:
             Project ID from the database
         """
-        with Session(engine) as db:
+        with get_session() as session:
             # Try to load existing project
-            project_record = ProjectRepository.get_by_name(db, name)
+            project_record = ProjectRepository.get_by_name(session, name)
 
             # Create new project if it doesn't exist
             if project_record is None:
                 project_create = ProjectCreate(name=name)
-                project_record = ProjectRepository.create(db, project_create)
+                project_record = ProjectRepository.create(session, project_create)
 
             return project_record.id
 
@@ -72,10 +73,10 @@ class Project:
         if isinstance(texts, str):
             texts = [texts]
 
-        with Session(engine) as db:
+        with get_session() as session:
             for text in texts:
                 document_create = DocumentCreate(text=text, project_id=self.id)
-                DocumentRepository.create(db, document_create)
+                DocumentRepository.create(session, document_create)
 
     def create_references(
         self, texts: List[str], references: List[List[tuple]], label: str
@@ -127,9 +128,9 @@ class Project:
         Returns:
             List of Document objects with context set for filtering.
         """
-        with Session(engine, expire_on_commit=False) as db:
+        with get_session() as session:
             # Retrieve all documents for the project
-            documents = DocumentRepository.get_by_project(db, self.id)
+            documents = DocumentRepository.get_by_project(session, self.id)
 
             # Always set context on each document (even if None)
             for doc in documents:
@@ -307,5 +308,5 @@ class Project:
         This will remove the project, all its documents, references, referents,
         recognitions, and resolutions due to cascade delete relationships.
         """
-        with Session(engine) as db:
-            ProjectRepository.delete(db, id=self.id)
+        with get_session() as session:
+            ProjectRepository.delete(session, id=self.id)

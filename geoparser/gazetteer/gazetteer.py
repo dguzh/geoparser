@@ -1,10 +1,8 @@
 import re
 from typing import List
 
-from sqlmodel import Session
-
 from geoparser.db.crud.feature import FeatureRepository
-from geoparser.db.engine import engine
+from geoparser.db.db import get_session
 from geoparser.db.models.feature import Feature
 
 
@@ -49,31 +47,31 @@ class Gazetteer:
 
         # Map method names to repository functions
         method_map = {
-            "exact": lambda db: FeatureRepository.get_by_gazetteer_and_name_exact(
-                db, self.gazetteer_name, normalized_name, limit
+            "exact": lambda session: FeatureRepository.get_by_gazetteer_and_name_exact(
+                session, self.gazetteer_name, normalized_name, limit
             ),
-            "phrase": lambda db: FeatureRepository.get_by_gazetteer_and_name_phrase(
-                db, self.gazetteer_name, normalized_name, limit, ranks
+            "phrase": lambda session: FeatureRepository.get_by_gazetteer_and_name_phrase(
+                session, self.gazetteer_name, normalized_name, limit, ranks
             ),
-            "permuted": lambda db: FeatureRepository.get_by_gazetteer_and_name_permuted(
-                db, self.gazetteer_name, normalized_name, limit, ranks
+            "permuted": lambda session: FeatureRepository.get_by_gazetteer_and_name_permuted(
+                session, self.gazetteer_name, normalized_name, limit, ranks
             ),
-            "partial": lambda db: FeatureRepository.get_by_gazetteer_and_name_partial(
-                db, self.gazetteer_name, normalized_name, limit, ranks
+            "partial": lambda session: FeatureRepository.get_by_gazetteer_and_name_partial(
+                session, self.gazetteer_name, normalized_name, limit, ranks
             ),
-            "substring": lambda db: FeatureRepository.get_by_gazetteer_and_name_substring(
-                db, self.gazetteer_name, normalized_name, limit, ranks
+            "substring": lambda session: FeatureRepository.get_by_gazetteer_and_name_substring(
+                session, self.gazetteer_name, normalized_name, limit, ranks
             ),
-            "fuzzy": lambda db: FeatureRepository.get_by_gazetteer_and_name_fuzzy(
-                db, self.gazetteer_name, normalized_name, limit, ranks
+            "fuzzy": lambda session: FeatureRepository.get_by_gazetteer_and_name_fuzzy(
+                session, self.gazetteer_name, normalized_name, limit, ranks
             ),
         }
 
         if method not in method_map:
             raise ValueError(f"Unknown search method: {method}")
 
-        with Session(engine) as db:
-            return method_map[method](db)
+        with get_session() as session:
+            return method_map[method](session)
 
     def find(self, identifier: str) -> Feature | None:
         """
@@ -85,7 +83,7 @@ class Gazetteer:
         Returns:
             Feature object if found, None otherwise
         """
-        with Session(engine) as db:
+        with get_session() as session:
             return FeatureRepository.get_by_gazetteer_and_identifier(
-                db, self.gazetteer_name, identifier
+                session, self.gazetteer_name, identifier
             )
