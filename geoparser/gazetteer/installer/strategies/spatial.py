@@ -35,32 +35,16 @@ class SpatialLoadStrategy(LoadStrategy):
             table_name: Name of the database table
             chunksize: Number of records to process at once
         """
-        read_kwargs = self._build_read_kwargs(source)
-        total_rows = pyogrio.read_info(file_path, **read_kwargs)["features"]
+        total_rows = pyogrio.read_info(file_path)["features"]
         adjusted_chunksize = min(chunksize, total_rows)
 
         with create_progress_bar(total_rows, f"Loading {source.name}", "rows") as pbar:
             for start_idx in range(0, total_rows, adjusted_chunksize):
                 chunk = self._read_chunk(
-                    file_path, start_idx, adjusted_chunksize, total_rows, read_kwargs
+                    file_path, start_idx, adjusted_chunksize, total_rows
                 )
                 self._process_chunk(source, chunk, table_name)
                 pbar.update(len(chunk))
-
-    def _build_read_kwargs(self, source: SourceConfig) -> dict:
-        """
-        Build keyword arguments for reading spatial files.
-
-        Args:
-            source: Source configuration
-
-        Returns:
-            Dictionary of keyword arguments for pyogrio/geopandas
-        """
-        kwargs = {}
-        if source.layer:
-            kwargs["layer"] = source.layer
-        return kwargs
 
     def _read_chunk(
         self,
@@ -68,7 +52,6 @@ class SpatialLoadStrategy(LoadStrategy):
         start_idx: int,
         chunksize: int,
         total_rows: int,
-        read_kwargs: dict,
     ) -> gpd.GeoDataFrame:
         """
         Read a chunk of spatial data from the file.
@@ -78,7 +61,6 @@ class SpatialLoadStrategy(LoadStrategy):
             start_idx: Starting row index
             chunksize: Number of rows to read
             total_rows: Total number of rows in the file
-            read_kwargs: Additional keyword arguments for reading
 
         Returns:
             GeoDataFrame containing the chunk
@@ -86,10 +68,7 @@ class SpatialLoadStrategy(LoadStrategy):
         end_idx = min(start_idx + chunksize, total_rows)
         chunk_slice = slice(start_idx, end_idx)
 
-        chunk_kwargs = read_kwargs.copy()
-        chunk_kwargs["rows"] = chunk_slice
-
-        return gpd.read_file(file_path, **chunk_kwargs)
+        return gpd.read_file(file_path, rows=chunk_slice)
 
     def _process_chunk(
         self,

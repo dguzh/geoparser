@@ -121,7 +121,6 @@ class SourceConfig(BaseModel):
     type: SourceType
     separator: t.Optional[str] = None
     skiprows: int = 0
-    layer: t.Optional[str] = None
     attributes: AttributesConfig
     view: t.Optional[ViewConfig] = None  # Nested view configuration
     features: t.Optional[FeatureConfig] = None  # Nested feature configuration
@@ -140,9 +139,6 @@ class SourceConfig(BaseModel):
             # Tabular sources must have separator
             if self.separator is None:
                 raise ValueError("Tabular sources must specify a separator")
-            # Tabular sources should not have layer
-            if self.layer is not None:
-                raise ValueError("Layer can not be specified for tabular sources")
         elif self.type == SourceType.SPATIAL:
             # Spatial sources should not have separator or skiprows
             if self.separator is not None:
