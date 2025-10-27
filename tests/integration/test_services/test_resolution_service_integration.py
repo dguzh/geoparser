@@ -6,7 +6,6 @@ Tests ResolutionService with real database, resolvers, and Andorra gazetteer.
 
 import pytest
 
-from geoparser.modules.resolvers.manual import ManualResolver
 from geoparser.services.resolution import ResolutionService
 
 
@@ -373,54 +372,53 @@ class TestResolutionServiceIntegration:
         self,
         test_session,
         real_sentencetransformer_resolver,
-        document_factory,
-        reference_factory,
         andorra_gazetteer,
         tmp_path,
     ):
         """Test that fit method trains a resolver using annotated documents."""
         # Arrange
-        # Create documents with references and referents
-        doc1 = document_factory(text="Andorra la Vella is the capital.")
-        doc2 = document_factory(text="Visit les Escaldes.")
+        from geoparser.project import Project
 
-        # Create references
-        ref1 = reference_factory(start=0, end=17, document_id=doc1.id)
-        ref2 = reference_factory(start=6, end=18, document_id=doc2.id)
-
-        # Annotate with referents
+        project = Project("resolution_fit_test")
         texts = ["Andorra la Vella is the capital.", "Visit les Escaldes."]
         references = [[(0, 17)], [(6, 18)]]
-        referents = [[("andorranames", "3041563")], [("andorranames", "3041565")]]
-        annotator = ManualResolver(
-            label="annotator", texts=texts, references=references, referents=referents
+        referents = [[("andorranames", "3041563")], [("andorranames", "3040051")]]
+
+        project.create_documents(texts)
+        project.create_references(
+            label="ref_annotator", texts=texts, references=references
+        )
+        project.create_referents(
+            label="res_annotator",
+            texts=texts,
+            references=references,
+            referents=referents,
         )
 
-        annotation_service = ResolutionService(annotator)
-        test_session.refresh(doc1)
-        test_session.refresh(doc2)
-        annotation_service.predict([doc1, doc2])
+        from geoparser.db.crud import RecognizerRepository, ResolverRepository
+
+        recognizers = RecognizerRepository.get_all(test_session)
+        ref_annotator_id = recognizers[0].id
+        resolvers = ResolverRepository.get_all(test_session)
+        res_annotator_id = resolvers[0].id
+
+        # Get documents with context via Project API
+        documents = project.get_documents(
+            recognizer_id=ref_annotator_id, resolver_id=res_annotator_id
+        )
 
         # Create service with trainable resolver
         service = ResolutionService(real_sentencetransformer_resolver)
-
-        # Set context for documents
-        test_session.refresh(doc1)
-        test_session.refresh(doc2)
-        doc1._set_recognizer_context(ref1.recognizer_id)
-        doc2._set_recognizer_context(ref2.recognizer_id)
-        for ref in doc1.references:
-            ref._set_resolver_context(annotator.id)
-        for ref in doc2.references:
-            ref._set_resolver_context(annotator.id)
-
         output_path = tmp_path / "trained_model"
 
         # Act
-        service.fit([doc1, doc2], output_path=str(output_path), epochs=1)
+        service.fit(documents, output_path=str(output_path), epochs=1)
 
         # Assert - Model should be saved
         assert output_path.exists()
+
+        # Cleanup
+        project.delete()
 
     def test_fit_raises_error_for_resolver_without_fit_method(
         self, document_factory, real_manual_resolver, andorra_gazetteer
@@ -438,44 +436,53 @@ class TestResolutionServiceIntegration:
         self,
         test_session,
         real_sentencetransformer_resolver,
-        document_factory,
-        reference_factory,
         andorra_gazetteer,
         tmp_path,
     ):
         """Test that fit correctly extracts referents from document toponyms."""
         # Arrange
-        # Create and annotate document
-        doc = document_factory(text="Encamp is a parish.")
-        ref = reference_factory(start=0, end=6, document_id=doc.id)
+        from geoparser.project import Project
 
+        project = Project("referents_extraction_test")
         texts = ["Encamp is a parish."]
         references = [[(0, 6)]]
         referents = [[("andorranames", "3041204")]]
-        annotator = ManualResolver(
-            label="annotator", texts=texts, references=references, referents=referents
+
+        project.create_documents(texts)
+        project.create_references(
+            label="ref_annotator", texts=texts, references=references
+        )
+        project.create_referents(
+            label="res_annotator",
+            texts=texts,
+            references=references,
+            referents=referents,
         )
 
-        annotation_service = ResolutionService(annotator)
-        test_session.refresh(doc)
-        annotation_service.predict([doc])
+        from geoparser.db.crud import RecognizerRepository, ResolverRepository
+
+        recognizers = RecognizerRepository.get_all(test_session)
+        ref_annotator_id = recognizers[0].id
+        resolvers = ResolverRepository.get_all(test_session)
+        res_annotator_id = resolvers[0].id
+
+        # Get documents with context via Project API
+        documents = project.get_documents(
+            recognizer_id=ref_annotator_id, resolver_id=res_annotator_id
+        )
 
         # Create service with trainable resolver
         service = ResolutionService(real_sentencetransformer_resolver)
-
-        # Set context
-        test_session.refresh(doc)
-        doc._set_recognizer_context(ref.recognizer_id)
-        for reference in doc.references:
-            reference._set_resolver_context(annotator.id)
-
         output_path = tmp_path / "trained_model"
 
         # Act - Should extract referents from toponyms
-        service.fit([doc], output_path=str(output_path), epochs=1)
+        service.fit(documents, output_path=str(output_path), epochs=1)
 
         # Assert
         assert output_path.exists()
+
+        # Cleanup
+        project.delete()
 
     def test_fit_handles_documents_without_referent_annotations(
         self,
@@ -505,40 +512,47 @@ class TestResolutionServiceIntegration:
         self,
         test_session,
         real_sentencetransformer_resolver,
-        document_factory,
-        reference_factory,
         andorra_gazetteer,
         tmp_path,
     ):
         """Test that fit passes custom training parameters to resolver."""
         # Arrange
-        # Create and annotate document
-        doc = document_factory(text="Ordino is beautiful.")
-        ref = reference_factory(start=0, end=6, document_id=doc.id)
+        from geoparser.project import Project
 
+        project = Project("custom_params_resolver_test")
         texts = ["Ordino is beautiful."]
         references = [[(0, 6)]]
-        referents = [[("andorranames", "3040684")]]
-        annotator = ManualResolver(
-            label="annotator", texts=texts, references=references, referents=referents
+        referents = [[("andorranames", "3039163")]]
+
+        project.create_documents(texts)
+        project.create_references(
+            label="ref_annotator", texts=texts, references=references
+        )
+        project.create_referents(
+            label="res_annotator",
+            texts=texts,
+            references=references,
+            referents=referents,
         )
 
-        annotation_service = ResolutionService(annotator)
-        test_session.refresh(doc)
-        annotation_service.predict([doc])
+        from geoparser.db.crud import RecognizerRepository, ResolverRepository
+
+        recognizers = RecognizerRepository.get_all(test_session)
+        ref_annotator_id = recognizers[0].id
+        resolvers = ResolverRepository.get_all(test_session)
+        res_annotator_id = resolvers[0].id
+
+        # Get documents with context via Project API
+        documents = project.get_documents(
+            recognizer_id=ref_annotator_id, resolver_id=res_annotator_id
+        )
 
         service = ResolutionService(real_sentencetransformer_resolver)
-
-        test_session.refresh(doc)
-        doc._set_recognizer_context(ref.recognizer_id)
-        for reference in doc.references:
-            reference._set_resolver_context(annotator.id)
-
         output_path = tmp_path / "trained_model"
 
         # Act - Pass custom parameters
         service.fit(
-            [doc],
+            documents,
             output_path=str(output_path),
             epochs=2,
             batch_size=4,
@@ -547,3 +561,6 @@ class TestResolutionServiceIntegration:
 
         # Assert
         assert output_path.exists()
+
+        # Cleanup
+        project.delete()

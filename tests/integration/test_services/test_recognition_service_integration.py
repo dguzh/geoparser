@@ -6,7 +6,6 @@ Tests RecognitionService with real database and recognizers.
 
 import pytest
 
-from geoparser.modules.recognizers.manual import ManualRecognizer
 from geoparser.services.recognition import RecognitionService
 
 
@@ -272,42 +271,39 @@ class TestRecognitionServiceIntegration:
         self,
         test_session,
         real_spacy_recognizer,
-        document_factory,
         tmp_path,
     ):
         """Test that fit method trains a recognizer using annotated documents."""
         # Arrange
-        # Create documents with references
-        doc1 = document_factory(text="Paris is beautiful.")
-        doc2 = document_factory(text="London is historic.")
+        from geoparser.project import Project
 
-        # Create a recognizer to annotate the documents
+        project = Project("recognition_fit_test")
         texts = ["Paris is beautiful.", "London is historic."]
         references = [[(0, 5)], [(0, 6)]]
-        annotator = ManualRecognizer(
-            label="annotator", texts=texts, references=references
-        )
 
-        # Annotate documents
-        annotation_service = RecognitionService(annotator)
-        annotation_service.predict([doc1, doc2])
+        project.create_documents(texts)
+        project.create_references(label="annotator", texts=texts, references=references)
+
+        from geoparser.db.crud import RecognizerRepository
+
+        recognizers = RecognizerRepository.get_all(test_session)
+        annotator_id = recognizers[0].id
+
+        # Get documents with context via Project API
+        documents = project.get_documents(recognizer_id=annotator_id)
 
         # Create a service with trainable recognizer
         service = RecognitionService(real_spacy_recognizer)
-
-        # Get documents with annotations
-        test_session.refresh(doc1)
-        test_session.refresh(doc2)
-        doc1._set_recognizer_context(annotator.id)
-        doc2._set_recognizer_context(annotator.id)
-
         output_path = tmp_path / "trained_model"
 
         # Act
-        service.fit([doc1, doc2], output_path=str(output_path), epochs=1)
+        service.fit(documents, output_path=str(output_path), epochs=1)
 
         # Assert - Model should be saved
         assert output_path.exists()
+
+        # Cleanup
+        project.delete()
 
     def test_fit_raises_error_for_recognizer_without_fit_method(
         self, document_factory, real_manual_recognizer
@@ -325,36 +321,39 @@ class TestRecognitionServiceIntegration:
         self,
         test_session,
         real_spacy_recognizer,
-        document_factory,
         tmp_path,
     ):
         """Test that fit correctly extracts references from document toponyms."""
         # Arrange
-        # Create and annotate documents
-        doc = document_factory(text="Berlin is in Germany.")
+        from geoparser.project import Project
+
+        project = Project("toponyms_extraction_test")
         texts = ["Berlin is in Germany."]
         references = [[(0, 6)]]  # "Berlin"
-        annotator = ManualRecognizer(
-            label="annotator", texts=texts, references=references
-        )
 
-        annotation_service = RecognitionService(annotator)
-        annotation_service.predict([doc])
+        project.create_documents(texts)
+        project.create_references(label="annotator", texts=texts, references=references)
+
+        from geoparser.db.crud import RecognizerRepository
+
+        recognizers = RecognizerRepository.get_all(test_session)
+        annotator_id = recognizers[0].id
+
+        # Get documents with context via Project API
+        documents = project.get_documents(recognizer_id=annotator_id)
 
         # Create service with trainable recognizer
         service = RecognitionService(real_spacy_recognizer)
-
-        # Set context for document
-        test_session.refresh(doc)
-        doc._set_recognizer_context(annotator.id)
-
         output_path = tmp_path / "trained_model"
 
         # Act - Should extract references from toponyms
-        service.fit([doc], output_path=str(output_path), epochs=1)
+        service.fit(documents, output_path=str(output_path), epochs=1)
 
         # Assert
         assert output_path.exists()
+
+        # Cleanup
+        project.delete()
 
     def test_fit_handles_documents_without_annotations(
         self, real_spacy_recognizer, document_factory, tmp_path
@@ -378,32 +377,33 @@ class TestRecognitionServiceIntegration:
         self,
         test_session,
         real_spacy_recognizer,
-        document_factory,
         tmp_path,
     ):
         """Test that fit passes custom training parameters to recognizer."""
         # Arrange
-        # Create and annotate document
-        doc = document_factory(text="Tokyo is in Japan.")
+        from geoparser.project import Project
+
+        project = Project("custom_params_test")
         texts = ["Tokyo is in Japan."]
         references = [[(0, 5)]]  # "Tokyo"
-        annotator = ManualRecognizer(
-            label="annotator", texts=texts, references=references
-        )
 
-        annotation_service = RecognitionService(annotator)
-        annotation_service.predict([doc])
+        project.create_documents(texts)
+        project.create_references(label="annotator", texts=texts, references=references)
+
+        from geoparser.db.crud import RecognizerRepository
+
+        recognizers = RecognizerRepository.get_all(test_session)
+        annotator_id = recognizers[0].id
+
+        # Get documents with context via Project API
+        documents = project.get_documents(recognizer_id=annotator_id)
 
         service = RecognitionService(real_spacy_recognizer)
-
-        test_session.refresh(doc)
-        doc._set_recognizer_context(annotator.id)
-
         output_path = tmp_path / "trained_model"
 
         # Act - Pass custom parameters
         service.fit(
-            [doc],
+            documents,
             output_path=str(output_path),
             epochs=2,
             batch_size=4,
@@ -412,3 +412,6 @@ class TestRecognitionServiceIntegration:
 
         # Assert
         assert output_path.exists()
+
+        # Cleanup
+        project.delete()
