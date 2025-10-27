@@ -69,6 +69,21 @@ class TestSpatialOptimizerOptimizeJoinCondition:
         assert "search_frame = ST_Centroid(table1.geom)" in result
         assert "ST_Within(ST_Centroid(table1.geom), table2.geom)" in result
 
+    def test_falls_back_to_standard_optimization_when_centroid_doesnt_match(self):
+        """Test that standard optimization is used when centroid pattern doesn't match."""
+        # Arrange
+        optimizer = SpatialOptimizer()
+        # This condition has ST_Centroid but doesn't match the centroid pattern
+        condition = "ST_Within(geometry1, table2.geometry2)"
+
+        # Act
+        result = optimizer.optimize_join_condition(condition)
+
+        # Assert - Should use standard optimization, not centroid
+        assert "table2.rowid IN" in result
+        assert "search_frame = geometry1" in result
+        assert "ST_Within(geometry1, table2.geometry2)" in result
+
     def test_returns_original_for_non_spatial_condition(self):
         """Test that non-spatial conditions are returned unchanged."""
         # Arrange

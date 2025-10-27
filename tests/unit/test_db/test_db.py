@@ -90,3 +90,52 @@ class TestPatchDbFixture:
             )
             table_name = result.scalar()
             assert table_name == "project"
+
+
+@pytest.mark.unit
+class TestSetSqlitePragma:
+    """Test the _set_sqlite_pragma event listener."""
+
+    def test_raises_runtime_error_when_spatialite_not_found(self):
+        """Test that RuntimeError is raised when SpatiaLite library is not found."""
+        # Arrange
+        import sqlite3
+        from unittest.mock import patch
+
+        from geoparser.db.db import _set_sqlite_pragma
+
+        connection = sqlite3.connect(":memory:")
+
+        # Act & Assert
+        with patch("geoparser.db.db.get_spatialite_path", return_value=None):
+            with pytest.raises(RuntimeError, match="SpatiaLite library not found"):
+                _set_sqlite_pragma(connection, None)
+
+        connection.close()
+
+    def test_raises_runtime_error_when_spatialite_fails_to_load(self):
+        """Test that RuntimeError is raised when SpatiaLite fails to load."""
+        # Arrange
+        import sqlite3
+        from pathlib import Path
+        from unittest.mock import patch
+
+        from geoparser.db.db import _set_sqlite_pragma
+
+        connection = sqlite3.connect(":memory:")
+
+        # Act & Assert
+        with patch(
+            "geoparser.db.db.get_spatialite_path",
+            return_value=Path("/fake/path/mod_spatialite.so"),
+        ):
+            with patch(
+                "geoparser.db.db.load_spatialite_extension",
+                side_effect=Exception("Load failed"),
+            ):
+                with pytest.raises(
+                    RuntimeError, match="Failed to load SpatiaLite extension"
+                ):
+                    _set_sqlite_pragma(connection, None)
+
+        connection.close()

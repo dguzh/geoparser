@@ -17,62 +17,6 @@ from geoparser.gazetteer.installer.strategies.spatial import SpatialLoadStrategy
 
 
 @pytest.mark.unit
-class TestSpatialLoadStrategyBuildReadKwargs:
-    """Test SpatialLoadStrategy._build_read_kwargs() method."""
-
-    def test_returns_empty_dict_when_no_layer(self):
-        """Test that empty dict is returned when no layer specified."""
-        # Arrange
-        source = SourceConfig(
-            name="test",
-            url="http://example.com/data.shp",
-            file="data.shp",
-            type=SourceType.SPATIAL,
-            attributes=AttributesConfig(
-                original=[
-                    OriginalAttributeConfig(
-                        name="geometry", type=DataType.GEOMETRY, srid=4326
-                    )
-                ]
-            ),
-        )
-
-        strategy = SpatialLoadStrategy()
-
-        # Act
-        result = strategy._build_read_kwargs(source)
-
-        # Assert
-        assert result == {}
-
-    def test_includes_layer_when_specified(self):
-        """Test that layer is included in kwargs when specified."""
-        # Arrange
-        source = SourceConfig(
-            name="test",
-            url="http://example.com/data.gpkg",
-            file="data.gpkg",
-            type=SourceType.SPATIAL,
-            layer="layer1",
-            attributes=AttributesConfig(
-                original=[
-                    OriginalAttributeConfig(
-                        name="geometry", type=DataType.GEOMETRY, srid=4326
-                    )
-                ]
-            ),
-        )
-
-        strategy = SpatialLoadStrategy()
-
-        # Act
-        result = strategy._build_read_kwargs(source)
-
-        # Assert
-        assert result == {"layer": "layer1"}
-
-
-@pytest.mark.unit
 class TestSpatialLoadStrategyFindGeometryAttribute:
     """Test SpatialLoadStrategy._find_geometry_attribute() method."""
 

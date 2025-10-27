@@ -163,6 +163,19 @@ class TestDerivedAttributeConfig:
         # Assert
         assert attr.srid == 4326
 
+    def test_non_geometry_column_cannot_have_srid(self):
+        """Test that non-geometry columns cannot have SRID specified."""
+        # Act & Assert
+        with pytest.raises(
+            ValueError, match="SRID can only be specified for geometry columns"
+        ):
+            DerivedAttributeConfig(
+                name="id",
+                type=DataType.INTEGER,
+                expression="1",
+                srid=4326,
+            )
+
 
 @pytest.mark.unit
 class TestAttributesConfig:
@@ -403,24 +416,6 @@ class TestSourceConfig:
                 url="http://example.com/data.csv",
                 file="data.csv",
                 type=SourceType.TABULAR,
-                attributes=AttributesConfig(
-                    original=[OriginalAttributeConfig(name="id", type=DataType.INTEGER)]
-                ),
-            )
-
-    def test_tabular_rejects_layer(self):
-        """Test that tabular sources cannot have layer."""
-        # Act & Assert
-        with pytest.raises(
-            ValueError, match="Layer can not be specified for tabular sources"
-        ):
-            SourceConfig(
-                name="test",
-                url="http://example.com/data.csv",
-                file="data.csv",
-                type=SourceType.TABULAR,
-                separator=",",
-                layer="layer0",
                 attributes=AttributesConfig(
                     original=[OriginalAttributeConfig(name="id", type=DataType.INTEGER)]
                 ),

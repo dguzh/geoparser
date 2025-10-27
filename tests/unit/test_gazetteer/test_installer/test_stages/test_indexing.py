@@ -4,6 +4,8 @@ Unit tests for geoparser/gazetteer/installer/stages/indexing.py
 Tests the IndexingStage class.
 """
 
+from unittest.mock import Mock, patch
+
 import pytest
 
 from geoparser.gazetteer.installer.model import (
@@ -192,3 +194,87 @@ class TestIndexingStageCollectIndexedColumns:
         assert len(result) == 2
         assert ("id", DataType.INTEGER) in result
         assert ("computed", DataType.REAL) in result
+
+
+@pytest.mark.unit
+class TestIndexingStageExecute:
+    """Test IndexingStage.execute() method."""
+
+    def test_skips_when_no_indexed_columns(self):
+        """Test that indexing is skipped when there are no indexed columns."""
+        # Arrange
+        source = SourceConfig(
+            name="test",
+            path="/test/data.csv",
+            file="data.csv",
+            type=SourceType.TABULAR,
+            separator=",",
+            attributes=AttributesConfig(
+                original=[
+                    OriginalAttributeConfig(
+                        name="id", type=DataType.INTEGER, index=False
+                    ),
+                    OriginalAttributeConfig(
+                        name="name", type=DataType.TEXT, index=False
+                    ),
+                ]
+            ),
+        )
+
+        stage = IndexingStage()
+        context = {"table_name": "test_table"}
+
+        # Mock get_connection
+        mock_get_connection = Mock()
+
+        # Act
+        with patch(
+            "geoparser.gazetteer.installer.stages.indexing.get_connection",
+            mock_get_connection,
+        ):
+            stage.execute(source, context)
+
+        # Assert - get_connection should not have been called because there are no indexed columns
+        mock_get_connection.assert_not_called()
+
+
+@pytest.mark.unit
+class TestIndexingStageCreateIndices:
+    """Test IndexingStage._create_indices() error handling."""
+
+    def test_continues_on_database_error(self, capsys):
+        """Test that indexing continues when an index creation fails."""
+        # Arrange
+        import sqlalchemy as sa
+
+        stage = IndexingStage()
+        indexed_columns = [
+            ("id", DataType.INTEGER),
+            ("name", DataType.TEXT),
+        ]
+
+        # Mock connection that fails on first index but succeeds on second
+        mock_connection = Mock()
+        mock_connection.execute.side_effect = [
+            sa.exc.DatabaseError(
+                "statement", {}, Exception("DB error")
+            ),  # First index fails
+            None,  # Second index succeeds
+        ]
+        mock_connection.commit = Mock()
+        mock_connection.__enter__ = Mock(return_value=mock_connection)
+        mock_connection.__exit__ = Mock(return_value=None)
+
+        # Act
+        with patch(
+            "geoparser.gazetteer.installer.stages.indexing.get_connection",
+            return_value=mock_connection,
+        ):
+            stage._create_indices("test_table", indexed_columns)
+
+        # Assert - Should print warning but continue
+        captured = capsys.readouterr()
+        assert "Warning" in captured.out
+        assert "Failed to create index" in captured.out
+        # commit should still be called
+        mock_connection.commit.assert_called_once()

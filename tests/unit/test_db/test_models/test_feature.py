@@ -198,3 +198,215 @@ class TestFeatureUpdate:
         assert feature_update.id == 1
         assert feature_update.source_id is None
         assert feature_update.location_id_value is None
+
+
+@pytest.mark.unit
+class TestFeatureDataProperty:
+    """Test the Feature.data cached property."""
+
+    def test_data_returns_none_when_no_row_found(
+        self, test_session: Session, gazetteer_factory, source_factory
+    ):
+        """Test that data property returns None when no matching row is found."""
+        # Arrange
+        from geoparser.db.db import get_connection
+        from geoparser.db.models import Feature
+
+        gazetteer = gazetteer_factory(name="test_gaz")
+        source = source_factory(
+            name="test_source",
+            location_id_name="id",
+            gazetteer_id=gazetteer.id,
+        )
+
+        # Create table for the source but don't insert any data
+        with get_connection() as connection:
+            from sqlalchemy import text
+
+            connection.execute(
+                text(f"CREATE TABLE {source.name} (id TEXT PRIMARY KEY, name TEXT)")
+            )
+            connection.commit()
+
+        feature = Feature(source_id=source.id, location_id_value="nonexistent")
+        test_session.add(feature)
+        test_session.commit()
+        test_session.refresh(feature)
+
+        # Act
+        result = feature.data
+
+        # Assert
+        assert result is None
+
+    def test_data_returns_none_on_exception(
+        self, test_session: Session, source_factory
+    ):
+        """Test that data property returns None when query fails."""
+        # Arrange
+        from geoparser.db.models import Feature
+
+        # Create a feature with a source that has no corresponding table
+        source = source_factory(name="nonexistent_table")
+        feature = Feature(source_id=source.id, location_id_value="123")
+        test_session.add(feature)
+        test_session.commit()
+        test_session.refresh(feature)
+
+        # Act - This should fail because table doesn't exist
+        result = feature.data
+
+        # Assert - Should return None instead of raising exception
+        assert result is None
+
+    def test_data_excludes_geometry_column(
+        self, test_session: Session, gazetteer_factory, source_factory
+    ):
+        """Test that data property excludes the geometry column."""
+        # Arrange
+        from sqlalchemy import text
+
+        from geoparser.db.db import get_connection
+        from geoparser.db.models import Feature
+
+        gazetteer = gazetteer_factory(name="test_gaz")
+        source = source_factory(
+            name="geo_source",
+            location_id_name="id",
+            gazetteer_id=gazetteer.id,
+        )
+
+        # Create table with geometry column
+        with get_connection() as connection:
+            connection.execute(
+                text(
+                    f"CREATE TABLE {source.name} (id TEXT PRIMARY KEY, name TEXT, geometry TEXT)"
+                )
+            )
+            connection.execute(
+                text(
+                    f"INSERT INTO {source.name} (id, name, geometry) VALUES ('1', 'Test', 'POINT(1 1)')"
+                )
+            )
+            connection.commit()
+
+        feature = Feature(source_id=source.id, location_id_value="1")
+        test_session.add(feature)
+        test_session.commit()
+        test_session.refresh(feature)
+
+        # Act
+        result = feature.data
+
+        # Assert
+        assert result is not None
+        assert "name" in result
+        assert "geometry" not in result  # Should be excluded
+
+
+@pytest.mark.unit
+class TestFeatureGeometryProperty:
+    """Test the Feature.geometry cached property."""
+
+    def test_geometry_returns_none_when_no_row_found(
+        self, test_session: Session, gazetteer_factory, source_factory
+    ):
+        """Test that geometry property returns None when no matching row is found."""
+        # Arrange
+        from sqlalchemy import text
+
+        from geoparser.db.db import get_connection
+        from geoparser.db.models import Feature
+
+        gazetteer = gazetteer_factory(name="test_gaz")
+        source = source_factory(
+            name="geo_source",
+            location_id_name="id",
+            gazetteer_id=gazetteer.id,
+        )
+
+        # Create table with geometry but no data
+        with get_connection() as connection:
+            connection.execute(
+                text(f"CREATE TABLE {source.name} (id TEXT PRIMARY KEY)")
+            )
+            connection.execute(
+                text(
+                    f"SELECT AddGeometryColumn('{source.name}', 'geometry', 4326, 'POINT', 'XY')"
+                )
+            )
+            connection.commit()
+
+        feature = Feature(source_id=source.id, location_id_value="nonexistent")
+        test_session.add(feature)
+        test_session.commit()
+        test_session.refresh(feature)
+
+        # Act
+        result = feature.geometry
+
+        # Assert
+        assert result is None
+
+    def test_geometry_returns_none_when_geometry_is_null(
+        self, test_session: Session, gazetteer_factory, source_factory
+    ):
+        """Test that geometry property returns None when geometry field is NULL."""
+        # Arrange
+        from sqlalchemy import text
+
+        from geoparser.db.db import get_connection
+        from geoparser.db.models import Feature
+
+        gazetteer = gazetteer_factory(name="test_gaz")
+        source = source_factory(
+            name="geo_source",
+            location_id_name="id",
+            gazetteer_id=gazetteer.id,
+        )
+
+        # Create table with geometry and insert row with NULL geometry
+        with get_connection() as connection:
+            connection.execute(
+                text(f"CREATE TABLE {source.name} (id TEXT PRIMARY KEY)")
+            )
+            connection.execute(
+                text(
+                    f"SELECT AddGeometryColumn('{source.name}', 'geometry', 4326, 'POINT', 'XY')"
+                )
+            )
+            connection.execute(
+                text(f"INSERT INTO {source.name} (id, geometry) VALUES ('1', NULL)")
+            )
+            connection.commit()
+
+        feature = Feature(source_id=source.id, location_id_value="1")
+        test_session.add(feature)
+        test_session.commit()
+        test_session.refresh(feature)
+
+        # Act
+        result = feature.geometry
+
+        # Assert
+        assert result is None
+
+    def test_geometry_returns_none_on_exception(
+        self, test_session: Session, source_factory
+    ):
+        """Test that geometry property returns None when query fails."""
+        # Arrange
+        from geoparser.db.models import Feature
+
+        # Create a feature with a source that has no corresponding table
+        source = source_factory(name="nonexistent_table")
+        feature = Feature(source_id=source.id, location_id_value="123")
+        test_session.add(feature)
+        test_session.commit()
+        test_session.refresh(feature)
+
+        # Act - This should fail because table doesn't exist
+        result = feature.geometry
+
+        # Assert - Should return None instead of raising exception
+        assert result is None
