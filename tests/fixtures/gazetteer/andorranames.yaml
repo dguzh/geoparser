@@ -1,6 +1,6 @@
 name: andorranames
 sources:
-  - name: allCountries
+  - name: andorra
     path: tests/fixtures/gazetteer/data/AD.txt
     file: AD.txt
     type: tabular
@@ -73,75 +73,80 @@ sources:
           expression: "CASE WHEN instr(asciiname, '(') > 0 THEN trim(substr(asciiname, 1, instr(asciiname, '(') - 1)) ELSE asciiname END"
     view:
       select:
-        - source: allCountries
+        - source: andorra
           column: geonameid
-        - source: allCountries
+        - source: andorra
           column: name
-        - source: allCountries
+        - source: andorra
           column: name_no_parens
-        - source: allCountries
+        - source: andorra
           column: asciiname
-        - source: allCountries
+        - source: andorra
           column: asciiname_no_parens
-        - source: allCountries
+        - source: andorra
           column: alternatenames
-        - source: allCountries
+        - source: andorra
           column: latitude
-        - source: allCountries
+        - source: andorra
           column: longitude
-        - source: allCountries
+        - source: andorra
           column: feature_class
-        - source: allCountries
+        - source: andorra
           column: feature_code
         - source: featureCodes
           column: name
           alias: feature_name
-        - source: allCountries
+        - source: andorra
           column: country_code
         - source: countryInfo
           column: Country
           alias: country_name
-        - source: allCountries
+        - source: andorra
           column: cc2
-        - source: allCountries
+        - source: andorra
           column: admin1_code
         - source: admin1CodesASCII
           column: name
           alias: admin1_name
-        - source: allCountries
+        - source: andorra
           column: admin2_code
         - source: admin2Codes
           column: name
           alias: admin2_name
-        - source: allCountries
+        - source: andorra
           column: admin3_code
-        - source: allCountries
+        - source: andorra
           column: admin4_code
-        - source: allCountries
+        - source: andorra
           column: population
-        - source: allCountries
+        - source: andorra
           column: elevation
-        - source: allCountries
+        - source: andorra
           column: dem
-        - source: allCountries
+        - source: andorra
           column: timezone
-        - source: allCountries
+        - source: andorra
           column: modification_date
-        - source: allCountries
+        - source: shape
+          column: dummy
+        - source: andorra
           column: geometry
       join:
         - type: LEFT JOIN
           source: countryInfo
-          condition: allCountries.country_code = countryInfo.ISO
+          condition: andorra.country_code = countryInfo.ISO
         - type: LEFT JOIN
           source: admin1CodesASCII
-          condition: allCountries.admin1_code_full = admin1CodesASCII.code
+          condition: andorra.admin1_code_full = admin1CodesASCII.code
         - type: LEFT JOIN
           source: admin2Codes
-          condition: allCountries.admin2_code_full = admin2Codes.code
+          condition: andorra.admin2_code_full = admin2Codes.code
         - type: LEFT JOIN
           source: featureCodes
-          condition: allCountries.feature_code_full = featureCodes.code
+          condition: andorra.feature_code_full = featureCodes.code
+        - type: LEFT JOIN
+          source: shape
+          condition: ST_Within(andorra.geometry, shape.geometry)
     features:
       identifier:
         - column: geonameid
@@ -250,3 +255,17 @@ sources:
         - name: description
           type: TEXT
 
+  - name: shape
+    path: tests/fixtures/gazetteer/data/shape.shp
+    file: AD.shp
+    type: spatial
+    attributes:
+      original:
+        - name: geometry
+          type: GEOMETRY
+          index: true
+          srid: 4326
+      derived:
+        - name: dummy
+          type: TEXT
+          expression: "'Dummy Text'"
