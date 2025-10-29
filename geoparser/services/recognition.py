@@ -66,11 +66,11 @@ class RecognitionService:
         Args:
             documents: List of Document objects to process
         """
-        if not documents:
-            return
-
         # Ensure recognizer record exists in database and get the ID
         recognizer_id = self._ensure_recognizer_record(self.recognizer)
+
+        if not documents:
+            return
 
         with get_session() as session:
             # Filter out documents that have already been processed by this recognizer
