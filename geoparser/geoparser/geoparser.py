@@ -66,10 +66,7 @@ class Geoparser:
                 project.run_resolver(self.resolver)
 
             # Get all documents with results from our specific recognizer and resolver
-            documents = project.get_documents(
-                recognizer_id=self.recognizer.id if self.recognizer else None,
-                resolver_id=self.resolver.id if self.resolver else None,
-            )
+            documents = project.get_documents()
 
             # If save is True, inform the user about the project name
             if save:
