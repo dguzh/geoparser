@@ -1,3 +1,4 @@
+from geoparser.db.crud.context import ContextRepository
 from geoparser.db.crud.document import DocumentRepository
 from geoparser.db.crud.feature import FeatureRepository
 from geoparser.db.crud.gazetteer import GazetteerRepository

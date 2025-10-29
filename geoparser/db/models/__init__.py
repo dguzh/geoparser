@@ -1,3 +1,4 @@
+from geoparser.db.models.context import Context, ContextCreate, ContextUpdate
 from geoparser.db.models.document import Document, DocumentCreate, DocumentUpdate
 from geoparser.db.models.feature import Feature, FeatureCreate, FeatureUpdate
 from geoparser.db.models.gazetteer import Gazetteer, GazetteerCreate, GazetteerUpdate
@@ -32,6 +33,8 @@ from geoparser.db.models.source import Source, SourceCreate, SourceUpdate
 for rebuild in [
     Project,
     ProjectCreate,
+    Context,
+    ContextCreate,
     Document,
     DocumentCreate,
     Reference,
