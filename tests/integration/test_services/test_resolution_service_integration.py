@@ -385,27 +385,16 @@ class TestResolutionServiceIntegration:
         referents = [[("andorranames", "3041563")], [("andorranames", "3040051")]]
 
         project.create_documents(texts)
-        project.create_references(
-            label="ref_annotator", texts=texts, references=references
-        )
+        project.create_references(tag="annotations", texts=texts, references=references)
         project.create_referents(
-            label="res_annotator",
+            tag="annotations",
             texts=texts,
             references=references,
             referents=referents,
         )
 
-        from geoparser.db.crud import RecognizerRepository, ResolverRepository
-
-        recognizers = RecognizerRepository.get_all(test_session)
-        ref_annotator_id = recognizers[0].id
-        resolvers = ResolverRepository.get_all(test_session)
-        res_annotator_id = resolvers[0].id
-
         # Get documents with context via Project API
-        documents = project.get_documents(
-            recognizer_id=ref_annotator_id, resolver_id=res_annotator_id
-        )
+        documents = project.get_documents(tag="annotations")
 
         # Create service with trainable resolver
         service = ResolutionService(real_sentencetransformer_resolver)
@@ -449,27 +438,16 @@ class TestResolutionServiceIntegration:
         referents = [[("andorranames", "3041204")]]
 
         project.create_documents(texts)
-        project.create_references(
-            label="ref_annotator", texts=texts, references=references
-        )
+        project.create_references(tag="annotations", texts=texts, references=references)
         project.create_referents(
-            label="res_annotator",
+            tag="annotations",
             texts=texts,
             references=references,
             referents=referents,
         )
 
-        from geoparser.db.crud import RecognizerRepository, ResolverRepository
-
-        recognizers = RecognizerRepository.get_all(test_session)
-        ref_annotator_id = recognizers[0].id
-        resolvers = ResolverRepository.get_all(test_session)
-        res_annotator_id = resolvers[0].id
-
         # Get documents with context via Project API
-        documents = project.get_documents(
-            recognizer_id=ref_annotator_id, resolver_id=res_annotator_id
-        )
+        documents = project.get_documents(tag="annotations")
 
         # Create service with trainable resolver
         service = ResolutionService(real_sentencetransformer_resolver)
@@ -525,27 +503,16 @@ class TestResolutionServiceIntegration:
         referents = [[("andorranames", "3039163")]]
 
         project.create_documents(texts)
-        project.create_references(
-            label="ref_annotator", texts=texts, references=references
-        )
+        project.create_references(tag="annotations", texts=texts, references=references)
         project.create_referents(
-            label="res_annotator",
+            tag="annotations",
             texts=texts,
             references=references,
             referents=referents,
         )
 
-        from geoparser.db.crud import RecognizerRepository, ResolverRepository
-
-        recognizers = RecognizerRepository.get_all(test_session)
-        ref_annotator_id = recognizers[0].id
-        resolvers = ResolverRepository.get_all(test_session)
-        res_annotator_id = resolvers[0].id
-
         # Get documents with context via Project API
-        documents = project.get_documents(
-            recognizer_id=ref_annotator_id, resolver_id=res_annotator_id
-        )
+        documents = project.get_documents(tag="annotations")
 
         service = ResolutionService(real_sentencetransformer_resolver)
         output_path = tmp_path / "trained_model"
