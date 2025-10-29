@@ -66,10 +66,7 @@ class TestCompleteParsingPipeline:
         project.run_recognizer(real_spacy_recognizer)
         project.run_resolver(real_sentencetransformer_resolver)
 
-        documents = project.get_documents(
-            recognizer_id=real_spacy_recognizer.id,
-            resolver_id=real_sentencetransformer_resolver.id,
-        )
+        documents = project.get_documents()
 
         # Assert
         assert len(documents) == 2
@@ -106,12 +103,12 @@ class TestCompleteParsingPipeline:
         )
 
         project.create_documents(texts)
-        project.run_recognizer(recognizer1)
-        project.run_recognizer(recognizer2)
+        project.run_recognizer(recognizer1, tag="config1")
+        project.run_recognizer(recognizer2, tag="config2")
 
-        # Get results for each recognizer
-        docs_rec1 = project.get_documents(recognizer_id=recognizer1.id)
-        docs_rec2 = project.get_documents(recognizer_id=recognizer2.id)
+        # Get results for each recognizer using tags
+        docs_rec1 = project.get_documents(tag="config1")
+        docs_rec2 = project.get_documents(tag="config2")
 
         # Assert - Both should produce results (may differ)
         assert len(docs_rec1) == 2
@@ -137,7 +134,10 @@ class TestCompleteParsingPipeline:
         ]
 
         project.create_documents(texts)
-        project.run_recognizer(real_spacy_recognizer)
+
+        # Run recognizer on two different tags for comparison
+        project.run_recognizer(real_spacy_recognizer, tag="config1")
+        project.run_recognizer(real_spacy_recognizer, tag="config2")
 
         # Define attribute map for andorranames gazetteer
         andorra_attribute_map = {
@@ -165,16 +165,12 @@ class TestCompleteParsingPipeline:
             attribute_map=andorra_attribute_map,
         )
 
-        project.run_resolver(resolver1)
-        project.run_resolver(resolver2)
+        project.run_resolver(resolver1, tag="config1")
+        project.run_resolver(resolver2, tag="config2")
 
-        # Get results for each resolver
-        docs_res1 = project.get_documents(
-            recognizer_id=real_spacy_recognizer.id, resolver_id=resolver1.id
-        )
-        docs_res2 = project.get_documents(
-            recognizer_id=real_spacy_recognizer.id, resolver_id=resolver2.id
-        )
+        # Get results for each resolver using tags
+        docs_res1 = project.get_documents(tag="config1")
+        docs_res2 = project.get_documents(tag="config2")
 
         # Assert - Both should produce results
         assert len(docs_res1) == 2
@@ -209,18 +205,15 @@ class TestCompleteParsingPipeline:
         )
         recognizer2 = SpacyRecognizer(model_name="en_core_web_sm", entity_types=["GPE"])
 
-        project.run_recognizer(recognizer1)
-        project.run_recognizer(recognizer2)
+        project.run_recognizer(recognizer1, tag="broad")
+        project.run_recognizer(recognizer2, tag="narrow")
 
-        # Run resolver for first recognizer
-        project.run_resolver(real_sentencetransformer_resolver)
+        # Run resolver for broad recognizer configuration
+        project.run_resolver(real_sentencetransformer_resolver, tag="broad")
 
-        # Get documents with different contexts
-        docs_rec1_resolved = project.get_documents(
-            recognizer_id=recognizer1.id,
-            resolver_id=real_sentencetransformer_resolver.id,
-        )
-        docs_rec2_unresolved = project.get_documents(recognizer_id=recognizer2.id)
+        # Get documents with different contexts using tags
+        docs_rec1_resolved = project.get_documents(tag="broad")
+        docs_rec2_unresolved = project.get_documents(tag="narrow")
 
         # Assert
         assert len(docs_rec1_resolved) == 1
@@ -259,10 +252,7 @@ class TestCompleteParsingPipeline:
         project.run_recognizer(real_spacy_recognizer)
         project.run_resolver(real_sentencetransformer_resolver)
 
-        documents = project.get_documents(
-            recognizer_id=real_spacy_recognizer.id,
-            resolver_id=real_sentencetransformer_resolver.id,
-        )
+        documents = project.get_documents()
 
         # Assert
         assert len(documents) == 7
