@@ -76,7 +76,7 @@ class TestProjectIntegration:
         project.run_recognizer(recognizer)
 
         # Assert
-        documents = project.get_documents(recognizer_id=recognizer.id)
+        documents = project.get_documents()
         assert len(documents) == 1
         assert len(documents[0].toponyms) == 1
         assert documents[0].toponyms[0].text == "Paris"
@@ -110,9 +110,7 @@ class TestProjectIntegration:
         project.run_resolver(resolver)
 
         # Assert
-        documents = project.get_documents(
-            recognizer_id=recognizer.id, resolver_id=resolver.id
-        )
+        documents = project.get_documents()
         assert len(documents) == 1
         assert len(documents[0].toponyms) == 1
         assert documents[0].toponyms[0].location is not None
@@ -120,8 +118,8 @@ class TestProjectIntegration:
         # Cleanup
         project.delete()
 
-    def test_get_documents_filters_by_recognizer(self):
-        """Test that get_documents filters by recognizer_id."""
+    def test_get_documents_filters_by_tag(self):
+        """Test that get_documents filters by tag."""
         # Arrange
         project = Project("filter_test_project")
         texts = ["Paris and London."]
@@ -130,25 +128,25 @@ class TestProjectIntegration:
         rec1 = ManualRecognizer(label="rec1", texts=texts, references=[[(0, 5)]])
         rec2 = ManualRecognizer(label="rec2", texts=texts, references=[[(10, 16)]])
 
-        project.run_recognizer(rec1)
-        project.run_recognizer(rec2)
+        project.run_recognizer(rec1, tag="tag1")
+        project.run_recognizer(rec2, tag="tag2")
 
         # Act
-        docs_rec1 = project.get_documents(recognizer_id=rec1.id)
-        docs_rec2 = project.get_documents(recognizer_id=rec2.id)
+        docs_tag1 = project.get_documents(tag="tag1")
+        docs_tag2 = project.get_documents(tag="tag2")
 
         # Assert
-        assert len(docs_rec1[0].toponyms) == 1
-        assert docs_rec1[0].toponyms[0].text == "Paris"
+        assert len(docs_tag1[0].toponyms) == 1
+        assert docs_tag1[0].toponyms[0].text == "Paris"
 
-        assert len(docs_rec2[0].toponyms) == 1
-        assert docs_rec2[0].toponyms[0].text == "London"
+        assert len(docs_tag2[0].toponyms) == 1
+        assert docs_tag2[0].toponyms[0].text == "London"
 
         # Cleanup
         project.delete()
 
-    def test_get_documents_filters_by_resolver(self, andorra_gazetteer):
-        """Test that get_documents filters by resolver_id."""
+    def test_get_documents_filters_by_resolver_tag(self, andorra_gazetteer):
+        """Test that get_documents filters by resolver tag."""
         # Arrange
         project = Project("resolver_filter_test")
         texts = ["Paris is beautiful."]
@@ -156,9 +154,12 @@ class TestProjectIntegration:
 
         project.create_documents(texts)
 
+        # Run recognizer with one tag
         recognizer = ManualRecognizer(label="rec", texts=texts, references=references)
-        project.run_recognizer(recognizer)
+        project.run_recognizer(recognizer, tag="tag1")
+        project.run_recognizer(recognizer, tag="tag2")
 
+        # Run different resolvers on each tag
         res1 = ManualResolver(
             label="res1",
             texts=texts,
@@ -172,21 +173,17 @@ class TestProjectIntegration:
             referents=[[("andorranames", "3041565")]],
         )
 
-        project.run_resolver(res1)
-        project.run_resolver(res2)
+        project.run_resolver(res1, tag="tag1")
+        project.run_resolver(res2, tag="tag2")
 
         # Act
-        docs_res1 = project.get_documents(
-            recognizer_id=recognizer.id, resolver_id=res1.id
-        )
-        docs_res2 = project.get_documents(
-            recognizer_id=recognizer.id, resolver_id=res2.id
-        )
+        docs_tag1 = project.get_documents(tag="tag1")
+        docs_tag2 = project.get_documents(tag="tag2")
 
         # Assert
         # Both should have locations, but potentially different ones
-        assert docs_res1[0].toponyms[0].location is not None
-        assert docs_res2[0].toponyms[0].location is not None
+        assert docs_tag1[0].toponyms[0].location is not None
+        assert docs_tag2[0].toponyms[0].location is not None
 
         # Cleanup
         project.delete()
@@ -207,7 +204,7 @@ class TestProjectIntegration:
         retrieved = ProjectRepository.get(test_session, project_id)
         assert retrieved is None
 
-    def test_create_references_with_manual_annotations(self, test_session):
+    def test_create_references_with_manual_annotations(self):
         """Test that create_references uses ManualRecognizer internally."""
         # Arrange
         project = Project("manual_ref_test")
@@ -217,18 +214,11 @@ class TestProjectIntegration:
 
         # Act
         project.create_references(
-            label="manual_annotations", texts=texts, references=references
+            tag="manual_annotations", texts=texts, references=references
         )
 
-        # Assert - Get the recognizer that was created internally
-        from geoparser.db.crud import RecognizerRepository
-
-        recognizers = RecognizerRepository.get_all(test_session)
-        assert len(recognizers) == 1
-        recognizer_id = recognizers[0].id
-
-        # Get documents with the recognizer_id to see the references
-        documents = project.get_documents(recognizer_id=recognizer_id)
+        # Assert - Get documents with the tag to see the references
+        documents = project.get_documents(tag="manual_annotations")
         assert len(documents) == 1
         assert len(documents[0].toponyms) == 1
         assert documents[0].toponyms[0].text == "Paris"
@@ -238,9 +228,7 @@ class TestProjectIntegration:
         # Cleanup
         project.delete()
 
-    def test_create_referents_with_manual_annotations(
-        self, test_session, andorra_gazetteer
-    ):
+    def test_create_referents_with_manual_annotations(self, andorra_gazetteer):
         """Test that create_referents uses ManualResolver internally."""
         # Arrange
         project = Project("manual_referent_test")
@@ -249,33 +237,18 @@ class TestProjectIntegration:
         referents = [[("andorranames", "3041563")]]
 
         project.create_documents(texts)
-        project.create_references(
-            label="annotations", texts=texts, references=references
-        )
+        project.create_references(tag="annotations", texts=texts, references=references)
 
         # Act
         project.create_referents(
-            label="annotations",
+            tag="annotations",
             texts=texts,
             references=references,
             referents=referents,
         )
 
-        # Assert - Get the recognizer and resolver that were created internally
-        from geoparser.db.crud import RecognizerRepository, ResolverRepository
-
-        recognizers = RecognizerRepository.get_all(test_session)
-        assert len(recognizers) == 1
-        recognizer_id = recognizers[0].id
-
-        resolvers = ResolverRepository.get_all(test_session)
-        assert len(resolvers) == 1
-        resolver_id = resolvers[0].id
-
-        # Get documents with both IDs to see the referents
-        documents = project.get_documents(
-            recognizer_id=recognizer_id, resolver_id=resolver_id
-        )
+        # Assert - Get documents with the tag to see the referents
+        documents = project.get_documents(tag="annotations")
         assert len(documents) == 1
         assert len(documents[0].toponyms) == 1
         assert documents[0].toponyms[0].text == "Paris"
@@ -312,9 +285,7 @@ class TestProjectIntegration:
         )
         project.run_resolver(resolver)
 
-        documents = project.get_documents(
-            recognizer_id=recognizer.id, resolver_id=resolver.id
-        )
+        documents = project.get_documents()
 
         # Assert
         assert len(documents) == 3
@@ -375,7 +346,7 @@ class TestProjectIntegration:
         project.delete()
 
     def test_train_recognizer_with_annotated_documents(
-        self, test_session, real_spacy_recognizer, tmp_path
+        self, real_spacy_recognizer, tmp_path
     ):
         """Test that train_recognizer trains a recognizer using annotated documents."""
         # Arrange
@@ -384,22 +355,14 @@ class TestProjectIntegration:
         references = [[(0, 5)], [(0, 6)]]
 
         project.create_documents(texts)
-        project.create_references(
-            label="annotations", texts=texts, references=references
-        )
-
-        # Get the recognizer ID that was created
-        from geoparser.db.crud import RecognizerRepository
-
-        recognizers = RecognizerRepository.get_all(test_session)
-        recognizer_id = recognizers[0].id
+        project.create_references(tag="annotations", texts=texts, references=references)
 
         output_path = tmp_path / "trained_recognizer"
 
         # Act
         project.train_recognizer(
             recognizer=real_spacy_recognizer,
-            recognizer_id=recognizer_id,
+            tag="annotations",
             output_path=str(output_path),
             epochs=1,
         )
@@ -412,7 +375,6 @@ class TestProjectIntegration:
 
     def test_train_resolver_with_annotated_documents(
         self,
-        test_session,
         real_sentencetransformer_resolver,
         andorra_gazetteer,
         tmp_path,
@@ -425,31 +387,20 @@ class TestProjectIntegration:
         referents = [[("andorranames", "3041563")], [("andorranames", "3041565")]]
 
         project.create_documents(texts)
-        project.create_references(
-            label="annotations", texts=texts, references=references
-        )
+        project.create_references(tag="annotations", texts=texts, references=references)
         project.create_referents(
-            label="annotations",
+            tag="annotations",
             texts=texts,
             references=references,
             referents=referents,
         )
-
-        # Get the recognizer and resolver IDs that were created
-        from geoparser.db.crud import RecognizerRepository, ResolverRepository
-
-        recognizers = RecognizerRepository.get_all(test_session)
-        recognizer_id = recognizers[0].id
-        resolvers = ResolverRepository.get_all(test_session)
-        resolver_id = resolvers[0].id
 
         output_path = tmp_path / "trained_resolver"
 
         # Act
         project.train_resolver(
             resolver=real_sentencetransformer_resolver,
-            recognizer_id=recognizer_id,
-            resolver_id=resolver_id,
+            tag="annotations",
             output_path=str(output_path),
             epochs=1,
         )
@@ -461,7 +412,7 @@ class TestProjectIntegration:
         project.delete()
 
     def test_train_recognizer_passes_custom_parameters(
-        self, test_session, real_spacy_recognizer, tmp_path
+        self, real_spacy_recognizer, tmp_path
     ):
         """Test that train_recognizer passes custom training parameters."""
         # Arrange
@@ -470,21 +421,14 @@ class TestProjectIntegration:
         references = [[(0, 6)]]
 
         project.create_documents(texts)
-        project.create_references(
-            label="annotations", texts=texts, references=references
-        )
-
-        from geoparser.db.crud import RecognizerRepository
-
-        recognizers = RecognizerRepository.get_all(test_session)
-        recognizer_id = recognizers[0].id
+        project.create_references(tag="annotations", texts=texts, references=references)
 
         output_path = tmp_path / "trained_recognizer"
 
         # Act - Pass custom parameters
         project.train_recognizer(
             recognizer=real_spacy_recognizer,
-            recognizer_id=recognizer_id,
+            tag="annotations",
             output_path=str(output_path),
             epochs=2,
             batch_size=4,
@@ -499,7 +443,6 @@ class TestProjectIntegration:
 
     def test_train_resolver_passes_custom_parameters(
         self,
-        test_session,
         real_sentencetransformer_resolver,
         andorra_gazetteer,
         tmp_path,
@@ -512,30 +455,20 @@ class TestProjectIntegration:
         referents = [[("andorranames", "3041204")]]
 
         project.create_documents(texts)
-        project.create_references(
-            label="annotations", texts=texts, references=references
-        )
+        project.create_references(tag="annotations", texts=texts, references=references)
         project.create_referents(
-            label="annotations",
+            tag="annotations",
             texts=texts,
             references=references,
             referents=referents,
         )
-
-        from geoparser.db.crud import RecognizerRepository, ResolverRepository
-
-        recognizers = RecognizerRepository.get_all(test_session)
-        recognizer_id = recognizers[0].id
-        resolvers = ResolverRepository.get_all(test_session)
-        resolver_id = resolvers[0].id
 
         output_path = tmp_path / "trained_resolver"
 
         # Act - Pass custom parameters
         project.train_resolver(
             resolver=real_sentencetransformer_resolver,
-            recognizer_id=recognizer_id,
-            resolver_id=resolver_id,
+            tag="annotations",
             output_path=str(output_path),
             epochs=2,
             batch_size=4,
@@ -548,7 +481,7 @@ class TestProjectIntegration:
         # Cleanup
         project.delete()
 
-    def test_train_recognizer_raises_error_without_fit_method(self, test_session):
+    def test_train_recognizer_raises_error_without_fit_method(self):
         """Test that train_recognizer raises error for recognizers without fit method."""
         # Arrange
         project = Project("train_rec_error_test")
@@ -556,14 +489,7 @@ class TestProjectIntegration:
         references = [[(0, 4)]]
 
         project.create_documents(texts)
-        project.create_references(
-            label="annotations", texts=texts, references=references
-        )
-
-        from geoparser.db.crud import RecognizerRepository
-
-        recognizers = RecognizerRepository.get_all(test_session)
-        recognizer_id = recognizers[0].id
+        project.create_references(tag="annotations", texts=texts, references=references)
 
         # ManualRecognizer doesn't have fit method
         non_trainable_recognizer = ManualRecognizer(
@@ -574,16 +500,14 @@ class TestProjectIntegration:
         with pytest.raises(ValueError, match="does not implement a fit method"):
             project.train_recognizer(
                 recognizer=non_trainable_recognizer,
-                recognizer_id=recognizer_id,
+                tag="annotations",
                 output_path="/tmp/model",
             )
 
         # Cleanup
         project.delete()
 
-    def test_train_resolver_raises_error_without_fit_method(
-        self, test_session, andorra_gazetteer
-    ):
+    def test_train_resolver_raises_error_without_fit_method(self, andorra_gazetteer):
         """Test that train_resolver raises error for resolvers without fit method."""
         # Arrange
         project = Project("train_res_error_test")
@@ -592,22 +516,13 @@ class TestProjectIntegration:
         referents = [[("andorranames", "3041563")]]
 
         project.create_documents(texts)
-        project.create_references(
-            label="annotations", texts=texts, references=references
-        )
+        project.create_references(tag="annotations", texts=texts, references=references)
         project.create_referents(
-            label="annotations",
+            tag="annotations",
             texts=texts,
             references=references,
             referents=referents,
         )
-
-        from geoparser.db.crud import RecognizerRepository, ResolverRepository
-
-        recognizers = RecognizerRepository.get_all(test_session)
-        recognizer_id = recognizers[0].id
-        resolvers = ResolverRepository.get_all(test_session)
-        resolver_id = resolvers[0].id
 
         # ManualResolver doesn't have fit method
         non_trainable_resolver = ManualResolver(
@@ -618,8 +533,7 @@ class TestProjectIntegration:
         with pytest.raises(ValueError, match="does not implement a fit method"):
             project.train_resolver(
                 resolver=non_trainable_resolver,
-                recognizer_id=recognizer_id,
-                resolver_id=resolver_id,
+                tag="annotations",
                 output_path="/tmp/model",
             )
 

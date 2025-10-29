@@ -106,9 +106,12 @@ class TestProjectCreateDocuments:
 class TestProjectGetDocuments:
     """Test Project get_documents method."""
 
+    @patch("geoparser.project.project.Context")
     @patch("geoparser.project.project.ProjectRepository")
     @patch("geoparser.project.project.DocumentRepository")
-    def test_retrieves_documents_for_project(self, mock_doc_repo, mock_project_repo):
+    def test_retrieves_documents_for_project(
+        self, mock_doc_repo, mock_project_repo, mock_context
+    ):
         """Test that get_documents retrieves all documents for the project."""
         # Arrange
 
@@ -121,6 +124,12 @@ class TestProjectGetDocuments:
         mock_doc2 = Mock()
         mock_doc2.references = []
         mock_doc_repo.get_by_project.return_value = [mock_doc1, mock_doc2]
+
+        # Mock context to return None for both IDs
+        mock_context_instance = Mock()
+        mock_context_instance.get_recognizer_context.return_value = None
+        mock_context_instance.get_resolver_context.return_value = None
+        mock_context.return_value = mock_context_instance
 
         project = Project("TestProject")
 
@@ -149,8 +158,15 @@ class TestProjectGetDocuments:
 
         project = Project("TestProject")
 
-        # Act
-        project.get_documents(recognizer_id="test_recognizer")
+        # Act - Using tag to retrieve documents
+        # Note: The implementation retrieves IDs from context, but we're testing the context setting behavior
+        with patch.object(
+            project.context, "get_recognizer_context", return_value="test_recognizer"
+        ):
+            with patch.object(
+                project.context, "get_resolver_context", return_value=None
+            ):
+                project.get_documents(tag="test_tag")
 
         # Assert
         mock_doc._set_recognizer_context.assert_called_once_with("test_recognizer")
@@ -175,8 +191,12 @@ class TestProjectGetDocuments:
 
         project = Project("TestProject")
 
-        # Act
-        project.get_documents(resolver_id="test_resolver")
+        # Act - Using tag to retrieve documents
+        with patch.object(project.context, "get_recognizer_context", return_value=None):
+            with patch.object(
+                project.context, "get_resolver_context", return_value="test_resolver"
+            ):
+                project.get_documents(tag="test_tag")
 
         # Assert
         mock_ref1._set_resolver_context.assert_called_once_with("test_resolver")
@@ -187,11 +207,12 @@ class TestProjectGetDocuments:
 class TestProjectRunRecognizer:
     """Test Project run_recognizer method."""
 
+    @patch("geoparser.project.project.Context")
     @patch("geoparser.project.project.ProjectRepository")
     @patch("geoparser.project.project.RecognitionService")
     @patch("geoparser.project.project.DocumentRepository")
     def test_runs_recognizer_on_all_documents(
-        self, mock_doc_repo, mock_recognition_service, mock_project_repo
+        self, mock_doc_repo, mock_recognition_service, mock_project_repo, mock_context
     ):
         """Test that run_recognizer runs recognizer on all project documents."""
         # Arrange
@@ -207,8 +228,13 @@ class TestProjectRunRecognizer:
         mock_doc_repo.get_by_project.return_value = [mock_doc1, mock_doc2]
 
         mock_recognizer = Mock()
+        mock_recognizer.id = "test_recognizer_id"
         mock_service_instance = Mock()
         mock_recognition_service.return_value = mock_service_instance
+
+        # Mock context
+        mock_context_instance = Mock()
+        mock_context.return_value = mock_context_instance
 
         project = Project("TestProject")
 
@@ -226,11 +252,12 @@ class TestProjectRunRecognizer:
 class TestProjectRunResolver:
     """Test Project run_resolver method."""
 
+    @patch("geoparser.project.project.Context")
     @patch("geoparser.project.project.ProjectRepository")
     @patch("geoparser.project.project.ResolutionService")
     @patch("geoparser.project.project.DocumentRepository")
     def test_runs_resolver_on_all_documents(
-        self, mock_doc_repo, mock_resolution_service, mock_project_repo
+        self, mock_doc_repo, mock_resolution_service, mock_project_repo, mock_context
     ):
         """Test that run_resolver runs resolver on all project documents."""
         # Arrange
@@ -246,8 +273,13 @@ class TestProjectRunResolver:
         mock_doc_repo.get_by_project.return_value = [mock_doc1, mock_doc2]
 
         mock_resolver = Mock()
+        mock_resolver.id = "test_resolver_id"
         mock_service_instance = Mock()
         mock_resolution_service.return_value = mock_service_instance
+
+        # Mock context
+        mock_context_instance = Mock()
+        mock_context.return_value = mock_context_instance
 
         project = Project("TestProject")
 
@@ -287,6 +319,7 @@ class TestProjectDelete:
 class TestProjectCreateReferences:
     """Test Project create_references method."""
 
+    @patch("geoparser.project.project.Context")
     @patch("geoparser.project.project.ProjectRepository")
     @patch("geoparser.project.project.ManualRecognizer")
     @patch("geoparser.project.project.RecognitionService")
@@ -297,6 +330,7 @@ class TestProjectCreateReferences:
         mock_recognition_service,
         mock_manual_recognizer,
         mock_project_repo,
+        mock_context,
     ):
         """Test that create_references creates ManualRecognizer and runs it."""
         # Arrange
@@ -310,10 +344,15 @@ class TestProjectCreateReferences:
         mock_doc_repo.get_by_project.return_value = [mock_doc]
 
         mock_recognizer_instance = Mock()
+        mock_recognizer_instance.id = "test_recognizer_id"
         mock_manual_recognizer.return_value = mock_recognizer_instance
 
         mock_service_instance = Mock()
         mock_recognition_service.return_value = mock_service_instance
+
+        # Mock context
+        mock_context_instance = Mock()
+        mock_context.return_value = mock_context_instance
 
         project = Project("TestProject")
 
@@ -321,11 +360,11 @@ class TestProjectCreateReferences:
         references = [[(0, 5)]]
 
         # Act
-        project.create_references(texts, references, "test_label")
+        project.create_references(texts, references, tag="test_tag")
 
         # Assert
         mock_manual_recognizer.assert_called_once_with(
-            label="test_label", texts=texts, references=references
+            label="test_tag", texts=texts, references=references
         )
         mock_recognition_service.assert_called_once_with(mock_recognizer_instance)
         mock_service_instance.predict.assert_called_once()
@@ -335,6 +374,7 @@ class TestProjectCreateReferences:
 class TestProjectCreateReferents:
     """Test Project create_referents method."""
 
+    @patch("geoparser.project.project.Context")
     @patch("geoparser.project.project.ProjectRepository")
     @patch("geoparser.project.project.ManualResolver")
     @patch("geoparser.project.project.ResolutionService")
@@ -345,6 +385,7 @@ class TestProjectCreateReferents:
         mock_resolution_service,
         mock_manual_resolver,
         mock_project_repo,
+        mock_context,
     ):
         """Test that create_referents creates ManualResolver and runs it."""
         # Arrange
@@ -358,10 +399,15 @@ class TestProjectCreateReferents:
         mock_doc_repo.get_by_project.return_value = [mock_doc]
 
         mock_resolver_instance = Mock()
+        mock_resolver_instance.id = "test_resolver_id"
         mock_manual_resolver.return_value = mock_resolver_instance
 
         mock_service_instance = Mock()
         mock_resolution_service.return_value = mock_service_instance
+
+        # Mock context
+        mock_context_instance = Mock()
+        mock_context.return_value = mock_context_instance
 
         project = Project("TestProject")
 
@@ -370,11 +416,11 @@ class TestProjectCreateReferents:
         referents = [[("geonames", "123")]]
 
         # Act
-        project.create_referents(texts, references, referents, "test_label")
+        project.create_referents(texts, references, referents, tag="test_tag")
 
         # Assert
         mock_manual_resolver.assert_called_once_with(
-            label="test_label",
+            label="test_tag",
             texts=texts,
             references=references,
             referents=referents,
@@ -421,7 +467,7 @@ class TestProjectLoadAnnotations:
                     project = Project("TestProject")
 
                     # Act
-                    project.load_annotations("test.json")
+                    project.load_annotations("test.json", tag="test_tag")
 
                     # Assert - Verify file was opened
                     mock_file_open.assert_called_once()
@@ -448,7 +494,9 @@ class TestProjectLoadAnnotations:
                         project = Project("TestProject")
 
                         # Act
-                        project.load_annotations("test.json", create_documents=True)
+                        project.load_annotations(
+                            "test.json", tag="test_tag", create_documents=True
+                        )
 
                         # Assert
                         mock_create_docs.assert_called_once_with(["Paris"])
@@ -477,7 +525,7 @@ class TestProjectLoadAnnotations:
                         project = Project("TestProject")
 
                         # Act
-                        project.load_annotations("test.json")
+                        project.load_annotations("test.json", tag="test_tag")
 
                         # Assert
                         mock_create_docs.assert_not_called()
@@ -513,7 +561,7 @@ class TestProjectLoadAnnotations:
                     project = Project("TestProject")
 
                     # Act
-                    project.load_annotations("test.json")
+                    project.load_annotations("test.json", tag="test_tag")
 
                     # Assert
                     # Should create referents with None for non-geocoded

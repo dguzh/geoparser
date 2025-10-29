@@ -122,8 +122,8 @@ class TestGeoparserParse:
         mock_project_instance.run_resolver.assert_called_once_with(mock_resolver)
 
     @patch("geoparser.geoparser.geoparser.Project")
-    def test_retrieves_documents_with_correct_context(self, mock_project_class):
-        """Test that parse retrieves documents with recognizer and resolver context."""
+    def test_retrieves_documents_with_default_tag(self, mock_project_class):
+        """Test that parse retrieves documents using the default 'latest' tag."""
         # Arrange
         mock_recognizer = Mock()
         mock_recognizer.id = "test_rec_id"
@@ -140,9 +140,8 @@ class TestGeoparserParse:
         geoparser.parse("Test text")
 
         # Assert
-        mock_project_instance.get_documents.assert_called_once_with(
-            recognizer_id="test_rec_id", resolver_id="test_res_id"
-        )
+        # get_documents is called with default tag parameter
+        mock_project_instance.get_documents.assert_called_once_with()
 
     @patch("geoparser.geoparser.geoparser.Project")
     def test_deletes_project_after_parsing_by_default(self, mock_project_class):

@@ -12,6 +12,7 @@ import pytest
 from sqlmodel import Session
 
 from geoparser.db.crud import (
+    ContextRepository,
     DocumentRepository,
     FeatureRepository,
     GazetteerRepository,
@@ -23,6 +24,7 @@ from geoparser.db.crud import (
     SourceRepository,
 )
 from geoparser.db.models import (
+    ContextCreate,
     DocumentCreate,
     FeatureCreate,
     GazetteerCreate,
@@ -254,6 +256,61 @@ def resolver_factory(test_session: Session) -> Callable:
         return ResolverRepository.create(test_session, resolver_create)
 
     return _create_resolver
+
+
+@pytest.fixture
+def context_factory(
+    test_session: Session,
+    project_factory: Callable,
+) -> Callable:
+    """
+    Factory for creating test context records.
+
+    Args:
+        test_session: Database session fixture
+        project_factory: Project factory fixture
+
+    Returns:
+        Function that creates contexts with optional custom attributes
+    """
+
+    def _create_context(
+        tag: Optional[str] = None,
+        project_id: Optional[uuid.UUID] = None,
+        recognizer_id: Optional[str] = None,
+        resolver_id: Optional[str] = None,
+        **kwargs,
+    ):
+        """
+        Create a context with the given attributes.
+
+        Args:
+            tag: Context tag (auto-generated if not provided)
+            project_id: ID of parent project (creates new project if not provided)
+            recognizer_id: ID of recognizer (optional)
+            resolver_id: ID of resolver (optional)
+            **kwargs: Additional attributes to set on the context
+
+        Returns:
+            Created Context instance
+        """
+        if tag is None:
+            tag = f"test_tag_{uuid.uuid4().hex[:8]}"
+
+        if project_id is None:
+            project = project_factory()
+            project_id = project.id
+
+        context_create = ContextCreate(
+            tag=tag,
+            project_id=project_id,
+            recognizer_id=recognizer_id,
+            resolver_id=resolver_id,
+            **kwargs,
+        )
+        return ContextRepository.create(test_session, context_create)
+
+    return _create_context
 
 
 @pytest.fixture

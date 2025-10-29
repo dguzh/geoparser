@@ -37,24 +37,16 @@ class TestEndToEndTrainingWorkflow:
 
         project.create_documents(training_texts)
         project.create_references(
-            label="annotations",
+            tag="annotations",
             texts=training_texts,
             references=training_references,
         )
         project.create_referents(
-            label="annotations",
+            tag="annotations",
             texts=training_texts,
             references=training_references,
             referents=training_referents,
         )
-
-        # Get annotation IDs
-        from geoparser.db.crud import RecognizerRepository, ResolverRepository
-
-        recognizers = RecognizerRepository.get_all(test_session)
-        annotation_recognizer_id = recognizers[0].id
-        resolvers = ResolverRepository.get_all(test_session)
-        annotation_resolver_id = resolvers[0].id
 
         # Act - Phase 2: Train models
         recognizer_output = tmp_path / "trained_recognizer"
@@ -62,15 +54,14 @@ class TestEndToEndTrainingWorkflow:
 
         project.train_recognizer(
             recognizer=real_spacy_recognizer,
-            recognizer_id=annotation_recognizer_id,
+            tag="annotations",
             output_path=str(recognizer_output),
             epochs=1,
         )
 
         project.train_resolver(
             resolver=real_sentencetransformer_resolver,
-            recognizer_id=annotation_recognizer_id,
-            resolver_id=annotation_resolver_id,
+            tag="annotations",
             output_path=str(resolver_output),
             epochs=1,
         )
@@ -98,13 +89,8 @@ class TestEndToEndTrainingWorkflow:
 
         project.create_documents(texts)
         project.create_references(
-            label="shared_annotations", texts=texts, references=references
+            tag="shared_annotations", texts=texts, references=references
         )
-
-        from geoparser.db.crud import RecognizerRepository
-
-        recognizers = RecognizerRepository.get_all(test_session)
-        annotation_recognizer_id = recognizers[0].id
 
         # Act - Train with different hyperparameters
         model1_output = tmp_path / "model1"
@@ -112,7 +98,7 @@ class TestEndToEndTrainingWorkflow:
 
         project.train_recognizer(
             recognizer=real_spacy_recognizer,
-            recognizer_id=annotation_recognizer_id,
+            tag="shared_annotations",
             output_path=str(model1_output),
             epochs=1,
             dropout=0.1,
@@ -120,7 +106,7 @@ class TestEndToEndTrainingWorkflow:
 
         project.train_recognizer(
             recognizer=real_spacy_recognizer,
-            recognizer_id=annotation_recognizer_id,
+            tag="shared_annotations",
             output_path=str(model2_output),
             epochs=2,
             dropout=0.2,
@@ -147,19 +133,14 @@ class TestEndToEndTrainingWorkflow:
 
         project.create_documents(initial_texts)
         project.create_references(
-            label="batch1", texts=initial_texts, references=initial_references
+            tag="batch1", texts=initial_texts, references=initial_references
         )
-
-        from geoparser.db.crud import RecognizerRepository
-
-        recognizers = RecognizerRepository.get_all(test_session)
-        batch1_recognizer_id = recognizers[0].id
 
         # Act - Phase 2: Train on initial data
         model1_output = tmp_path / "initial_model"
         project.train_recognizer(
             recognizer=real_spacy_recognizer,
-            recognizer_id=batch1_recognizer_id,
+            tag="batch1",
             output_path=str(model1_output),
             epochs=1,
         )
@@ -170,19 +151,14 @@ class TestEndToEndTrainingWorkflow:
 
         project.create_documents(additional_texts)
         project.create_references(
-            label="batch2", texts=additional_texts, references=additional_references
+            tag="batch2", texts=additional_texts, references=additional_references
         )
-
-        recognizers = RecognizerRepository.get_all(test_session)
-        batch2_recognizer_id = [
-            r.id for r in recognizers if r.name == "ManualRecognizer"
-        ][-1]
 
         # Act - Phase 4: Train on second batch
         model2_output = tmp_path / "updated_model"
         project.train_recognizer(
             recognizer=real_spacy_recognizer,
-            recognizer_id=batch2_recognizer_id,
+            tag="batch2",
             output_path=str(model2_output),
             epochs=1,
         )

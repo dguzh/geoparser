@@ -4,6 +4,7 @@ import uuid
 from pathlib import Path
 from typing import List, Union
 
+from geoparser.context import Context
 from geoparser.db.crud import DocumentRepository, ProjectRepository
 from geoparser.db.db import create_db_and_tables, get_session
 from geoparser.db.models import Document, DocumentCreate, ProjectCreate
@@ -38,6 +39,7 @@ class Project:
 
         self.name = name
         self.id = self._ensure_project_record(name)
+        self.context = Context(project_id=self.id)
 
     def _ensure_project_record(self, name: str) -> uuid.UUID:
         """
@@ -79,7 +81,7 @@ class Project:
                 DocumentRepository.create(session, document_create)
 
     def create_references(
-        self, texts: List[str], references: List[List[tuple]], label: str
+        self, texts: List[str], references: List[List[tuple]], tag: str
     ) -> None:
         """
         Create references (toponym spans) using ManualRecognizer.
@@ -87,17 +89,17 @@ class Project:
         Args:
             texts: List of document texts
             references: List of reference tuples (start, end) for each document
-            label: Label to identify this recognition set
+            tag: Tag to identify this recognition set
         """
-        recognizer = ManualRecognizer(label=label, texts=texts, references=references)
-        self.run_recognizer(recognizer)
+        recognizer = ManualRecognizer(label=tag, texts=texts, references=references)
+        self.run_recognizer(recognizer, tag=tag)
 
     def create_referents(
         self,
         texts: List[str],
         references: List[List[tuple]],
         referents: List[List[tuple]],
-        label: str,
+        tag: str,
     ) -> None:
         """
         Create referents (location assignments) using ManualResolver.
@@ -106,28 +108,28 @@ class Project:
             texts: List of document texts
             references: List of reference tuples (start, end) for each document
             referents: List of referent tuples (gazetteer_name, identifier) for each document
-            label: Label to identify this resolution set
+            tag: Tag to identify this resolution set
         """
         resolver = ManualResolver(
-            label=label, texts=texts, references=references, referents=referents
+            label=tag, texts=texts, references=references, referents=referents
         )
-        self.run_resolver(resolver)
+        self.run_resolver(resolver, tag=tag)
 
-    def get_documents(
-        self,
-        recognizer_id: str = None,
-        resolver_id: str = None,
-    ) -> List[Document]:
+    def get_documents(self, tag: str = "latest") -> List[Document]:
         """
-        Retrieve all documents in the project with context set for the specified recognizer/resolver.
+        Retrieve all documents in the project with context set for the specified tag.
 
         Args:
-            recognizer_id: Recognizer ID to configure in document context for filtering references.
-            resolver_id: Resolver ID to configure in reference context for filtering referents.
+            tag: Tag identifier to determine which recognizer/resolver context to use
+                 (default: "latest")
 
         Returns:
             List of Document objects with context set for filtering.
         """
+        # Retrieve recognizer and resolver IDs for the specified tag
+        recognizer_id = self.context.get_recognizer_context(tag)
+        resolver_id = self.context.get_resolver_context(tag)
+
         with get_session() as session:
             # Retrieve all documents for the project
             documents = DocumentRepository.get_by_project(session, self.id)
@@ -142,7 +144,7 @@ class Project:
 
             return documents
 
-    def run_recognizer(self, recognizer: "Recognizer") -> None:
+    def run_recognizer(self, recognizer: "Recognizer", tag: str = "latest") -> None:
         """
         Run a recognizer module on all documents in this project.
 
@@ -151,6 +153,7 @@ class Project:
 
         Args:
             recognizer: The recognizer module to run on all project documents
+            tag: Tag to associate with this recognizer run (default: "latest")
         """
         # Get all documents in the project
         documents = self.get_documents()
@@ -161,7 +164,10 @@ class Project:
         # Run the recognizer on all documents
         recognition_service.predict(documents)
 
-    def run_resolver(self, resolver: "Resolver") -> None:
+        # Update the context with this recognizer for the specified tag
+        self.context.update_recognizer_context(tag, recognizer.id)
+
+    def run_resolver(self, resolver: "Resolver", tag: str = "latest") -> None:
         """
         Run a resolver module on all documents in this project.
 
@@ -170,6 +176,7 @@ class Project:
 
         Args:
             resolver: The resolver module to run on all project documents
+            tag: Tag to associate with this resolver run (default: "latest")
         """
         # Get all documents in the project
         documents = self.get_documents()
@@ -180,9 +187,10 @@ class Project:
         # Run the resolver on all documents
         resolution_service.predict(documents)
 
-    def train_recognizer(
-        self, recognizer: "Recognizer", recognizer_id: str, **kwargs
-    ) -> None:
+        # Update the context with this resolver for the specified tag
+        self.context.update_resolver_context(tag, resolver.id)
+
+    def train_recognizer(self, recognizer: "Recognizer", tag: str, **kwargs) -> None:
         """
         Train a recognizer module using documents with reference annotations from this project.
 
@@ -191,14 +199,14 @@ class Project:
 
         Args:
             recognizer: The recognizer module to train
-            recognizer_id: ID of the recognizer whose annotations to use for training
+            tag: Tag identifying which annotations to use for training
             **kwargs: Additional training parameters (e.g., output_path, epochs, batch_size)
 
         Raises:
             ValueError: If the recognizer does not implement a fit method
         """
-        # Get all documents in the project with the specified recognizer context
-        documents = self.get_documents(recognizer_id=recognizer_id)
+        # Get all documents in the project with the specified tag context
+        documents = self.get_documents(tag=tag)
 
         # Initialize the recognition service with the recognizer
         recognition_service = RecognitionService(recognizer)
@@ -206,9 +214,7 @@ class Project:
         # Train the recognizer using the annotated documents
         recognition_service.fit(documents, **kwargs)
 
-    def train_resolver(
-        self, resolver: "Resolver", recognizer_id: str, resolver_id: str, **kwargs
-    ) -> None:
+    def train_resolver(self, resolver: "Resolver", tag: str, **kwargs) -> None:
         """
         Train a resolver module using documents with referent annotations from this project.
 
@@ -217,17 +223,14 @@ class Project:
 
         Args:
             resolver: The resolver module to train
-            recognizer_id: ID of the recognizer whose references to use
-            resolver_id: ID of the resolver whose annotations to use for training
+            tag: Tag identifying which annotations to use for training
             **kwargs: Additional training parameters (e.g., output_path, epochs, batch_size)
 
         Raises:
             ValueError: If the resolver does not implement a fit method
         """
-        # Get all documents in the project with the specified recognizer and resolver context
-        documents = self.get_documents(
-            recognizer_id=recognizer_id, resolver_id=resolver_id
-        )
+        # Get all documents in the project with the specified tag context
+        documents = self.get_documents(tag=tag)
 
         # Initialize the resolution service with the resolver
         resolution_service = ResolutionService(resolver)
@@ -236,20 +239,20 @@ class Project:
         resolution_service.fit(documents, **kwargs)
 
     def load_annotations(
-        self, path: str, label: str = "annotator", create_documents: bool = False
+        self, path: str, tag: str, create_documents: bool = False
     ) -> None:
         """
         Load annotations from an annotator JSON file and register them in the project.
 
         This method imports annotations from the legacy annotator format and registers
         them using ManualRecognizer for toponym spans and ManualResolver for location
-        assignments. The annotations are stored with the provided label to distinguish
+        assignments. The annotations are stored with the provided tag to distinguish
         different annotation sources.
 
         Args:
             path: Path to the JSON file exported from the annotator
-            label: Label to identify this annotation set (default: "annotator")
-                   This allows tracking multiple annotation sources separately
+            tag: Tag to identify this annotation set
+                 This allows tracking multiple annotation sources separately
             create_documents: Whether to create new documents from the texts in the JSON
                              (default: False). Set to True if the documents don't exist yet,
                              False to add annotations to existing documents.
@@ -298,8 +301,8 @@ class Project:
             self.create_documents(texts)
 
         # Create references and referents using the extracted methods
-        self.create_references(texts, references, label)
-        self.create_referents(texts, references, referents, label)
+        self.create_references(texts, references, tag)
+        self.create_referents(texts, references, referents, tag)
 
     def delete(self) -> None:
         """

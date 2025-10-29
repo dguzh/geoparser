@@ -65,11 +65,11 @@ class ResolutionService:
         Args:
             documents: List of Document objects containing references to process
         """
-        if not documents:
-            return
-
         # Ensure resolver record exists in database and get the ID
         resolver_id = self._ensure_resolver_record(self.resolver)
+
+        if not documents:
+            return
 
         with get_session() as session:
             # Collect data for prediction

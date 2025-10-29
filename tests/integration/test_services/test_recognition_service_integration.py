@@ -282,15 +282,10 @@ class TestRecognitionServiceIntegration:
         references = [[(0, 5)], [(0, 6)]]
 
         project.create_documents(texts)
-        project.create_references(label="annotator", texts=texts, references=references)
-
-        from geoparser.db.crud import RecognizerRepository
-
-        recognizers = RecognizerRepository.get_all(test_session)
-        annotator_id = recognizers[0].id
+        project.create_references(tag="annotator", texts=texts, references=references)
 
         # Get documents with context via Project API
-        documents = project.get_documents(recognizer_id=annotator_id)
+        documents = project.get_documents(tag="annotator")
 
         # Create a service with trainable recognizer
         service = RecognitionService(real_spacy_recognizer)
@@ -332,15 +327,10 @@ class TestRecognitionServiceIntegration:
         references = [[(0, 6)]]  # "Berlin"
 
         project.create_documents(texts)
-        project.create_references(label="annotator", texts=texts, references=references)
-
-        from geoparser.db.crud import RecognizerRepository
-
-        recognizers = RecognizerRepository.get_all(test_session)
-        annotator_id = recognizers[0].id
+        project.create_references(tag="annotator", texts=texts, references=references)
 
         # Get documents with context via Project API
-        documents = project.get_documents(recognizer_id=annotator_id)
+        documents = project.get_documents(tag="annotator")
 
         # Create service with trainable recognizer
         service = RecognitionService(real_spacy_recognizer)
@@ -388,15 +378,10 @@ class TestRecognitionServiceIntegration:
         references = [[(0, 5)]]  # "Tokyo"
 
         project.create_documents(texts)
-        project.create_references(label="annotator", texts=texts, references=references)
-
-        from geoparser.db.crud import RecognizerRepository
-
-        recognizers = RecognizerRepository.get_all(test_session)
-        annotator_id = recognizers[0].id
+        project.create_references(tag="annotator", texts=texts, references=references)
 
         # Get documents with context via Project API
-        documents = project.get_documents(recognizer_id=annotator_id)
+        documents = project.get_documents(tag="annotator")
 
         service = RecognitionService(real_spacy_recognizer)
         output_path = tmp_path / "trained_model"
