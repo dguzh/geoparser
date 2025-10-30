@@ -19,8 +19,8 @@ jobs:
             arch: x86_64
             compile_cmd: |
               wget "https://www.sqlite.org/src/raw?name=ext/misc/spellfix.c&ci=trunk" -O spellfix.c
-              wget "https://www.sqlite.org/src/raw?name=src/sqlite3ext.h&ci=trunk" -O sqlite3ext.h
-              wget "https://www.sqlite.org/src/raw?name=src/sqlite3.h&ci=trunk" -O sqlite3.h
+              wget "https://www.sqlite.org/2024/sqlite-amalgamation-3470000.zip" -O sqlite.zip
+              unzip -j sqlite.zip "*/sqlite3ext.h" "*/sqlite3.h"
               gcc -fPIC -shared spellfix.c -o spellfix.so
             binary_path: ./spellfix.so
             filename: spellfix.so
@@ -31,8 +31,8 @@ jobs:
             arch: x86_64
             compile_cmd: |
               curl -L -o spellfix.c "https://www.sqlite.org/src/raw?name=ext/misc/spellfix.c&ci=trunk"
-              curl -L -o sqlite3ext.h "https://www.sqlite.org/src/raw?name=src/sqlite3ext.h&ci=trunk"
-              curl -L -o sqlite3.h "https://www.sqlite.org/src/raw?name=src/sqlite3.h&ci=trunk"
+              curl -L -o sqlite.zip "https://www.sqlite.org/2024/sqlite-amalgamation-3470000.zip"
+              unzip -j sqlite.zip "*/sqlite3ext.h" "*/sqlite3.h"
               gcc -fPIC -dynamiclib -undefined dynamic_lookup spellfix.c -o spellfix.dylib
             binary_path: ./spellfix.dylib
             filename: spellfix.dylib
@@ -43,8 +43,8 @@ jobs:
             arch: arm64
             compile_cmd: |
               curl -L -o spellfix.c "https://www.sqlite.org/src/raw?name=ext/misc/spellfix.c&ci=trunk"
-              curl -L -o sqlite3ext.h "https://www.sqlite.org/src/raw?name=src/sqlite3ext.h&ci=trunk"
-              curl -L -o sqlite3.h "https://www.sqlite.org/src/raw?name=src/sqlite3.h&ci=trunk"
+              curl -L -o sqlite.zip "https://www.sqlite.org/2024/sqlite-amalgamation-3470000.zip"
+              unzip -j sqlite.zip "*/sqlite3ext.h" "*/sqlite3.h"
               gcc -fPIC -dynamiclib -undefined dynamic_lookup spellfix.c -o spellfix.dylib
             binary_path: ./spellfix.dylib
             filename: spellfix.dylib
@@ -55,8 +55,8 @@ jobs:
             arch: amd64
             compile_cmd: |
               curl -L -o spellfix.c "https://www.sqlite.org/src/raw?name=ext/misc/spellfix.c&ci=trunk"
-              curl -L -o sqlite3ext.h "https://www.sqlite.org/src/raw?name=src/sqlite3ext.h&ci=trunk"
-              curl -L -o sqlite3.h "https://www.sqlite.org/src/raw?name=src/sqlite3.h&ci=trunk"
+              curl -L -o sqlite.zip "https://www.sqlite.org/2024/sqlite-amalgamation-3470000.zip"
+              unzip -j sqlite.zip "*/sqlite3ext.h" "*/sqlite3.h"
               gcc -fPIC -shared spellfix.c -o spellfix.dll
             binary_path: ./spellfix.dll
             filename: spellfix.dll
