@@ -18,7 +18,7 @@ jobs:
             platform: linux
             arch: x86_64
             compile_cmd: |
-              wget https://www.sqlite.org/src/raw/ext/misc/spellfix.c?name=spellfix.c -O spellfix.c
+              wget "https://www.sqlite.org/src/raw?name=ext/misc/spellfix.c&ci=trunk" -O spellfix.c
               gcc -fPIC -shared spellfix.c -o spellfix.so
             binary_path: ./spellfix.so
             filename: spellfix.so
@@ -28,7 +28,7 @@ jobs:
             platform: darwin
             arch: x86_64
             compile_cmd: |
-              curl -o spellfix.c https://www.sqlite.org/src/raw/ext/misc/spellfix.c?name=spellfix.c
+              curl -L -o spellfix.c "https://www.sqlite.org/src/raw?name=ext/misc/spellfix.c&ci=trunk"
               gcc -fPIC -dynamiclib spellfix.c -o spellfix.dylib
             binary_path: ./spellfix.dylib
             filename: spellfix.dylib
@@ -38,7 +38,7 @@ jobs:
             platform: darwin
             arch: arm64
             compile_cmd: |
-              curl -o spellfix.c https://www.sqlite.org/src/raw/ext/misc/spellfix.c?name=spellfix.c
+              curl -L -o spellfix.c "https://www.sqlite.org/src/raw?name=ext/misc/spellfix.c&ci=trunk"
               gcc -fPIC -dynamiclib spellfix.c -o spellfix.dylib
             binary_path: ./spellfix.dylib
             filename: spellfix.dylib
@@ -48,7 +48,7 @@ jobs:
             platform: win
             arch: amd64
             compile_cmd: |
-              curl -o spellfix.c https://www.sqlite.org/src/raw/ext/misc/spellfix.c?name=spellfix.c
+              curl -L -o spellfix.c "https://www.sqlite.org/src/raw?name=ext/misc/spellfix.c&ci=trunk"
               gcc -fPIC -shared spellfix.c -o spellfix.dll
             binary_path: ./spellfix.dll
             filename: spellfix.dll
