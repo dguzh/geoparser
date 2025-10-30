@@ -11,6 +11,11 @@ __pycache__/
 !geoparser/db/spatialite/**/*.dylib
 !geoparser/db/spatialite/**/*.dll
 
+# Allow spellfix binaries
+!geoparser/db/spellfix/**/*.so
+!geoparser/db/spellfix/**/*.dylib
+!geoparser/db/spellfix/**/*.dll
+
 # Distribution / packaging
 .Python
 build/
