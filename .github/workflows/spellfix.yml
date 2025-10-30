@@ -29,7 +29,7 @@ jobs:
             arch: x86_64
             compile_cmd: |
               curl -L -o spellfix.c "https://www.sqlite.org/src/raw?name=ext/misc/spellfix.c&ci=trunk"
-              gcc -fPIC -dynamiclib spellfix.c -o spellfix.dylib
+              gcc -fPIC -dynamiclib -undefined dynamic_lookup spellfix.c -o spellfix.dylib
             binary_path: ./spellfix.dylib
             filename: spellfix.dylib
           
@@ -39,7 +39,7 @@ jobs:
             arch: arm64
             compile_cmd: |
               curl -L -o spellfix.c "https://www.sqlite.org/src/raw?name=ext/misc/spellfix.c&ci=trunk"
-              gcc -fPIC -dynamiclib spellfix.c -o spellfix.dylib
+              gcc -fPIC -dynamiclib -undefined dynamic_lookup spellfix.c -o spellfix.dylib
             binary_path: ./spellfix.dylib
             filename: spellfix.dylib
           
