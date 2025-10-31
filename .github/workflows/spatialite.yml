@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - development
-      - feature/spellfix
   workflow_dispatch:
 
 jobs:
@@ -213,7 +212,7 @@ jobs:
         if git diff --staged --quiet; then
           echo "No new binaries to commit"
         else
-          git commit -m "Add/update SpatiaLite binaries and dependencies
+          git commit -m "Add/update SpatiaLite binaries
           
           Collected binaries for multiple platforms:
           $(find geoparser/db/extensions/spatialite/binaries -type f | sort | sed 's/^/- /')"
