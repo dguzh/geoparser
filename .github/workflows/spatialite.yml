@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - development
+      - feature/spellfix
   workflow_dispatch:
 
 jobs:
