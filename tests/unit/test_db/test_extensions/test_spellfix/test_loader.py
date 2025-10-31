@@ -164,7 +164,9 @@ class TestLoadSpellfixExtension:
         mock_connection.load_extension.assert_called_once_with(expected_path)
 
     @patch("geoparser.db.extensions.spellfix.loader.platform.system")
-    @patch("geoparser.db.extensions.spellfix.loader.os.environ", {"PATH": "/original/path"})
+    @patch(
+        "geoparser.db.extensions.spellfix.loader.os.environ", {"PATH": "/original/path"}
+    )
     def test_modifies_path_on_windows(self, mock_system):
         """Test that PATH is temporarily modified on Windows."""
         # Arrange
@@ -172,7 +174,9 @@ class TestLoadSpellfixExtension:
         mock_connection = Mock()
         spellfix_path = Path("C:/fake/path/spellfix.dll")
 
-        with patch("geoparser.db.extensions.spellfix.loader.os.environ") as mock_environ:
+        with patch(
+            "geoparser.db.extensions.spellfix.loader.os.environ"
+        ) as mock_environ:
             mock_environ.__getitem__ = Mock(return_value="/original/path")
             mock_environ.__setitem__ = Mock()
             mock_environ.get = Mock(return_value="/original/path")
@@ -199,4 +203,3 @@ class TestLoadSpellfixExtension:
 
         # Extension loading should still be disabled
         mock_connection.enable_load_extension.assert_any_call(False)
-

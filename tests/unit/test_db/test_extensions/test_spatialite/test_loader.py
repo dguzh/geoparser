@@ -170,7 +170,10 @@ class TestLoadSpatialiteExtension:
         mock_connection.load_extension.assert_called_once_with(expected_path)
 
     @patch("geoparser.db.extensions.spatialite.loader.platform.system")
-    @patch("geoparser.db.spatialite.loader.os.environ", {"PATH": "/original/path"})
+    @patch(
+        "geoparser.db.extensions.spatialite.loader.os.environ",
+        {"PATH": "/original/path"},
+    )
     def test_modifies_path_on_windows(self, mock_system):
         """Test that PATH is temporarily modified on Windows."""
         # Arrange
@@ -181,7 +184,9 @@ class TestLoadSpatialiteExtension:
         mock_connection.cursor.return_value = mock_cursor
         spatialite_path = Path("C:/fake/path/mod_spatialite.dll")
 
-        with patch("geoparser.db.extensions.spatialite.loader.os.environ") as mock_environ:
+        with patch(
+            "geoparser.db.extensions.spatialite.loader.os.environ"
+        ) as mock_environ:
             mock_environ.__getitem__ = Mock(return_value="/original/path")
             mock_environ.__setitem__ = Mock()
             mock_environ.get = Mock(return_value="/original/path")
