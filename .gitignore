@@ -6,15 +6,10 @@ __pycache__/
 # C extensions
 *.so
 
-# Allow spatialite binaries
-!geoparser/db/spatialite/**/*.so
-!geoparser/db/spatialite/**/*.dylib
-!geoparser/db/spatialite/**/*.dll
-
-# Allow spellfix binaries
-!geoparser/db/spellfix/**/*.so
-!geoparser/db/spellfix/**/*.dylib
-!geoparser/db/spellfix/**/*.dll
+# Allow extension binaries
+!geoparser/db/extensions/**/binaries/**/*.so
+!geoparser/db/extensions/**/binaries/**/*.dylib
+!geoparser/db/extensions/**/binaries/**/*.dll
 
 # Distribution / packaging
 .Python

@@ -41,7 +41,7 @@ def get_spatialite_path() -> Optional[Path]:
         return None
 
     # Get the path to the spatialite library
-    spatialite_dir = Path(__file__).parent / platform_dir
+    spatialite_dir = Path(__file__).parent / "binaries" / platform_dir
     spatialite_path = spatialite_dir / filename
 
     return spatialite_path if spatialite_path.exists() else None

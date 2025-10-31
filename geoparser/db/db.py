@@ -21,8 +21,8 @@ from sqlmodel import Session, SQLModel, create_engine
 
 import geoparser.db.models  # noqa: F401
 
-from .spatialite.loader import get_spatialite_path, load_spatialite_extension
-from .spellfix.loader import get_spellfix_path, load_spellfix_extension
+from .extensions.spatialite.loader import get_spatialite_path, load_spatialite_extension
+from .extensions.spellfix.loader import get_spellfix_path, load_spellfix_extension
 
 # Database URL configuration (SQLite)
 DATABASE_URL = os.getenv(

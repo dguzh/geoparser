@@ -86,7 +86,7 @@ jobs:
       id: check_binary
       shell: bash
       run: |
-        BINARY_DIR="geoparser/db/spellfix/${{ matrix.platform }}-${{ matrix.arch }}"
+        BINARY_DIR="geoparser/db/extensions/spellfix/binaries/${{ matrix.platform }}-${{ matrix.arch }}"
         BINARY_FILE="$BINARY_DIR/${{ matrix.filename }}"
         
         if [ -f "$BINARY_FILE" ]; then
@@ -108,7 +108,7 @@ jobs:
       if: steps.check_binary.outputs.exists == 'false'
       shell: bash
       run: |
-        BINARY_DIR="geoparser/db/spellfix/${{ matrix.platform }}-${{ matrix.arch }}"
+        BINARY_DIR="geoparser/db/extensions/spellfix/binaries/${{ matrix.platform }}-${{ matrix.arch }}"
         cp "${{ matrix.binary_path }}" "$BINARY_DIR/"
         echo "✓ Copied binary to $BINARY_DIR"
 
@@ -116,7 +116,7 @@ jobs:
       if: steps.check_binary.outputs.exists == 'false'
       shell: bash
       run: |
-        BINARY_DIR="geoparser/db/spellfix/${{ matrix.platform }}-${{ matrix.arch }}"
+        BINARY_DIR="geoparser/db/extensions/spellfix/binaries/${{ matrix.platform }}-${{ matrix.arch }}"
         echo "Contents of $BINARY_DIR:"
         ls -la "$BINARY_DIR"
         
@@ -132,7 +132,7 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: spellfix-${{ matrix.platform }}-${{ matrix.arch }}
-        path: geoparser/db/spellfix/${{ matrix.platform }}-${{ matrix.arch }}/
+        path: geoparser/db/extensions/spellfix/binaries/${{ matrix.platform }}-${{ matrix.arch }}/
 
   commit-binaries:
     name: Commit all binaries
@@ -154,29 +154,29 @@ jobs:
     - name: Copy binaries to correct locations
       run: |
         # Create directory structure
-        mkdir -p geoparser/db/spellfix/{linux-x86_64,darwin-x86_64,darwin-arm64,win-amd64}
+        mkdir -p geoparser/db/extensions/spellfix/binaries/{linux-x86_64,darwin-x86_64,darwin-arm64,win-amd64}
         
         # Copy binaries from artifacts
         if [ -d "artifacts/spellfix-linux-x86_64" ]; then
-          cp artifacts/spellfix-linux-x86_64/* geoparser/db/spellfix/linux-x86_64/
+          cp artifacts/spellfix-linux-x86_64/* geoparser/db/extensions/spellfix/binaries/linux-x86_64/
         fi
         if [ -d "artifacts/spellfix-darwin-x86_64" ]; then
-          cp artifacts/spellfix-darwin-x86_64/* geoparser/db/spellfix/darwin-x86_64/
+          cp artifacts/spellfix-darwin-x86_64/* geoparser/db/extensions/spellfix/binaries/darwin-x86_64/
         fi
         if [ -d "artifacts/spellfix-darwin-arm64" ]; then
-          cp artifacts/spellfix-darwin-arm64/* geoparser/db/spellfix/darwin-arm64/
+          cp artifacts/spellfix-darwin-arm64/* geoparser/db/extensions/spellfix/binaries/darwin-arm64/
         fi
         if [ -d "artifacts/spellfix-win-amd64" ]; then
-          cp artifacts/spellfix-win-amd64/* geoparser/db/spellfix/win-amd64/
+          cp artifacts/spellfix-win-amd64/* geoparser/db/extensions/spellfix/binaries/win-amd64/
         fi
 
     - name: Check what binaries were collected
       run: |
         echo "=== Binaries collected in this run ==="
-        find geoparser/db/spellfix -type f | sort
+        find geoparser/db/extensions/spellfix/binaries -type f | sort
         
         echo "=== File sizes ==="
-        find geoparser/db/spellfix -type f -exec ls -lh {} \;
+        find geoparser/db/extensions/spellfix/binaries -type f -exec ls -lh {} \;
 
     - name: Commit and push binaries
       run: |
@@ -184,7 +184,7 @@ jobs:
         git config --local user.name "GitHub Action"
         
         # Add all spellfix binaries
-        git add geoparser/db/spellfix/
+        git add geoparser/db/extensions/spellfix/binaries/
         
         if git diff --staged --quiet; then
           echo "No new binaries to commit"
@@ -192,7 +192,7 @@ jobs:
           git commit -m "Add/update Spellfix binaries
           
           Collected binaries for multiple platforms:
-          $(find geoparser/db/spellfix -type f | sort | sed 's/^/- /')"
+          $(find geoparser/db/extensions/spellfix/binaries -type f | sort | sed 's/^/- /')"
           
           # Push changes
           git push origin ${{ github.ref_name }}
@@ -230,14 +230,14 @@ jobs:
         ALL_PRESENT=true
         for platform_file in "${PLATFORMS[@]}"; do
           IFS=':' read -r platform filename <<< "$platform_file"
-          binary_path="geoparser/db/spellfix/$platform/$filename"
+          binary_path="geoparser/db/extensions/spellfix/binaries/$platform/$filename"
           
-          echo "Checking for directory: geoparser/db/spellfix/$platform"
-          if [ -d "geoparser/db/spellfix/$platform" ]; then
+          echo "Checking for directory: geoparser/db/extensions/spellfix/binaries/$platform"
+          if [ -d "geoparser/db/extensions/spellfix/binaries/$platform" ]; then
             echo "✓ Directory exists. Contents:"
-            ls -la "geoparser/db/spellfix/$platform"
+            ls -la "geoparser/db/extensions/spellfix/binaries/$platform"
           else
-            echo "✗ Directory missing: geoparser/db/spellfix/$platform"
+            echo "✗ Directory missing: geoparser/db/extensions/spellfix/binaries/$platform"
             ALL_PRESENT=false
           fi
         done

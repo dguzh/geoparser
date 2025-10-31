@@ -41,7 +41,7 @@ def get_spellfix_path() -> Optional[Path]:
         return None
 
     # Get the path to the spellfix library
-    spellfix_dir = Path(__file__).parent / platform_dir
+    spellfix_dir = Path(__file__).parent / "binaries" / platform_dir
     spellfix_path = spellfix_dir / filename
 
     return spellfix_path if spellfix_path.exists() else None

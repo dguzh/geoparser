@@ -69,7 +69,7 @@ jobs:
       id: check_binary
       shell: bash
       run: |
-        BINARY_DIR="geoparser/db/spatialite/${{ matrix.platform }}-${{ matrix.arch }}"
+        BINARY_DIR="geoparser/db/extensions/spatialite/binaries/${{ matrix.platform }}-${{ matrix.arch }}"
         BINARY_FILE="$BINARY_DIR/${{ matrix.filename }}"
         
         if [ -f "$BINARY_FILE" ]; then
@@ -91,7 +91,7 @@ jobs:
       if: steps.check_binary.outputs.exists == 'false'
       shell: bash
       run: |
-        BINARY_DIR="geoparser/db/spatialite/${{ matrix.platform }}-${{ matrix.arch }}"
+        BINARY_DIR="geoparser/db/extensions/spatialite/binaries/${{ matrix.platform }}-${{ matrix.arch }}"
         
         # Windows: Copy all DLLs from the extracted folder
         if [ "${{ matrix.platform }}" = "win" ]; then
@@ -139,7 +139,7 @@ jobs:
       if: steps.check_binary.outputs.exists == 'false'
       shell: bash
       run: |
-        BINARY_DIR="geoparser/db/spatialite/${{ matrix.platform }}-${{ matrix.arch }}"
+        BINARY_DIR="geoparser/db/extensions/spatialite/binaries/${{ matrix.platform }}-${{ matrix.arch }}"
         echo "Contents of $BINARY_DIR:"
         ls -la "$BINARY_DIR"
         
@@ -155,7 +155,7 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: spatialite-${{ matrix.platform }}-${{ matrix.arch }}
-        path: geoparser/db/spatialite/${{ matrix.platform }}-${{ matrix.arch }}/
+        path: geoparser/db/extensions/spatialite/binaries/${{ matrix.platform }}-${{ matrix.arch }}/
 
   commit-binaries:
     name: Commit all binaries
@@ -177,29 +177,29 @@ jobs:
     - name: Copy binaries to correct locations
       run: |
         # Create directory structure
-        mkdir -p geoparser/db/spatialite/{linux-x86_64,darwin-x86_64,darwin-arm64,win-amd64}
+        mkdir -p geoparser/db/extensions/spatialite/binaries/{linux-x86_64,darwin-x86_64,darwin-arm64,win-amd64}
         
         # Copy binaries from artifacts
         if [ -d "artifacts/spatialite-linux-x86_64" ]; then
-          cp artifacts/spatialite-linux-x86_64/* geoparser/db/spatialite/linux-x86_64/
+          cp artifacts/spatialite-linux-x86_64/* geoparser/db/extensions/spatialite/binaries/linux-x86_64/
         fi
         if [ -d "artifacts/spatialite-darwin-x86_64" ]; then
-          cp artifacts/spatialite-darwin-x86_64/* geoparser/db/spatialite/darwin-x86_64/
+          cp artifacts/spatialite-darwin-x86_64/* geoparser/db/extensions/spatialite/binaries/darwin-x86_64/
         fi
         if [ -d "artifacts/spatialite-darwin-arm64" ]; then
-          cp artifacts/spatialite-darwin-arm64/* geoparser/db/spatialite/darwin-arm64/
+          cp artifacts/spatialite-darwin-arm64/* geoparser/db/extensions/spatialite/binaries/darwin-arm64/
         fi
         if [ -d "artifacts/spatialite-win-amd64" ]; then
-          cp artifacts/spatialite-win-amd64/* geoparser/db/spatialite/win-amd64/
+          cp artifacts/spatialite-win-amd64/* geoparser/db/extensions/spatialite/binaries/win-amd64/
         fi
 
     - name: Check what binaries were collected
       run: |
         echo "=== Binaries collected in this run ==="
-        find geoparser/db/spatialite -type f | sort
+        find geoparser/db/extensions/spatialite/binaries -type f | sort
         
         echo "=== File sizes ==="
-        find geoparser/db/spatialite -type f -exec ls -lh {} \;
+        find geoparser/db/extensions/spatialite/binaries -type f -exec ls -lh {} \;
 
     - name: Commit and push binaries
       run: |
@@ -207,7 +207,7 @@ jobs:
         git config --local user.name "GitHub Action"
         
         # Add all spatialite binaries
-        git add geoparser/db/spatialite/
+        git add geoparser/db/extensions/spatialite/binaries/
         
         if git diff --staged --quiet; then
           echo "No new binaries to commit"
@@ -215,7 +215,7 @@ jobs:
           git commit -m "Add/update SpatiaLite binaries and dependencies
           
           Collected binaries for multiple platforms:
-          $(find geoparser/db/spatialite -type f | sort | sed 's/^/- /')"
+          $(find geoparser/db/extensions/spatialite/binaries -type f | sort | sed 's/^/- /')"
           
           # Push changes
           git push origin ${{ github.ref_name }}
@@ -253,14 +253,14 @@ jobs:
         ALL_PRESENT=true
         for platform_file in "${PLATFORMS[@]}"; do
           IFS=':' read -r platform filename <<< "$platform_file"
-          binary_path="geoparser/db/spatialite/$platform/$filename"
+          binary_path="geoparser/db/extensions/spatialite/binaries/$platform/$filename"
           
-          echo "Checking for directory: geoparser/db/spatialite/$platform"
-          if [ -d "geoparser/db/spatialite/$platform" ]; then
+          echo "Checking for directory: geoparser/db/extensions/spatialite/binaries/$platform"
+          if [ -d "geoparser/db/extensions/spatialite/binaries/$platform" ]; then
             echo "✓ Directory exists. Contents:"
-            ls -la "geoparser/db/spatialite/$platform"
+            ls -la "geoparser/db/extensions/spatialite/binaries/$platform"
           else
-            echo "✗ Directory missing: geoparser/db/spatialite/$platform"
+            echo "✗ Directory missing: geoparser/db/extensions/spatialite/binaries/$platform"
             ALL_PRESENT=false
           fi
         done
