@@ -6,7 +6,7 @@ from sqlmodel import Session, select
 from geoparser.db.crud.base import BaseRepository
 from geoparser.db.models.feature import Feature
 from geoparser.db.models.gazetteer import Gazetteer
-from geoparser.db.models.name import Name, NameFTSTrigrams, NameFTSWords
+from geoparser.db.models.name import Name, NameFTS, NameSpellfixVocab
 from geoparser.db.models.source import Source
 
 
@@ -90,10 +90,10 @@ class FeatureRepository(BaseRepository[Feature]):
             .join(Source, Feature.source_id == Source.id)
             .join(Gazetteer, Source.gazetteer_id == Gazetteer.id)
             .join(Name, Feature.id == Name.feature_id)
-            .join(NameFTSWords, Name.id == NameFTSWords.rowid)
+            .join(NameFTS, Name.id == NameFTS.rowid)
             .where(
                 Gazetteer.name == gazetteer_name,
-                NameFTSWords.text.match(query),
+                NameFTS.text.match(query),
                 func.length(Name.text) == len(name),
             )
             .limit(limit)
@@ -128,64 +128,16 @@ class FeatureRepository(BaseRepository[Feature]):
         """
         query = f'"{name}"'
 
-        rank = literal_column("bm25(name_fts_words)").label("rank")
+        rank = literal_column("bm25(name_fts)").label("rank")
         statement = (
             select(Feature, rank)
             .join(Source, Feature.source_id == Source.id)
             .join(Gazetteer, Source.gazetteer_id == Gazetteer.id)
             .join(Name, Feature.id == Name.feature_id)
-            .join(NameFTSWords, Name.id == NameFTSWords.rowid)
+            .join(NameFTS, Name.id == NameFTS.rowid)
             .where(
                 Gazetteer.name == gazetteer_name,
-                NameFTSWords.text.match(query),
-            )
-            .order_by(rank)
-            .limit(limit)
-        )
-        results = db.exec(statement).unique().all()
-
-        return cls._filter_by_ranks(results, ranks)
-
-    @classmethod
-    def get_by_gazetteer_and_name_permuted(
-        cls,
-        db: Session,
-        gazetteer_name: str,
-        name: str,
-        limit: int = 1000,
-        ranks: int = 1,
-    ) -> t.List[Feature]:
-        """
-        Get all features for a gazetteer that have a name containing all search terms in any order.
-
-        Uses the unicode61 FTS table for permuted token matching with BM25 ranking.
-        Returns features where the name text contains all tokens from the search query,
-        but the order of tokens doesn't matter (implicit AND).
-
-        Args:
-            db: Database session
-            gazetteer_name: Name of the gazetteer
-            name: Name string to search for
-            limit: Maximum number of results to return (default: 1000)
-            ranks: Number of rank groups to include in results (default: 1)
-
-        Returns:
-            List of features that have names containing all search tokens in any order, ordered by relevance (highest rank first)
-        """
-        query = " ".join(
-            [f'"{token.strip()}"' for token in name.split() if token.strip()]
-        )
-
-        rank = literal_column("bm25(name_fts_words)").label("rank")
-        statement = (
-            select(Feature, rank)
-            .join(Source, Feature.source_id == Source.id)
-            .join(Gazetteer, Source.gazetteer_id == Gazetteer.id)
-            .join(Name, Feature.id == Name.feature_id)
-            .join(NameFTSWords, Name.id == NameFTSWords.rowid)
-            .where(
-                Gazetteer.name == gazetteer_name,
-                NameFTSWords.text.match(query),
+                NameFTS.text.match(query),
             )
             .order_by(rank)
             .limit(limit)
@@ -224,66 +176,16 @@ class FeatureRepository(BaseRepository[Feature]):
             [f'"{token.strip()}"' for token in name.split() if token.strip()]
         )
 
-        rank = literal_column("bm25(name_fts_words)").label("rank")
+        rank = literal_column("bm25(name_fts)").label("rank")
         statement = (
             select(Feature, rank)
             .join(Source, Feature.source_id == Source.id)
             .join(Gazetteer, Source.gazetteer_id == Gazetteer.id)
             .join(Name, Feature.id == Name.feature_id)
-            .join(NameFTSWords, Name.id == NameFTSWords.rowid)
+            .join(NameFTS, Name.id == NameFTS.rowid)
             .where(
                 Gazetteer.name == gazetteer_name,
-                NameFTSWords.text.match(query),
-            )
-            .order_by(rank)
-            .limit(limit)
-        )
-        results = db.exec(statement).unique().all()
-
-        return cls._filter_by_ranks(results, ranks)
-
-    @classmethod
-    def get_by_gazetteer_and_name_substring(
-        cls,
-        db: Session,
-        gazetteer_name: str,
-        name: str,
-        limit: int = 1000,
-        ranks: int = 1,
-    ) -> t.List[Feature]:
-        """
-        Get all features for a gazetteer that have a name containing the search term as a substring.
-
-        Uses the trigram FTS table for character-level substring matching with BM25 ranking.
-        Returns features where the name text contains character sequences matching the search query.
-        Note: This method requires queries with 3 or more characters due to trigram tokenization.
-
-        Args:
-            db: Database session
-            gazetteer_name: Name of the gazetteer
-            name: Name string to search for
-            limit: Maximum number of results to return (default: 1000)
-            ranks: Number of rank groups to include in results (default: 1)
-
-        Returns:
-            List of features that have names containing this text as a substring, ordered by relevance (highest rank first)
-        """
-        # Trigram tokenization requires at least 3 characters
-        if len(name) < 3:
-            return []
-
-        query = f'"{name}"'
-
-        rank = literal_column("bm25(name_fts_trigrams)").label("rank")
-        statement = (
-            select(Feature, rank)
-            .join(Source, Feature.source_id == Source.id)
-            .join(Gazetteer, Source.gazetteer_id == Gazetteer.id)
-            .join(Name, Feature.id == Name.feature_id)
-            .join(NameFTSTrigrams, Name.id == NameFTSTrigrams.rowid)
-            .where(
-                Gazetteer.name == gazetteer_name,
-                NameFTSTrigrams.text.match(query),
+                NameFTS.text.match(query),
             )
             .order_by(rank)
             .limit(limit)
@@ -304,38 +206,35 @@ class FeatureRepository(BaseRepository[Feature]):
         """
         Get all features for a gazetteer that have names fuzzy matching the search term.
 
-        Uses the trigram FTS table for fuzzy matching by splitting the search term into trigrams
-        and searching for any of them with BM25 ranking. This allows for approximate
-        matching even with typos or partial character matches.
-        Note: This method requires queries with 3 or more characters due to trigram tokenization.
+        Uses the spellfix1 virtual table for fuzzy matching with phonetic hashing and edit distance.
+        This method computes the phonetic hash (k2) of the query and finds candidates with the same
+        k2 value, then groups results by edit distance. The ranks parameter controls how many
+        distance groups to include in the results.
 
         Args:
             db: Database session
             gazetteer_name: Name of the gazetteer
             name: Name string to search for
             limit: Maximum number of results to return (default: 1000)
-            ranks: Number of rank groups to include in results (default: 1)
+            ranks: Number of rank groups (edit distance levels) to include in results (default: 1)
 
         Returns:
-            List of features that have names fuzzy matching this text, ordered by relevance (highest rank first)
+            List of features that have names fuzzy matching this text, grouped by edit distance
         """
-        # Trigram tokenization requires at least 3 characters
-        if len(name) < 3:
-            return []
-
-        query = " OR ".join([f'"{name[i:i+3]}"' for i in range(len(name) - 2)])
-
-        rank = literal_column("bm25(name_fts_trigrams)").label("rank")
+        rank = func.min(
+            func.editdist3(name, literal_column("name_spellfix_vocab.word"))
+        ).label("rank")
         statement = (
             select(Feature, rank)
             .join(Source, Feature.source_id == Source.id)
             .join(Gazetteer, Source.gazetteer_id == Gazetteer.id)
             .join(Name, Feature.id == Name.feature_id)
-            .join(NameFTSTrigrams, Name.id == NameFTSTrigrams.rowid)
+            .join(NameSpellfixVocab, Name.id == NameSpellfixVocab.id)
             .where(
                 Gazetteer.name == gazetteer_name,
-                NameFTSTrigrams.text.match(query),
+                NameSpellfixVocab.k2 == func.spellfix1_phonehash(name),
             )
+            .group_by(Feature.id)
             .order_by(rank)
             .limit(limit)
         )

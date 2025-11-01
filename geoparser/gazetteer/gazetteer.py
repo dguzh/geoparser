@@ -32,7 +32,7 @@ class Gazetteer:
 
         Args:
             name: Name string to search for
-            method: Search method to use ("exact", "phrase", "substring", "permuted", "partial", "fuzzy")
+            method: Search method to use ("exact", "phrase", "partial", "fuzzy")
             limit: Maximum number of results to return (default: 1000)
             ranks: Number of rank groups to include in results (default: 1, ignored for exact method)
 
@@ -53,13 +53,7 @@ class Gazetteer:
             "phrase": lambda session: FeatureRepository.get_by_gazetteer_and_name_phrase(
                 session, self.gazetteer_name, normalized_name, limit, ranks
             ),
-            "permuted": lambda session: FeatureRepository.get_by_gazetteer_and_name_permuted(
-                session, self.gazetteer_name, normalized_name, limit, ranks
-            ),
             "partial": lambda session: FeatureRepository.get_by_gazetteer_and_name_partial(
-                session, self.gazetteer_name, normalized_name, limit, ranks
-            ),
-            "substring": lambda session: FeatureRepository.get_by_gazetteer_and_name_substring(
                 session, self.gazetteer_name, normalized_name, limit, ranks
             ),
             "fuzzy": lambda session: FeatureRepository.get_by_gazetteer_and_name_fuzzy(

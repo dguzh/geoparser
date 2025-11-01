@@ -49,33 +49,34 @@ class Name(NameBase, table=True):
         return self.__str__()
 
 
-class NameFTSWords(SQLModel, table=True):
+class NameFTS(SQLModel, table=True):
     """
-    Read-only mapping to the name_fts_words virtual table.
+    Read-only mapping to the name_fts virtual table.
 
     This provides access to the FTS5 virtual table with unicode61 tokenization
     for exact matching operations on names.
     """
 
-    __tablename__ = "name_fts_words"
+    __tablename__ = "name_fts"
 
     rowid: int = Field(primary_key=True)
     text: str
 
 
-class NameFTSTrigrams(SQLModel, table=True):
+class NameSpellfixVocab(SQLModel, table=True):
     """
-    Read-only mapping to the name_fts_trigrams virtual table.
+    Read-only mapping to the name_spellfix_vocab shadow table.
 
-    This provides access to the FTS5 virtual table with trigram tokenization
-    for partial and fuzzy matching operations on names with character-level
-    matching capabilities.
+    This provides access to the spellfix1 shadow table for fuzzy matching
+    operations on names using phonetic hashing and edit distance.
+    The shadow table is automatically maintained by the spellfix1 virtual table.
     """
 
-    __tablename__ = "name_fts_trigrams"
+    __tablename__ = "name_spellfix_vocab"
 
-    rowid: int = Field(primary_key=True)
-    text: str
+    id: int = Field(primary_key=True)
+    word: str
+    k2: str
 
 
 class NameCreate(NameBase):
@@ -92,32 +93,33 @@ class NameUpdate(SQLModel):
     feature_id: t.Optional[int] = None
 
 
-# Event listener to create FTS table and triggers after name table creation
+# Event listener to create virtual tables and triggers after name table creation
 @event.listens_for(Name.__table__, "after_create")
-def setup_fts(target, connection, **kw):
+def setup_virtual_tables(target, connection, **kw):
     """
-    Create FTS virtual tables and triggers for name full-text search.
+    Create FTS and spellfix virtual tables and triggers for name search.
 
     This function is automatically called when the name table is created.
     It sets up:
     1. An FTS5 virtual table with unicode61 tokenization for exact matching
-    2. An FTS5 virtual table with trigram tokenization for partial/fuzzy matching
-    3. Triggers to keep both FTS tables in sync with the main name table
+    2. A spellfix1 virtual table for fuzzy matching with edit distance
+    3. Triggers to keep both tables in sync with the main name table
 
     Args:
         target: The table that was created (name table)
         connection: Database connection
         **kw: Additional keyword arguments
     """
-    # Drop any existing FTS tables first (in case they were created by SQLModel)
-    connection.execute(text("DROP TABLE IF EXISTS name_fts_words"))
-    connection.execute(text("DROP TABLE IF EXISTS name_fts_trigrams"))
+    # Drop existing tables first (in case they were created by SQLModel)
+    connection.execute(text("DROP TABLE IF EXISTS name_fts"))
+    connection.execute(text("DROP TABLE IF EXISTS name_spellfix"))
+    connection.execute(text("DROP TABLE IF EXISTS name_spellfix_vocab"))
 
     # Create FTS5 virtual table for exact matching with unicode61 tokenizer
     connection.execute(
         text(
             """
-        CREATE VIRTUAL TABLE name_fts_words USING fts5(
+        CREATE VIRTUAL TABLE name_fts USING fts5(
             text,
             content='',
             tokenize="unicode61 remove_diacritics 2 tokenchars '.'"
@@ -126,27 +128,32 @@ def setup_fts(target, connection, **kw):
         )
     )
 
-    # Create FTS5 virtual table for partial/fuzzy matching with trigram tokenizer
+    # Create spellfix1 virtual table for fuzzy matching
     connection.execute(
         text(
             """
-        CREATE VIRTUAL TABLE name_fts_trigrams USING fts5(
-            text,
-            content='',
-            tokenize="trigram remove_diacritics 1"
-        )
+        CREATE VIRTUAL TABLE name_spellfix USING spellfix1
     """
         )
     )
 
-    # Create triggers for INSERT operations on both FTS tables
+    # Create index on k2 column in shadow table for efficient lookups
     connection.execute(
         text(
             """
-        CREATE TRIGGER IF NOT EXISTS name_fts_words_insert
+        CREATE INDEX IF NOT EXISTS idx_name_spellfix_vocab_k2 ON name_spellfix_vocab(k2)
+    """
+        )
+    )
+
+    # Create triggers for INSERT operations on FTS and spellfix tables
+    connection.execute(
+        text(
+            """
+        CREATE TRIGGER IF NOT EXISTS name_fts_insert
         AFTER INSERT ON name
         BEGIN
-            INSERT INTO name_fts_words(rowid, text) VALUES (new.id, new.text);
+            INSERT INTO name_fts(rowid, text) VALUES (new.id, new.text);
         END
     """
         )
@@ -155,10 +162,10 @@ def setup_fts(target, connection, **kw):
     connection.execute(
         text(
             """
-        CREATE TRIGGER IF NOT EXISTS name_fts_trigrams_insert
+        CREATE TRIGGER IF NOT EXISTS name_spellfix_insert
         AFTER INSERT ON name
         BEGIN
-            INSERT INTO name_fts_trigrams(rowid, text) VALUES (new.id, new.text);
+            INSERT INTO name_spellfix(rowid, word) VALUES (new.id, new.text);
         END
     """
         )
