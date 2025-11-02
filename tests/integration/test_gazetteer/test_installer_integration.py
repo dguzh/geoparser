@@ -87,21 +87,111 @@ class TestGazetteerInstallerIntegration:
         features_with_geometry = [f for f in features if hasattr(f, "geometry")]
         assert len(features_with_geometry) > 0
 
-    def test_creates_fts_indexes(self, andorra_gazetteer, test_session):
-        """Test that FTS (Full-Text Search) indexes are created."""
+    def test_creates_fts_table(self, andorra_gazetteer, test_session):
+        """Test that FTS virtual table is created."""
         # Arrange & Act - andorra_gazetteer fixture installs the gazetteer
 
-        # Assert - Check that FTS tables exist
+        # Assert - Check that FTS virtual table exists
         sql = text(
             """
-            SELECT 1 FROM sqlite_master 
-            WHERE type='table' AND name LIKE '%_fts'
+            SELECT name FROM sqlite_master 
+            WHERE type='table' AND name='name_fts'
             """
         )
-        results = test_session.exec(sql).all()
-        # FTS indexes may not be created for all gazetteers
-        # Just verify the query runs without error
-        assert isinstance(results, list)
+        result = test_session.exec(sql).first()
+        assert result is not None
+
+    def test_fts_table_populated(self, andorra_gazetteer, test_session):
+        """Test that FTS table is populated with place names."""
+        # Arrange & Act - andorra_gazetteer fixture installs the gazetteer
+
+        # Assert - Check that FTS table has entries
+        sql = text("SELECT COUNT(*) FROM name_fts")
+        result = test_session.exec(sql).first()
+        assert result is not None
+        assert result[0] > 0
+
+    def test_fts_trigger_exists(self, andorra_gazetteer, test_session):
+        """Test that FTS insert trigger is created."""
+        # Arrange & Act - andorra_gazetteer fixture installs the gazetteer
+
+        # Assert - Check that FTS trigger exists
+        sql = text(
+            """
+            SELECT name FROM sqlite_master 
+            WHERE type='trigger' AND name='name_fts_insert'
+            """
+        )
+        result = test_session.exec(sql).first()
+        assert result is not None
+
+    def test_creates_spellfix_tables(self, andorra_gazetteer, test_session):
+        """Test that spellfix virtual table and shadow table are created."""
+        # Arrange & Act - andorra_gazetteer fixture installs the gazetteer
+
+        # Assert - Check that spellfix virtual table exists
+        sql = text(
+            """
+            SELECT name FROM sqlite_master 
+            WHERE type='table' AND name='name_spellfix'
+            """
+        )
+        result = test_session.exec(sql).first()
+        assert result is not None
+
+        # Assert - Check that spellfix shadow table exists
+        sql = text(
+            """
+            SELECT name FROM sqlite_master 
+            WHERE type='table' AND name='name_spellfix_vocab'
+            """
+        )
+        result = test_session.exec(sql).first()
+        assert result is not None
+
+    def test_spellfix_populated(self, andorra_gazetteer, test_session):
+        """Test that spellfix virtual table and shadow table are populated with place names."""
+        # Arrange & Act - andorra_gazetteer fixture installs the gazetteer
+
+        # Assert - Check that spellfix virtual table has entries
+        sql = text("SELECT COUNT(*) FROM name_spellfix")
+        result = test_session.exec(sql).first()
+        assert result is not None
+        assert result[0] > 0
+
+        # Assert - Check that spellfix vocab shadow table has entries
+        sql = text("SELECT COUNT(*) FROM name_spellfix_vocab")
+        result = test_session.exec(sql).first()
+        assert result is not None
+        assert result[0] > 0
+
+    def test_spellfix_trigger_exists(self, andorra_gazetteer, test_session):
+        """Test that spellfix insert trigger is created."""
+        # Arrange & Act - andorra_gazetteer fixture installs the gazetteer
+
+        # Assert - Check that spellfix trigger exists
+        sql = text(
+            """
+            SELECT name FROM sqlite_master 
+            WHERE type='trigger' AND name='name_spellfix_insert'
+            """
+        )
+        result = test_session.exec(sql).first()
+        assert result is not None
+
+    def test_spellfix_k2_index_exists(self, andorra_gazetteer, test_session):
+        """Test that k2 index on spellfix vocab table is created."""
+        # Arrange & Act - andorra_gazetteer fixture installs the gazetteer
+
+        # Assert - Check that k2 index exists
+        sql = text(
+            """
+            SELECT name FROM sqlite_master 
+            WHERE type='index' AND name='idx_name_spellfix_vocab_k2'
+            """
+        )
+        result = test_session.exec(sql).first()
+        assert result is not None
 
     def test_creates_spatial_indexes(self, andorra_gazetteer, test_session):
         """Test that spatial indexes are created."""

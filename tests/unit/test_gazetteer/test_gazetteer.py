@@ -61,22 +61,6 @@ class TestGazetteerSearch:
         )
 
     @patch("geoparser.gazetteer.gazetteer.FeatureRepository")
-    def test_search_with_permuted_method(self, mock_feature_repo):
-        """Test that search calls permuted method correctly."""
-        # Arrange
-        mock_feature_repo.get_by_gazetteer_and_name_permuted.return_value = []
-
-        gazetteer = Gazetteer("geonames")
-
-        # Act
-        gazetteer.search("New York", method="permuted")
-
-        # Assert
-        mock_feature_repo.get_by_gazetteer_and_name_permuted.assert_called_once_with(
-            ANY, "geonames", "New York", 1000, 1
-        )
-
-    @patch("geoparser.gazetteer.gazetteer.FeatureRepository")
     def test_search_with_partial_method(self, mock_feature_repo):
         """Test that search calls partial method correctly."""
         # Arrange
@@ -89,22 +73,6 @@ class TestGazetteerSearch:
 
         # Assert
         mock_feature_repo.get_by_gazetteer_and_name_partial.assert_called_once_with(
-            ANY, "geonames", "Paris", 1000, 1
-        )
-
-    @patch("geoparser.gazetteer.gazetteer.FeatureRepository")
-    def test_search_with_substring_method(self, mock_feature_repo):
-        """Test that search calls substring method correctly."""
-        # Arrange
-        mock_feature_repo.get_by_gazetteer_and_name_substring.return_value = []
-
-        gazetteer = Gazetteer("geonames")
-
-        # Act
-        gazetteer.search("Paris", method="substring")
-
-        # Assert
-        mock_feature_repo.get_by_gazetteer_and_name_substring.assert_called_once_with(
             ANY, "geonames", "Paris", 1000, 1
         )
 

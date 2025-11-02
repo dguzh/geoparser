@@ -189,3 +189,48 @@ class TestNameUpdate:
         assert name_update.id == 1
         assert name_update.text is None
         assert name_update.feature_id is None
+
+
+@pytest.mark.unit
+class TestNameFTS:
+    """Test the NameFTS virtual table model."""
+
+    def test_has_correct_tablename(self):
+        """Test that NameFTS references the correct virtual table."""
+        # Arrange
+        from geoparser.db.models import NameFTS
+
+        # Assert
+        assert NameFTS.__tablename__ == "name_fts"
+
+    def test_has_required_fields(self):
+        """Test that NameFTS has the required field definitions."""
+        # Arrange
+        from geoparser.db.models import NameFTS
+
+        # Assert
+        assert hasattr(NameFTS, "rowid")
+        assert hasattr(NameFTS, "text")
+
+
+@pytest.mark.unit
+class TestNameSpellfixVocab:
+    """Test the NameSpellfixVocab shadow table model."""
+
+    def test_has_correct_tablename(self):
+        """Test that NameSpellfixVocab references the correct shadow table."""
+        # Arrange
+        from geoparser.db.models import NameSpellfixVocab
+
+        # Assert
+        assert NameSpellfixVocab.__tablename__ == "name_spellfix_vocab"
+
+    def test_has_required_fields(self):
+        """Test that NameSpellfixVocab has the required field definitions."""
+        # Arrange
+        from geoparser.db.models import NameSpellfixVocab
+
+        # Assert
+        assert hasattr(NameSpellfixVocab, "id")
+        assert hasattr(NameSpellfixVocab, "word")
+        assert hasattr(NameSpellfixVocab, "k2")

@@ -110,28 +110,6 @@ class TestFeatureRepositoryGetByGazetteerAndNamePhrase:
 
 
 @pytest.mark.unit
-class TestFeatureRepositoryGetByGazetteerAndNamePermuted:
-    """Test FeatureRepository.get_by_gazetteer_and_name_permuted() method."""
-
-    def test_builds_permuted_query_with_and_logic(self, test_session):
-        """Test that permuted query uses AND logic (implicit) for tokens."""
-        # Arrange
-        mock_result = Mock()
-        mock_result.unique.return_value.all.return_value = []
-        test_session.exec = Mock(return_value=mock_result)
-
-        # Act
-        result = FeatureRepository.get_by_gazetteer_and_name_permuted(
-            test_session, "test_gaz", "New York City"
-        )
-
-        # Assert
-        assert result == []
-        # Permuted search should use space-separated quoted tokens (implicit AND)
-        test_session.exec.assert_called_once()
-
-
-@pytest.mark.unit
 class TestFeatureRepositoryGetByGazetteerAndNamePartial:
     """Test FeatureRepository.get_by_gazetteer_and_name_partial() method."""
 
@@ -154,52 +132,11 @@ class TestFeatureRepositoryGetByGazetteerAndNamePartial:
 
 
 @pytest.mark.unit
-class TestFeatureRepositoryGetByGazetteerAndNameSubstring:
-    """Test FeatureRepository.get_by_gazetteer_and_name_substring() method."""
-
-    def test_returns_empty_list_for_short_queries(self, test_session):
-        """Test that queries shorter than 3 characters return empty list."""
-        # Act
-        result = FeatureRepository.get_by_gazetteer_and_name_substring(
-            test_session, "test_gaz", "NY"
-        )
-
-        # Assert
-        assert result == []
-
-    def test_builds_substring_query_with_trigrams(self, test_session):
-        """Test that substring query uses trigram FTS table."""
-        # Arrange
-        mock_result = Mock()
-        mock_result.unique.return_value.all.return_value = []
-        test_session.exec = Mock(return_value=mock_result)
-
-        # Act
-        result = FeatureRepository.get_by_gazetteer_and_name_substring(
-            test_session, "test_gaz", "Paris"
-        )
-
-        # Assert
-        assert result == []
-        test_session.exec.assert_called_once()
-
-
-@pytest.mark.unit
 class TestFeatureRepositoryGetByGazetteerAndNameFuzzy:
     """Test FeatureRepository.get_by_gazetteer_and_name_fuzzy() method."""
 
-    def test_returns_empty_list_for_short_queries(self, test_session):
-        """Test that queries shorter than 3 characters return empty list."""
-        # Act
-        result = FeatureRepository.get_by_gazetteer_and_name_fuzzy(
-            test_session, "test_gaz", "ab"
-        )
-
-        # Assert
-        assert result == []
-
-    def test_builds_fuzzy_query_with_trigram_splits(self, test_session):
-        """Test that fuzzy query splits search term into trigrams."""
+    def test_builds_fuzzy_query_with_spellfix(self, test_session):
+        """Test that fuzzy query uses spellfix with phonetic hashing and edit distance."""
         # Arrange
         mock_result = Mock()
         mock_result.unique.return_value.all.return_value = []
@@ -212,7 +149,7 @@ class TestFeatureRepositoryGetByGazetteerAndNameFuzzy:
 
         # Assert
         assert result == []
-        # Fuzzy search should split "Paris" into trigrams: "Par", "ari", "ris"
+        # Should build query with spellfix joins and k2 phonetic hash matching
         test_session.exec.assert_called_once()
 
 

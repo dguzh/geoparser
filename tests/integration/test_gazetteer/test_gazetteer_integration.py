@@ -44,18 +44,6 @@ class TestGazetteerIntegration:
         # Assert
         assert len(results) > 0
 
-    def test_search_permuted_finds_location(self, andorra_gazetteer):
-        """Test that permuted search finds locations with reordered words."""
-        # Arrange
-        gazetteer = Gazetteer("andorranames")
-
-        # Act
-        results = gazetteer.search("Vella Andorra", method="permuted")
-
-        # Assert
-        # Should still find "Andorra la Vella" despite word order
-        assert len(results) > 0
-
     def test_search_partial_finds_location(self, andorra_gazetteer):
         """Test that partial search finds locations with partial word matches."""
         # Arrange
@@ -68,18 +56,6 @@ class TestGazetteerIntegration:
         assert len(results) > 0
         # Should find multiple Andorra locations
         assert len(results) >= 1
-
-    def test_search_substring_finds_location(self, andorra_gazetteer):
-        """Test that substring search finds locations with substring matches."""
-        # Arrange
-        gazetteer = Gazetteer("andorranames")
-
-        # Act
-        results = gazetteer.search("dorra", method="substring")
-
-        # Assert
-        # Should find "Andorra" locations
-        assert len(results) > 0
 
     def test_search_fuzzy_finds_location(self, andorra_gazetteer):
         """Test that fuzzy search finds locations with fuzzy matching."""
