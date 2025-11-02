@@ -167,8 +167,6 @@ class SentenceTransformerResolver(Resolver):
         search_methods = [
             "exact",
             "phrase",
-            "substring",
-            "permuted",
             "partial",
             "fuzzy",
         ]
@@ -205,15 +203,6 @@ class SentenceTransformerResolver(Resolver):
 
         # Handle remaining unresolved references by selecting best candidates (min_similarity=0.0)
         self._evaluate_candidates(contexts, candidates, results)
-
-        # Ensure we have a result for every reference
-        results = [
-            [
-                result if result is not None else (self.gazetteer_name, "")
-                for result in doc_results
-            ]
-            for doc_results in results
-        ]
 
         return results
 
