@@ -79,7 +79,7 @@ class TestSentenceTransformerResolverIntegration:
         """Test that resolver handles multiple references in one document."""
         # Arrange
         texts = ["Travel from Andorra la Vella to les Escaldes."]
-        references = [[(12, 29), (33, 45)]]  # "Andorra la Vella", "les Escaldes"
+        references = [[(12, 28), (32, 44)]]  # "Andorra la Vella", "les Escaldes"
 
         # Act
         results = real_sentencetransformer_resolver.predict(texts, references)

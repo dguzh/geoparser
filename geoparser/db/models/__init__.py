@@ -5,8 +5,8 @@ from geoparser.db.models.gazetteer import Gazetteer, GazetteerCreate, GazetteerU
 from geoparser.db.models.name import (
     Name,
     NameCreate,
-    NameFTSTrigrams,
-    NameFTSWords,
+    NameFTS,
+    NameSpellfixVocab,
     NameUpdate,
 )
 from geoparser.db.models.project import Project, ProjectCreate, ProjectUpdate

@@ -92,9 +92,11 @@ class TestResolutionServicePredict:
         test_session.refresh(document)
 
         # Create feature hierarchy for referent creation
-        feature = feature_factory(location_id_value="")
+        feature = feature_factory(location_id_value="123456")
 
-        mock_sentencetransformer_resolver.predict.return_value = [[("geonames", "")]]
+        mock_sentencetransformer_resolver.predict.return_value = [
+            [("geonames", "123456")]
+        ]
         service = ResolutionService(mock_sentencetransformer_resolver)
 
         # Mock feature repository to return our created feature
@@ -113,6 +115,34 @@ class TestResolutionServicePredict:
             test_session, reference.id, mock_sentencetransformer_resolver.id
         )
         assert resolution is not None
+
+    def test_skips_references_when_resolver_returns_none(
+        self,
+        test_session,
+        mock_sentencetransformer_resolver,
+        document_factory,
+        reference_factory,
+    ):
+        """Test that predict skips references when resolver returns None (no valid prediction)."""
+        # Arrange
+        document = document_factory(text="Test")
+        reference = reference_factory(start=0, end=4, document_id=document.id)
+        test_session.refresh(document)
+
+        # Resolver returns None indicating it couldn't make a valid prediction
+        mock_sentencetransformer_resolver.predict.return_value = [[None]]
+        service = ResolutionService(mock_sentencetransformer_resolver)
+
+        # Act
+        service.predict([document])
+
+        # Assert - No resolution record should be created
+        from geoparser.db.crud import ResolutionRepository
+
+        resolution = ResolutionRepository.get_by_reference_and_resolver(
+            test_session, reference.id, mock_sentencetransformer_resolver.id
+        )
+        assert resolution is None
 
     def test_skips_already_processed_references(
         self,
@@ -216,11 +246,11 @@ class TestResolutionServicePredict:
         test_session.refresh(doc2)
 
         # Create feature hierarchy for referent creation
-        feature = feature_factory(location_id_value="")
+        feature = feature_factory(location_id_value="123456")
 
         mock_sentencetransformer_resolver.predict.return_value = [
-            [("geonames", "")],
-            [("geonames", "")],
+            [("geonames", "123456")],
+            [("geonames", "123456")],
         ]
         service = ResolutionService(mock_sentencetransformer_resolver)
 

@@ -21,7 +21,8 @@ from sqlmodel import Session, SQLModel, create_engine
 
 import geoparser.db.models  # noqa: F401
 
-from .spatialite.loader import get_spatialite_path, load_spatialite_extension
+from .extensions.spatialite.loader import get_spatialite_path, load_spatialite_extension
+from .extensions.spellfix.loader import get_spellfix_path, load_spellfix_extension
 
 # Database URL configuration (SQLite)
 DATABASE_URL = os.getenv(
@@ -41,7 +42,7 @@ def _set_sqlite_pragma(dbapi_connection, connection_record):
     """
     Configure SQLite connections on connect.
 
-    Enables foreign key enforcement and loads SpatiaLite extension
+    Enables foreign key enforcement and loads SpatiaLite and Spellfix extensions
     for all SQLite connections.
 
     Args:
@@ -63,6 +64,16 @@ def _set_sqlite_pragma(dbapi_connection, connection_record):
             load_spatialite_extension(dbapi_connection, spatialite_path)
         except Exception as e:
             raise RuntimeError(f"Failed to load SpatiaLite extension: {e}") from e
+
+        # Load Spellfix extension
+        spellfix_path = get_spellfix_path()
+        if spellfix_path is None:
+            raise RuntimeError("Spellfix library not found.")
+
+        try:
+            load_spellfix_extension(dbapi_connection, spellfix_path)
+        except Exception as e:
+            raise RuntimeError(f"Failed to load Spellfix extension: {e}") from e
 
 
 # Create engine once at module level

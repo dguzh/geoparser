@@ -11,7 +11,7 @@ include = [
     "LICENSE",
     "THIRD_PARTY_LICENSES",
     "README.md",
-    "geoparser/db/spatialite/**/*",
+    "geoparser/db/extensions/**/*",
 ]
 
 [tool.poetry.dependencies]
