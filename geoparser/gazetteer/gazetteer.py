@@ -25,7 +25,7 @@ class Gazetteer:
         self.gazetteer_name = gazetteer_name
 
     def search(
-        self, name: str, method: str = "exact", limit: int = 1000, ranks: int = 1
+        self, name: str, method: str = "exact", limit: int = 10000, tiers: int = 1
     ) -> List[Feature]:
         """
         Search for features using the specified search method.
@@ -33,8 +33,8 @@ class Gazetteer:
         Args:
             name: Name string to search for
             method: Search method to use ("exact", "phrase", "partial", "fuzzy")
-            limit: Maximum number of results to return (default: 1000)
-            ranks: Number of rank groups to include in results (default: 1, ignored for exact method)
+            limit: Maximum number of results to return (default: 10000)
+            tiers: Number of rank tiers to include in results (default: 1, ignored for exact method)
 
         Returns:
             List of Feature objects matching the search criteria
@@ -51,13 +51,13 @@ class Gazetteer:
                 session, self.gazetteer_name, normalized_name, limit
             ),
             "phrase": lambda session: FeatureRepository.get_by_gazetteer_and_name_phrase(
-                session, self.gazetteer_name, normalized_name, limit, ranks
+                session, self.gazetteer_name, normalized_name, limit, tiers
             ),
             "partial": lambda session: FeatureRepository.get_by_gazetteer_and_name_partial(
-                session, self.gazetteer_name, normalized_name, limit, ranks
+                session, self.gazetteer_name, normalized_name, limit, tiers
             ),
             "fuzzy": lambda session: FeatureRepository.get_by_gazetteer_and_name_fuzzy(
-                session, self.gazetteer_name, normalized_name, limit, ranks
+                session, self.gazetteer_name, normalized_name, limit, tiers
             ),
         }
 

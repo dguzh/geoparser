@@ -41,7 +41,7 @@ class TestGazetteerSearch:
 
         # Assert
         mock_feature_repo.get_by_gazetteer_and_name_exact.assert_called_once_with(
-            ANY, "geonames", "Paris", 1000
+            ANY, "geonames", "Paris", 10000
         )
 
     @patch("geoparser.gazetteer.gazetteer.FeatureRepository")
@@ -53,11 +53,11 @@ class TestGazetteerSearch:
         gazetteer = Gazetteer("geonames")
 
         # Act
-        gazetteer.search("Paris", method="phrase", ranks=2)
+        gazetteer.search("Paris", method="phrase", tiers=2)
 
         # Assert
         mock_feature_repo.get_by_gazetteer_and_name_phrase.assert_called_once_with(
-            ANY, "geonames", "Paris", 1000, 2
+            ANY, "geonames", "Paris", 10000, 2
         )
 
     @patch("geoparser.gazetteer.gazetteer.FeatureRepository")
@@ -73,7 +73,7 @@ class TestGazetteerSearch:
 
         # Assert
         mock_feature_repo.get_by_gazetteer_and_name_partial.assert_called_once_with(
-            ANY, "geonames", "Paris", 1000, 1
+            ANY, "geonames", "Paris", 10000, 1
         )
 
     @patch("geoparser.gazetteer.gazetteer.FeatureRepository")
@@ -89,7 +89,7 @@ class TestGazetteerSearch:
 
         # Assert
         mock_feature_repo.get_by_gazetteer_and_name_fuzzy.assert_called_once_with(
-            ANY, "geonames", "Paris", 1000, 1
+            ANY, "geonames", "Paris", 10000, 1
         )
 
     @patch("geoparser.gazetteer.gazetteer.FeatureRepository")
@@ -106,7 +106,7 @@ class TestGazetteerSearch:
         # Assert
         # Should call with quotes removed
         mock_feature_repo.get_by_gazetteer_and_name_exact.assert_called_once_with(
-            ANY, "geonames", "Paris", 1000
+            ANY, "geonames", "Paris", 10000
         )
 
     @patch("geoparser.gazetteer.gazetteer.FeatureRepository")
@@ -123,7 +123,7 @@ class TestGazetteerSearch:
         # Assert
         # Should call with whitespace stripped
         mock_feature_repo.get_by_gazetteer_and_name_exact.assert_called_once_with(
-            ANY, "geonames", "Paris", 1000
+            ANY, "geonames", "Paris", 10000
         )
 
     @patch("geoparser.gazetteer.gazetteer.FeatureRepository")
@@ -143,19 +143,19 @@ class TestGazetteerSearch:
         )
 
     @patch("geoparser.gazetteer.gazetteer.FeatureRepository")
-    def test_search_respects_custom_ranks(self, mock_feature_repo):
-        """Test that search respects custom ranks parameter for ranking methods."""
+    def test_search_respects_custom_tiers(self, mock_feature_repo):
+        """Test that search respects custom tiers parameter for tiered methods."""
         # Arrange
         mock_feature_repo.get_by_gazetteer_and_name_phrase.return_value = []
 
         gazetteer = Gazetteer("geonames")
 
         # Act
-        gazetteer.search("Paris", method="phrase", ranks=3)
+        gazetteer.search("Paris", method="phrase", tiers=3)
 
         # Assert
         mock_feature_repo.get_by_gazetteer_and_name_phrase.assert_called_once_with(
-            ANY, "geonames", "Paris", 1000, 3
+            ANY, "geonames", "Paris", 10000, 3
         )
 
     def test_search_raises_error_for_unknown_method(self):

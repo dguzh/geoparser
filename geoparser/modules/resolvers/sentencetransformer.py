@@ -61,7 +61,7 @@ class SentenceTransformerResolver(Resolver):
             model_name: HuggingFace model name for SentenceTransformer
             gazetteer_name: Name of the gazetteer to search
             min_similarity: Minimum similarity threshold to stop candidate generation
-            max_iter: Maximum number of iterations through search methods with increasing ranks
+            max_iter: Maximum number of iterations through search methods with increasing tiers
             attribute_map: Optional custom attribute mapping for gazetteer.
                           If None, will look up gazetteer_name in GAZETTEER_ATTRIBUTE_MAP.
                           If provided, will be used directly.
@@ -171,16 +171,16 @@ class SentenceTransformerResolver(Resolver):
             "fuzzy",
         ]
 
-        # Iterative search strategy with increasing ranks
-        for ranks in range(1, self.max_iter + 1):
+        # Iterative search strategy with increasing tiers
+        for tiers in range(1, self.max_iter + 1):
             for method in search_methods:
-                # Skip exact method for ranks > 1
-                if method == "exact" and ranks > 1:
+                # Skip exact method for tiers > 1
+                if method == "exact" and tiers > 1:
                     continue
 
                 # Step 3: Gather candidates for unresolved references
                 self._gather_candidates(
-                    texts, references, candidates, results, method, ranks
+                    texts, references, candidates, results, method, tiers
                 )
 
                 # Step 4: Embed new candidates
@@ -264,7 +264,7 @@ class SentenceTransformerResolver(Resolver):
         candidates: List[List[List["Feature"]]],
         results: List[List[Tuple[str, str]]],
         method: str,
-        ranks: int,
+        tiers: int,
     ) -> None:
         """
         Gather candidates for unresolved references using the specified search method.
@@ -275,7 +275,7 @@ class SentenceTransformerResolver(Resolver):
             candidates: Nested list of candidate lists for each reference (modified in-place)
             results: Nested list of current results to determine which references need candidates
             method: Search method to use
-            ranks: Number of rank groups to include
+            tiers: Number of rank tiers to include
         """
         for doc_idx, (text, doc_references, doc_candidates, doc_results) in enumerate(
             zip(texts, references, candidates, results)
@@ -290,7 +290,7 @@ class SentenceTransformerResolver(Resolver):
                 # Search for new candidates and merge with existing ones, avoiding duplicates
                 reference_text = text[start:end]
                 new_candidates = self.gazetteer.search(
-                    reference_text, method, ranks=ranks
+                    reference_text, method, tiers=tiers
                 )
                 existing_ids = {c.id for c in doc_candidates[ref_idx]}
                 for candidate in new_candidates:

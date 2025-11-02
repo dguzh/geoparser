@@ -65,7 +65,7 @@ class FeatureRepository(BaseRepository[Feature]):
 
     @classmethod
     def get_by_gazetteer_and_name_exact(
-        cls, db: Session, gazetteer_name: str, name: str, limit: int = 1000
+        cls, db: Session, gazetteer_name: str, name: str, limit: int = 10000
     ) -> t.List[Feature]:
         """
         Get all features for a gazetteer that have an exactly matching name.
@@ -78,7 +78,7 @@ class FeatureRepository(BaseRepository[Feature]):
             db: Database session
             gazetteer_name: Name of the gazetteer
             name: Name string to search for
-            limit: Maximum number of results to return (default: 1000)
+            limit: Maximum number of results to return (default: 10000)
 
         Returns:
             List of features that have this exact name
@@ -106,8 +106,8 @@ class FeatureRepository(BaseRepository[Feature]):
         db: Session,
         gazetteer_name: str,
         name: str,
-        limit: int = 1000,
-        ranks: int = 1,
+        limit: int = 10000,
+        tiers: int = 1,
     ) -> t.List[Feature]:
         """
         Get all features for a gazetteer that have a name containing the search term as a phrase.
@@ -120,17 +120,21 @@ class FeatureRepository(BaseRepository[Feature]):
             db: Database session
             gazetteer_name: Name of the gazetteer
             name: Name string to search for
-            limit: Maximum number of results to return (default: 1000)
-            ranks: Number of rank groups to include in results (default: 1)
+            limit: Maximum number of results to return (default: 10000)
+            tiers: Number of rank tiers to include in results (default: 1)
 
         Returns:
-            List of features that have names containing this text as a phrase, ordered by relevance (highest rank first)
+            List of features that have names containing this text as a phrase, ordered by relevance (best score first)
         """
         query = f'"{name}"'
 
-        rank = literal_column("bm25(name_fts)").label("rank")
-        statement = (
-            select(Feature, rank)
+        score = literal_column("bm25(name_fts)")
+
+        scored = (
+            select(
+                Feature.id.label("feature_id"),
+                score.label("score"),
+            )
             .join(Source, Feature.source_id == Source.id)
             .join(Gazetteer, Source.gazetteer_id == Gazetteer.id)
             .join(Name, Feature.id == Name.feature_id)
@@ -139,12 +143,26 @@ class FeatureRepository(BaseRepository[Feature]):
                 Gazetteer.name == gazetteer_name,
                 NameFTS.text.match(query),
             )
-            .order_by(rank)
+            .order_by(score.asc())
             .limit(limit)
-        )
-        results = db.exec(statement).unique().all()
+        ).cte("scored")
 
-        return cls._filter_by_ranks(results, ranks)
+        tiered = (
+            select(
+                scored.c.feature_id,
+                scored.c.score,
+                func.dense_rank().over(order_by=scored.c.score.asc()).label("tier"),
+            ).select_from(scored)
+        ).cte("tiered")
+
+        statement = (
+            select(Feature)
+            .join(tiered, Feature.id == tiered.c.feature_id)
+            .where(tiered.c.tier <= tiers)
+            .order_by(tiered.c.score.asc(), Feature.id.asc())
+        )
+
+        return db.exec(statement).unique().all()
 
     @classmethod
     def get_by_gazetteer_and_name_partial(
@@ -152,8 +170,8 @@ class FeatureRepository(BaseRepository[Feature]):
         db: Session,
         gazetteer_name: str,
         name: str,
-        limit: int = 1000,
-        ranks: int = 1,
+        limit: int = 10000,
+        tiers: int = 1,
     ) -> t.List[Feature]:
         """
         Get all features for a gazetteer that have a name partially matching the search terms.
@@ -166,19 +184,23 @@ class FeatureRepository(BaseRepository[Feature]):
             db: Database session
             gazetteer_name: Name of the gazetteer
             name: Name string to search for
-            limit: Maximum number of results to return (default: 1000)
-            ranks: Number of rank groups to include in results (default: 1)
+            limit: Maximum number of results to return (default: 10000)
+            tiers: Number of rank tiers to include in results (default: 1)
 
         Returns:
-            List of features that have names partially matching the search tokens, ordered by relevance (highest rank first)
+            List of features that have names partially matching the search tokens, ordered by relevance (best score first)
         """
         query = " OR ".join(
             [f'"{token.strip()}"' for token in name.split() if token.strip()]
         )
 
-        rank = literal_column("bm25(name_fts)").label("rank")
-        statement = (
-            select(Feature, rank)
+        score = literal_column("bm25(name_fts)")
+
+        scored = (
+            select(
+                Feature.id.label("feature_id"),
+                score.label("score"),
+            )
             .join(Source, Feature.source_id == Source.id)
             .join(Gazetteer, Source.gazetteer_id == Gazetteer.id)
             .join(Name, Feature.id == Name.feature_id)
@@ -187,12 +209,26 @@ class FeatureRepository(BaseRepository[Feature]):
                 Gazetteer.name == gazetteer_name,
                 NameFTS.text.match(query),
             )
-            .order_by(rank)
+            .order_by(score.asc())
             .limit(limit)
-        )
-        results = db.exec(statement).unique().all()
+        ).cte("scored")
 
-        return cls._filter_by_ranks(results, ranks)
+        tiered = (
+            select(
+                scored.c.feature_id,
+                scored.c.score,
+                func.dense_rank().over(order_by=scored.c.score.asc()).label("tier"),
+            ).select_from(scored)
+        ).cte("tiered")
+
+        statement = (
+            select(Feature)
+            .join(tiered, Feature.id == tiered.c.feature_id)
+            .where(tiered.c.tier <= tiers)
+            .order_by(tiered.c.score.asc(), Feature.id.asc())
+        )
+
+        return db.exec(statement).unique().all()
 
     @classmethod
     def get_by_gazetteer_and_name_fuzzy(
@@ -200,32 +236,36 @@ class FeatureRepository(BaseRepository[Feature]):
         db: Session,
         gazetteer_name: str,
         name: str,
-        limit: int = 1000,
-        ranks: int = 1,
+        limit: int = 10000,
+        tiers: int = 1,
     ) -> t.List[Feature]:
         """
         Get all features for a gazetteer that have names fuzzy matching the search term.
 
         Uses the spellfix1 virtual table for fuzzy matching with phonetic hashing and edit distance.
         This method computes the phonetic hash (k2) of the query and finds candidates with the same
-        k2 value, then groups results by edit distance. The ranks parameter controls how many
-        distance groups to include in the results.
+        k2 value, then groups results by edit distance. The tiers parameter controls how many
+        distance tiers to include in the results.
 
         Args:
             db: Database session
             gazetteer_name: Name of the gazetteer
             name: Name string to search for
-            limit: Maximum number of results to return (default: 1000)
-            ranks: Number of rank groups (edit distance levels) to include in results (default: 1)
+            limit: Maximum number of results to return (default: 10000)
+            tiers: Number of rank tiers (edit distance levels) to include in results (default: 1)
 
         Returns:
             List of features that have names fuzzy matching this text, grouped by edit distance
         """
-        rank = func.min(
+        score = func.min(
             func.editdist3(name, literal_column("name_spellfix_vocab.word"))
-        ).label("rank")
-        statement = (
-            select(Feature, rank)
+        )
+
+        scored = (
+            select(
+                Feature.id.label("feature_id"),
+                score.label("score"),
+            )
             .join(Source, Feature.source_id == Source.id)
             .join(Gazetteer, Source.gazetteer_id == Gazetteer.id)
             .join(Name, Feature.id == Name.feature_id)
@@ -235,33 +275,23 @@ class FeatureRepository(BaseRepository[Feature]):
                 NameSpellfixVocab.k2 == func.spellfix1_phonehash(name),
             )
             .group_by(Feature.id)
-            .order_by(rank)
+            .order_by(score.asc())
             .limit(limit)
+        ).cte("scored")
+
+        tiered = (
+            select(
+                scored.c.feature_id,
+                scored.c.score,
+                func.dense_rank().over(order_by=scored.c.score.asc()).label("tier"),
+            ).select_from(scored)
+        ).cte("tiered")
+
+        statement = (
+            select(Feature)
+            .join(tiered, Feature.id == tiered.c.feature_id)
+            .where(tiered.c.tier <= tiers)
+            .order_by(tiered.c.score.asc(), Feature.id.asc())
         )
-        results = db.exec(statement).unique().all()
 
-        return cls._filter_by_ranks(results, ranks)
-
-    @classmethod
-    def _filter_by_ranks(cls, results: t.List[t.Tuple], ranks: int) -> t.List[Feature]:
-        """
-        Helper method to filter ranked results by top rank groups.
-
-        Args:
-            results: List of tuples where each tuple contains (Feature, rank)
-            ranks: Number of rank groups to include in results
-
-        Returns:
-            List of Feature objects from the top N rank groups
-        """
-        if not results or ranks <= 0:
-            return []
-
-        # Get unique rank values and take only the top N rank groups
-        unique_ranks = sorted(list(set(result[1] for result in results)))[:ranks]
-
-        # Filter results to only include features from the top N rank groups
-        filtered_results = [
-            result[0] for result in results if result[1] in unique_ranks
-        ]
-        return filtered_results
+        return db.exec(statement).unique().all()

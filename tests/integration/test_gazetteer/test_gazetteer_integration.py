@@ -80,18 +80,18 @@ class TestGazetteerIntegration:
         # Assert
         assert len(results) <= 2
 
-    def test_search_respects_ranks_parameter(self, andorra_gazetteer):
-        """Test that search respects the ranks parameter for FTS ranking."""
+    def test_search_respects_tiers_parameter(self, andorra_gazetteer):
+        """Test that search respects the tiers parameter for score-based tiering."""
         # Arrange
         gazetteer = Gazetteer("andorranames")
 
         # Act
-        results_rank1 = gazetteer.search("Andorra", method="phrase", ranks=1)
-        results_rank2 = gazetteer.search("Andorra", method="phrase", ranks=2)
+        results_tier1 = gazetteer.search("Andorra", method="phrase", tiers=1)
+        results_tier2 = gazetteer.search("Andorra", method="phrase", tiers=2)
 
         # Assert
-        # With more ranks, we should get same or more results
-        assert len(results_rank2) >= len(results_rank1)
+        # With more tiers, we should get same or more results
+        assert len(results_tier2) >= len(results_tier1)
 
     def test_search_normalizes_quotes(self, andorra_gazetteer):
         """Test that search normalizes quotation marks in names."""
