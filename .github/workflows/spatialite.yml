@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - development
+      - update/dependencies
   workflow_dispatch:
 
 jobs:
@@ -103,14 +104,27 @@ jobs:
           BINARY_PATH="${{ matrix.binary_path }}"
           cp "$BINARY_PATH" "$BINARY_DIR/"
           
-          # Get list of dependencies, filter for relevant ones
-          otool -L "$BINARY_PATH" | grep -E 'libspatialite|libproj|libgeos|libfreexl|libsqlite3|libiconv|liblzma|libcharset|libxml2' | awk '{print $1}' | while read dep; do
+          # Copy all Homebrew dependencies (from /opt/homebrew or /usr/local)
+          # Excludes system libraries from /usr/lib and /System
+          otool -L "$BINARY_PATH" | grep -E '^\s+(/opt/homebrew|/usr/local)' | awk '{print $1}' | while read dep; do
             if [ -f "$dep" ]; then
               cp "$dep" "$BINARY_DIR/"
               echo "✓ Copied dependency: $dep"
             else
-              echo "✗ Dependency not found: $dep"
+              echo "⚠ Dependency not found: $dep"
             fi
+          done
+          
+          # Recursively find dependencies of dependencies
+          for dylib in "$BINARY_DIR"/*.dylib; do
+            [ -f "$dylib" ] || continue
+            otool -L "$dylib" | grep -E '^\s+(/opt/homebrew|/usr/local)' | awk '{print $1}' | while read dep; do
+              dep_name=$(basename "$dep")
+              if [ -f "$dep" ] && [ ! -f "$BINARY_DIR/$dep_name" ]; then
+                cp "$dep" "$BINARY_DIR/"
+                echo "✓ Copied transitive dependency: $dep"
+              fi
+            done
           done
           
           # Patch all dylibs to use @loader_path (relative paths) instead of absolute paths
@@ -122,7 +136,7 @@ jobs:
               # Get all dependencies of this dylib
               otool -L "$dylib" | grep -E '^\s+/' | awk '{print $1}' | while read dep_path; do
                 dep_name=$(basename "$dep_path")
-                # Only patch if the dependency is one we've copied
+                # Only patch if the dependency is one we've copied (non-system libraries)
                 if [ -f "$BINARY_DIR/$dep_name" ]; then
                   echo "  Rewriting $dep_path -> @loader_path/$dep_name"
                   install_name_tool -change "$dep_path" "@loader_path/$dep_name" "$dylib"
