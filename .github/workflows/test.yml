@@ -19,7 +19,14 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
-      - name: Set up Python ${{ matrix.python-version }}
+      - name: Install Homebrew Python (macOS only)
+        if: runner.os == 'macOS'
+        run: |
+          brew update
+          brew install python@${{ matrix.python-version }}
+          echo "$(brew --prefix)/opt/python@${{ matrix.python-version }}/libexec/bin" >> $GITHUB_PATH
+      - name: Set up Python ${{ matrix.python-version }} (non-macOS)
+        if: runner.os != 'macOS'
         uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
