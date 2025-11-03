@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - development
+      - update/dependencies
   workflow_dispatch:
 
 jobs:
@@ -98,18 +99,40 @@ jobs:
           cp ./spatialite-extract/mod_spatialite-5.1.0-win-amd64/*.dll "$BINARY_DIR/"
           echo "✓ Copied all DLLs to $BINARY_DIR"
         
-        # macOS: Use otool to find and copy dependencies
+        # macOS: Use otool to find and copy dependencies, then patch install names
         elif [ "${{ matrix.platform }}" = "darwin" ]; then
           BINARY_PATH="${{ matrix.binary_path }}"
           cp "$BINARY_PATH" "$BINARY_DIR/"
           
           # Get list of dependencies, filter for relevant ones
-          otool -L "$BINARY_PATH" | grep -E 'libspatialite|libproj|libgeos|libfreexl|libsqlite3|libiconv|liblzma|libcharset' | awk '{print $1}' | while read dep; do
+          otool -L "$BINARY_PATH" | grep -E 'libspatialite|libproj|libgeos|libfreexl|libsqlite3|libiconv|liblzma|libcharset|libxml2' | awk '{print $1}' | while read dep; do
             if [ -f "$dep" ]; then
               cp "$dep" "$BINARY_DIR/"
               echo "✓ Copied dependency: $dep"
             else
               echo "✗ Dependency not found: $dep"
+            fi
+          done
+          
+          # Patch all dylibs to use @loader_path (relative paths) instead of absolute paths
+          for dylib in "$BINARY_DIR"/*.dylib; do
+            if [ -f "$dylib" ]; then
+              echo "Patching install names in $(basename $dylib)"
+              chmod +w "$dylib"
+              
+              # Get all dependencies of this dylib
+              otool -L "$dylib" | grep -E '^\s+/' | awk '{print $1}' | while read dep_path; do
+                dep_name=$(basename "$dep_path")
+                # Only patch if the dependency is one we've copied
+                if [ -f "$BINARY_DIR/$dep_name" ]; then
+                  echo "  Rewriting $dep_path -> @loader_path/$dep_name"
+                  install_name_tool -change "$dep_path" "@loader_path/$dep_name" "$dylib"
+                fi
+              done
+              
+              # Also update the dylib's own ID to use @loader_path
+              dylib_name=$(basename "$dylib")
+              install_name_tool -id "@loader_path/$dylib_name" "$dylib"
             fi
           done
 

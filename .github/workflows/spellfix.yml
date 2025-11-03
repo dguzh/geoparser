@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - development
+      - update/dependencies
   workflow_dispatch:
 
 jobs:
@@ -110,6 +111,15 @@ jobs:
         BINARY_DIR="geoparser/db/extensions/spellfix/binaries/${{ matrix.platform }}-${{ matrix.arch }}"
         cp "${{ matrix.binary_path }}" "$BINARY_DIR/"
         echo "✓ Copied binary to $BINARY_DIR"
+        
+        # macOS: Patch the dylib to use @loader_path (make it relocatable)
+        if [ "${{ matrix.platform }}" = "darwin" ]; then
+          dylib="$BINARY_DIR/${{ matrix.filename }}"
+          chmod +w "$dylib"
+          dylib_name=$(basename "$dylib")
+          install_name_tool -id "@loader_path/$dylib_name" "$dylib"
+          echo "✓ Patched install name to use @loader_path"
+        fi
 
     - name: Verify binary
       if: steps.check_binary.outputs.exists == 'false'
