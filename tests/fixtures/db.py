@@ -28,7 +28,7 @@ def test_engine() -> Engine:
     Since SpatiaLite initialization is fast (<0.01s), the overhead is minimal
     while providing perfect test isolation.
 
-    Returns:
+    Yields:
         SQLAlchemy Engine instance with in-memory database and SpatiaLite
     """
     engine = create_engine(
@@ -39,7 +39,11 @@ def test_engine() -> Engine:
     )
     # Global event listeners from geoparser.db.db apply automatically
     SQLModel.metadata.create_all(engine)
-    return engine
+    try:
+        yield engine
+    finally:
+        # Explicitly dispose to close all sqlite connections
+        engine.dispose()
 
 
 @pytest.fixture(scope="function")
