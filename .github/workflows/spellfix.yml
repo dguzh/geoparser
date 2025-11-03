@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - development
-      - update/dependencies
   workflow_dispatch:
 
 jobs:
