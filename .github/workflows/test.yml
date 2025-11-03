@@ -19,12 +19,17 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
-      - name: Install Homebrew Python (macOS only)
+      - name: Build Python with SQLite extension loading (macOS only)
         if: runner.os == 'macOS'
         run: |
-          brew update
-          brew install python@${{ matrix.python-version }}
-          echo "$(brew --prefix)/opt/python@${{ matrix.python-version }}/libexec/bin" >> $GITHUB_PATH
+          brew install pyenv sqlite
+          export SQLITE_PREFIX="$(brew --prefix sqlite)"
+          export CPPFLAGS="-I${SQLITE_PREFIX}/include -DSQLITE_ENABLE_LOAD_EXTENSION=1"
+          export LDFLAGS="-L${SQLITE_PREFIX}/lib"
+          export PYTHON_CONFIGURE_OPTS="--enable-loadable-sqlite-extensions"
+          pyenv install -s ${{ matrix.python-version }}
+          pyenv global ${{ matrix.python-version }}
+          echo "$(pyenv root)/shims" >> $GITHUB_PATH
       - name: Set up Python ${{ matrix.python-version }} (non-macOS)
         if: runner.os != 'macOS'
         uses: actions/setup-python@v5
