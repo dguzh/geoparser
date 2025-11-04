@@ -35,13 +35,23 @@ jobs:
           python${{ matrix.python-version }} --version
           python${{ matrix.python-version }} -c "import sqlite3; conn = sqlite3.connect(':memory:'); conn.enable_load_extension(True); print('✅ SQLite OK')"      
       - name: Install poetry
-        run: pipx install poetry --python python${{ matrix.python-version }}      
+        run: pipx install poetry --python python${{ matrix.python-version }}
+      
+      - name: Configure Poetry to use correct Python
+        run: poetry env use python${{ matrix.python-version }}
+      
       - name: Setup local virtual environment
         run: |
           poetry config virtualenvs.create true --local
           poetry config virtualenvs.in-project true --local      
       - name: Install project dependencies
         run: poetry install
+      
+      - name: Verify SQLite extensions in virtualenv
+        run: |
+          poetry run python -c "import sys; print(f'Virtualenv Python: {sys.executable}')"
+          poetry run python -c "import sqlite3; conn = sqlite3.connect(':memory:'); conn.enable_load_extension(True); print('✅ Virtualenv SQLite OK')"
+      
       - name: Run pytest
         run: poetry run pytest -v --cov=geoparser
       - run: mkdir coverage
