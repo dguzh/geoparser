@@ -113,7 +113,9 @@ jobs:
               
               # Also check for @rpath dependencies in the same directory
               dep_dir=$(dirname "$dep")
-              otool -L "$dep" | grep -E '^\s+@rpath/' | awk '{print $1}' | while read rpath_dep; do
+              # grep may return non-zero if no matches found - this is OK
+              otool -L "$dep" | { grep -E '^\s+@rpath/' || true; } | awk '{print $1}' | while read rpath_dep; do
+                [ -z "$rpath_dep" ] && continue
                 rpath_file=$(basename "$rpath_dep")
                 resolved_path="$dep_dir/$rpath_file"
                 if [ -f "$resolved_path" ] && [ ! -f "$BINARY_DIR/$rpath_file" ]; then
@@ -152,13 +154,14 @@ jobs:
                     # Check if this new dependency has @rpath dependencies
                     dep_dir=$(dirname "$dep")
                     while IFS= read -r rpath_dep; do
+                      [ -z "$rpath_dep" ] && continue
                       rpath_file=$(basename "$rpath_dep")
                       resolved_path="$dep_dir/$rpath_file"
                       if [ -f "$resolved_path" ] && [ ! -f "$BINARY_DIR/$rpath_file" ]; then
                         cp "$resolved_path" "$BINARY_DIR/"
                         echo "  ✓ $dylib_name → $dep_name → $rpath_file (copied @rpath)"
                       fi
-                    done < <(otool -L "$dep" | grep -E '^\s+@rpath/' | awk '{print $1}')
+                    done < <(otool -L "$dep" | { grep -E '^\s+@rpath/' || true; } | awk '{print $1}')
                   fi
                 else
                   echo "  ⚠ $dylib_name → $dep_name (not found: $dep)"
@@ -183,13 +186,14 @@ jobs:
               
               if [ -n "$original_dir" ]; then
                 while IFS= read -r rpath_dep; do
+                  [ -z "$rpath_dep" ] && continue
                   rpath_file=$(basename "$rpath_dep")
                   resolved_path="$original_dir/$rpath_file"
                   if [ -f "$resolved_path" ] && [ ! -f "$BINARY_DIR/$rpath_file" ]; then
                     cp "$resolved_path" "$BINARY_DIR/"
                     echo "  ✓ $dylib_name → $rpath_file (copied @rpath)"
                   fi
-                done < <(otool -L "$dylib" | grep -E '^\s+@rpath/' | awk '{print $1}')
+                done < <(otool -L "$dylib" | { grep -E '^\s+@rpath/' || true; } | awk '{print $1}')
               fi
             done
             
@@ -217,7 +221,8 @@ jobs:
               done
               
               # Also patch @rpath dependencies
-              otool -L "$dylib" | grep -E '^\s+@rpath/' | awk '{print $1}' | while read rpath_dep; do
+              otool -L "$dylib" | { grep -E '^\s+@rpath/' || true; } | awk '{print $1}' | while read rpath_dep; do
+                [ -z "$rpath_dep" ] && continue
                 dep_name=$(basename "$rpath_dep")
                 # Only patch if the dependency is one we've copied
                 if [ -f "$BINARY_DIR/$dep_name" ]; then
