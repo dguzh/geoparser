@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - development
+      - update/dependencies
   workflow_dispatch:
 
 jobs:
@@ -111,16 +112,38 @@ jobs:
               cp "$dep" "$BINARY_DIR/"
               echo "✓ Copied dependency: $dep"
               
-              # Also check for @rpath dependencies in the same directory
-              dep_dir=$(dirname "$dep")
-              # grep may return non-zero if no matches found - this is OK
+              # Also check for @rpath dependencies
+              # Search Homebrew to find @rpath dependencies
               { otool -L "$dep" || true; } | { grep -E '^\s+@rpath/' || true; } | awk '{print $1}' | while read rpath_dep; do
                 [ -z "$rpath_dep" ] && continue
                 rpath_file=$(basename "$rpath_dep")
-                resolved_path="$dep_dir/$rpath_file"
-                if [ -f "$resolved_path" ] && [ ! -f "$BINARY_DIR/$rpath_file" ]; then
-                  cp "$resolved_path" "$BINARY_DIR/"
-                  echo "✓ Copied @rpath dependency: $resolved_path"
+                
+                # Skip if already copied
+                [ -f "$BINARY_DIR/$rpath_file" ] && continue
+                
+                # Try same directory first (common case)
+                dep_dir=$(dirname "$dep")
+                if [ -f "$dep_dir/$rpath_file" ]; then
+                  cp "$dep_dir/$rpath_file" "$BINARY_DIR/"
+                  echo "✓ Copied @rpath dependency: $dep_dir/$rpath_file"
+                  continue
+                fi
+                
+                # Otherwise search all Homebrew locations
+                found=""
+                for base in /opt/homebrew /usr/local; do
+                  if [ -d "$base/opt" ]; then
+                    found=$(find "$base/opt" -name "$rpath_file" -type f 2>/dev/null | head -1 || true)
+                    if [ -n "$found" ] && [ -f "$found" ]; then
+                      cp "$found" "$BINARY_DIR/"
+                      echo "✓ Copied @rpath dependency from Homebrew: $found"
+                      break
+                    fi
+                  fi
+                done
+                
+                if [ -z "$found" ]; then
+                  echo "⚠ @rpath dependency not found: $rpath_file"
                 fi
               done
             else
@@ -153,15 +176,33 @@ jobs:
                     echo "  ✓ $dylib_name → $dep_name (copied)"
                     
                     # Check if this new dependency has @rpath dependencies
-                    dep_dir=$(dirname "$dep")
                     while IFS= read -r rpath_dep; do
                       [ -z "$rpath_dep" ] && continue
                       rpath_file=$(basename "$rpath_dep")
-                      resolved_path="$dep_dir/$rpath_file"
-                      if [ -f "$resolved_path" ] && [ ! -f "$BINARY_DIR/$rpath_file" ]; then
-                        cp "$resolved_path" "$BINARY_DIR/"
+                      
+                      # Skip if already copied
+                      [ -f "$BINARY_DIR/$rpath_file" ] && continue
+                      
+                      # Try same directory first
+                      dep_dir=$(dirname "$dep")
+                      if [ -f "$dep_dir/$rpath_file" ]; then
+                        cp "$dep_dir/$rpath_file" "$BINARY_DIR/"
                         echo "  ✓ $dylib_name → $dep_name → $rpath_file (copied @rpath)"
+                        continue
                       fi
+                      
+                      # Otherwise search Homebrew
+                      found=""
+                      for base in /opt/homebrew /usr/local; do
+                        if [ -d "$base/opt" ]; then
+                          found=$(find "$base/opt" -name "$rpath_file" -type f 2>/dev/null | head -1 || true)
+                          if [ -n "$found" ] && [ -f "$found" ]; then
+                            cp "$found" "$BINARY_DIR/"
+                            echo "  ✓ $dylib_name → $dep_name → $rpath_file (copied @rpath from Homebrew)"
+                            break
+                          fi
+                        fi
+                      done
                     done < <({ otool -L "$dep" || true; } | { grep -E '^\s+@rpath/' || true; } | awk '{print $1}')
                   fi
                 else
@@ -170,35 +211,31 @@ jobs:
               done < <({ otool -L "$dylib" || true; } | { grep -E '^\s+(/opt/homebrew|/usr/local)' || true; } | awk '{print $1}')
               
               # Also check @rpath dependencies from already-copied dylibs
-              # Find the original Homebrew path to resolve @rpath
-              original_path=$({ otool -L "$dylib" || true; } | { grep -E "$dylib_name" || true; } | head -1 | awk '{print $1}')
-              if [[ "$original_path" == /opt/homebrew/* ]] || [[ "$original_path" == /usr/local/* ]]; then
-                original_dir=$(dirname "$original_path")
-              else
-                # Fallback: try to find it in common Homebrew locations
-                original_dir=""
+              # For each @rpath dependency, search Homebrew to find it
+              while IFS= read -r rpath_dep; do
+                [ -z "$rpath_dep" ] && continue
+                rpath_file=$(basename "$rpath_dep")
+                
+                # Skip if already copied
+                [ -f "$BINARY_DIR/$rpath_file" ] && continue
+                
+                # Search for this file in Homebrew
+                found=""
                 for base in /opt/homebrew /usr/local; do
                   if [ -d "$base/opt" ]; then
-                    found=$(find "$base/opt" -name "$dylib_name" 2>/dev/null | head -1 || true)
-                    if [ -n "$found" ]; then
-                      original_dir=$(dirname "$found")
+                    found=$(find "$base/opt" -name "$rpath_file" -type f 2>/dev/null | head -1 || true)
+                    if [ -n "$found" ] && [ -f "$found" ]; then
+                      cp "$found" "$BINARY_DIR/"
+                      echo "  ✓ $dylib_name → $rpath_file (copied @rpath from $(dirname $found))"
                       break
                     fi
                   fi
                 done
-              fi
-              
-              if [ -n "$original_dir" ]; then
-                while IFS= read -r rpath_dep; do
-                  [ -z "$rpath_dep" ] && continue
-                  rpath_file=$(basename "$rpath_dep")
-                  resolved_path="$original_dir/$rpath_file"
-                  if [ -f "$resolved_path" ] && [ ! -f "$BINARY_DIR/$rpath_file" ]; then
-                    cp "$resolved_path" "$BINARY_DIR/"
-                    echo "  ✓ $dylib_name → $rpath_file (copied @rpath)"
-                  fi
-                done < <({ otool -L "$dylib" || true; } | { grep -E '^\s+@rpath/' || true; } | awk '{print $1}')
-              fi
+                
+                if [ -z "$found" ]; then
+                  echo "  ⚠ $dylib_name → $rpath_file (@rpath not found in Homebrew)"
+                fi
+              done < <({ otool -L "$dylib" || true; } | { grep -E '^\s+@rpath/' || true; } | awk '{print $1}')
             done
             
             curr_count=$(ls -1 "$BINARY_DIR"/*.dylib 2>/dev/null | wc -l)
