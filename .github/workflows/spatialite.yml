@@ -98,18 +98,196 @@ jobs:
           cp ./spatialite-extract/mod_spatialite-5.1.0-win-amd64/*.dll "$BINARY_DIR/"
           echo "✓ Copied all DLLs to $BINARY_DIR"
         
-        # macOS: Use otool to find and copy dependencies
+        # macOS: Use otool to find and copy dependencies, then patch install names
         elif [ "${{ matrix.platform }}" = "darwin" ]; then
           BINARY_PATH="${{ matrix.binary_path }}"
           cp "$BINARY_PATH" "$BINARY_DIR/"
           
-          # Get list of dependencies, filter for relevant ones
-          otool -L "$BINARY_PATH" | grep -E 'libspatialite|libproj|libgeos|libfreexl|libsqlite3|libiconv|liblzma|libcharset' | awk '{print $1}' | while read dep; do
+          # Copy all Homebrew dependencies (from /opt/homebrew or /usr/local)
+          # Excludes system libraries from /usr/lib and /System
+          { otool -L "$BINARY_PATH" || true; } | { grep -E '^\s+(/opt/homebrew|/usr/local)' || true; } | awk '{print $1}' | while read dep; do
+            [ -z "$dep" ] && continue
             if [ -f "$dep" ]; then
               cp "$dep" "$BINARY_DIR/"
               echo "✓ Copied dependency: $dep"
+              
+              # Also check for @rpath/@loader_path dependencies
+              # Search Homebrew to find relative path dependencies
+              { otool -L "$dep" || true; } | { grep -E '^\s+@(rpath|loader_path)/' || true; } | awk '{print $1}' | while read rpath_dep; do
+                [ -z "$rpath_dep" ] && continue
+                rpath_file=$(basename "$rpath_dep")
+                
+                # Skip if already copied
+                [ -f "$BINARY_DIR/$rpath_file" ] && continue
+                
+                # Try same directory first (common case)
+                dep_dir=$(dirname "$dep")
+                if [ -f "$dep_dir/$rpath_file" ]; then
+                  cp "$dep_dir/$rpath_file" "$BINARY_DIR/"
+                  echo "✓ Copied @rpath dependency: $dep_dir/$rpath_file"
+                  continue
+                fi
+                
+                # Otherwise search all Homebrew locations
+                found=""
+                for base in /opt/homebrew /usr/local; do
+                  if [ -d "$base/opt" ]; then
+                    found=$(find "$base/opt" -name "$rpath_file" -type f 2>/dev/null | head -1 || true)
+                    if [ -n "$found" ] && [ -f "$found" ]; then
+                      cp "$found" "$BINARY_DIR/"
+                      echo "✓ Copied @rpath dependency from Homebrew: $found"
+                      break
+                    fi
+                  fi
+                done
+                
+                if [ -z "$found" ]; then
+                  echo "⚠ @rpath dependency not found: $rpath_file"
+                fi
+              done
             else
-              echo "✗ Dependency not found: $dep"
+              echo "⚠ Dependency not found: $dep"
+            fi
+          done
+          
+          # Recursively find dependencies of dependencies
+          # Keep looping until no new dependencies are found
+          echo "Starting recursive dependency collection..."
+          prev_count=0
+          curr_count=$(ls -1 "$BINARY_DIR"/*.dylib 2>/dev/null | wc -l)
+          pass_num=1
+          
+          while [ "$curr_count" -ne "$prev_count" ]; do
+            echo "=== Pass $pass_num: Starting with $curr_count dylibs ==="
+            prev_count=$curr_count
+            
+            for dylib in "$BINARY_DIR"/*.dylib; do
+              [ -f "$dylib" ] || continue
+              dylib_name=$(basename "$dylib")
+              
+              # Check absolute Homebrew paths
+              while IFS= read -r dep; do
+                [ -z "$dep" ] && continue
+                dep_name=$(basename "$dep")
+                if [ -f "$dep" ]; then
+                  if [ ! -f "$BINARY_DIR/$dep_name" ]; then
+                    cp "$dep" "$BINARY_DIR/"
+                    echo "  ✓ $dylib_name → $dep_name (copied)"
+                    
+                    # Check if this new dependency has @rpath or @loader_path dependencies
+                    echo "  🔍 Checking $dep_name for @rpath/@loader_path dependencies..."
+                    rpath_count=0
+                    while IFS= read -r rpath_dep; do
+                      [ -z "$rpath_dep" ] && continue
+                      rpath_count=$((rpath_count + 1))
+                      rpath_file=$(basename "$rpath_dep")
+                      echo "    Found relative ref: $rpath_dep"
+                      
+                      # Skip if already copied
+                      if [ -f "$BINARY_DIR/$rpath_file" ]; then
+                        echo "    Already have $rpath_file"
+                        continue
+                      fi
+                      
+                      # Try same directory first
+                      dep_dir=$(dirname "$dep")
+                      if [ -f "$dep_dir/$rpath_file" ]; then
+                        cp "$dep_dir/$rpath_file" "$BINARY_DIR/"
+                        echo "  ✓ $dylib_name → $dep_name → $rpath_file (copied @rpath)"
+                        continue
+                      fi
+                      
+                      # Otherwise search Homebrew
+                      echo "    Searching Homebrew for $rpath_file..."
+                      found=""
+                      for base in /opt/homebrew /usr/local; do
+                        if [ -d "$base/opt" ]; then
+                          found=$(find "$base/opt" -name "$rpath_file" -type f 2>/dev/null | head -1 || true)
+                          if [ -n "$found" ] && [ -f "$found" ]; then
+                            cp "$found" "$BINARY_DIR/"
+                            echo "  ✓ $dylib_name → $dep_name → $rpath_file (copied @rpath from Homebrew)"
+                            break
+                          fi
+                        fi
+                      done
+                      
+                      if [ -z "$found" ] || [ ! -f "$found" ]; then
+                        echo "  ⚠ Could not find $rpath_file in Homebrew"
+                      fi
+                    done < <({ otool -L "$dep" || true; } | { grep -E '^\s+@(rpath|loader_path)/' || true; } | awk '{print $1}')
+                    [ $rpath_count -eq 0 ] && echo "    No @rpath/@loader_path dependencies found"
+                  fi
+                else
+                  echo "  ⚠ $dylib_name → $dep_name (not found: $dep)"
+                fi
+              done < <({ otool -L "$dylib" || true; } | { grep -E '^\s+(/opt/homebrew|/usr/local)' || true; } | awk '{print $1}')
+              
+              # Also check @rpath/@loader_path dependencies from already-copied dylibs
+              # For each relative path dependency, search Homebrew to find it
+              while IFS= read -r rpath_dep; do
+                [ -z "$rpath_dep" ] && continue
+                rpath_file=$(basename "$rpath_dep")
+                
+                # Skip if already copied
+                [ -f "$BINARY_DIR/$rpath_file" ] && continue
+                
+                # Search for this file in Homebrew
+                found=""
+                for base in /opt/homebrew /usr/local; do
+                  if [ -d "$base/opt" ]; then
+                    found=$(find "$base/opt" -name "$rpath_file" -type f 2>/dev/null | head -1 || true)
+                    if [ -n "$found" ] && [ -f "$found" ]; then
+                      cp "$found" "$BINARY_DIR/"
+                      echo "  ✓ $dylib_name → $rpath_file (copied from $(dirname $found))"
+                      break
+                    fi
+                  fi
+                done
+                
+                if [ -z "$found" ]; then
+                  echo "  ⚠ $dylib_name → $rpath_file (not found in Homebrew)"
+                fi
+              done < <({ otool -L "$dylib" || true; } | { grep -E '^\s+@(rpath|loader_path)/' || true; } | awk '{print $1}')
+            done
+            
+            curr_count=$(ls -1 "$BINARY_DIR"/*.dylib 2>/dev/null | wc -l)
+            echo "=== Pass $pass_num complete: $curr_count dylibs total ==="
+            pass_num=$((pass_num + 1))
+          done
+          
+          echo "✓ All dependencies collected ($curr_count dylibs after $((pass_num - 1)) passes)"
+          
+          # Patch all dylibs to use @loader_path (relative paths) instead of absolute paths
+          for dylib in "$BINARY_DIR"/*.dylib; do
+            if [ -f "$dylib" ]; then
+              echo "Patching install names in $(basename $dylib)"
+              chmod +w "$dylib"
+              
+              # Get all absolute path dependencies
+              { otool -L "$dylib" || true; } | { grep -E '^\s+/' || true; } | awk '{print $1}' | while read dep_path; do
+                [ -z "$dep_path" ] && continue
+                dep_name=$(basename "$dep_path")
+                # Only patch if the dependency is one we've copied (non-system libraries)
+                if [ -f "$BINARY_DIR/$dep_name" ]; then
+                  echo "  Rewriting $dep_path -> @loader_path/$dep_name"
+                  install_name_tool -change "$dep_path" "@loader_path/$dep_name" "$dylib"
+                fi
+              done
+              
+              # Also patch @rpath and @loader_path dependencies
+              { otool -L "$dylib" || true; } | { grep -E '^\s+@(rpath|loader_path)/' || true; } | awk '{print $1}' | while read rpath_dep; do
+                [ -z "$rpath_dep" ] && continue
+                dep_name=$(basename "$rpath_dep")
+                # Only patch if the dependency is one we've copied
+                if [ -f "$BINARY_DIR/$dep_name" ]; then
+                  echo "  Rewriting $rpath_dep -> @loader_path/$dep_name"
+                  install_name_tool -change "$rpath_dep" "@loader_path/$dep_name" "$dylib"
+                fi
+              done
+              
+              # Also update the dylib's own ID to use @loader_path
+              dylib_name=$(basename "$dylib")
+              install_name_tool -id "@loader_path/$dylib_name" "$dylib"
             fi
           done
 
