@@ -94,14 +94,14 @@ jobs:
         run: |
           echo "=== Installing poetry with 'python' ==="
           pipx install poetry --python python
-          echo "Poetry installed using: $(poetry env info --executable 2>/dev/null || echo 'N/A')"
+        shell: bash
       
       - name: Install poetry (macOS) with 'python${{ matrix.python-version }}'
         if: runner.os == 'macOS'
         run: |
           echo "=== Installing poetry with 'python${{ matrix.python-version }}' ==="
           pipx install poetry --python python${{ matrix.python-version }}
-          echo "Poetry installed using: $(poetry env info --executable 2>/dev/null || echo 'N/A')"
+        shell: bash
       
       - name: Configure Poetry to use 'python' (non-macOS)
         if: runner.os != 'macOS'
@@ -109,13 +109,15 @@ jobs:
           echo "=== Configuring Poetry with 'python' ==="
           poetry env use python
           echo "Poetry will use: $(poetry env info --executable)"
+        shell: bash
       
       - name: Configure Poetry to use 'python${{ matrix.python-version }}' (macOS)
         if: runner.os == 'macOS'
         run: |
           echo "=== Configuring Poetry with 'python${{ matrix.python-version }}' ==="
           poetry env use python${{ matrix.python-version }}
-          echo "Poetry will use: $(poetry env info --executable)"      
+          echo "Poetry will use: $(poetry env info --executable)"
+        shell: bash      
       - name: Setup local virtual environment
         run: |
           poetry config virtualenvs.create true --local
