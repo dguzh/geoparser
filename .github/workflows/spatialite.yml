@@ -110,6 +110,17 @@ jobs:
             if [ -f "$dep" ]; then
               cp "$dep" "$BINARY_DIR/"
               echo "✓ Copied dependency: $dep"
+              
+              # Also check for @rpath dependencies in the same directory
+              dep_dir=$(dirname "$dep")
+              otool -L "$dep" | grep -E '^\s+@rpath/' | awk '{print $1}' | while read rpath_dep; do
+                rpath_file=$(basename "$rpath_dep")
+                resolved_path="$dep_dir/$rpath_file"
+                if [ -f "$resolved_path" ] && [ ! -f "$BINARY_DIR/$rpath_file" ]; then
+                  cp "$resolved_path" "$BINARY_DIR/"
+                  echo "✓ Copied @rpath dependency: $resolved_path"
+                fi
+              done
             else
               echo "⚠ Dependency not found: $dep"
             fi
@@ -130,18 +141,56 @@ jobs:
               [ -f "$dylib" ] || continue
               dylib_name=$(basename "$dylib")
               
-              # Use process substitution to avoid subshell issues
+              # Check absolute Homebrew paths
               while IFS= read -r dep; do
                 dep_name=$(basename "$dep")
                 if [ -f "$dep" ]; then
                   if [ ! -f "$BINARY_DIR/$dep_name" ]; then
                     cp "$dep" "$BINARY_DIR/"
                     echo "  ✓ $dylib_name → $dep_name (copied)"
+                    
+                    # Check if this new dependency has @rpath dependencies
+                    dep_dir=$(dirname "$dep")
+                    while IFS= read -r rpath_dep; do
+                      rpath_file=$(basename "$rpath_dep")
+                      resolved_path="$dep_dir/$rpath_file"
+                      if [ -f "$resolved_path" ] && [ ! -f "$BINARY_DIR/$rpath_file" ]; then
+                        cp "$resolved_path" "$BINARY_DIR/"
+                        echo "  ✓ $dylib_name → $dep_name → $rpath_file (copied @rpath)"
+                      fi
+                    done < <(otool -L "$dep" | grep -E '^\s+@rpath/' | awk '{print $1}')
                   fi
                 else
                   echo "  ⚠ $dylib_name → $dep_name (not found: $dep)"
                 fi
               done < <(otool -L "$dylib" | grep -E '^\s+(/opt/homebrew|/usr/local)' | awk '{print $1}')
+              
+              # Also check @rpath dependencies from already-copied dylibs
+              # Find the original Homebrew path to resolve @rpath
+              original_path=$(otool -L "$dylib" | grep -E "$dylib_name" | head -1 | awk '{print $1}')
+              if [[ "$original_path" == /opt/homebrew/* ]] || [[ "$original_path" == /usr/local/* ]]; then
+                original_dir=$(dirname "$original_path")
+              else
+                # Fallback: try to find it in common Homebrew locations
+                for base in /opt/homebrew /usr/local; do
+                  found=$(find "$base/opt" -name "$dylib_name" 2>/dev/null | head -1)
+                  if [ -n "$found" ]; then
+                    original_dir=$(dirname "$found")
+                    break
+                  fi
+                done
+              fi
+              
+              if [ -n "$original_dir" ]; then
+                while IFS= read -r rpath_dep; do
+                  rpath_file=$(basename "$rpath_dep")
+                  resolved_path="$original_dir/$rpath_file"
+                  if [ -f "$resolved_path" ] && [ ! -f "$BINARY_DIR/$rpath_file" ]; then
+                    cp "$resolved_path" "$BINARY_DIR/"
+                    echo "  ✓ $dylib_name → $rpath_file (copied @rpath)"
+                  fi
+                done < <(otool -L "$dylib" | grep -E '^\s+@rpath/' | awk '{print $1}')
+              fi
             done
             
             curr_count=$(ls -1 "$BINARY_DIR"/*.dylib 2>/dev/null | wc -l)
@@ -157,13 +206,23 @@ jobs:
               echo "Patching install names in $(basename $dylib)"
               chmod +w "$dylib"
               
-              # Get all dependencies of this dylib
+              # Get all absolute path dependencies
               otool -L "$dylib" | grep -E '^\s+/' | awk '{print $1}' | while read dep_path; do
                 dep_name=$(basename "$dep_path")
                 # Only patch if the dependency is one we've copied (non-system libraries)
                 if [ -f "$BINARY_DIR/$dep_name" ]; then
                   echo "  Rewriting $dep_path -> @loader_path/$dep_name"
                   install_name_tool -change "$dep_path" "@loader_path/$dep_name" "$dylib"
+                fi
+              done
+              
+              # Also patch @rpath dependencies
+              otool -L "$dylib" | grep -E '^\s+@rpath/' | awk '{print $1}' | while read rpath_dep; do
+                dep_name=$(basename "$rpath_dep")
+                # Only patch if the dependency is one we've copied
+                if [ -f "$BINARY_DIR/$dep_name" ]; then
+                  echo "  Rewriting $rpath_dep -> @loader_path/$dep_name"
+                  install_name_tool -change "$rpath_dep" "@loader_path/$dep_name" "$dylib"
                 fi
               done
               
