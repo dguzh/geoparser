@@ -20,41 +20,33 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       
+      # On macOS, skip actions/setup-python because its builds lack SQLite extension support.
+      # GitHub macOS runners have Homebrew Python (3.10-3.13) pre-installed with SQLite support.
       - name: Set up Python ${{ matrix.python-version }}
+        if: runner.os != 'macOS'
         uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
       
-      - name: Install poetry
-        shell: bash
+      - name: Install Poetry (macOS)
+        if: runner.os == 'macOS'
         run: |
-          if [ "${{ runner.os }}" = "macOS" ]; then
-            pipx install poetry --python python${{ matrix.python-version }}
-            poetry env use python${{ matrix.python-version }}
-          else
-            pipx install poetry --python python
-            poetry env use python
-          fi
+          pipx install poetry --python python${{ matrix.python-version }}
+          poetry env use python${{ matrix.python-version }}
+      
+      - name: Install Poetry (non-macOS)
+        if: runner.os != 'macOS'
+        run: |
+          pipx install poetry --python python
+          poetry env use python
       
       - name: Setup local virtual environment
         run: |
           poetry config virtualenvs.create true --local
           poetry config virtualenvs.in-project true --local
       
-      - name: Check SQLite extension support (before venv)
-        shell: bash
-        run: |
-          if [ "${{ runner.os }}" = "macOS" ]; then
-            python${{ matrix.python-version }} -c "import sqlite3; conn = sqlite3.connect(':memory:'); print('Extension support:', hasattr(conn, 'enable_load_extension')); conn.close()"
-          else
-            python -c "import sqlite3; conn = sqlite3.connect(':memory:'); print('Extension support:', hasattr(conn, 'enable_load_extension')); conn.close()"
-          fi
-      
       - name: Install project dependencies
         run: poetry install
-      
-      - name: Check SQLite extension support (in venv)
-        run: poetry run python -c "import sqlite3; conn = sqlite3.connect(':memory:'); print('Extension support:', hasattr(conn, 'enable_load_extension')); conn.close()"
       
       - name: Run pytest
         run: poetry run pytest -v --cov=geoparser
