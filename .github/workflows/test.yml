@@ -35,10 +35,22 @@ jobs:
           python${{ matrix.python-version }} --version
           python${{ matrix.python-version }} -c "import sqlite3; conn = sqlite3.connect(':memory:'); conn.enable_load_extension(True); print('✅ SQLite OK')"      
       - name: Install poetry
-        run: pipx install poetry --python python${{ matrix.python-version }}
+        shell: bash
+        run: |
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            pipx install poetry --python python
+          else
+            pipx install poetry --python python${{ matrix.python-version }}
+          fi
       
       - name: Configure Poetry to use correct Python
-        run: poetry env use python${{ matrix.python-version }}
+        shell: bash
+        run: |
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            poetry env use python
+          else
+            poetry env use python${{ matrix.python-version }}
+          fi
       
       - name: Setup local virtual environment
         run: |
