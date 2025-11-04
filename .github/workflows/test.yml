@@ -26,7 +26,11 @@ jobs:
       - name: Install poetry
         run: pipx install poetry --python python      
       - name: Configure Poetry to use setup-python interpreter
-        run: poetry env use "$(which python)"      
+        shell: bash
+        run: |
+          PYTHON_PATH=$(python3 -c "import sys; print(sys.executable)")
+          echo "Using Python: $PYTHON_PATH"
+          poetry env use "$PYTHON_PATH"      
       - name: Setup local virtual environment
         run: |
           poetry config virtualenvs.create true --local
