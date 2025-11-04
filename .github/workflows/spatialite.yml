@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - development
+      - update/dependencies
   workflow_dispatch:
 
 jobs:
@@ -116,28 +117,39 @@ jobs:
           
           # Recursively find dependencies of dependencies
           # Keep looping until no new dependencies are found
+          echo "Starting recursive dependency collection..."
           prev_count=0
           curr_count=$(ls -1 "$BINARY_DIR"/*.dylib 2>/dev/null | wc -l)
+          pass_num=1
           
           while [ "$curr_count" -ne "$prev_count" ]; do
+            echo "=== Pass $pass_num: Starting with $curr_count dylibs ==="
             prev_count=$curr_count
             
             for dylib in "$BINARY_DIR"/*.dylib; do
               [ -f "$dylib" ] || continue
-              otool -L "$dylib" | grep -E '^\s+(/opt/homebrew|/usr/local)' | awk '{print $1}' | while read dep; do
+              dylib_name=$(basename "$dylib")
+              
+              # Use process substitution to avoid subshell issues
+              while IFS= read -r dep; do
                 dep_name=$(basename "$dep")
-                if [ -f "$dep" ] && [ ! -f "$BINARY_DIR/$dep_name" ]; then
-                  cp "$dep" "$BINARY_DIR/"
-                  echo "✓ Copied transitive dependency: $dep"
+                if [ -f "$dep" ]; then
+                  if [ ! -f "$BINARY_DIR/$dep_name" ]; then
+                    cp "$dep" "$BINARY_DIR/"
+                    echo "  ✓ $dylib_name → $dep_name (copied)"
+                  fi
+                else
+                  echo "  ⚠ $dylib_name → $dep_name (not found: $dep)"
                 fi
-              done
+              done < <(otool -L "$dylib" | grep -E '^\s+(/opt/homebrew|/usr/local)' | awk '{print $1}')
             done
             
             curr_count=$(ls -1 "$BINARY_DIR"/*.dylib 2>/dev/null | wc -l)
-            echo "Pass complete: $curr_count dylibs total"
+            echo "=== Pass $pass_num complete: $curr_count dylibs total ==="
+            pass_num=$((pass_num + 1))
           done
           
-          echo "✓ All dependencies collected ($curr_count dylibs)"
+          echo "✓ All dependencies collected ($curr_count dylibs after $((pass_num - 1)) passes)"
           
           # Patch all dylibs to use @loader_path (relative paths) instead of absolute paths
           for dylib in "$BINARY_DIR"/*.dylib; do
