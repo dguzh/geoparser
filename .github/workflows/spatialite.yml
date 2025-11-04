@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - development
+      - update/dependencies
   workflow_dispatch:
 
 jobs:
@@ -115,16 +116,29 @@ jobs:
           done
           
           # Recursively find dependencies of dependencies
-          for dylib in "$BINARY_DIR"/*.dylib; do
-            [ -f "$dylib" ] || continue
-            otool -L "$dylib" | grep -E '^\s+(/opt/homebrew|/usr/local)' | awk '{print $1}' | while read dep; do
-              dep_name=$(basename "$dep")
-              if [ -f "$dep" ] && [ ! -f "$BINARY_DIR/$dep_name" ]; then
-                cp "$dep" "$BINARY_DIR/"
-                echo "✓ Copied transitive dependency: $dep"
-              fi
+          # Keep looping until no new dependencies are found
+          prev_count=0
+          curr_count=$(ls -1 "$BINARY_DIR"/*.dylib 2>/dev/null | wc -l)
+          
+          while [ "$curr_count" -ne "$prev_count" ]; do
+            prev_count=$curr_count
+            
+            for dylib in "$BINARY_DIR"/*.dylib; do
+              [ -f "$dylib" ] || continue
+              otool -L "$dylib" | grep -E '^\s+(/opt/homebrew|/usr/local)' | awk '{print $1}' | while read dep; do
+                dep_name=$(basename "$dep")
+                if [ -f "$dep" ] && [ ! -f "$BINARY_DIR/$dep_name" ]; then
+                  cp "$dep" "$BINARY_DIR/"
+                  echo "✓ Copied transitive dependency: $dep"
+                fi
+              done
             done
+            
+            curr_count=$(ls -1 "$BINARY_DIR"/*.dylib 2>/dev/null | wc -l)
+            echo "Pass complete: $curr_count dylibs total"
           done
+          
+          echo "✓ All dependencies collected ($curr_count dylibs)"
           
           # Patch all dylibs to use @loader_path (relative paths) instead of absolute paths
           for dylib in "$BINARY_DIR"/*.dylib; do
