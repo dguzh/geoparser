@@ -18,26 +18,17 @@ jobs:
         python-version: ['3.10', '3.11', '3.12', '3.13']
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
-      - name: Set up Python ${{ matrix.python-version }} (macOS)
-        if: runner.os == 'macOS'
-        run: |
-          brew install python@${{ matrix.python-version }}
-          # Add Homebrew Python to PATH
-          echo "$(brew --prefix)/opt/python@${{ matrix.python-version }}/bin" >> $GITHUB_PATH
-          # Verify extension loading works
-          python${{ matrix.python-version }} -c "import sqlite3; conn = sqlite3.connect(':memory:'); conn.enable_load_extension(True); print('✅ SQLite extensions enabled')"
-      - name: Set up Python ${{ matrix.python-version }} (non-macOS)
-        if: runner.os != 'macOS'
+      - uses: actions/checkout@v4      
+      - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v5
         with:
-          python-version: ${{ matrix.python-version }}
+          python-version: ${{ matrix.python-version }}      
       - name: Install poetry
-        run: pipx install poetry --python python${{ matrix.python-version }}
+        run: pipx install poetry --python python      
       - name: Setup local virtual environment
         run: |
           poetry config virtualenvs.create true --local
-          poetry config virtualenvs.in-project true --local
+          poetry config virtualenvs.in-project true --local      
       - name: Install project dependencies
         run: poetry install
       - name: Run pytest
