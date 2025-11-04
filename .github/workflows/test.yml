@@ -18,130 +18,41 @@ jobs:
         python-version: ['3.10', '3.11', '3.12', '3.13']
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4      
+      - uses: actions/checkout@v4
+      
       - name: Set up Python ${{ matrix.python-version }}
-        if: runner.os != 'macOS'
         uses: actions/setup-python@v5
         with:
-          python-version: ${{ matrix.python-version }}      
-      - name: Debug Python environment BEFORE any setup
-        run: |
-          echo "=== PATH ==="
-          echo "$PATH"
-          echo ""
-          echo "=== All python* executables in PATH ==="
-          which -a python 2>/dev/null || echo "No 'python' found"
-          which -a python3 2>/dev/null || echo "No 'python3' found"
-          which -a python${{ matrix.python-version }} 2>/dev/null || echo "No 'python${{ matrix.python-version }}' found"
-          echo ""
-          echo "=== Python versions ==="
-          python --version 2>/dev/null || echo "No 'python' command"
-          python3 --version 2>/dev/null || echo "No 'python3' command"
-          python${{ matrix.python-version }} --version 2>/dev/null || echo "No 'python${{ matrix.python-version }}' command"
-          echo ""
-          echo "=== SQLite extension support check ==="
-          python3 -c "import sqlite3; conn = sqlite3.connect(':memory:'); conn.enable_load_extension(True); print('python3: SQLite OK')" 2>&1 || echo "python3: No SQLite extension support"
-        shell: bash
+          python-version: ${{ matrix.python-version }}
       
-      - name: Set up Python via Homebrew (macOS)
-        if: runner.os == 'macOS'
-        run: |
-          echo "=== Checking if Python ${{ matrix.python-version }} is already installed ==="
-          brew list python@${{ matrix.python-version }} && echo "Already installed" || echo "Not installed"
-          
-          echo ""
-          echo "=== Installing/ensuring Python via Homebrew ==="
-          brew list python@${{ matrix.python-version }} || brew install python@${{ matrix.python-version }}
-          
-          echo ""
-          echo "=== Unlinking and relinking ==="
-          brew unlink python@${{ matrix.python-version }} && brew link --overwrite --force python@${{ matrix.python-version }}
-          
-          echo ""
-          echo "=== Verifying Python after Homebrew setup ==="
-          which python${{ matrix.python-version }}
-          python${{ matrix.python-version }} --version
-          python${{ matrix.python-version }} -c "import sys; print(f'Executable: {sys.executable}')"
-          python${{ matrix.python-version }} -c "import sqlite3; conn = sqlite3.connect(':memory:'); conn.enable_load_extension(True); print('SQLite OK')"
-      - name: Debug Python environment AFTER setup-python/Homebrew
-        run: |
-          echo "=== PATH after setup ==="
-          echo "$PATH"
-          echo ""
-          echo "=== All python* executables in PATH ==="
-          which -a python 2>/dev/null || echo "No 'python' found"
-          which -a python3 2>/dev/null || echo "No 'python3' found"
-          which -a python${{ matrix.python-version }} 2>/dev/null || echo "No 'python${{ matrix.python-version }}' found"
-          echo ""
-          echo "=== Default python versions ==="
-          python --version 2>/dev/null || echo "No 'python' command"
-          python3 --version 2>/dev/null || echo "No 'python3' command"
-          python${{ matrix.python-version }} --version 2>/dev/null || echo "No 'python${{ matrix.python-version }}' command"
-          echo ""
-          echo "=== Executable paths ==="
-          python -c "import sys; print(f'python: {sys.executable}')" 2>/dev/null || echo "No 'python' command"
-          python3 -c "import sys; print(f'python3: {sys.executable}')" 2>/dev/null || echo "No 'python3' command"
-          python${{ matrix.python-version }} -c "import sys; print(f'python${{ matrix.python-version }}: {sys.executable}')" 2>/dev/null || echo "No 'python${{ matrix.python-version }}' command"
-          echo ""
-          echo "=== SQLite extension support for each ==="
-          python -c "import sqlite3; conn = sqlite3.connect(':memory:'); conn.enable_load_extension(True); print('python: SQLite OK')" 2>&1 || echo "python: No SQLite support"
-          python3 -c "import sqlite3; conn = sqlite3.connect(':memory:'); conn.enable_load_extension(True); print('python3: SQLite OK')" 2>&1 || echo "python3: No SQLite support"
-          python${{ matrix.python-version }} -c "import sqlite3; conn = sqlite3.connect(':memory:'); conn.enable_load_extension(True); print('python${{ matrix.python-version }}: SQLite OK')" 2>&1 || echo "python${{ matrix.python-version }}: No SQLite support"
+      - name: Install poetry
         shell: bash
-      
-      - name: Install poetry (non-macOS) with 'python'
-        if: runner.os != 'macOS'
         run: |
-          echo "=== Installing poetry with 'python' ==="
-          pipx install poetry --python python
-        shell: bash
+          if [ "${{ runner.os }}" = "macOS" ]; then
+            pipx install poetry --python python${{ matrix.python-version }}
+            poetry env use python${{ matrix.python-version }}
+          else
+            pipx install poetry --python python
+            poetry env use python
+          fi
       
-      - name: Install poetry (macOS) with 'python${{ matrix.python-version }}'
-        if: runner.os == 'macOS'
-        run: |
-          echo "=== Installing poetry with 'python${{ matrix.python-version }}' ==="
-          pipx install poetry --python python${{ matrix.python-version }}
-        shell: bash
-      
-      - name: Configure Poetry to use 'python' (non-macOS)
-        if: runner.os != 'macOS'
-        run: |
-          echo "=== Configuring Poetry with 'python' ==="
-          poetry env use python
-          echo "Poetry will use: $(poetry env info --executable)"
-        shell: bash
-      
-      - name: Configure Poetry to use 'python${{ matrix.python-version }}' (macOS)
-        if: runner.os == 'macOS'
-        run: |
-          echo "=== Configuring Poetry with 'python${{ matrix.python-version }}' ==="
-          poetry env use python${{ matrix.python-version }}
-          echo "Poetry will use: $(poetry env info --executable)"
-        shell: bash      
       - name: Setup local virtual environment
         run: |
           poetry config virtualenvs.create true --local
-          poetry config virtualenvs.in-project true --local      
+          poetry config virtualenvs.in-project true --local
+      
+      - name: Check SQLite extension support (before venv)
+        run: python -c "import sqlite3; conn = sqlite3.connect(':memory:'); print('Extension support:', hasattr(conn, 'enable_load_extension')); conn.close()"
+      
       - name: Install project dependencies
         run: poetry install
       
-      - name: Debug virtualenv Python BEFORE tests
-        run: |
-          echo "=== Virtualenv info ==="
-          poetry env info
-          echo ""
-          echo "=== Virtualenv Python executable ==="
-          poetry run python -c "import sys; print(f'Executable: {sys.executable}')"
-          echo ""
-          echo "=== Virtualenv Python version ==="
-          poetry run python --version
-          echo ""
-          echo "=== Virtualenv SQLite extension support ==="
-          poetry run python -c "import sqlite3; conn = sqlite3.connect(':memory:'); conn.enable_load_extension(True); print('Virtualenv: SQLite OK')" 2>&1 || echo "Virtualenv: No SQLite support"
-        shell: bash
+      - name: Check SQLite extension support (in venv)
+        run: poetry run python -c "import sqlite3; conn = sqlite3.connect(':memory:'); print('Extension support:', hasattr(conn, 'enable_load_extension')); conn.close()"
       
       - name: Run pytest
         run: poetry run pytest -v --cov=geoparser
+      
       - run: mkdir coverage
       - run: mv .coverage coverage/.coverage.${{ runner.os }}-py${{ matrix.python-version }}
       - name: Store coverage files
