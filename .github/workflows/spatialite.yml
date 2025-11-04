@@ -176,12 +176,19 @@ jobs:
                     echo "  ✓ $dylib_name → $dep_name (copied)"
                     
                     # Check if this new dependency has @rpath dependencies
+                    echo "  🔍 Checking $dep_name for @rpath dependencies..."
+                    rpath_count=0
                     while IFS= read -r rpath_dep; do
                       [ -z "$rpath_dep" ] && continue
+                      rpath_count=$((rpath_count + 1))
                       rpath_file=$(basename "$rpath_dep")
+                      echo "    Found @rpath: $rpath_dep"
                       
                       # Skip if already copied
-                      [ -f "$BINARY_DIR/$rpath_file" ] && continue
+                      if [ -f "$BINARY_DIR/$rpath_file" ]; then
+                        echo "    Already have $rpath_file"
+                        continue
+                      fi
                       
                       # Try same directory first
                       dep_dir=$(dirname "$dep")
@@ -192,6 +199,7 @@ jobs:
                       fi
                       
                       # Otherwise search Homebrew
+                      echo "    Searching Homebrew for $rpath_file..."
                       found=""
                       for base in /opt/homebrew /usr/local; do
                         if [ -d "$base/opt" ]; then
@@ -203,7 +211,12 @@ jobs:
                           fi
                         fi
                       done
+                      
+                      if [ -z "$found" ] || [ ! -f "$found" ]; then
+                        echo "  ⚠ Could not find $rpath_file in Homebrew"
+                      fi
                     done < <({ otool -L "$dep" || true; } | { grep -E '^\s+@rpath/' || true; } | awk '{print $1}')
+                    [ $rpath_count -eq 0 ] && echo "    No @rpath dependencies found"
                   fi
                 else
                   echo "  ⚠ $dylib_name → $dep_name (not found: $dep)"
