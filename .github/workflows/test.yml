@@ -42,7 +42,13 @@ jobs:
           poetry config virtualenvs.in-project true --local
       
       - name: Check SQLite extension support (before venv)
-        run: python -c "import sqlite3; conn = sqlite3.connect(':memory:'); print('Extension support:', hasattr(conn, 'enable_load_extension')); conn.close()"
+        shell: bash
+        run: |
+          if [ "${{ runner.os }}" = "macOS" ]; then
+            python${{ matrix.python-version }} -c "import sqlite3; conn = sqlite3.connect(':memory:'); print('Extension support:', hasattr(conn, 'enable_load_extension')); conn.close()"
+          else
+            python -c "import sqlite3; conn = sqlite3.connect(':memory:'); print('Extension support:', hasattr(conn, 'enable_load_extension')); conn.close()"
+          fi
       
       - name: Install project dependencies
         run: poetry install
