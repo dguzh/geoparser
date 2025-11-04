@@ -33,37 +33,25 @@ jobs:
           # Verify it's in PATH and has SQLite extensions
           which python${{ matrix.python-version }}
           python${{ matrix.python-version }} --version
-          python${{ matrix.python-version }} -c "import sqlite3; conn = sqlite3.connect(':memory:'); conn.enable_load_extension(True); print('✅ SQLite OK')"      
+          python${{ matrix.python-version }} -c "import sqlite3; conn = sqlite3.connect(':memory:'); conn.enable_load_extension(True); print('✅ SQLite OK')"
       - name: Install poetry
-        shell: bash
-        run: |
-          if [ "$RUNNER_OS" = "Windows" ]; then
-            pipx install poetry --python python
-          else
-            pipx install poetry --python python${{ matrix.python-version }}
-          fi
-      
+        if: runner.os != 'macOS'
+        run: pipx install poetry --python python
+      - name: Install poetry (macOS)
+        if: runner.os == 'macOS'
+        run: pipx install poetry --python python${{ matrix.python-version }}      
       - name: Configure Poetry to use correct Python
-        shell: bash
-        run: |
-          if [ "$RUNNER_OS" = "Windows" ]; then
-            poetry env use python
-          else
-            poetry env use python${{ matrix.python-version }}
-          fi
-      
+        if: runner.os != 'macOS'
+        run: poetry env use python      
+      - name: Configure Poetry to use correct Python (macOS)
+        if: runner.os == 'macOS'
+        run: poetry env use python${{ matrix.python-version }}      
       - name: Setup local virtual environment
         run: |
           poetry config virtualenvs.create true --local
           poetry config virtualenvs.in-project true --local      
       - name: Install project dependencies
-        run: poetry install
-      
-      - name: Verify SQLite extensions in virtualenv
-        run: |
-          poetry run python -c "import sys; print(f'Virtualenv Python: {sys.executable}')"
-          poetry run python -c "import sqlite3; conn = sqlite3.connect(':memory:'); conn.enable_load_extension(True); print('✅ Virtualenv SQLite OK')"
-      
+        run: poetry install      
       - name: Run pytest
         run: poetry run pytest -v --cov=geoparser
       - run: mkdir coverage
