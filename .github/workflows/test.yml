@@ -25,12 +25,20 @@ jobs:
           python-version: ${{ matrix.python-version }}      
       - name: Install poetry
         run: pipx install poetry --python python      
+      - name: Verify SQLite extension support in setup-python
+        run: |
+          python3 -c "import sqlite3; conn = sqlite3.connect(':memory:'); conn.enable_load_extension(True); print('✅ SQLite extensions available')"
+      
       - name: Configure Poetry to use setup-python interpreter
         shell: bash
         run: |
           PYTHON_PATH=$(python3 -c "import sys; print(sys.executable)")
           echo "Using Python: $PYTHON_PATH"
-          poetry env use "$PYTHON_PATH"      
+          poetry env use "$PYTHON_PATH"
+      
+      - name: Verify SQLite extension support in Poetry virtualenv
+        run: |
+          poetry run python -c "import sqlite3; conn = sqlite3.connect(':memory:'); conn.enable_load_extension(True); print('✅ Virtualenv SQLite extensions available')"      
       - name: Setup local virtual environment
         run: |
           poetry config virtualenvs.create true --local
