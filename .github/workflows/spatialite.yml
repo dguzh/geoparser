@@ -106,7 +106,7 @@ jobs:
           
           # Copy all Homebrew dependencies (from /opt/homebrew or /usr/local)
           # Excludes system libraries from /usr/lib and /System
-          otool -L "$BINARY_PATH" | { grep -E '^\s+(/opt/homebrew|/usr/local)' || true; } | awk '{print $1}' | while read dep; do
+          { otool -L "$BINARY_PATH" || true; } | { grep -E '^\s+(/opt/homebrew|/usr/local)' || true; } | awk '{print $1}' | while read dep; do
             [ -z "$dep" ] && continue
             if [ -f "$dep" ]; then
               cp "$dep" "$BINARY_DIR/"
@@ -115,7 +115,7 @@ jobs:
               # Also check for @rpath dependencies in the same directory
               dep_dir=$(dirname "$dep")
               # grep may return non-zero if no matches found - this is OK
-              otool -L "$dep" | { grep -E '^\s+@rpath/' || true; } | awk '{print $1}' | while read rpath_dep; do
+              { otool -L "$dep" || true; } | { grep -E '^\s+@rpath/' || true; } | awk '{print $1}' | while read rpath_dep; do
                 [ -z "$rpath_dep" ] && continue
                 rpath_file=$(basename "$rpath_dep")
                 resolved_path="$dep_dir/$rpath_file"
@@ -163,26 +163,28 @@ jobs:
                         cp "$resolved_path" "$BINARY_DIR/"
                         echo "  ✓ $dylib_name → $dep_name → $rpath_file (copied @rpath)"
                       fi
-                    done < <(otool -L "$dep" | { grep -E '^\s+@rpath/' || true; } | awk '{print $1}')
+                    done < <({ otool -L "$dep" || true; } | { grep -E '^\s+@rpath/' || true; } | awk '{print $1}')
                   fi
                 else
                   echo "  ⚠ $dylib_name → $dep_name (not found: $dep)"
                 fi
-              done < <(otool -L "$dylib" | { grep -E '^\s+(/opt/homebrew|/usr/local)' || true; } | awk '{print $1}')
+              done < <({ otool -L "$dylib" || true; } | { grep -E '^\s+(/opt/homebrew|/usr/local)' || true; } | awk '{print $1}')
               
               # Also check @rpath dependencies from already-copied dylibs
               # Find the original Homebrew path to resolve @rpath
-              original_path=$(otool -L "$dylib" | { grep -E "$dylib_name" || true; } | head -1 | awk '{print $1}')
+              original_path=$({ otool -L "$dylib" || true; } | { grep -E "$dylib_name" || true; } | head -1 | awk '{print $1}')
               if [[ "$original_path" == /opt/homebrew/* ]] || [[ "$original_path" == /usr/local/* ]]; then
                 original_dir=$(dirname "$original_path")
               else
                 # Fallback: try to find it in common Homebrew locations
                 original_dir=""
                 for base in /opt/homebrew /usr/local; do
-                  found=$(find "$base/opt" -name "$dylib_name" 2>/dev/null | head -1)
-                  if [ -n "$found" ]; then
-                    original_dir=$(dirname "$found")
-                    break
+                  if [ -d "$base/opt" ]; then
+                    found=$(find "$base/opt" -name "$dylib_name" 2>/dev/null | head -1 || true)
+                    if [ -n "$found" ]; then
+                      original_dir=$(dirname "$found")
+                      break
+                    fi
                   fi
                 done
               fi
@@ -196,7 +198,7 @@ jobs:
                     cp "$resolved_path" "$BINARY_DIR/"
                     echo "  ✓ $dylib_name → $rpath_file (copied @rpath)"
                   fi
-                done < <(otool -L "$dylib" | { grep -E '^\s+@rpath/' || true; } | awk '{print $1}')
+                done < <({ otool -L "$dylib" || true; } | { grep -E '^\s+@rpath/' || true; } | awk '{print $1}')
               fi
             done
             
@@ -214,7 +216,7 @@ jobs:
               chmod +w "$dylib"
               
               # Get all absolute path dependencies
-              otool -L "$dylib" | { grep -E '^\s+/' || true; } | awk '{print $1}' | while read dep_path; do
+              { otool -L "$dylib" || true; } | { grep -E '^\s+/' || true; } | awk '{print $1}' | while read dep_path; do
                 [ -z "$dep_path" ] && continue
                 dep_name=$(basename "$dep_path")
                 # Only patch if the dependency is one we've copied (non-system libraries)
@@ -225,7 +227,7 @@ jobs:
               done
               
               # Also patch @rpath dependencies
-              otool -L "$dylib" | { grep -E '^\s+@rpath/' || true; } | awk '{print $1}' | while read rpath_dep; do
+              { otool -L "$dylib" || true; } | { grep -E '^\s+@rpath/' || true; } | awk '{print $1}' | while read rpath_dep; do
                 [ -z "$rpath_dep" ] && continue
                 dep_name=$(basename "$rpath_dep")
                 # Only patch if the dependency is one we've copied
