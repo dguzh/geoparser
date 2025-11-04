@@ -29,12 +29,7 @@ jobs:
       - name: Set up Python ${{ matrix.python-version }} (macOS)
         if: runner.os == 'macOS'
         run: |
-          if ! command -v python${{ matrix.python-version }} &> /dev/null; then
-            echo "Python ${{ matrix.python-version }} not found, installing via Homebrew..."
-            brew install python@${{ matrix.python-version }}
-          else
-            echo "Python ${{ matrix.python-version }} already available"
-          fi
+          brew install python@${{ matrix.python-version }}
       
       - name: Install Poetry
         if: runner.os != 'macOS'
