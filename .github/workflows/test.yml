@@ -27,8 +27,13 @@ jobs:
       - name: Set up Python via Homebrew (macOS)
         if: runner.os == 'macOS'
         run: |
-          brew install python@${{ matrix.python-version }}
-          brew link --overwrite python@${{ matrix.python-version }}      
+          # Ensure Homebrew Python is installed and linked
+          brew list python@${{ matrix.python-version }} || brew install python@${{ matrix.python-version }}
+          brew unlink python@${{ matrix.python-version }} && brew link --overwrite --force python@${{ matrix.python-version }}
+          # Verify it's in PATH and has SQLite extensions
+          which python${{ matrix.python-version }}
+          python${{ matrix.python-version }} --version
+          python${{ matrix.python-version }} -c "import sqlite3; conn = sqlite3.connect(':memory:'); conn.enable_load_extension(True); print('✅ SQLite OK')"      
       - name: Install poetry
         run: pipx install poetry --python python${{ matrix.python-version }}      
       - name: Setup local virtual environment
