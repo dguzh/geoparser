@@ -28,6 +28,119 @@ class TestGeoparserInitialization:
         assert geoparser.recognizer == mock_recognizer
         assert geoparser.resolver == mock_resolver
 
+    @patch("geoparser.modules.SpacyRecognizer")
+    @patch("geoparser.modules.SentenceTransformerResolver")
+    def test_creates_default_modules_when_none_provided(
+        self, mock_resolver_class, mock_recognizer_class
+    ):
+        """Test that Geoparser creates default modules when none are provided."""
+        # Arrange
+        mock_recognizer_instance = Mock()
+        mock_resolver_instance = Mock()
+        mock_recognizer_class.return_value = mock_recognizer_instance
+        mock_resolver_class.return_value = mock_resolver_instance
+
+        # Act
+        geoparser = Geoparser()
+
+        # Assert
+        mock_recognizer_class.assert_called_once_with()
+        mock_resolver_class.assert_called_once_with()
+        assert geoparser.recognizer == mock_recognizer_instance
+        assert geoparser.resolver == mock_resolver_instance
+
+    def test_accepts_none_for_recognizer(self):
+        """Test that Geoparser accepts None for recognizer to skip recognition."""
+        # Arrange
+        mock_resolver = Mock()
+
+        # Act
+        geoparser = Geoparser(recognizer=None, resolver=mock_resolver)
+
+        # Assert
+        assert geoparser.recognizer is None
+        assert geoparser.resolver == mock_resolver
+
+    def test_accepts_none_for_resolver(self):
+        """Test that Geoparser accepts None for resolver to skip resolution."""
+        # Arrange
+        mock_recognizer = Mock()
+
+        # Act
+        geoparser = Geoparser(recognizer=mock_recognizer, resolver=None)
+
+        # Assert
+        assert geoparser.recognizer == mock_recognizer
+        assert geoparser.resolver is None
+
+    @patch("geoparser.modules.SpacyRecognizer")
+    def test_legacy_spacy_model_parameter_shows_deprecation_warning(
+        self, mock_recognizer_class
+    ):
+        """Test that using spacy_model parameter shows deprecation warning."""
+        # Arrange
+        mock_recognizer_instance = Mock()
+        mock_recognizer_class.return_value = mock_recognizer_instance
+        mock_resolver = Mock()
+
+        # Act & Assert
+        with pytest.warns(DeprecationWarning, match="Deprecated parameter detected"):
+            geoparser = Geoparser(resolver=mock_resolver, spacy_model="en_core_web_sm")
+
+        # Should still create recognizer with the model
+        mock_recognizer_class.assert_called_once_with(model_name="en_core_web_sm")
+        assert geoparser.recognizer == mock_recognizer_instance
+
+    @patch("geoparser.modules.SentenceTransformerResolver")
+    def test_legacy_transformer_model_parameter_shows_deprecation_warning(
+        self, mock_resolver_class
+    ):
+        """Test that using transformer_model parameter shows deprecation warning."""
+        # Arrange
+        mock_resolver_instance = Mock()
+        mock_resolver_class.return_value = mock_resolver_instance
+        mock_recognizer = Mock()
+
+        # Act & Assert
+        with pytest.warns(DeprecationWarning, match="Deprecated parameter detected"):
+            geoparser = Geoparser(
+                recognizer=mock_recognizer,
+                transformer_model="dguzh/geo-all-MiniLM-L6-v2",
+            )
+
+        # Should still create resolver with the model
+        mock_resolver_class.assert_called_once_with(
+            model_name="dguzh/geo-all-MiniLM-L6-v2"
+        )
+        assert geoparser.resolver == mock_resolver_instance
+
+    @patch("geoparser.modules.SpacyRecognizer")
+    @patch("geoparser.modules.SentenceTransformerResolver")
+    def test_legacy_parameters_show_single_consolidated_warning(
+        self, mock_resolver_class, mock_recognizer_class
+    ):
+        """Test that using both legacy parameters shows single consolidated warning."""
+        # Arrange
+        mock_recognizer_instance = Mock()
+        mock_resolver_instance = Mock()
+        mock_recognizer_class.return_value = mock_recognizer_instance
+        mock_resolver_class.return_value = mock_resolver_instance
+
+        # Act & Assert
+        with pytest.warns(DeprecationWarning, match="Deprecated parameters detected"):
+            geoparser = Geoparser(
+                spacy_model="en_core_web_sm",
+                transformer_model="dguzh/geo-all-MiniLM-L6-v2",
+            )
+
+        # Should create both with the specified models
+        mock_recognizer_class.assert_called_once_with(model_name="en_core_web_sm")
+        mock_resolver_class.assert_called_once_with(
+            model_name="dguzh/geo-all-MiniLM-L6-v2"
+        )
+        assert geoparser.recognizer == mock_recognizer_instance
+        assert geoparser.resolver == mock_resolver_instance
+
 
 @pytest.mark.unit
 class TestGeoparserParse:
