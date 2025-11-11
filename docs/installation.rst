@@ -3,83 +3,114 @@
 Installation
 ============
 
-This section provides step-by-step instructions to install and set up Geoparser on your system.
+This guide provides step-by-step instructions to install and set up the Irchel Geoparser on your system.
 
-Installing Geoparser
---------------------
+Installing the Library
+----------------------
 
-You can install Geoparser using ``pip``:
+Install the Irchel Geoparser using pip:
 
 .. code-block:: bash
 
    pip install geoparser
 
 .. note::
-   Geoparser utilizes the ``sentence-transformers`` library, which is built on top of PyTorch. If you have a CUDA-enabled GPU, you can leverage CUDA to significantly speed up geoparsing tasks. Visit the PyTorch `Get Started <https://pytorch.org/get-started/locally/>`_ page and follow the instructions to install PyTorch with CUDA appropriate for your system.
+   The library uses PyTorch through the sentence-transformers package. If you have a CUDA-enabled GPU, you can significantly speed up geoparsing tasks by installing PyTorch with CUDA support. Visit the PyTorch `Get Started <https://pytorch.org/get-started/locally/>`_ page and follow the instructions appropriate for your system.
 
 Installing spaCy Models
 -----------------------
 
-Geoparser uses spaCy's named entity recognition (NER) functionality for toponym recognition. You will need to download a spaCy model that includes a NER component. spaCy offers models supporting various languages and sizes, optimized for efficiency or accuracy. Visit the `spaCy Models <https://spacy.io/models>`_ page for an overview.
+The library uses spaCy for named entity recognition in the default recognizer module. You need to download at least one spaCy model that includes a named entity recognition component. spaCy offers models for various languages with different size and accuracy tradeoffs. Visit the `spaCy Models <https://spacy.io/models>`_ page for a complete overview.
 
-To install a spaCy model (e.g., ``en_core_web_sm``), run:
+To install the default English model, run:
 
 .. code-block:: bash
 
    python -m spacy download en_core_web_sm
 
+For better accuracy at the cost of speed and memory, consider the transformer-based model:
+
+.. code-block:: bash
+
+   python -m spacy download en_core_web_trf
+
+If you need to process texts in other languages, install the appropriate spaCy model for that language.
+
 Installing Gazetteers
 ---------------------
 
-Geoparser requires gazetteer data to query locations and retrieve related information. Gazetteers are set up in a SQLite database on your system. You can automatically download the necessary data and set up the database with a single command, as shown below.
+The library requires gazetteer data to resolve toponyms to geographic locations. Gazetteers are stored in a SQLite database in your system's application data directory. You can install gazetteers using a single command that downloads the data and sets up the database automatically.
 
-Currently, Geoparser supports the following gazetteers:
+The library currently supports two gazetteers:
 
-.. tabs::
+GeoNames
+~~~~~~~~
 
-   .. tab:: GeoNames
+**GeoNames** is a global gazetteer containing over 13 million geographical names covering all countries and territories.
 
-      **GeoNames** is a global gazetteer containing over 13 million geographical names.
+- **Website**: `geonames.org <https://www.geonames.org/>`_
+- **Coverage**: Global
+- **Required Disk Space**: Approximately **3.3 GB**
+- **Installation Command**:
 
-      - **Website**: `GeoNames website <https://www.geonames.org/>`_
-      - **Required Disk Space**: Approximately **3.3 GB**
-      - **Installation Command**:
+.. code-block:: bash
 
-        .. code-block:: bash
+   python -m geoparser download geonames
 
-           python -m geoparser download geonames
+This command downloads the GeoNames data files, processes them, and creates the necessary database tables and indices. The process may take 15-30 minutes depending on your system.
 
-      - **Database Location**:
+SwissNames3D
+~~~~~~~~~~~~
 
-        - **Windows**: ``C:\Users\<Username>\AppData\Local\geoparser\geonames\geonames.db``
-        - **macOS**: ``~/Library/Application Support/geoparser/geonames/geonames.db``
-        - **Linux**: ``~/.local/share/geoparser/geonames/geonames.db``
+**SwissNames3D** is a high-quality gazetteer for Switzerland provided by Swisstopo, the Swiss Federal Office of Topography.
 
-      You can remove the gazetteer data by deleting these files if necessary.
+- **Website**: `Swisstopo SwissNames3D <https://www.swisstopo.admin.ch/en/landscape-model-swissnames3d>`_
+- **Coverage**: Switzerland
+- **Required Disk Space**: Approximately **0.2 GB**
+- **Installation Command**:
 
-   .. tab:: SwissNames3D
+.. code-block:: bash
 
-      **SwissNames3D** is a gazetteer for Switzerland provided by Swisstopo.
+   python -m geoparser download swissnames3d
 
-      - **Website**: `SwissNames3D website <https://www.swisstopo.admin.ch/en/landscape-model-swissnames3d>`_
-      - **Required Disk Space**: Approximately **0.2 GB**
-      - **Installation Command**:
+This command downloads the SwissNames3D data, processes it, and creates the database. The process typically completes within a few minutes.
 
-        .. code-block:: bash
+Database Location
+~~~~~~~~~~~~~~~~~
 
-           python -m geoparser download swissnames3d
+All gazetteer data is stored in a centralized SQLite database located in your system's user data directory:
 
-      - **Database Location**:
+- **Windows**: ``C:\Users\<Username>\AppData\Local\geoparser\geoparser.db``
+- **macOS**: ``~/Library/Application Support/geoparser/geoparser.db``
+- **Linux**: ``~/.local/share/geoparser/geoparser.db``
 
-        - **Windows**: ``C:\Users\<Username>\AppData\Local\geoparser\swissnames3d\swissnames3d.db``
-        - **macOS**: ``~/Library/Application Support/geoparser/swissnames3d/swissnames3d.db``
-        - **Linux**: ``~/.local/share/geoparser/swissnames3d/swissnames3d.db``
+You can remove gazetteer data by deleting this database file. Note that this will remove all gazetteers and any projects you have created.
 
-      You can remove the gazetteer data by deleting these files if necessary.
+Verifying Installation
+----------------------
+
+After completing the installation steps, you can verify that everything is working correctly by running a simple test:
+
+.. code-block:: python
+
+   from geoparser import Geoparser
+   
+   geoparser = Geoparser()
+   documents = geoparser.parse("Paris is the capital of France.")
+   
+   for doc in documents:
+       for toponym in doc.toponyms:
+           if toponym.location:
+               print(f"{toponym.text} -> {toponym.location.data.get('name')}")
+
+If the installation is successful, this should print something like:
+
+.. code-block:: text
+
+   Paris -> Paris
+   France -> France
 
 Next Steps
 ----------
 
-After installing Geoparser, downloading a spaCy model, and setting up a gazetteer, you are ready to use Geoparser in your projects.
-
-Refer to the :ref:`usage` section for instructions on how to utilize Geoparser.
+Now that you have installed the Irchel Geoparser, proceed to the :doc:`quickstart` guide to learn how to use the library for basic geoparsing tasks.

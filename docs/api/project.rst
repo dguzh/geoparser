@@ -1,7 +1,8 @@
-trainer
+Project
 =======
 
-.. automodule:: geoparser.trainer.trainer
+.. automodule:: geoparser.project.project
    :members:
    :undoc-members:
    :show-inheritance:
+
