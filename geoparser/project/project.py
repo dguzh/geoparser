@@ -256,11 +256,6 @@ class Project:
             create_documents: Whether to create new documents from the texts in the JSON
                              (default: False). Set to True if the documents don't exist yet,
                              False to add annotations to existing documents.
-
-        Note:
-            - Empty loc_id ("") indicates unannotated toponyms (skipped by resolver)
-            - Null loc_id indicates toponyms annotated as having no location (skipped by resolver)
-            - Non-empty loc_id values are registered as referents with the gazetteer
         """
         # Load JSON file
         path = Path(path)

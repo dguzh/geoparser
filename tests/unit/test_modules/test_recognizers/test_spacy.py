@@ -159,6 +159,41 @@ class TestSpacyRecognizerInitialization:
         # Assert
         assert recognizer1.id == recognizer2.id
 
+    @patch("geoparser.modules.recognizers.spacy.spacy.cli.download")
+    @patch("geoparser.modules.recognizers.spacy.spacy.load")
+    def test_downloads_model_if_not_found(self, mock_spacy_load, mock_download):
+        """Test that model is automatically downloaded if not found."""
+        # Arrange
+        mock_nlp = Mock()
+        mock_nlp.pipe_names = []
+
+        # First call raises OSError (model not found), second call succeeds
+        mock_spacy_load.side_effect = [OSError("Model not found"), mock_nlp]
+
+        # Act
+        recognizer = SpacyRecognizer(model_name="en_core_web_sm")
+
+        # Assert
+        mock_download.assert_called_once_with("en_core_web_sm")
+        assert mock_spacy_load.call_count == 2
+        assert recognizer.nlp == mock_nlp
+
+    @patch("geoparser.modules.recognizers.spacy.spacy.load")
+    def test_does_not_download_if_model_exists(self, mock_spacy_load):
+        """Test that model is not downloaded if it already exists."""
+        # Arrange
+        mock_nlp = Mock()
+        mock_nlp.pipe_names = []
+        mock_spacy_load.return_value = mock_nlp
+
+        # Act
+        recognizer = SpacyRecognizer(model_name="en_core_web_sm")
+
+        # Assert
+        # spacy.load should be called only once (no download needed)
+        assert mock_spacy_load.call_count == 1
+        assert recognizer.nlp == mock_nlp
+
 
 @pytest.mark.unit
 class TestSpacyRecognizerPredict:

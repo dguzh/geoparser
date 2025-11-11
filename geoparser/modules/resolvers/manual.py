@@ -68,9 +68,9 @@ class ManualResolver(Resolver):
             references: List of lists of (start, end) position tuples
 
         Returns:
-            List of lists where each element is either:
-            - A tuple (gazetteer_name, identifier) for annotated references
-            - None for references without annotations (which won't be marked as processed)
+            A list of lists where each element is either a tuple (gazetteer_name, identifier)
+            for annotated references, or None for references without annotations (which won't
+            be marked as processed).
         """
         results = []
         for text, doc_references in zip(texts, references):

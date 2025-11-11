@@ -92,7 +92,7 @@ class SentenceTransformerResolver(Resolver):
         self.tokenizer = AutoTokenizer.from_pretrained(model_name)
 
         # Initialize spaCy model for sentence splitting
-        self.nlp = spacy.load("xx_sent_ud_sm")
+        self.nlp = self._load_spacy_model("xx_sent_ud_sm")
 
         # Initialize gazetteer
         self.gazetteer = Gazetteer(gazetteer_name)
@@ -130,6 +130,25 @@ class SentenceTransformerResolver(Resolver):
         else:
             return attribute_map
 
+    def _load_spacy_model(self, model_name: str) -> spacy.language.Language:
+        """
+        Load a spaCy model, downloading it if necessary.
+
+        Args:
+            model_name: Name of the spaCy model to load
+
+        Returns:
+            Loaded spaCy Language model
+        """
+        try:
+            nlp = spacy.load(model_name)
+        except OSError:
+            # Model not found, download it
+            print(f"Downloading spaCy model '{model_name}'...")
+            spacy.cli.download(model_name)
+            nlp = spacy.load(model_name)
+        return nlp
+
     def predict(
         self, texts: t.List[str], references: t.List[t.List[t.Tuple[int, int]]]
     ) -> t.List[t.List[t.Union[t.Tuple[str, str], None]]]:
@@ -145,9 +164,10 @@ class SentenceTransformerResolver(Resolver):
             references: List of lists of tuples containing (start, end) positions of references
 
         Returns:
-            List of lists where each element is either:
-            - A tuple (gazetteer_name, identifier) for a successfully resolved reference
-            - None if prediction is not available for that specific reference
+            A list of lists where each inner list corresponds to referents for references in one
+            document. Each element is either a tuple (gazetteer_name, identifier) for a
+            successfully resolved reference, or None if prediction is not available for that
+            specific reference.
         """
         # Check if there are any texts to process
         if not texts:
