@@ -25,7 +25,7 @@ jobs:
             filename: spellfix.so
           
           # macOS Intel
-          - os: macos-13  # Intel runners
+          - os: macos-15-intel  # Intel runners
             platform: darwin
             arch: x86_64
             compile_cmd: |
