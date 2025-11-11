@@ -39,12 +39,11 @@ class Resolver(Module):
                        Each inner list corresponds to references in one document at the same index in texts.
 
         Returns:
-            List of lists where each element is either:
-            - A tuple (gazetteer_name, identifier) for a successfully resolved reference
-            - None to indicate that prediction is not available for that specific reference
-              (e.g., missing data, unsupported format, etc.)
-            Each inner list corresponds to referents for references in one document.
-            Each element at position [i][j] is the referent (or None) for the reference at position [i][j] in the input.
-            The gazetteer_name identifies which gazetteer the identifier refers to,
-            and the identifier is the value used to identify the referent in that gazetteer.
+            A list of lists where each inner list corresponds to referents for references in one
+            document. Each element at position [i][j] is the referent (or None) for the reference
+            at position [i][j] in the input. Each element is either a tuple (gazetteer_name,
+            identifier) for a successfully resolved reference, or None to indicate that prediction
+            is not available for that specific reference (e.g., missing data, unsupported format,
+            etc.). The gazetteer_name identifies which gazetteer the identifier refers to, and the
+            identifier is the value used to identify the referent in that gazetteer.
         """

@@ -47,13 +47,20 @@ class SpacyRecognizer(Recognizer):
         Load and configure the spaCy model with optimized pipeline.
 
         Loads the specified model and removes unnecessary pipeline components
-        to optimize performance for NER tasks.
+        to optimize performance for NER tasks. If the model is not available,
+        it will be automatically downloaded.
 
         Returns:
             Configured spaCy Language model
         """
-        # Load spaCy model
-        nlp = spacy.load(self.model_name)
+        # Try to load spaCy model, download if not available
+        try:
+            nlp = spacy.load(self.model_name)
+        except OSError:
+            # Model not found, download it
+            print(f"Downloading spaCy model '{self.model_name}'...")
+            spacy.cli.download(self.model_name)
+            nlp = spacy.load(self.model_name)
 
         # Remove non-NER components to optimize performance
         pipe_components = [
@@ -74,10 +81,10 @@ class SpacyRecognizer(Recognizer):
             texts: List of document text strings to process
 
         Returns:
-            List where each element is either:
-            - A list of (start, end) tuples containing positions of references found in the document
-            - None if predictions are not available for that document
-            Each element corresponds to one document at the same index in the input list.
+            A list where each element corresponds to one document at the same index in the
+            input list. Each element is either a list of (start, end) tuples containing
+            positions of references found in the document, or None if predictions are not
+            available for that document.
         """
         results = []
 

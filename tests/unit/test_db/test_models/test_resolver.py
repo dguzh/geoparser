@@ -75,7 +75,7 @@ class TestResolverModel:
         config = {
             "model_name": "test_model",
             "gazetteer_name": "geonames",
-            "min_similarity": 0.7,
+            "min_similarity": 0.6,
             "nested": {"key": "value"},
         }
 

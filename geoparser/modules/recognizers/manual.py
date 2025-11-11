@@ -61,9 +61,9 @@ class ManualRecognizer(Recognizer):
             texts: List of document text strings to annotate
 
         Returns:
-            List where each element is either:
-            - A list of (start, end) tuples representing reference spans for annotated documents
-            - None for documents without annotations (which won't be marked as processed)
+            A list where each element is either a list of (start, end) tuples representing
+            reference spans for annotated documents, or None for documents without annotations
+            (which won't be marked as processed).
         """
         results = []
         for text in texts:

@@ -37,9 +37,9 @@ class Recognizer(Module):
             texts: List of document text strings to process
 
         Returns:
-            List where each element is either:
-            - A list of (start, end) tuples containing positions of references found in the document
-            - None to indicate that predictions are not available for that document
-              (e.g., unsupported language, missing data, etc.)
-            Each element corresponds to one document at the same index in the input list.
+            A list where each element corresponds to one document at the same index in the
+            input list. Each element is either a list of (start, end) tuples containing
+            positions of references found in the document, or None to indicate that
+            predictions are not available for that document (e.g., unsupported language,
+            missing data, etc.).
         """

@@ -153,7 +153,7 @@ class TestCompleteParsingPipeline:
         resolver1 = SentenceTransformerResolver(
             gazetteer_name="andorranames",
             model_name="dguzh/geo-all-MiniLM-L6-v2",
-            min_similarity=0.7,
+            min_similarity=0.6,
             max_iter=3,
             attribute_map=andorra_attribute_map,
         )

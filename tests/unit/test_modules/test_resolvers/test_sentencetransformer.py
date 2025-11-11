@@ -36,7 +36,7 @@ class TestSentenceTransformerResolverInitialization:
         assert resolver.name == "SentenceTransformerResolver"
         assert resolver.model_name == "dguzh/geo-all-MiniLM-L6-v2"
         assert resolver.gazetteer_name == "geonames"
-        assert resolver.min_similarity == 0.7
+        assert resolver.min_similarity == 0.6
         assert resolver.max_iter == 3
 
     @patch("geoparser.modules.resolvers.sentencetransformer.spacy.load")
@@ -247,8 +247,8 @@ class TestSentenceTransformerResolverInitialization:
         )
 
         # Act
-        resolver1 = SentenceTransformerResolver(min_similarity=0.7)
-        resolver2 = SentenceTransformerResolver(min_similarity=0.8)
+        resolver1 = SentenceTransformerResolver(min_similarity=0.6)
+        resolver2 = SentenceTransformerResolver(min_similarity=0.7)
 
         # Assert
         assert resolver1.id != resolver2.id
@@ -272,13 +272,13 @@ class TestSentenceTransformerResolverInitialization:
         resolver1 = SentenceTransformerResolver(
             model_name="model1",
             gazetteer_name="geonames",
-            min_similarity=0.7,
+            min_similarity=0.6,
             max_iter=3,
         )
         resolver2 = SentenceTransformerResolver(
             model_name="model1",
             gazetteer_name="geonames",
-            min_similarity=0.7,
+            min_similarity=0.6,
             max_iter=3,
         )
 
@@ -439,6 +439,66 @@ class TestSentenceTransformerResolverInitialization:
             ValueError, match="not configured in GAZETTEER_ATTRIBUTE_MAP"
         ):
             resolver._validate_and_set_attribute_map("unknown_gazetteer", None)
+
+    @patch("geoparser.modules.resolvers.sentencetransformer.spacy.cli.download")
+    @patch("geoparser.modules.resolvers.sentencetransformer.spacy.load")
+    @patch(
+        "geoparser.modules.resolvers.sentencetransformer.AutoTokenizer.from_pretrained"
+    )
+    @patch("geoparser.modules.resolvers.sentencetransformer.SentenceTransformer")
+    @patch("geoparser.modules.resolvers.sentencetransformer.Gazetteer")
+    def test_downloads_spacy_model_if_not_found(
+        self,
+        mock_gazetteer,
+        mock_transformer,
+        mock_tokenizer,
+        mock_spacy_load,
+        mock_download,
+    ):
+        """Test that spaCy model is automatically downloaded if not found."""
+        # Arrange
+        from geoparser.modules.resolvers.sentencetransformer import (
+            SentenceTransformerResolver,
+        )
+
+        mock_nlp = Mock()
+
+        # First call raises OSError (model not found), second call succeeds
+        mock_spacy_load.side_effect = [OSError("Model not found"), mock_nlp]
+
+        # Act
+        resolver = SentenceTransformerResolver()
+
+        # Assert
+        mock_download.assert_called_once_with("xx_sent_ud_sm")
+        assert mock_spacy_load.call_count == 2
+        assert resolver.nlp == mock_nlp
+
+    @patch("geoparser.modules.resolvers.sentencetransformer.spacy.load")
+    @patch(
+        "geoparser.modules.resolvers.sentencetransformer.AutoTokenizer.from_pretrained"
+    )
+    @patch("geoparser.modules.resolvers.sentencetransformer.SentenceTransformer")
+    @patch("geoparser.modules.resolvers.sentencetransformer.Gazetteer")
+    def test_does_not_download_spacy_model_if_exists(
+        self, mock_gazetteer, mock_transformer, mock_tokenizer, mock_spacy_load
+    ):
+        """Test that spaCy model is not downloaded if it already exists."""
+        # Arrange
+        from geoparser.modules.resolvers.sentencetransformer import (
+            SentenceTransformerResolver,
+        )
+
+        mock_nlp = Mock()
+        mock_spacy_load.return_value = mock_nlp
+
+        # Act
+        resolver = SentenceTransformerResolver()
+
+        # Assert
+        # spacy.load should be called only once (no download needed)
+        assert mock_spacy_load.call_count == 1
+        assert resolver.nlp == mock_nlp
 
 
 @pytest.mark.unit
