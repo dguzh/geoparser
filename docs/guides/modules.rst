@@ -62,7 +62,7 @@ To use the SentenceTransformerResolver with default settings:
 
    resolver = SentenceTransformerResolver()
 
-The default configuration uses the ``dguzh/geo-all-MiniLM-L6-v2`` model with the ``geonames`` gazetteer, a minimum similarity threshold of 0.7, and up to 3 iterations through increasingly broad search methods. You can customize any of these parameters:
+The default configuration uses the ``dguzh/geo-all-MiniLM-L6-v2`` model with the ``geonames`` gazetteer, a minimum similarity threshold of 0.6, and up to 3 iterations through increasingly broad search methods. You can customize any of these parameters:
 
 .. code-block:: python
 
@@ -72,7 +72,7 @@ The default configuration uses the ``dguzh/geo-all-MiniLM-L6-v2`` model with the
    resolver = SentenceTransformerResolver(
        model_name="dguzh/geo-all-distilroberta-v1",
        gazetteer_name="swissnames3d",
-       min_similarity=0.6,  # Accept more candidates
+       min_similarity=0.5,  # Accept more candidates
        max_iter=2  # Less exhaustive candidate search
    )
 

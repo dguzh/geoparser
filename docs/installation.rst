@@ -15,9 +15,7 @@ Install the Irchel Geoparser using pip:
    pip install geoparser
 
 .. warning::
-   **macOS users**: The Irchel Geoparser requires Python with SQLite extension loading support, which is **not available** in the default macOS system Python or Python installed from the official Python website. You must use Python installed via Homebrew.
-   
-   See the :doc:`macos_compatibility` guide for detailed setup instructions.
+   **macOS users**: The Irchel Geoparser requires Python with SQLite extension loading support, which is **not available** in the default macOS system Python or Python installed from the official Python website. You must use Python installed via Homebrew. See the :doc:`macos` guide for detailed setup instructions.
 
 .. note::
    The library uses PyTorch through the sentence-transformers package. If you have a CUDA-enabled GPU, you can significantly speed up geoparsing tasks by installing PyTorch with CUDA support. Visit the PyTorch `Get Started <https://pytorch.org/get-started/locally/>`_ page and follow the instructions appropriate for your system.

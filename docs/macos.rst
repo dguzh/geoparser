@@ -94,4 +94,4 @@ If you see ``False``, the Python installation does not support extensions and th
 Next Steps
 ----------
 
-Your macOS system is now ready to use the Irchel Geoparser! Return to the :doc:`installation` page to install the library and download gazetteers using the standard ``pip install geoparser`` command.
+Your macOS system is now ready to use the Irchel Geoparser! Return to the :doc:`installation` page to install the library and download a gazetteer.

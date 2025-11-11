@@ -22,7 +22,7 @@ The library includes support for two major gazetteers that cover different geogr
 GeoNames
 ~~~~~~~~
 
-GeoNames is a comprehensive global gazetteer containing over 13 million place names. It includes entries for countries, administrative divisions, cities, towns, neighborhoods, natural features like mountains and rivers, and points of interest like buildings and monuments. GeoNames includes population figures for inhabited places, elevation values for many features, and alternate names in multiple languages and writing systems. This rich attribute set makes GeoNames suitable for a wide range of applications, from news article geoparsing to social media analysis to historical text processing. However, the global scope means that coverage varies significantly by region, with some areas having more detailed and up-to-date information than others.
+GeoNames is a comprehensive global gazetteer containing over 13 million place names. It includes entries for countries, administrative divisions, cities, towns, neighborhoods, natural features like mountains and rivers, and points of interest like buildings and monuments. However, the global scope means that coverage varies significantly by region, with some areas having more detailed and up-to-date information than others.
 
 To install GeoNames:
 
@@ -35,7 +35,7 @@ The installation process can take up to 15-30 minutes depending on your system.
 SwissNames3D
 ~~~~~~~~~~~~
 
-SwissNames3D is a high-quality gazetteer specifically for Switzerland, provided by Swisstopo, the Swiss Federal Office of Topography. It contains detailed information about geographic features within Switzerland, including precise 3D coordinates, building addresses, and fine-grained feature classifications. SwissNames3D includes not just major cities but also small neighborhoods, individual streets, buildings, bridges, peaks, valleys, and other landscape features. Each entry is classified according to a detailed schema that distinguishes between different types of settlements, infrastructure, terrain, and vegetation. The gazetteer also maintains relationships with administrative boundaries, allowing features to be associated with municipalities, districts, and cantons.
+SwissNames3D is a high-quality gazetteer specifically for Switzerland, provided by Swisstopo, the Swiss Federal Office of Topography. It contains detailed information about geographic features within Switzerland, including precise 3D coordinates, building addresses, and fine-grained feature classifications. The gazetteer also maintains relationships with administrative boundaries, allowing features to be associated with municipalities, districts, and cantons.
 
 To install SwissNames3D:
 

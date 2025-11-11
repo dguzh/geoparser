@@ -13,12 +13,10 @@ Geoparsing extracts place names from text and links them to geographic locations
 Key Features
 ------------
 
-- **Modular Architecture**: Pluggable recognizer and resolver modules can be mixed, matched, and extended by implementing well-defined interfaces
 - **Project-Based Workflows**: Documents and processing results are stored in a persistent database, enabling long-term research and comparative analysis
-- **Configuration Tracking**: Modules are tracked by their configuration to avoid redundant processing and support side-by-side comparison of different strategies
+- **Modular Architecture**: Pluggable recognizer and resolver modules can be mixed, matched, and extended by implementing well-defined interfaces
+- **Trainable Modules**: Recognizers and resolvers can be fine-tuned on annotated data to improve performance for specific domains or languages
 - **Custom Gazetteers**: Arbitrary geographic databases can be integrated through YAML configuration files that describe data sources and transformations
-- **Automatic Setup**: The system handles gazetteer downloading, schema generation, data transformation, indexing, and spatial operations automatically
-- **Trainable Modules**: Built-in recognizers and resolvers can be fine-tuned on annotated data to improve performance for specific domains or languages
 
 Getting Started
 ---------------

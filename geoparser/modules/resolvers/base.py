@@ -36,7 +36,7 @@ class Resolver(Module):
         Args:
             texts: List of document text strings
             references: List of lists of tuples containing (start, end) positions of references.
-                Each inner list corresponds to references in one document at the same index in texts.
+                       Each inner list corresponds to references in one document at the same index in texts.
 
         Returns:
             A list of lists where each inner list corresponds to referents for references in one
