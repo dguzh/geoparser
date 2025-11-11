@@ -5,9 +5,9 @@ Document
 --------
 
 .. autoclass:: geoparser.db.models.Document
-   :members: text, toponyms
+   :members:
    :show-inheritance:
-   :exclude-members: id, project_id, project, references, recognitions, model_config, model_post_init
+   :exclude-members: id, project_id, project, references, recognitions, text, toponyms, model_config, model_post_init
 
    The Document model represents a text document that has been added to a project for geoparsing.
 
@@ -30,9 +30,9 @@ Reference
 ---------
 
 .. autoclass:: geoparser.db.models.Reference
-   :members: start, end, text, location
+   :members:
    :show-inheritance:
-   :exclude-members: id, document_id, recognizer_id, document, recognizer, referents, resolutions, model_config, model_post_init
+   :exclude-members: id, document_id, recognizer_id, document, recognizer, referents, resolutions, start, end, text, location, model_config, model_post_init
 
    The Reference model represents an identified place name (toponym) within a document.
 
@@ -69,21 +69,13 @@ Feature
 -------
 
 .. autoclass:: geoparser.db.models.Feature
-   :members: location_id_value, data, geometry
+   :members:
    :show-inheritance:
-   :exclude-members: id, source_id, source, names, model_config, model_post_init
+   :exclude-members: id, source_id, source, names, location_id_value, data, geometry, model_config, model_post_init
 
    The Feature model represents a geographic entity from a gazetteer.
 
    **Properties:**
-
-   .. py:attribute:: location_id_value
-      :type: str
-      :no-index:
-
-      The identifier value for this feature within its gazetteer. For GeoNames, this is the
-      geonameid; for SwissNames3D, it's the UUID. This value can be used to uniquely
-      identify and retrieve the feature.
 
    .. py:attribute:: data
       :type: Optional[Dict[str, Any]]
