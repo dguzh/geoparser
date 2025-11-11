@@ -3,30 +3,29 @@
 Irchel Geoparser
 ================
 
-The **Irchel Geoparser** is a Python library for geoparsing unstructured text—identifying place names (toponyms) and linking them to their geographic locations. Built on a modular architecture, it provides both simple interfaces for quick tasks and powerful project-based workflows for research and production use.
+The **Irchel Geoparser** is a Python library for identifying place names in unstructured text and linking them to geographic locations. It provides a modular platform for geoparsing that supports custom processing strategies, persistent project-based workflows, and configuration-driven gazetteer integration.
 
 Overview
 --------
 
-Geoparsing involves two fundamental tasks. First, toponym recognition identifies place names within text. Second, toponym resolution disambiguates these names by linking them to specific geographic entities in a gazetteer database. The Irchel Geoparser addresses both tasks through a flexible, extensible framework that combines state-of-the-art language models with efficient search algorithms.
-
-The library has evolved from an integrated prototype into a modular platform. Rather than providing a single fixed pipeline, it offers composable components that can be mixed and matched to create customized geoparsing workflows. This architecture enables researchers to experiment with different recognition and resolution strategies, compare results systematically, and extend the system with their own processing modules without modifying the core codebase.
+Geoparsing extracts place names from text and links them to geographic locations. The Irchel Geoparser approaches this task through a two-stage pipeline that separates toponym recognition (identifying place names) from toponym resolution (linking them to specific locations). This separation is a deliberate design choice that enables flexible experimentation with different processing strategies and systematic comparison of their performance. Identified toponyms are linked to gazetteer databases that provide rich geographic metadata including coordinates, administrative hierarchies, feature types, and population information.
 
 Key Features
 ------------
 
-The modular architecture provides several capabilities that distinguish this library from traditional geoparsing tools. Projects offer persistent workspaces where documents and processing results are stored in a local database, enabling long-term research workflows and comparative analysis. For quick tasks, a simple stateless interface creates temporary projects behind the scenes and returns results immediately.
-
-Processing modules implement pluggable recognizers and resolvers that can be easily swapped and combined. The library includes recognizers built on spaCy's named entity recognition and resolvers using fine-tuned SentenceTransformer models for context-aware disambiguation. Users can implement custom modules by adhering to simple interfaces, and these modules integrate seamlessly with the rest of the system. Both built-in and custom modules support training and fine-tuning on annotated data.
-
-The gazetteer system supports multiple geographic databases through configuration files rather than hardcoded logic. Built-in support includes GeoNames for global coverage and SwissNames3D for Switzerland. The configuration-driven installer automatically generates optimized database schemas and provides multiple search strategies—from exact string matching to fuzzy search—that resolvers can employ based on their disambiguation approach.
+- **Modular Architecture**: Pluggable recognizer and resolver modules can be mixed, matched, and extended by implementing well-defined interfaces
+- **Project-Based Workflows**: Documents and processing results are stored in a persistent database, enabling long-term research and comparative analysis
+- **Configuration Tracking**: Modules are tracked by their configuration to avoid redundant processing and support side-by-side comparison of different strategies
+- **Custom Gazetteers**: Arbitrary geographic databases can be integrated through YAML configuration files that describe data sources and transformations
+- **Automatic Setup**: The system handles gazetteer downloading, schema generation, data transformation, indexing, and spatial operations automatically
+- **Trainable Modules**: Built-in recognizers and resolvers can be fine-tuned on annotated data to improve performance for specific domains or languages
 
 Getting Started
 ---------------
 
-To begin using the Irchel Geoparser, follow the :doc:`installation` guide to set up the library, download required models, and install a gazetteer. Then proceed to the :doc:`quickstart` guide for a simple example of parsing text and accessing results.
+To begin using the Irchel Geoparser, follow the :doc:`installation` guide to set up the library and install a gazetteer. Then proceed to the :doc:`quickstart` guide for a simple example of parsing text and accessing results.
 
-For more advanced usage, explore the user guides that cover project-based workflows, working with different modules, training your own models, and configuring gazetteers. The API reference provides detailed documentation of all classes and methods.
+For more advanced usage, explore the user guides that cover :doc:`guides/projects`, :doc:`guides/modules`, :doc:`guides/training`, and :doc:`guides/gazetteers`. The API reference provides detailed documentation of all classes and methods.
 
 Contributing
 ------------
@@ -36,7 +35,7 @@ The Irchel Geoparser is an open-source project, and contributions are welcome. I
 Acknowledgments
 ---------------
 
-The Irchel Geoparser originated as part of my Master's thesis and was further developed with support from the `Department of Geography <https://www.geo.uzh.ch/>`_ at the University of Zurich. I thank my supervisor, Prof. Dr. Ross Purves, for his insightful feedback, encouragement, and the opportunity to continue this work as part of a research project.
+The Irchel Geoparser originated as part of my Master's thesis and was further developed with support from the `Department of Geography <https://www.geo.uzh.ch/>`_ at the University of Zurich and the `Public Data Lab <https://publicdatalab.ch/>`_ of the Digitalization Initiative of the Zurich Higher Education Institutions. I thank Prof. Dr. Ross Purves for the opportunity to continue this work as part of a research project.
 
 License
 -------
@@ -57,7 +56,7 @@ The Irchel Geoparser is released under the `MIT License <https://github.com/dguz
    :caption: User Guides
    :hidden:
 
-   guides/working_with_projects
+   guides/projects
    guides/modules
    guides/training
    guides/gazetteers

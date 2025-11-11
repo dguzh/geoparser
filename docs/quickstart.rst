@@ -8,7 +8,9 @@ This guide provides a quick introduction to using the Irchel Geoparser for basic
 Basic Usage
 -----------
 
-The simplest way to use the library is through the ``Geoparser`` class, which provides a stateless interface for quick geoparsing tasks. Here's a minimal working example:
+The simplest way to use the library is through the ``Geoparser`` class, which provides a stateless interface for quick geoparsing tasks. The default settings are optimized for English texts, prioritizing speed over accuracy. See the :ref:`customizing-geoparser` section below for other options.
+
+Here's a minimal working example:
 
 .. code-block:: python
 
@@ -87,9 +89,12 @@ Each toponym (``Reference`` object) has several important properties:
 - ``text``: The actual text of the place name as it appears in the document
 - ``start``: The starting character position in the document text
 - ``end``: The ending character position in the document text
-- ``location``: The resolved geographic entity (a ``Feature`` object), or ``None`` if resolution failed
+- ``location``: The resolved geographic entity (a ``Feature`` object), or ``None`` if the toponym is unresolved
 
-When a toponym is successfully resolved, its ``location`` property contains a ``Feature`` object with geographic information. The ``data`` property of the feature contains attributes from the gazetteer, which vary depending on which gazetteer you're using. For GeoNames, common attributes include ``name``, ``country_name``, ``latitude``, ``longitude``, ``population``, ``feature_name`` (the type of place), and various administrative divisions.
+When a toponym is successfully resolved, its ``location`` property contains a ``Feature`` object with geographic information. The feature has two main properties:
+
+- ``data``: A dictionary containing attributes from the gazetteer. For GeoNames, common attributes include ``name``, ``country_name``, ``latitude``, ``longitude``, ``population``, ``feature_name`` (the type of place), and various administrative divisions.
+- ``geometry``: A Shapely geometry object representing the feature's spatial extent (typically a Point for most gazetteers, but can be polygons or other geometry types).
 
 Working with Unresolved Toponyms
 ---------------------------------
@@ -110,6 +115,8 @@ Not all identified place names can be successfully linked to geographic location
                print(f"  Resolved to: {toponym.location.data.get('name')}")
            else:
                print("  Could not be resolved (fictional location)")
+
+.. _customizing-geoparser:
 
 Customizing the Geoparser
 --------------------------
@@ -146,14 +153,14 @@ By default, the ``parse()`` method creates a temporary project internally and de
    documents = geoparser.parse("Berlin is the capital of Germany.", save=True)
    # Results saved under project name: a1b2c3d4
 
-When ``save=True``, the method prints the project name that was created. You can later access these results using the ``Project`` class, as described in the :doc:`guides/working_with_projects` guide.
+When ``save=True``, the method prints the project name that was created. You can later access these results using the ``Project`` class, as described in the :doc:`guides/projects` guide.
 
 Next Steps
 ----------
 
 This quickstart covered the basics of using the Irchel Geoparser for simple tasks. To learn more about advanced features, explore these guides:
 
-- :doc:`guides/working_with_projects` - Persistent workspaces for research and analysis
+- :doc:`guides/projects` - Persistent workspaces for research and analysis
 - :doc:`guides/modules` - Using and creating custom recognizers and resolvers
 - :doc:`guides/training` - Fine-tuning models on your own data
 - :doc:`guides/gazetteers` - Working with different geographic databases

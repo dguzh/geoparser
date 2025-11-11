@@ -1,12 +1,14 @@
 .. _modules:
 
-Working with Modules
-====================
+Modules
+=======
 
-The Irchel Geoparser uses a modular architecture where recognition and resolution are handled by pluggable components called modules. This design allows you to mix and match different processing strategies, create custom implementations, and extend the system without modifying its core. Understanding how modules work is essential for customizing the geoparsing pipeline to your specific needs.
+This guide explains how to use the built-in recognizer and resolver modules, customize their behavior, and create your own custom modules.
 
-Module System Overview
-----------------------
+Overview
+--------
+
+The Irchel Geoparser uses a modular architecture where recognition and resolution are handled by pluggable components called modules. This design allows you to mix and match different processing strategies, create custom implementations, and extend the system without modifying its core.
 
 Modules come in two types: recognizers identify place names in text, while resolvers link these place names to geographic entities in gazetteers. Each module type implements a specific interface that defines how it interacts with the rest of the system. The key aspect of this architecture is that modules are completely database-agnostic—they operate purely on text and return predictions, while service layers handle all database interactions.
 
@@ -18,7 +20,7 @@ Built-in Recognizers
 SpacyRecognizer
 ~~~~~~~~~~~~~~~
 
-The ``SpacyRecognizer`` uses spaCy's named entity recognition capabilities to identify potential place names in text. It recognizes entities labeled as geopolitical entities (GPE), locations (LOC), and facilities (FAC) as potential toponyms.
+The ``SpacyRecognizer`` uses spaCy's named entity recognition capabilities to identify potential place names in text. By default, it recognizes entities labeled as geopolitical entities (GPE), locations (LOC), and facilities (FAC) as potential toponyms, though this can be customized.
 
 To use the SpacyRecognizer with default settings:
 
@@ -40,11 +42,9 @@ The default configuration uses the ``en_core_web_sm`` model and recognizes entit
        entity_types=["GPE", "LOC"]  # Only geopolitical entities and locations
    )
 
-The ``model_name`` parameter accepts any installed spaCy model that includes a named entity recognizer. Larger models like ``en_core_web_trf`` provide higher accuracy but require more memory and processing time. For non-English texts, specify an appropriate spaCy model for that language.
+The ``model_name`` parameter accepts any spaCy model that includes a named entity recognizer. Larger models like ``en_core_web_trf`` provide higher accuracy but require more memory and processing time. For non-English texts, specify an appropriate spaCy model for that language.
 
 The ``entity_types`` parameter allows you to filter which entity types are considered as toponyms. By default, the recognizer includes FAC (facilities like buildings and landmarks), GPE (geopolitical entities like countries and cities), and LOC (natural locations and regions). If your application only needs to identify country and city names, you might restrict this to just GPE.
-
-The SpacyRecognizer is best suited for general-purpose toponym recognition in well-formed text. It performs well on news articles, Wikipedia entries, and similar formal writing. For specialized domains or informal text, you might need to fine-tune the underlying spaCy model or implement a custom recognizer.
 
 Built-in Resolvers
 ------------------
@@ -52,7 +52,7 @@ Built-in Resolvers
 SentenceTransformerResolver
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The ``SentenceTransformerResolver`` uses transformer-based language models to disambiguate place names by comparing contextual embeddings. It extracts the context surrounding each place name, retrieves candidate locations from the gazetteer, generates textual descriptions of these candidates, and selects the candidate whose description most closely matches the context based on cosine similarity.
+The ``SentenceTransformerResolver`` uses transformer-based language models to disambiguate place names by comparing contextual embeddings. It extracts the context surrounding each place name, retrieves candidate locations from the gazetteer, generates textual descriptions of these candidates, and selects the candidate whose description most closely matches the context based on embedding cosine similarity.
 
 To use the SentenceTransformerResolver with default settings:
 
@@ -80,7 +80,7 @@ The ``model_name`` parameter specifies which SentenceTransformer model to use fo
 
 The ``gazetteer_name`` parameter determines which geographic database to search. The specified gazetteer must be installed on your system. Each gazetteer has different coverage and attribute schemas, so make sure your application requirements match the gazetteer's capabilities.
 
-The ``min_similarity`` threshold controls how confident the resolver must be before accepting a match. Higher thresholds reduce false positives but may leave more toponyms unresolved. Lower thresholds resolve more toponyms but may introduce incorrect matches. The default value of 0.7 provides a reasonable balance for most applications.
+The ``min_similarity`` threshold controls how confident the resolver must be before accepting a match. Higher thresholds reduce false positives but may leave more toponyms unresolved. Lower thresholds resolve more toponyms but may introduce incorrect matches.
 
 The ``max_iter`` parameter controls how aggressively the resolver searches for candidates. The resolver uses an iterative strategy starting with exact string matching and progressively relaxing to phrase matching, partial matching, and fuzzy matching. Each iteration also considers more rank tiers of search results. A higher ``max_iter`` value means the resolver will try harder to find candidates for difficult toponyms, but this increases processing time.
 
@@ -237,12 +237,12 @@ Resolvers typically interact with gazetteers to find candidate locations. The li
 
    import typing as t
    from geoparser.modules.resolvers import Resolver
-   from geoparser.gazetteer import Gazetteer
+   from geoparser import Gazetteer
 
-   class NearestNeighborResolver(Resolver):
+   class PopulationResolver(Resolver):
        """Resolver that selects the most populous candidate."""
        
-       NAME = "NearestNeighborResolver"
+       NAME = "PopulationResolver"
        
        def __init__(self, gazetteer_name: str = "geonames"):
            super().__init__(gazetteer_name=gazetteer_name)
@@ -290,39 +290,39 @@ The ``Gazetteer`` class provides two main methods for retrieving candidates. The
 
 When implementing custom resolvers, always handle the case where no candidates are found by returning ``None`` for that reference. Make sure the returned structure exactly matches the input ``references`` structure—each document should have the same number of results as it has references, and they should be in the same order.
 
-Module IDs and Configuration
------------------------------
+Making Modules Trainable
+-------------------------
 
-Each module instance has a unique ID generated by hashing its name and configuration parameters. This ID serves as the module's identifier in the database and determines whether results already exist for a particular module configuration.
+If you want your custom modules to be trainable, implement a ``fit()`` method with the appropriate interface. For recognizers, the ``fit()`` method should accept texts and reference positions:
 
 .. code-block:: python
 
-   from geoparser.modules import SpacyRecognizer
+   def fit(
+       self,
+       texts: t.List[str],
+       references: t.List[t.List[t.Tuple[int, int]]],
+       **kwargs
+   ) -> None:
+       """Train the recognizer on annotated data."""
+       # Implement your training logic here
+       pass
 
-   recognizer1 = SpacyRecognizer(model_name="en_core_web_sm")
-   recognizer2 = SpacyRecognizer(model_name="en_core_web_sm")
-   recognizer3 = SpacyRecognizer(model_name="en_core_web_trf")
+For resolvers, the ``fit()`` method should additionally accept referents:
 
-   print(recognizer1.id)  # e.g., "3f4a2b1c"
-   print(recognizer2.id)  # Same as recognizer1
-   print(recognizer3.id)  # Different ID due to different model
+.. code-block:: python
 
-Modules with identical names and configurations receive the same ID, which means the system recognizes them as equivalent. If you run ``project.run_recognizer(recognizer2)`` after already running with ``recognizer1``, the system will skip processing because it detects that the documents have already been processed by a recognizer with that configuration.
+   def fit(
+       self,
+       texts: t.List[str],
+       references: t.List[t.List[t.Tuple[int, int]]],
+       referents: t.List[t.List[t.Optional[t.Tuple[str, str]]]],
+       **kwargs
+   ) -> None:
+       """Train the resolver on annotated data."""
+       # Implement your training logic here
+       pass
 
-This ID system enables efficient reprocessing avoidance and makes it possible to compare results from different module configurations. When designing custom modules, include all relevant configuration parameters in the ``__init__`` call to the parent class so they become part of the module's identity.
-
-Best Practices
---------------
-
-When working with modules, consider several practices that improve reliability and reproducibility. Design modules to be stateless where possible—all configuration should be specified at initialization, and the ``predict()`` method should not maintain state between calls. This makes modules easier to test and ensures consistent behavior.
-
-For custom modules, include comprehensive docstrings that explain the module's purpose, configuration parameters, and any limitations or assumptions. If your module has external dependencies (like machine learning models or external APIs), document these requirements clearly.
-
-Test your modules thoroughly with edge cases like empty texts, texts with no place names, very long texts, and texts in unexpected formats. Make sure your module handles errors gracefully and returns ``None`` for documents or references it cannot process rather than raising exceptions.
-
-When creating modules for specific domains or languages, include that information in the module name and configuration. For example, ``RegexRecognizer(patterns=german_patterns, language="de")`` makes it clear that this recognizer is designed for German texts.
-
-If you develop a module that might be useful to others, consider packaging it as a separate Python package that depends on the geoparser library. This allows others to install and use your module without modifying the core library. Document your module's performance characteristics, training data (if applicable), and recommended use cases so users can decide whether it fits their needs.
+The ``fit()`` method can accept additional keyword arguments for training parameters like learning rate, batch size, or number of epochs. Once implemented, your custom modules can be trained using the project-level training methods described in the :doc:`training` guide.
 
 Next Steps
 ----------
@@ -331,7 +331,7 @@ Now that you understand the module system, you can explore:
 
 - :doc:`training` - Learn how to fine-tune recognizers and resolvers on your own data
 - :doc:`gazetteers` - Understand how to work with geographic databases
-- :doc:`working_with_projects` - Use modules in project-based workflows
+- :doc:`projects` - Use modules in project-based workflows
 
 For complete API documentation of module classes, see the :doc:`../api/modules` reference.
 

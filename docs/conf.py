@@ -12,7 +12,7 @@ sys.path.insert(0, os.path.abspath(".."))
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
 project = "Irchel Geoparser"
-copyright = "2024, Diego Gomes"
+copyright = "2025, Diego Gomes"
 author = "Diego Gomes"
 release = "0.3.0"
 

@@ -4,11 +4,6 @@ Modules
 Base Classes
 ------------
 
-.. automodule:: geoparser.modules.module
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
 .. automodule:: geoparser.modules.recognizers.base
    :members:
    :undoc-members:
