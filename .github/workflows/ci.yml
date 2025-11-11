@@ -31,6 +31,18 @@ jobs:
       run: |
         release=$(bash .github/stg_release.sh)
         poetry version $release
+    - name: Verify spatialite binaries are present
+      shell: bash
+      run: |
+        echo "Checking spatialite binaries..."
+        find geoparser/db/extensions/spatialite/binaries -name "mod_spatialite.*" -type f | sort
+        echo "All binaries will be included in the wheel"
+    - name: Verify spellfix binaries are present
+      shell: bash
+      run: |
+        echo "Checking spellfix binaries..."
+        find geoparser/db/extensions/spellfix/binaries -name "spellfix.*" -type f | sort
+        echo "All binaries will be included in the wheel"
     - name: Build a binary wheel and a source tarball
       run: poetry build
     - name: Store the distribution packages

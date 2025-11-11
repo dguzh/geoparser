@@ -1,0 +1,277 @@
+name: Spellfix Binaries
+
+on:
+  push:
+    branches:
+      - development
+  workflow_dispatch:
+
+jobs:
+  collect-binaries:
+    name: ${{ matrix.platform }}-${{ matrix.arch }}
+    strategy:
+      matrix:
+        include:
+          # Linux x86_64
+          - os: ubuntu-latest
+            platform: linux
+            arch: x86_64
+            compile_cmd: |
+              wget "https://www.sqlite.org/src/raw?name=ext/misc/spellfix.c&ci=trunk" -O spellfix.c
+              wget "https://www.sqlite.org/2024/sqlite-amalgamation-3470000.zip" -O sqlite.zip
+              unzip -j sqlite.zip "*/sqlite3ext.h" "*/sqlite3.h"
+              gcc -fPIC -shared spellfix.c -o spellfix.so
+            binary_path: ./spellfix.so
+            filename: spellfix.so
+          
+          # macOS Intel
+          - os: macos-15-intel  # Intel runners
+            platform: darwin
+            arch: x86_64
+            compile_cmd: |
+              curl -L -o spellfix.c "https://www.sqlite.org/src/raw?name=ext/misc/spellfix.c&ci=trunk"
+              curl -L -o sqlite.zip "https://www.sqlite.org/2024/sqlite-amalgamation-3470000.zip"
+              unzip -j sqlite.zip "*/sqlite3ext.h" "*/sqlite3.h"
+              gcc -fPIC -dynamiclib -undefined dynamic_lookup spellfix.c -o spellfix.dylib
+            binary_path: ./spellfix.dylib
+            filename: spellfix.dylib
+          
+          # macOS ARM64 (Apple Silicon)
+          - os: macos-latest  # ARM64 runners
+            platform: darwin
+            arch: arm64
+            compile_cmd: |
+              curl -L -o spellfix.c "https://www.sqlite.org/src/raw?name=ext/misc/spellfix.c&ci=trunk"
+              curl -L -o sqlite.zip "https://www.sqlite.org/2024/sqlite-amalgamation-3470000.zip"
+              unzip -j sqlite.zip "*/sqlite3ext.h" "*/sqlite3.h"
+              gcc -fPIC -dynamiclib -undefined dynamic_lookup spellfix.c -o spellfix.dylib
+            binary_path: ./spellfix.dylib
+            filename: spellfix.dylib
+          
+          # Windows AMD64
+          - os: windows-latest
+            platform: win
+            arch: amd64
+            compile_cmd: |
+              curl -L -o spellfix.c "https://www.sqlite.org/src/raw?name=ext/misc/spellfix.c&ci=trunk"
+              curl -L -o sqlite.zip "https://www.sqlite.org/2024/sqlite-amalgamation-3470000.zip"
+              unzip -j sqlite.zip "*/sqlite3ext.h" "*/sqlite3.h"
+              gcc -fPIC -shared spellfix.c -o spellfix.dll
+            binary_path: ./spellfix.dll
+            filename: spellfix.dll
+
+    runs-on: ${{ matrix.os }}
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Set up build tools
+      shell: bash
+      run: |
+        if [ "${{ matrix.os }}" = "ubuntu-latest" ]; then
+          sudo apt-get update
+          sudo apt-get install -y build-essential
+        elif [ "${{ matrix.platform }}" = "darwin" ]; then
+          # macOS has gcc/clang by default
+          echo "Using system compiler"
+        elif [ "${{ matrix.os }}" = "windows-latest" ]; then
+          choco install mingw -y
+        fi
+
+    - name: Check if binary already exists
+      id: check_binary
+      shell: bash
+      run: |
+        BINARY_DIR="geoparser/db/extensions/spellfix/binaries/${{ matrix.platform }}-${{ matrix.arch }}"
+        BINARY_FILE="$BINARY_DIR/${{ matrix.filename }}"
+        
+        if [ -f "$BINARY_FILE" ]; then
+          echo "Binary already exists: $BINARY_FILE"
+          echo "exists=true" >> $GITHUB_OUTPUT
+        else
+          echo "Binary missing: $BINARY_FILE"
+          echo "exists=false" >> $GITHUB_OUTPUT
+          mkdir -p "$BINARY_DIR"
+        fi
+
+    - name: Compile spellfix extension
+      if: steps.check_binary.outputs.exists == 'false'
+      shell: bash
+      run: |
+        ${{ matrix.compile_cmd }}
+
+    - name: Copy binary to project directory
+      if: steps.check_binary.outputs.exists == 'false'
+      shell: bash
+      run: |
+        BINARY_DIR="geoparser/db/extensions/spellfix/binaries/${{ matrix.platform }}-${{ matrix.arch }}"
+        cp "${{ matrix.binary_path }}" "$BINARY_DIR/"
+        echo "✓ Copied binary to $BINARY_DIR"
+        
+        # macOS: Patch the dylib to use @loader_path (make it relocatable)
+        if [ "${{ matrix.platform }}" = "darwin" ]; then
+          dylib="$BINARY_DIR/${{ matrix.filename }}"
+          chmod +w "$dylib"
+          dylib_name=$(basename "$dylib")
+          install_name_tool -id "@loader_path/$dylib_name" "$dylib"
+          echo "✓ Patched install name to use @loader_path"
+        fi
+
+    - name: Verify binary
+      if: steps.check_binary.outputs.exists == 'false'
+      shell: bash
+      run: |
+        BINARY_DIR="geoparser/db/extensions/spellfix/binaries/${{ matrix.platform }}-${{ matrix.arch }}"
+        echo "Contents of $BINARY_DIR:"
+        ls -la "$BINARY_DIR"
+        
+        # Verify the binary exists
+        if [ ! -f "$BINARY_DIR/${{ matrix.filename }}" ]; then
+          echo "✗ Binary missing!"
+          exit 1
+        fi
+        echo "✓ Binary is present."
+
+    - name: Upload binary as artifact
+      if: steps.check_binary.outputs.exists == 'false'
+      uses: actions/upload-artifact@v4
+      with:
+        name: spellfix-${{ matrix.platform }}-${{ matrix.arch }}
+        path: geoparser/db/extensions/spellfix/binaries/${{ matrix.platform }}-${{ matrix.arch }}/
+
+  commit-binaries:
+    name: Commit all binaries
+    needs: collect-binaries
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Download all artifacts
+      uses: actions/download-artifact@v4
+      with:
+        path: artifacts
+
+    - name: Copy binaries to correct locations
+      run: |
+        # Create directory structure
+        mkdir -p geoparser/db/extensions/spellfix/binaries/{linux-x86_64,darwin-x86_64,darwin-arm64,win-amd64}
+        
+        # Copy binaries from artifacts
+        if [ -d "artifacts/spellfix-linux-x86_64" ]; then
+          cp artifacts/spellfix-linux-x86_64/* geoparser/db/extensions/spellfix/binaries/linux-x86_64/
+        fi
+        if [ -d "artifacts/spellfix-darwin-x86_64" ]; then
+          cp artifacts/spellfix-darwin-x86_64/* geoparser/db/extensions/spellfix/binaries/darwin-x86_64/
+        fi
+        if [ -d "artifacts/spellfix-darwin-arm64" ]; then
+          cp artifacts/spellfix-darwin-arm64/* geoparser/db/extensions/spellfix/binaries/darwin-arm64/
+        fi
+        if [ -d "artifacts/spellfix-win-amd64" ]; then
+          cp artifacts/spellfix-win-amd64/* geoparser/db/extensions/spellfix/binaries/win-amd64/
+        fi
+
+    - name: Check what binaries were collected
+      run: |
+        echo "=== Binaries collected in this run ==="
+        find geoparser/db/extensions/spellfix/binaries -type f | sort
+        
+        echo "=== File sizes ==="
+        find geoparser/db/extensions/spellfix/binaries -type f -exec ls -lh {} \;
+
+    - name: Commit and push binaries
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        
+        # Add all spellfix binaries
+        git add geoparser/db/extensions/spellfix/binaries/
+        
+        if git diff --staged --quiet; then
+          echo "No new binaries to commit"
+        else
+          git commit -m "Add/update Spellfix binaries
+          
+          Collected binaries for multiple platforms:
+          $(find geoparser/db/extensions/spellfix/binaries -type f | sort | sed 's/^/- /')"
+          
+          # Push changes with retry logic to handle concurrent pushes
+          MAX_RETRIES=5
+          RETRY_COUNT=0
+          
+          while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+            if git push origin ${{ github.ref_name }}; then
+              echo "✓ Successfully pushed Spellfix binaries"
+              break
+            else
+              RETRY_COUNT=$((RETRY_COUNT + 1))
+              if [ $RETRY_COUNT -lt $MAX_RETRIES ]; then
+                echo "Push failed, pulling latest changes and retrying (attempt $RETRY_COUNT/$MAX_RETRIES)..."
+                git pull --rebase origin ${{ github.ref_name }}
+                sleep $((RETRY_COUNT * 2))
+              else
+                echo "Failed to push after $MAX_RETRIES attempts"
+                exit 1
+              fi
+            fi
+          done
+        fi
+
+  summary:
+    name: Binary Collection Summary
+    needs: [collect-binaries, commit-binaries]
+    runs-on: ubuntu-latest
+    if: always()
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        ref: ${{ github.ref_name }}
+        fetch-depth: 0
+        
+    - name: Pull latest changes
+      if: needs.commit-binaries.result == 'success'
+      run: |
+        git pull origin ${{ github.ref_name }}
+        
+    - name: Check all binaries
+      run: |
+        echo "=== Spellfix Binary Collection Summary ==="
+        PLATFORMS=(
+          "linux-x86_64:spellfix.so"
+          "darwin-x86_64:spellfix.dylib"
+          "darwin-arm64:spellfix.dylib"
+          "win-amd64:spellfix.dll"
+        )
+        
+        ALL_PRESENT=true
+        for platform_file in "${PLATFORMS[@]}"; do
+          IFS=':' read -r platform filename <<< "$platform_file"
+          binary_path="geoparser/db/extensions/spellfix/binaries/$platform/$filename"
+          
+          echo "Checking for directory: geoparser/db/extensions/spellfix/binaries/$platform"
+          if [ -d "geoparser/db/extensions/spellfix/binaries/$platform" ]; then
+            echo "✓ Directory exists. Contents:"
+            ls -la "geoparser/db/extensions/spellfix/binaries/$platform"
+          else
+            echo "✗ Directory missing: geoparser/db/extensions/spellfix/binaries/$platform"
+            ALL_PRESENT=false
+          fi
+        done
+        
+        if [ "$ALL_PRESENT" = true ]; then
+          echo "🎉 All Spellfix binary directories are available!"
+          exit 0
+        else
+          echo "⚠️  Some binary directories are still missing."
+          exit 1
+        fi
+

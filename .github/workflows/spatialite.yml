@@ -1,0 +1,469 @@
+name: SpatiaLite Binaries
+
+on:
+  push:
+    branches:
+      - development
+  workflow_dispatch:
+
+jobs:
+  collect-binaries:
+    name: ${{ matrix.platform }}-${{ matrix.arch }}
+    strategy:
+      matrix:
+        include:
+          # Linux x86_64
+          - os: ubuntu-latest
+            platform: linux
+            arch: x86_64
+            install_cmd: |
+              sudo apt-get update
+              sudo apt-get install -y libsqlite3-mod-spatialite
+            binary_path: /usr/lib/x86_64-linux-gnu/mod_spatialite.so
+            filename: mod_spatialite.so
+          
+          # macOS Intel
+          - os: macos-15-intel  # Intel runners
+            platform: darwin
+            arch: x86_64
+            install_cmd: |
+              brew install libspatialite
+            binary_path: /usr/local/lib/mod_spatialite.dylib
+            filename: mod_spatialite.dylib
+          
+          # macOS ARM64 (Apple Silicon)
+          - os: macos-latest  # ARM64 runners
+            platform: darwin
+            arch: arm64
+            install_cmd: |
+              brew install libspatialite
+            binary_path: /opt/homebrew/lib/mod_spatialite.dylib
+            filename: mod_spatialite.dylib
+          
+          # Windows AMD64
+          - os: windows-latest
+            platform: win
+            arch: amd64
+            install_cmd: |
+              curl -L -o spatialite.7z https://www.gaia-gis.it/gaia-sins/windows-bin-amd64/mod_spatialite-5.1.0-win-amd64.7z
+              7z x spatialite.7z -o./spatialite-extract
+            binary_path: ./spatialite-extract/mod_spatialite.dll
+            filename: mod_spatialite.dll
+
+    runs-on: ${{ matrix.os }}
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Set up environment
+      if: matrix.os == 'ubuntu-latest'
+      shell: bash
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y patchelf
+
+    - name: Check if binary already exists
+      id: check_binary
+      shell: bash
+      run: |
+        BINARY_DIR="geoparser/db/extensions/spatialite/binaries/${{ matrix.platform }}-${{ matrix.arch }}"
+        BINARY_FILE="$BINARY_DIR/${{ matrix.filename }}"
+        
+        if [ -f "$BINARY_FILE" ]; then
+          echo "Binary already exists: $BINARY_FILE"
+          echo "exists=true" >> $GITHUB_OUTPUT
+        else
+          echo "Binary missing: $BINARY_FILE"
+          echo "exists=false" >> $GITHUB_OUTPUT
+          mkdir -p "$BINARY_DIR"
+        fi
+
+    - name: Install SpatiaLite
+      if: steps.check_binary.outputs.exists == 'false'
+      shell: bash
+      run: |
+        ${{ matrix.install_cmd }}
+
+    - name: Copy binary and dependencies to project directory
+      if: steps.check_binary.outputs.exists == 'false'
+      shell: bash
+      run: |
+        BINARY_DIR="geoparser/db/extensions/spatialite/binaries/${{ matrix.platform }}-${{ matrix.arch }}"
+        
+        # Windows: Copy all DLLs from the extracted folder
+        if [ "${{ matrix.platform }}" = "win" ]; then
+          cp ./spatialite-extract/mod_spatialite-5.1.0-win-amd64/*.dll "$BINARY_DIR/"
+          echo "✓ Copied all DLLs to $BINARY_DIR"
+        
+        # macOS: Use otool to find and copy dependencies, then patch install names
+        elif [ "${{ matrix.platform }}" = "darwin" ]; then
+          BINARY_PATH="${{ matrix.binary_path }}"
+          cp "$BINARY_PATH" "$BINARY_DIR/"
+          
+          # Copy all Homebrew dependencies (from /opt/homebrew or /usr/local)
+          # Excludes system libraries from /usr/lib and /System
+          { otool -L "$BINARY_PATH" || true; } | { grep -E '^\s+(/opt/homebrew|/usr/local)' || true; } | awk '{print $1}' | while read dep; do
+            [ -z "$dep" ] && continue
+            if [ -f "$dep" ]; then
+              cp "$dep" "$BINARY_DIR/"
+              echo "✓ Copied dependency: $dep"
+              
+              # Also check for @rpath/@loader_path dependencies
+              # Search Homebrew to find relative path dependencies
+              { otool -L "$dep" || true; } | { grep -E '^\s+@(rpath|loader_path)/' || true; } | awk '{print $1}' | while read rpath_dep; do
+                [ -z "$rpath_dep" ] && continue
+                rpath_file=$(basename "$rpath_dep")
+                
+                # Skip if already copied
+                [ -f "$BINARY_DIR/$rpath_file" ] && continue
+                
+                # Try same directory first (common case)
+                dep_dir=$(dirname "$dep")
+                if [ -f "$dep_dir/$rpath_file" ]; then
+                  cp "$dep_dir/$rpath_file" "$BINARY_DIR/"
+                  echo "✓ Copied @rpath dependency: $dep_dir/$rpath_file"
+                  continue
+                fi
+                
+                # Otherwise search all Homebrew locations
+                found=""
+                for base in /opt/homebrew /usr/local; do
+                  if [ -d "$base/opt" ]; then
+                    found=$(find "$base/opt" -name "$rpath_file" -type f 2>/dev/null | head -1 || true)
+                    if [ -n "$found" ] && [ -f "$found" ]; then
+                      cp "$found" "$BINARY_DIR/"
+                      echo "✓ Copied @rpath dependency from Homebrew: $found"
+                      break
+                    fi
+                  fi
+                done
+                
+                if [ -z "$found" ]; then
+                  echo "⚠ @rpath dependency not found: $rpath_file"
+                fi
+              done
+            else
+              echo "⚠ Dependency not found: $dep"
+            fi
+          done
+          
+          # Recursively find dependencies of dependencies
+          # Keep looping until no new dependencies are found
+          echo "Starting recursive dependency collection..."
+          prev_count=0
+          curr_count=$(ls -1 "$BINARY_DIR"/*.dylib 2>/dev/null | wc -l)
+          pass_num=1
+          
+          while [ "$curr_count" -ne "$prev_count" ]; do
+            echo "=== Pass $pass_num: Starting with $curr_count dylibs ==="
+            prev_count=$curr_count
+            
+            for dylib in "$BINARY_DIR"/*.dylib; do
+              [ -f "$dylib" ] || continue
+              dylib_name=$(basename "$dylib")
+              
+              # Check absolute Homebrew paths
+              while IFS= read -r dep; do
+                [ -z "$dep" ] && continue
+                dep_name=$(basename "$dep")
+                if [ -f "$dep" ]; then
+                  if [ ! -f "$BINARY_DIR/$dep_name" ]; then
+                    cp "$dep" "$BINARY_DIR/"
+                    echo "  ✓ $dylib_name → $dep_name (copied)"
+                    
+                    # Check if this new dependency has @rpath or @loader_path dependencies
+                    echo "  🔍 Checking $dep_name for @rpath/@loader_path dependencies..."
+                    rpath_count=0
+                    while IFS= read -r rpath_dep; do
+                      [ -z "$rpath_dep" ] && continue
+                      rpath_count=$((rpath_count + 1))
+                      rpath_file=$(basename "$rpath_dep")
+                      echo "    Found relative ref: $rpath_dep"
+                      
+                      # Skip if already copied
+                      if [ -f "$BINARY_DIR/$rpath_file" ]; then
+                        echo "    Already have $rpath_file"
+                        continue
+                      fi
+                      
+                      # Try same directory first
+                      dep_dir=$(dirname "$dep")
+                      if [ -f "$dep_dir/$rpath_file" ]; then
+                        cp "$dep_dir/$rpath_file" "$BINARY_DIR/"
+                        echo "  ✓ $dylib_name → $dep_name → $rpath_file (copied @rpath)"
+                        continue
+                      fi
+                      
+                      # Otherwise search Homebrew
+                      echo "    Searching Homebrew for $rpath_file..."
+                      found=""
+                      for base in /opt/homebrew /usr/local; do
+                        if [ -d "$base/opt" ]; then
+                          found=$(find "$base/opt" -name "$rpath_file" -type f 2>/dev/null | head -1 || true)
+                          if [ -n "$found" ] && [ -f "$found" ]; then
+                            cp "$found" "$BINARY_DIR/"
+                            echo "  ✓ $dylib_name → $dep_name → $rpath_file (copied @rpath from Homebrew)"
+                            break
+                          fi
+                        fi
+                      done
+                      
+                      if [ -z "$found" ] || [ ! -f "$found" ]; then
+                        echo "  ⚠ Could not find $rpath_file in Homebrew"
+                      fi
+                    done < <({ otool -L "$dep" || true; } | { grep -E '^\s+@(rpath|loader_path)/' || true; } | awk '{print $1}')
+                    [ $rpath_count -eq 0 ] && echo "    No @rpath/@loader_path dependencies found"
+                  fi
+                else
+                  echo "  ⚠ $dylib_name → $dep_name (not found: $dep)"
+                fi
+              done < <({ otool -L "$dylib" || true; } | { grep -E '^\s+(/opt/homebrew|/usr/local)' || true; } | awk '{print $1}')
+              
+              # Also check @rpath/@loader_path dependencies from already-copied dylibs
+              # For each relative path dependency, search Homebrew to find it
+              while IFS= read -r rpath_dep; do
+                [ -z "$rpath_dep" ] && continue
+                rpath_file=$(basename "$rpath_dep")
+                
+                # Skip if already copied
+                [ -f "$BINARY_DIR/$rpath_file" ] && continue
+                
+                # Search for this file in Homebrew
+                found=""
+                for base in /opt/homebrew /usr/local; do
+                  if [ -d "$base/opt" ]; then
+                    found=$(find "$base/opt" -name "$rpath_file" -type f 2>/dev/null | head -1 || true)
+                    if [ -n "$found" ] && [ -f "$found" ]; then
+                      cp "$found" "$BINARY_DIR/"
+                      echo "  ✓ $dylib_name → $rpath_file (copied from $(dirname $found))"
+                      break
+                    fi
+                  fi
+                done
+                
+                if [ -z "$found" ]; then
+                  echo "  ⚠ $dylib_name → $rpath_file (not found in Homebrew)"
+                fi
+              done < <({ otool -L "$dylib" || true; } | { grep -E '^\s+@(rpath|loader_path)/' || true; } | awk '{print $1}')
+            done
+            
+            curr_count=$(ls -1 "$BINARY_DIR"/*.dylib 2>/dev/null | wc -l)
+            echo "=== Pass $pass_num complete: $curr_count dylibs total ==="
+            pass_num=$((pass_num + 1))
+          done
+          
+          echo "✓ All dependencies collected ($curr_count dylibs after $((pass_num - 1)) passes)"
+          
+          # Patch all dylibs to use @loader_path (relative paths) instead of absolute paths
+          for dylib in "$BINARY_DIR"/*.dylib; do
+            if [ -f "$dylib" ]; then
+              echo "Patching install names in $(basename $dylib)"
+              chmod +w "$dylib"
+              
+              # Get all absolute path dependencies
+              { otool -L "$dylib" || true; } | { grep -E '^\s+/' || true; } | awk '{print $1}' | while read dep_path; do
+                [ -z "$dep_path" ] && continue
+                dep_name=$(basename "$dep_path")
+                # Only patch if the dependency is one we've copied (non-system libraries)
+                if [ -f "$BINARY_DIR/$dep_name" ]; then
+                  echo "  Rewriting $dep_path -> @loader_path/$dep_name"
+                  install_name_tool -change "$dep_path" "@loader_path/$dep_name" "$dylib"
+                fi
+              done
+              
+              # Also patch @rpath and @loader_path dependencies
+              { otool -L "$dylib" || true; } | { grep -E '^\s+@(rpath|loader_path)/' || true; } | awk '{print $1}' | while read rpath_dep; do
+                [ -z "$rpath_dep" ] && continue
+                dep_name=$(basename "$rpath_dep")
+                # Only patch if the dependency is one we've copied
+                if [ -f "$BINARY_DIR/$dep_name" ]; then
+                  echo "  Rewriting $rpath_dep -> @loader_path/$dep_name"
+                  install_name_tool -change "$rpath_dep" "@loader_path/$dep_name" "$dylib"
+                fi
+              done
+              
+              # Also update the dylib's own ID to use @loader_path
+              dylib_name=$(basename "$dylib")
+              install_name_tool -id "@loader_path/$dylib_name" "$dylib"
+            fi
+          done
+
+        # Linux: Use ldd to find and copy dependencies
+        elif [ "${{ matrix.platform }}" = "linux" ]; then
+          BINARY_PATH="${{ matrix.binary_path }}"
+          cp "$BINARY_PATH" "$BINARY_DIR/"
+          
+          ldd "$BINARY_PATH" | grep "=>" | awk '{print $3}' | while read dep; do
+            if [ -f "$dep" ]; then
+              cp "$dep" "$BINARY_DIR/"
+              echo "✓ Copied dependency: $dep"
+            fi
+          done
+          
+          # Use patchelf to make all binaries relocatable
+          for so_file in "$BINARY_DIR"/*.so*; do
+            if [ -f "$so_file" ]; then
+              echo "Patching $so_file"
+              chmod +w "$so_file"
+              patchelf --set-rpath '$ORIGIN' "$so_file"
+            fi
+          done
+        fi
+
+    - name: Verify binaries
+      if: steps.check_binary.outputs.exists == 'false'
+      shell: bash
+      run: |
+        BINARY_DIR="geoparser/db/extensions/spatialite/binaries/${{ matrix.platform }}-${{ matrix.arch }}"
+        echo "Contents of $BINARY_DIR:"
+        ls -la "$BINARY_DIR"
+        
+        # Verify the main binary exists
+        if [ ! -f "$BINARY_DIR/${{ matrix.filename }}" ]; then
+          echo "✗ Main binary missing!"
+          exit 1
+        fi
+        echo "✓ Main binary is present."
+
+    - name: Upload binaries as artifact
+      if: steps.check_binary.outputs.exists == 'false'
+      uses: actions/upload-artifact@v4
+      with:
+        name: spatialite-${{ matrix.platform }}-${{ matrix.arch }}
+        path: geoparser/db/extensions/spatialite/binaries/${{ matrix.platform }}-${{ matrix.arch }}/
+
+  commit-binaries:
+    name: Commit all binaries
+    needs: collect-binaries
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Download all artifacts
+      uses: actions/download-artifact@v4
+      with:
+        path: artifacts
+
+    - name: Copy binaries to correct locations
+      run: |
+        # Create directory structure
+        mkdir -p geoparser/db/extensions/spatialite/binaries/{linux-x86_64,darwin-x86_64,darwin-arm64,win-amd64}
+        
+        # Copy binaries from artifacts
+        if [ -d "artifacts/spatialite-linux-x86_64" ]; then
+          cp artifacts/spatialite-linux-x86_64/* geoparser/db/extensions/spatialite/binaries/linux-x86_64/
+        fi
+        if [ -d "artifacts/spatialite-darwin-x86_64" ]; then
+          cp artifacts/spatialite-darwin-x86_64/* geoparser/db/extensions/spatialite/binaries/darwin-x86_64/
+        fi
+        if [ -d "artifacts/spatialite-darwin-arm64" ]; then
+          cp artifacts/spatialite-darwin-arm64/* geoparser/db/extensions/spatialite/binaries/darwin-arm64/
+        fi
+        if [ -d "artifacts/spatialite-win-amd64" ]; then
+          cp artifacts/spatialite-win-amd64/* geoparser/db/extensions/spatialite/binaries/win-amd64/
+        fi
+
+    - name: Check what binaries were collected
+      run: |
+        echo "=== Binaries collected in this run ==="
+        find geoparser/db/extensions/spatialite/binaries -type f | sort
+        
+        echo "=== File sizes ==="
+        find geoparser/db/extensions/spatialite/binaries -type f -exec ls -lh {} \;
+
+    - name: Commit and push binaries
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        
+        # Add all spatialite binaries
+        git add geoparser/db/extensions/spatialite/binaries/
+        
+        if git diff --staged --quiet; then
+          echo "No new binaries to commit"
+        else
+          git commit -m "Add/update SpatiaLite binaries
+          
+          Collected binaries for multiple platforms:
+          $(find geoparser/db/extensions/spatialite/binaries -type f | sort | sed 's/^/- /')"
+          
+          # Push changes with retry logic to handle concurrent pushes
+          MAX_RETRIES=5
+          RETRY_COUNT=0
+          
+          while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+            if git push origin ${{ github.ref_name }}; then
+              echo "✓ Successfully pushed SpatiaLite binaries"
+              break
+            else
+              RETRY_COUNT=$((RETRY_COUNT + 1))
+              if [ $RETRY_COUNT -lt $MAX_RETRIES ]; then
+                echo "Push failed, pulling latest changes and retrying (attempt $RETRY_COUNT/$MAX_RETRIES)..."
+                git pull --rebase origin ${{ github.ref_name }}
+                sleep $((RETRY_COUNT * 2))
+              else
+                echo "Failed to push after $MAX_RETRIES attempts"
+                exit 1
+              fi
+            fi
+          done
+        fi
+
+  summary:
+    name: Binary Collection Summary
+    needs: [collect-binaries, commit-binaries]
+    runs-on: ubuntu-latest
+    if: always()
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        ref: ${{ github.ref_name }}
+        fetch-depth: 0
+        
+    - name: Pull latest changes
+      if: needs.commit-binaries.result == 'success'
+      run: |
+        git pull origin ${{ github.ref_name }}
+        
+    - name: Check all binaries
+      run: |
+        echo "=== SpatiaLite Binary Collection Summary ==="
+        PLATFORMS=(
+          "linux-x86_64:mod_spatialite.so"
+          "darwin-x86_64:mod_spatialite.dylib"
+          "darwin-arm64:mod_spatialite.dylib"
+          "win-amd64:mod_spatialite.dll"
+        )
+        
+        ALL_PRESENT=true
+        for platform_file in "${PLATFORMS[@]}"; do
+          IFS=':' read -r platform filename <<< "$platform_file"
+          binary_path="geoparser/db/extensions/spatialite/binaries/$platform/$filename"
+          
+          echo "Checking for directory: geoparser/db/extensions/spatialite/binaries/$platform"
+          if [ -d "geoparser/db/extensions/spatialite/binaries/$platform" ]; then
+            echo "✓ Directory exists. Contents:"
+            ls -la "geoparser/db/extensions/spatialite/binaries/$platform"
+          else
+            echo "✗ Directory missing: geoparser/db/extensions/spatialite/binaries/$platform"
+            ALL_PRESENT=false
+          fi
+        done
+        
+        if [ "$ALL_PRESENT" = true ]; then
+          echo "🎉 All SpatiaLite binary directories are available!"
+          exit 0
+        else
+          echo "⚠️  Some binary directories are still missing."
+          exit 1
+        fi
