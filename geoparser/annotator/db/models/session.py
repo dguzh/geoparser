@@ -4,53 +4,58 @@ from datetime import datetime
 
 from sqlmodel import Field, Relationship, SQLModel
 
-from geoparser.annotator.db.models.settings import SessionSettingsCreate
+from geoparser.annotator.db.models.settings import AnnotatorSessionSettingsCreate
 
 if t.TYPE_CHECKING:
-    from geoparser.annotator.db.models.document import Document, DocumentCreate
-    from geoparser.annotator.db.models.settings import SessionSettings
+    from geoparser.annotator.db.models.document import (
+        AnnotatorDocument,
+        AnnotatorDocumentCreate,
+    )
+    from geoparser.annotator.db.models.settings import AnnotatorSessionSettings
 
 
-class SessionBase(SQLModel):
+class AnnotatorSessionBase(SQLModel):
     created_at: datetime = Field(default_factory=datetime.now)
     last_updated: datetime = Field(default_factory=datetime.now)
     gazetteer: str
 
 
-class Session(SessionBase, table=True):
+class AnnotatorSession(AnnotatorSessionBase, table=True):
+    __tablename__ = "annotatorsession"
+
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-    settings: "SessionSettings" = Relationship(
+    settings: "AnnotatorSessionSettings" = Relationship(
         back_populates="session",
         sa_relationship_kwargs={
             "cascade": "all, delete-orphan",
             "passive_deletes": True,
         },
     )
-    documents: list["Document"] = Relationship(
+    documents: list["AnnotatorDocument"] = Relationship(
         back_populates="session",
         sa_relationship_kwargs={
-            "order_by": "Document.doc_index",
+            "order_by": "AnnotatorDocument.doc_index",
             "cascade": "all, delete-orphan",
             "passive_deletes": True,
         },
     )
 
 
-class SessionCreate(SessionBase):
-    settings: "SessionSettingsCreate" = SessionSettingsCreate()
-    documents: t.Optional[list["DocumentCreate"]] = []
+class AnnotatorSessionCreate(AnnotatorSessionBase):
+    settings: "AnnotatorSessionSettingsCreate" = AnnotatorSessionSettingsCreate()
+    documents: t.Optional[list["AnnotatorDocumentCreate"]] = []
 
 
-class SessionDownload(SessionBase):
-    documents: t.Optional[list["DocumentCreate"]] = []
+class AnnotatorSessionDownload(AnnotatorSessionBase):
+    documents: t.Optional[list["AnnotatorDocumentCreate"]] = []
 
 
-class SessionForTemplate(SessionBase):
+class AnnotatorSessionForTemplate(AnnotatorSessionBase):
     id: uuid.UUID
     num_documents: int
 
 
-class SessionUpdate(SQLModel):
+class AnnotatorSessionUpdate(SQLModel):
     id: uuid.UUID
     created_at: t.Optional[datetime] = None
     last_updated: t.Optional[datetime] = None

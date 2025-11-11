@@ -1,2 +1,3 @@
+from geoparser.gazetteer import Gazetteer
 from geoparser.geoparser import Geoparser
-from geoparser.trainer import GeoparserTrainer
+from geoparser.project import Project

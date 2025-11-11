@@ -1,9 +1,9 @@
 from geoparser.cli import app
 
 
-def main():  # pragma: no cover
+def main():
     app()
 
 
-if __name__ == "__main__":  # pragma: no cover
+if __name__ == "__main__":
     main()

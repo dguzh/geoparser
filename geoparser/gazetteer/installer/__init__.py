@@ -1,0 +1,1 @@
+from geoparser.gazetteer.installer.installer import GazetteerInstaller

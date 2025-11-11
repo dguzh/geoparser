@@ -8,19 +8,19 @@ from sqlmodel import Session as DBSession
 from geoparser.annotator.db.crud.base import BaseRepository
 from geoparser.annotator.db.crud.document import DocumentRepository
 from geoparser.annotator.db.crud.settings import SessionSettingsRepository
-from geoparser.annotator.db.models.document import DocumentCreate
+from geoparser.annotator.db.models.document import AnnotatorDocumentCreate
 from geoparser.annotator.db.models.session import (
-    Session,
-    SessionCreate,
-    SessionDownload,
-    SessionUpdate,
+    AnnotatorSession,
+    AnnotatorSessionCreate,
+    AnnotatorSessionDownload,
+    AnnotatorSessionUpdate,
 )
-from geoparser.annotator.db.models.toponym import ToponymCreate
+from geoparser.annotator.db.models.toponym import AnnotatorToponymCreate
 from geoparser.annotator.exceptions import SessionNotFoundException
 
 
 class SessionRepository(BaseRepository):
-    model = Session
+    model = AnnotatorSession
     exception_factory: t.Callable = lambda x, y: SessionNotFoundException(
         f"{x} with ID {y} not found."
     )
@@ -29,10 +29,10 @@ class SessionRepository(BaseRepository):
     def create(
         cls,
         db: DBSession,
-        item: SessionCreate,
+        item: AnnotatorSessionCreate,
         exclude: t.Optional[list[str]] = [],
         additional: t.Optional[dict[str, t.Any]] = {},
-    ) -> Session:
+    ) -> AnnotatorSession:
         # Create the main session object
         session = super().create(
             db, item, exclude=["settings", "documents", *exclude], additional=additional
@@ -55,18 +55,18 @@ class SessionRepository(BaseRepository):
     @classmethod
     def create_from_json(
         cls, db: DBSession, json_str: str, keep_id: bool = False
-    ) -> Session:
+    ) -> AnnotatorSession:
         # Parse the JSON input
         content = json.loads(json_str)
-        session = SessionCreate.model_validate(
+        session = AnnotatorSessionCreate.model_validate(
             {
                 **content,
                 "documents": [
-                    DocumentCreate.model_validate(
+                    AnnotatorDocumentCreate.model_validate(
                         {
                             **document_dict,
                             "toponyms": [
-                                ToponymCreate.model_validate(toponym_dict)
+                                AnnotatorToponymCreate.model_validate(toponym_dict)
                                 for toponym_dict in document_dict["toponyms"]
                             ],
                             "spacy_applied": True,
@@ -82,29 +82,31 @@ class SessionRepository(BaseRepository):
         return cls.create(db, session, additional=additional)
 
     @classmethod
-    def read(cls, db: DBSession, id: uuid.UUID) -> Session:
+    def read(cls, db: DBSession, id: uuid.UUID) -> AnnotatorSession:
         return super().read(db, id)
 
     @classmethod
     def read_to_json(cls, db: DBSession, id: uuid.UUID) -> dict:
         item = cls.read(db, id)
-        result = SessionDownload(
+        result = AnnotatorSessionDownload(
             **item.model_dump(),
             documents=[
-                DocumentCreate(**document.model_dump(), toponyms=document.toponyms)
+                AnnotatorDocumentCreate(
+                    **document.model_dump(), toponyms=document.toponyms
+                )
                 for document in item.documents
             ],
         )
         return jsonable_encoder(result)
 
     @classmethod
-    def read_all(cls, db: DBSession, **filters) -> list[Session]:
+    def read_all(cls, db: DBSession, **filters) -> list[AnnotatorSession]:
         return super().read_all(db, **filters)
 
     @classmethod
-    def update(cls, db: DBSession, item: SessionUpdate) -> Session:
+    def update(cls, db: DBSession, item: AnnotatorSessionUpdate) -> AnnotatorSession:
         return super().update(db, item)
 
     @classmethod
-    def delete(cls, db: DBSession, id: uuid.UUID) -> Session:
+    def delete(cls, db: DBSession, id: uuid.UUID) -> AnnotatorSession:
         return super().delete(db, id)

@@ -1,0 +1,271 @@
+name: andorranames
+sources:
+  - name: andorra
+    path: tests/fixtures/gazetteer/data/AD.txt
+    file: AD.txt
+    type: tabular
+    separator: "\t"
+    attributes:
+      original:
+        - name: geonameid
+          type: INTEGER
+          index: true
+        - name: name
+          type: TEXT
+        - name: asciiname
+          type: TEXT
+        - name: alternatenames
+          type: TEXT
+        - name: latitude
+          type: REAL
+        - name: longitude
+          type: REAL
+        - name: feature_class
+          type: TEXT
+        - name: feature_code
+          type: TEXT
+        - name: country_code
+          type: TEXT
+          index: true
+        - name: cc2
+          type: TEXT
+        - name: admin1_code
+          type: TEXT
+        - name: admin2_code
+          type: TEXT
+        - name: admin3_code
+          type: TEXT
+        - name: admin4_code
+          type: TEXT
+        - name: population
+          type: INTEGER
+        - name: elevation
+          type: INTEGER
+        - name: dem
+          type: INTEGER
+        - name: timezone
+          type: TEXT
+        - name: modification_date
+          type: TEXT
+      derived:
+        - name: geometry
+          type: GEOMETRY
+          expression: "'POINT(' || longitude || ' ' || latitude || ')'"
+          index: true
+          srid: 4326
+        - name: feature_code_full
+          type: TEXT
+          expression: "feature_class || '.' || feature_code"
+          index: true
+        - name: admin1_code_full
+          type: TEXT
+          expression: "country_code || '.' || admin1_code"
+          index: true
+        - name: admin2_code_full
+          type: TEXT
+          expression: "country_code || '.' || admin1_code || '.' || admin2_code"
+          index: true
+        - name: name_no_parens
+          type: TEXT
+          expression: "CASE WHEN instr(name, '(') > 0 THEN trim(substr(name, 1, instr(name, '(') - 1)) ELSE name END"
+        - name: asciiname_no_parens
+          type: TEXT
+          expression: "CASE WHEN instr(asciiname, '(') > 0 THEN trim(substr(asciiname, 1, instr(asciiname, '(') - 1)) ELSE asciiname END"
+    view:
+      select:
+        - source: andorra
+          column: geonameid
+        - source: andorra
+          column: name
+        - source: andorra
+          column: name_no_parens
+        - source: andorra
+          column: asciiname
+        - source: andorra
+          column: asciiname_no_parens
+        - source: andorra
+          column: alternatenames
+        - source: andorra
+          column: latitude
+        - source: andorra
+          column: longitude
+        - source: andorra
+          column: feature_class
+        - source: andorra
+          column: feature_code
+        - source: featureCodes
+          column: name
+          alias: feature_name
+        - source: andorra
+          column: country_code
+        - source: countryInfo
+          column: Country
+          alias: country_name
+        - source: andorra
+          column: cc2
+        - source: andorra
+          column: admin1_code
+        - source: admin1CodesASCII
+          column: name
+          alias: admin1_name
+        - source: andorra
+          column: admin2_code
+        - source: admin2Codes
+          column: name
+          alias: admin2_name
+        - source: andorra
+          column: admin3_code
+        - source: andorra
+          column: admin4_code
+        - source: andorra
+          column: population
+        - source: andorra
+          column: elevation
+        - source: andorra
+          column: dem
+        - source: andorra
+          column: timezone
+        - source: andorra
+          column: modification_date
+        - source: shape
+          column: dummy
+        - source: andorra
+          column: geometry
+      join:
+        - type: LEFT JOIN
+          source: countryInfo
+          condition: andorra.country_code = countryInfo.ISO
+        - type: LEFT JOIN
+          source: admin1CodesASCII
+          condition: andorra.admin1_code_full = admin1CodesASCII.code
+        - type: LEFT JOIN
+          source: admin2Codes
+          condition: andorra.admin2_code_full = admin2Codes.code
+        - type: LEFT JOIN
+          source: featureCodes
+          condition: andorra.feature_code_full = featureCodes.code
+        - type: LEFT JOIN
+          source: shape
+          condition: ST_Within(andorra.geometry, shape.geometry)
+    features:
+      identifier:
+        - column: geonameid
+      names:
+        - column: name
+        - column: name_no_parens
+        - column: asciiname
+        - column: asciiname_no_parens
+        - column: alternatenames
+          separator: ","
+
+  - name: admin1CodesASCII
+    path: tests/fixtures/gazetteer/data/admin1CodesASCII.txt
+    file: admin1CodesASCII.txt
+    type: tabular
+    separator: "\t"
+    attributes:
+      original:
+        - name: code
+          type: TEXT
+          index: true
+        - name: name
+          type: TEXT
+        - name: asciiname
+          type: TEXT
+        - name: geonameid
+          type: INTEGER
+
+  - name: admin2Codes
+    path: tests/fixtures/gazetteer/data/admin2Codes.txt
+    file: admin2Codes.txt
+    type: tabular
+    separator: "\t"
+    attributes:
+      original:
+        - name: code
+          type: TEXT
+          index: true
+        - name: name
+          type: TEXT
+        - name: asciiname
+          type: TEXT
+        - name: geonameid
+          type: INTEGER
+
+  - name: countryInfo
+    path: tests/fixtures/gazetteer/data/countryInfo.txt
+    file: countryInfo.txt
+    type: tabular
+    separator: "\t"
+    skiprows: 50
+    attributes:
+      original:
+        - name: ISO
+          type: TEXT
+          index: true
+        - name: ISO3
+          type: TEXT
+        - name: ISO_Numeric
+          type: INTEGER
+        - name: fips
+          type: TEXT
+        - name: Country
+          type: TEXT
+        - name: Capital
+          type: TEXT
+        - name: Area
+          type: REAL
+        - name: Population
+          type: INTEGER
+        - name: Continent
+          type: TEXT
+        - name: tld
+          type: TEXT
+        - name: CurrencyCode
+          type: TEXT
+        - name: CurrencyName
+          type: TEXT
+        - name: Phone
+          type: TEXT
+        - name: PostalCodeFormat
+          type: TEXT
+        - name: PostalCodeRegex
+          type: TEXT
+        - name: Languages
+          type: TEXT
+        - name: geonameid
+          type: INTEGER
+        - name: neighbours
+          type: TEXT
+        - name: EquivalentFipsCode
+          type: TEXT
+
+  - name: featureCodes
+    path: tests/fixtures/gazetteer/data/featureCodes_en.txt
+    file: featureCodes_en.txt
+    type: tabular
+    separator: "\t"
+    attributes:
+      original:
+        - name: code
+          type: TEXT
+          index: true
+        - name: name
+          type: TEXT
+        - name: description
+          type: TEXT
+
+  - name: shape
+    path: tests/fixtures/gazetteer/data/shape.shp
+    file: AD.shp
+    type: spatial
+    attributes:
+      original:
+        - name: geometry
+          type: GEOMETRY
+          index: true
+          srid: 4326
+      derived:
+        - name: dummy
+          type: TEXT
+          expression: "'Dummy Text'"

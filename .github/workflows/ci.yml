@@ -11,7 +11,10 @@ on:
 jobs:
   build:
     name: Build distribution 📦
-    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
     steps:
     - uses: actions/checkout@v4
     - name: Install Python
@@ -31,12 +34,24 @@ jobs:
       run: |
         release=$(bash .github/stg_release.sh)
         poetry version $release
+    - name: Verify spatialite binaries are present
+      shell: bash
+      run: |
+        echo "Checking spatialite binaries..."
+        find geoparser/db/extensions/spatialite/binaries -name "mod_spatialite.*" -type f | sort
+        echo "All binaries will be included in the wheel"
+    - name: Verify spellfix binaries are present
+      shell: bash
+      run: |
+        echo "Checking spellfix binaries..."
+        find geoparser/db/extensions/spellfix/binaries -name "spellfix.*" -type f | sort
+        echo "All binaries will be included in the wheel"
     - name: Build a binary wheel and a source tarball
       run: poetry build
     - name: Store the distribution packages
       uses: actions/upload-artifact@v4
       with:
-        name: python-package-distributions
+        name: python-package-distributions-${{ matrix.os }}
         path: dist/
 
   publish-to-pypi:
@@ -55,8 +70,9 @@ jobs:
     - name: Download all the dists
       uses: actions/download-artifact@v4
       with:
-        name: python-package-distributions
+        pattern: python-package-distributions-*
         path: dist/
+        merge-multiple: true
     - name: Publish distribution 📦 to PyPI
       uses: pypa/gh-action-pypi-publish@release/v1
 
@@ -74,8 +90,9 @@ jobs:
     - name: Download all the dists
       uses: actions/download-artifact@v4
       with:
-        name: python-package-distributions
+        pattern: python-package-distributions-*
         path: dist/
+        merge-multiple: true
     - name: Sign the dists with Sigstore
       uses: sigstore/gh-action-sigstore-python@v3.0.0
       with:
@@ -108,8 +125,9 @@ jobs:
     - name: Download all the dists
       uses: actions/download-artifact@v4
       with:
-        name: python-package-distributions
+        pattern: python-package-distributions-*
         path: dist/
+        merge-multiple: true
     - name: Publish distribution 📦 to TestPyPI
       uses: pypa/gh-action-pypi-publish@release/v1
       with:

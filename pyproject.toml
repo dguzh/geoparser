@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "geoparser"
-version = "0.2.3"
+version = "0.3.0"
 description = "A customizable geoparsing library for unstructured text"
 authors = ["Diego Gomes <diego.gomes@uzh.ch>"]
 readme = "README.md"
@@ -11,47 +11,50 @@ include = [
     "LICENSE",
     "THIRD_PARTY_LICENSES",
     "README.md",
+    "geoparser/db/extensions/**/*",
 ]
 
 [tool.poetry.dependencies]
 python = ">=3.10,<3.14"
-numpy = "^2.1.0"
-pandas = "^2.2.3"
-spacy = "^3.8.7"
-sentence-transformers = "^3.4.1"
-tqdm = "^4.67.0"
-torch = "^2.8.0"
-requests = "^2.32.3"
+accelerate = "^1.11.0"
 appdirs = "^1.4.4"
-datasets = "^3.1.0"
-haversine = "^2.8.1"
-accelerate = "^1.0.0"
-pydantic = "^2.9.2"
-geopandas = "^1.0.1"
-typer = "^0.15.2"
-fastapi = "^0.115.6"
-werkzeug = "^3.1.3"
-uvicorn = "^0.34.0"
+datasets = "^4.3.0"
+fastapi = "^0.121.0"
+geopandas = "^1.1.1"
+markupsafe = "^3.0.3"
+pandas = "^2.3.3"
+pydantic = "^2.12.3"
+pyogrio = "^0.11.1"
+pyproj = "^3.7.1"
 python-multipart = "^0.0.20"
-sqlmodel = "^0.0.22"
-srsly = ">=2.5.0"
-thinc = ">=8.3.6"
-scipy = ">=1.15.0"
-pyproj = ">=3.7.0"
-
+pyyaml = "^6.0.3"
+requests = "^2.32.5"
+sentence-transformers = "^5.1.2"
+shapely = "^2.1.2"
+spacy = "^3.8.7"
+sqlalchemy = "^2.0.44"
+sqlmodel = "^0.0.27"
+torch = "^2.9.0"
+tqdm = "^4.67.1"
+transformers = "^4.57.1"
+typer = "^0.20.0"
+uvicorn = "^0.38.0"
+werkzeug = "^3.1.3"
 
 [tool.poetry.group.dev.dependencies]
-black = "25.1.0"
-isort = "5.13.2"
-pytest = "^8.2.2"
-jupyter = "^1.0.0"
+autoflake = "^2.3.1"
+black = "^25.9.0"
+deptry = "^0.23.1"
+isort = "^7.0.0"
+jupyter = "^1.1.1"
+pytest = "^8.4.2"
+pytest-cov = "^7.0.0"
 requests-mock = "^1.12.1"
-en-core-web-sm = {url = "https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0.tar.gz"}
-sphinx = "7.4.7"
-sphinx-rtd-theme = "^3.0.1"
+sphinx = "^7.4.7"
+sphinx-rtd-theme = "^3.0.2"
 sphinx-tabs = "^3.4.7"
-pytest-cov = "^6.0.0"
-pylint = "^3.3.2"
+en-core-web-sm = {url = "https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0.tar.gz"}
+xx-sent-ud-sm = {url = "https://github.com/explosion/spacy-models/releases/download/xx_sent_ud_sm-3.8.0/xx_sent_ud_sm-3.8.0.tar.gz"}
 
 [build-system]
 requires = ["poetry-core"]
@@ -73,7 +76,10 @@ exclude_also = [
 
 [tool.coverage.run]
 source = ["geoparser"]
-omit = ["tests/*"]
+omit = [
+    "tests/*",
+    "geoparser/annotator/*",
+]
 relative_files = true
 
 [tool.coverage.paths]

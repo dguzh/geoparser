@@ -1,0 +1,251 @@
+name: geonames
+sources:
+  - name: allCountries
+    url: https://download.geonames.org/export/dump/allCountries.zip
+    file: allCountries.txt
+    type: tabular
+    separator: "\t"
+    attributes:
+      original:
+        - name: geonameid
+          type: INTEGER
+          index: true
+        - name: name
+          type: TEXT
+        - name: asciiname
+          type: TEXT
+        - name: alternatenames
+          type: TEXT
+        - name: latitude
+          type: REAL
+        - name: longitude
+          type: REAL
+        - name: feature_class
+          type: TEXT
+        - name: feature_code
+          type: TEXT
+        - name: country_code
+          type: TEXT
+          index: true
+        - name: cc2
+          type: TEXT
+        - name: admin1_code
+          type: TEXT
+        - name: admin2_code
+          type: TEXT
+        - name: admin3_code
+          type: TEXT
+        - name: admin4_code
+          type: TEXT
+        - name: population
+          type: INTEGER
+        - name: elevation
+          type: INTEGER
+        - name: dem
+          type: INTEGER
+        - name: timezone
+          type: TEXT
+        - name: modification_date
+          type: TEXT
+      derived:
+        - name: geometry
+          type: GEOMETRY
+          expression: "'POINT(' || longitude || ' ' || latitude || ')'"
+          index: true
+          srid: 4326
+        - name: feature_code_full
+          type: TEXT
+          expression: "feature_class || '.' || feature_code"
+          index: true
+        - name: admin1_code_full
+          type: TEXT
+          expression: "country_code || '.' || admin1_code"
+          index: true
+        - name: admin2_code_full
+          type: TEXT
+          expression: "country_code || '.' || admin1_code || '.' || admin2_code"
+          index: true
+        - name: name_no_parens
+          type: TEXT
+          expression: "CASE WHEN instr(name, '(') > 0 THEN trim(substr(name, 1, instr(name, '(') - 1)) ELSE name END"
+        - name: asciiname_no_parens
+          type: TEXT
+          expression: "CASE WHEN instr(asciiname, '(') > 0 THEN trim(substr(asciiname, 1, instr(asciiname, '(') - 1)) ELSE asciiname END"
+    view:
+      select:
+        - source: allCountries
+          column: geonameid
+        - source: allCountries
+          column: name
+        - source: allCountries
+          column: name_no_parens
+        - source: allCountries
+          column: asciiname
+        - source: allCountries
+          column: asciiname_no_parens
+        - source: allCountries
+          column: alternatenames
+        - source: allCountries
+          column: latitude
+        - source: allCountries
+          column: longitude
+        - source: allCountries
+          column: feature_class
+        - source: allCountries
+          column: feature_code
+        - source: featureCodes
+          column: name
+          alias: feature_name
+        - source: allCountries
+          column: country_code
+        - source: countryInfo
+          column: Country
+          alias: country_name
+        - source: allCountries
+          column: cc2
+        - source: allCountries
+          column: admin1_code
+        - source: admin1CodesASCII
+          column: name
+          alias: admin1_name
+        - source: allCountries
+          column: admin2_code
+        - source: admin2Codes
+          column: name
+          alias: admin2_name
+        - source: allCountries
+          column: admin3_code
+        - source: allCountries
+          column: admin4_code
+        - source: allCountries
+          column: population
+        - source: allCountries
+          column: elevation
+        - source: allCountries
+          column: dem
+        - source: allCountries
+          column: timezone
+        - source: allCountries
+          column: modification_date
+        - source: allCountries
+          column: geometry
+      join:
+        - type: LEFT JOIN
+          source: countryInfo
+          condition: allCountries.country_code = countryInfo.ISO
+        - type: LEFT JOIN
+          source: admin1CodesASCII
+          condition: allCountries.admin1_code_full = admin1CodesASCII.code
+        - type: LEFT JOIN
+          source: admin2Codes
+          condition: allCountries.admin2_code_full = admin2Codes.code
+        - type: LEFT JOIN
+          source: featureCodes
+          condition: allCountries.feature_code_full = featureCodes.code
+    features:
+      identifier:
+        - column: geonameid
+      names:
+        - column: name
+        - column: name_no_parens
+        - column: asciiname
+        - column: asciiname_no_parens
+        - column: alternatenames
+          separator: ","
+
+  - name: admin1CodesASCII
+    url: https://download.geonames.org/export/dump/admin1CodesASCII.txt
+    file: admin1CodesASCII.txt
+    type: tabular
+    separator: "\t"
+    attributes:
+      original:
+        - name: code
+          type: TEXT
+          index: true
+        - name: name
+          type: TEXT
+        - name: asciiname
+          type: TEXT
+        - name: geonameid
+          type: INTEGER
+
+  - name: admin2Codes
+    url: https://download.geonames.org/export/dump/admin2Codes.txt
+    file: admin2Codes.txt
+    type: tabular
+    separator: "\t"
+    attributes:
+      original:
+        - name: code
+          type: TEXT
+          index: true
+        - name: name
+          type: TEXT
+        - name: asciiname
+          type: TEXT
+        - name: geonameid
+          type: INTEGER
+
+  - name: countryInfo
+    url: https://download.geonames.org/export/dump/countryInfo.txt
+    file: countryInfo.txt
+    type: tabular
+    separator: "\t"
+    skiprows: 50
+    attributes:
+      original:
+        - name: ISO
+          type: TEXT
+          index: true
+        - name: ISO3
+          type: TEXT
+        - name: ISO_Numeric
+          type: INTEGER
+        - name: fips
+          type: TEXT
+        - name: Country
+          type: TEXT
+        - name: Capital
+          type: TEXT
+        - name: Area
+          type: REAL
+        - name: Population
+          type: INTEGER
+        - name: Continent
+          type: TEXT
+        - name: tld
+          type: TEXT
+        - name: CurrencyCode
+          type: TEXT
+        - name: CurrencyName
+          type: TEXT
+        - name: Phone
+          type: TEXT
+        - name: PostalCodeFormat
+          type: TEXT
+        - name: PostalCodeRegex
+          type: TEXT
+        - name: Languages
+          type: TEXT
+        - name: geonameid
+          type: INTEGER
+        - name: neighbours
+          type: TEXT
+        - name: EquivalentFipsCode
+          type: TEXT
+
+  - name: featureCodes
+    url: https://download.geonames.org/export/dump/featureCodes_en.txt
+    file: featureCodes_en.txt
+    type: tabular
+    separator: "\t"
+    attributes:
+      original:
+        - name: code
+          type: TEXT
+          index: true
+        - name: name
+          type: TEXT
+        - name: description
+          type: TEXT

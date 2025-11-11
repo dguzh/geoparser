@@ -5,31 +5,33 @@ from sqlalchemy import UUID, Column, ForeignKey
 from sqlmodel import Field, Relationship, SQLModel
 
 if t.TYPE_CHECKING:
-    from geoparser.annotator.db.models.document import Document
+    from geoparser.annotator.db.models.document import AnnotatorDocument
 
 
-class ToponymBase(SQLModel):
+class AnnotatorToponymBase(SQLModel):
     text: str
     start: int
     end: int
     loc_id: t.Optional[str] = ""
 
 
-class Toponym(ToponymBase, table=True):
+class AnnotatorToponym(AnnotatorToponymBase, table=True):
+    __tablename__ = "annotatortoponym"
+
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     document_id: uuid.UUID = Field(
         sa_column=Column(
-            UUID, ForeignKey("document.id", ondelete="CASCADE"), nullable=False
+            UUID, ForeignKey("annotatordocument.id", ondelete="CASCADE"), nullable=False
         )
     )
-    document: "Document" = Relationship(back_populates="toponyms")
+    document: "AnnotatorDocument" = Relationship(back_populates="toponyms")
 
 
-class ToponymCreate(ToponymBase):
+class AnnotatorToponymCreate(AnnotatorToponymBase):
     pass
 
 
-class ToponymUpdate(SQLModel):
+class AnnotatorToponymUpdate(SQLModel):
     id: uuid.UUID
     document_id: t.Optional[uuid.UUID] = None
     text: t.Optional[str] = None
