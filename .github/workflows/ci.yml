@@ -11,10 +11,7 @@ on:
 jobs:
   build:
     name: Build distribution 📦
-    strategy:
-      matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
     - name: Install Python
@@ -51,7 +48,7 @@ jobs:
     - name: Store the distribution packages
       uses: actions/upload-artifact@v4
       with:
-        name: python-package-distributions-${{ matrix.os }}
+        name: python-package-distributions
         path: dist/
 
   publish-to-pypi:
@@ -70,9 +67,8 @@ jobs:
     - name: Download all the dists
       uses: actions/download-artifact@v4
       with:
-        pattern: python-package-distributions-*
+        name: python-package-distributions
         path: dist/
-        merge-multiple: true
     - name: Publish distribution 📦 to PyPI
       uses: pypa/gh-action-pypi-publish@release/v1
 
@@ -90,9 +86,8 @@ jobs:
     - name: Download all the dists
       uses: actions/download-artifact@v4
       with:
-        pattern: python-package-distributions-*
+        name: python-package-distributions
         path: dist/
-        merge-multiple: true
     - name: Sign the dists with Sigstore
       uses: sigstore/gh-action-sigstore-python@v3.0.0
       with:
@@ -125,9 +120,8 @@ jobs:
     - name: Download all the dists
       uses: actions/download-artifact@v4
       with:
-        pattern: python-package-distributions-*
+        name: python-package-distributions
         path: dist/
-        merge-multiple: true
     - name: Publish distribution 📦 to TestPyPI
       uses: pypa/gh-action-pypi-publish@release/v1
       with:
