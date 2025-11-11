@@ -201,14 +201,14 @@ class TestSentenceTransformerResolverIntegration:
         resolver1 = SentenceTransformerResolver(
             model_name="dguzh/geo-all-MiniLM-L6-v2",
             gazetteer_name="andorranames",
-            min_similarity=0.7,
+            min_similarity=0.6,
             max_iter=3,
             attribute_map=ANDORRA_ATTRIBUTE_MAP,
         )
         resolver2 = SentenceTransformerResolver(
             model_name="dguzh/geo-all-MiniLM-L6-v2",
             gazetteer_name="andorranames",
-            min_similarity=0.7,
+            min_similarity=0.6,
             max_iter=3,
             attribute_map=ANDORRA_ATTRIBUTE_MAP,
         )
@@ -221,12 +221,12 @@ class TestSentenceTransformerResolverIntegration:
         # Arrange & Act
         resolver1 = SentenceTransformerResolver(
             gazetteer_name="andorranames",
-            min_similarity=0.7,
+            min_similarity=0.6,
             attribute_map=ANDORRA_ATTRIBUTE_MAP,
         )
         resolver2 = SentenceTransformerResolver(
             gazetteer_name="andorranames",
-            min_similarity=0.6,
+            min_similarity=0.5,
             attribute_map=ANDORRA_ATTRIBUTE_MAP,
         )
 

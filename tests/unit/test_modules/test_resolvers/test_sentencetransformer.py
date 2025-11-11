@@ -36,7 +36,7 @@ class TestSentenceTransformerResolverInitialization:
         assert resolver.name == "SentenceTransformerResolver"
         assert resolver.model_name == "dguzh/geo-all-MiniLM-L6-v2"
         assert resolver.gazetteer_name == "geonames"
-        assert resolver.min_similarity == 0.7
+        assert resolver.min_similarity == 0.6
         assert resolver.max_iter == 3
 
     @patch("geoparser.modules.resolvers.sentencetransformer.spacy.load")
@@ -247,8 +247,8 @@ class TestSentenceTransformerResolverInitialization:
         )
 
         # Act
-        resolver1 = SentenceTransformerResolver(min_similarity=0.7)
-        resolver2 = SentenceTransformerResolver(min_similarity=0.8)
+        resolver1 = SentenceTransformerResolver(min_similarity=0.6)
+        resolver2 = SentenceTransformerResolver(min_similarity=0.7)
 
         # Assert
         assert resolver1.id != resolver2.id
@@ -272,13 +272,13 @@ class TestSentenceTransformerResolverInitialization:
         resolver1 = SentenceTransformerResolver(
             model_name="model1",
             gazetteer_name="geonames",
-            min_similarity=0.7,
+            min_similarity=0.6,
             max_iter=3,
         )
         resolver2 = SentenceTransformerResolver(
             model_name="model1",
             gazetteer_name="geonames",
-            min_similarity=0.7,
+            min_similarity=0.6,
             max_iter=3,
         )
 

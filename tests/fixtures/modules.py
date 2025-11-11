@@ -108,7 +108,7 @@ def mock_sentencetransformer_resolver():
     mock_resolver.config = {
         "model_name": "dguzh/geo-all-MiniLM-L6-v2",
         "gazetteer_name": "geonames",
-        "min_similarity": 0.7,
+        "min_similarity": 0.6,
         "max_iter": 3,
     }
     mock_resolver.predict = Mock(return_value=[])

@@ -50,7 +50,7 @@ class SentenceTransformerResolver(Resolver):
         self,
         model_name: str = "dguzh/geo-all-MiniLM-L6-v2",
         gazetteer_name: str = "geonames",
-        min_similarity: float = 0.7,
+        min_similarity: float = 0.6,
         max_iter: int = 3,
         attribute_map: dict = None,
     ):
