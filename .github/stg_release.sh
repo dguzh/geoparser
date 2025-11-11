@@ -1,15 +1,15 @@
 #!/bin/bash
 
 # get latest version of pypi and testpypi from pip index
-latest_version_pypi=$(pip index versions geoparser |& grep "geoparser" |& grep -Po "\d+\.\d+\.\d+[^)]*")
-latest_version_testpypi=$(pip index versions geoparser --pre --index-url https://test.pypi.org/simple/ |& grep "geoparser" |& grep -Po "\d+\.\d+\.\d+[^)]*")
+latest_version_pypi=$(pip index versions geoparser 2>&1 | grep "geoparser" | sed -n 's/.*(\([0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*[^)]*\)).*/\1/p')
+latest_version_testpypi=$(pip index versions geoparser --pre --index-url https://test.pypi.org/simple/ 2>&1 | grep "geoparser" | sed -n 's/.*(\([0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*[^)]*\)).*/\1/p')
 # parse the pyproject.toml file from the command line
-package_version=$(grep "\[tool.poetry\]" -A 2 < "pyproject.toml" | tail -n 1 | grep -Po "\d+\.\d+\.\d+[^\"]*")
+package_version=$(grep "\[tool.poetry\]" -A 2 < "pyproject.toml" | tail -n 1 | sed -n 's/.*"\([0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*[^"]*\)".*/\1/p')
 
-version_pattern="\d+\.\d+\.\d+"
-testpypi_version=$(echo "$latest_version_testpypi" | grep -Po "$version_pattern")
-testpypi_suffix=$(echo "$latest_version_testpypi" | perl -pe "s/$version_pattern//g")
-testpypi_suffix_number=$(echo "$testpypi_suffix" | grep -Po "\d+$")
+version_pattern="[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*"
+testpypi_version=$(echo "$latest_version_testpypi" | sed -n "s/\($version_pattern\).*/\1/p")
+testpypi_suffix=$(echo "$latest_version_testpypi" | sed "s/$version_pattern//g")
+testpypi_suffix_number=$(echo "$testpypi_suffix" | sed -n 's/.*\([0-9][0-9]*\)$/\1/p')
 
 >&2 echo "latest_version_pypi $latest_version_pypi"
 >&2 echo "latest_version_testpypi $latest_version_testpypi"
