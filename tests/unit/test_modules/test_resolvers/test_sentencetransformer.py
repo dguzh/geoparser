@@ -37,7 +37,7 @@ class TestSentenceTransformerResolverInitialization:
         assert resolver.model_name == "dguzh/geo-all-MiniLM-L6-v2"
         assert resolver.gazetteer_name == "geonames"
         assert resolver.min_similarity == 0.6
-        assert resolver.max_iter == 3
+        assert resolver.max_tiers == 3
 
     @patch("geoparser.modules.resolvers.sentencetransformer.spacy.load")
     @patch(
@@ -67,7 +67,7 @@ class TestSentenceTransformerResolverInitialization:
             model_name="custom-model",
             gazetteer_name="custom-gazetteer",
             min_similarity=0.8,
-            max_iter=5,
+            max_tiers=5,
             attribute_map=custom_map,
         )
 
@@ -75,7 +75,7 @@ class TestSentenceTransformerResolverInitialization:
         assert resolver.model_name == "custom-model"
         assert resolver.gazetteer_name == "custom-gazetteer"
         assert resolver.min_similarity == 0.8
-        assert resolver.max_iter == 5
+        assert resolver.max_tiers == 5
 
     @patch("geoparser.modules.resolvers.sentencetransformer.spacy.load")
     @patch(
@@ -105,7 +105,7 @@ class TestSentenceTransformerResolverInitialization:
             model_name="test-model",
             gazetteer_name="test-gazetteer",
             min_similarity=0.75,
-            max_iter=4,
+            max_tiers=4,
             attribute_map=custom_map,
         )
 
@@ -113,7 +113,7 @@ class TestSentenceTransformerResolverInitialization:
         assert resolver.config["model_name"] == "test-model"
         assert resolver.config["gazetteer_name"] == "test-gazetteer"
         assert resolver.config["min_similarity"] == 0.75
-        assert resolver.config["max_iter"] == 4
+        assert resolver.config["max_tiers"] == 4
 
     @patch("geoparser.modules.resolvers.sentencetransformer.spacy.load")
     @patch(
@@ -273,13 +273,13 @@ class TestSentenceTransformerResolverInitialization:
             model_name="model1",
             gazetteer_name="geonames",
             min_similarity=0.6,
-            max_iter=3,
+            max_tiers=3,
         )
         resolver2 = SentenceTransformerResolver(
             model_name="model1",
             gazetteer_name="geonames",
             min_similarity=0.6,
-            max_iter=3,
+            max_tiers=3,
         )
 
         # Assert

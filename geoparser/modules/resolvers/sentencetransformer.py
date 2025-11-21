@@ -51,7 +51,7 @@ class SentenceTransformerResolver(Resolver):
         model_name: str = "dguzh/geo-all-MiniLM-L6-v2",
         gazetteer_name: str = "geonames",
         min_similarity: float = 0.6,
-        max_iter: int = 3,
+        max_tiers: int = 3,
         attribute_map: dict = None,
     ):
         """
@@ -61,7 +61,7 @@ class SentenceTransformerResolver(Resolver):
             model_name: HuggingFace model name for SentenceTransformer
             gazetteer_name: Name of the gazetteer to search
             min_similarity: Minimum similarity threshold to stop candidate generation
-            max_iter: Maximum number of iterations through search methods with increasing tiers
+            max_tiers: Maximum number of tiers to expand through search methods
             attribute_map: Optional custom attribute mapping for gazetteer.
                           If None, will look up gazetteer_name in GAZETTEER_ATTRIBUTE_MAP.
                           If provided, will be used directly.
@@ -72,7 +72,7 @@ class SentenceTransformerResolver(Resolver):
             model_name=model_name,
             gazetteer_name=gazetteer_name,
             min_similarity=min_similarity,
-            max_iter=max_iter,
+            max_tiers=max_tiers,
             attribute_map=attribute_map,
         )
 
@@ -80,7 +80,7 @@ class SentenceTransformerResolver(Resolver):
         self.model_name = model_name
         self.gazetteer_name = gazetteer_name
         self.min_similarity = min_similarity
-        self.max_iter = max_iter
+        self.max_tiers = max_tiers
 
         # Validate and set attribute map
         self.attribute_map = self._validate_and_set_attribute_map(
@@ -192,7 +192,7 @@ class SentenceTransformerResolver(Resolver):
         ]
 
         # Iterative search strategy with increasing tiers
-        for tiers in range(1, self.max_iter + 1):
+        for tiers in range(1, self.max_tiers + 1):
             for method in search_methods:
                 # Skip exact method for tiers > 1
                 if method == "exact" and tiers > 1:
@@ -220,9 +220,6 @@ class SentenceTransformerResolver(Resolver):
             # If all references resolved, we can stop
             if all(all(r is not None for r in doc_results) for doc_results in results):
                 break
-
-        # Handle remaining unresolved references by selecting best candidates (min_similarity=0.0)
-        self._evaluate_candidates(contexts, candidates, results)
 
         return results
 
