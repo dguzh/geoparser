@@ -8,13 +8,16 @@ from datasets import Dataset
 from sentence_transformers import SentenceTransformer, SentenceTransformerTrainer
 from sentence_transformers.losses import ContrastiveLoss
 from sentence_transformers.training_args import SentenceTransformerTrainingArguments
-from transformers import AutoTokenizer
+from transformers import AutoTokenizer, logging
 
 from geoparser.gazetteer.gazetteer import Gazetteer
 from geoparser.modules.resolvers import Resolver
 
 if t.TYPE_CHECKING:
     from geoparser.db.models.feature import Feature
+
+# Suppress transformers tokenizer token length warnings
+logging.set_verbosity_error()
 
 
 class SentenceTransformerResolver(Resolver):
