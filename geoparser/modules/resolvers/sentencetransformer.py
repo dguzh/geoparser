@@ -100,6 +100,10 @@ class SentenceTransformerResolver(Resolver):
         # Initialize gazetteer
         self.gazetteer = Gazetteer(gazetteer_name)
 
+        # Caches for document processing to avoid recomputation
+        self.doc_tokens: Dict[str, int] = {}  # text -> token count
+        self.doc_objects: Dict[str, spacy.tokens.Doc] = {}  # text -> spaCy doc object
+
         # Caches for embeddings to avoid recomputation
         self.context_embeddings: Dict[str, torch.Tensor] = {}  # context -> embedding
         self.candidate_embeddings: Dict[int, torch.Tensor] = (
@@ -440,12 +444,19 @@ class SentenceTransformerResolver(Resolver):
         token_limit = max_seq_length - 2
 
         # Check if entire document fits within token limit
-        doc_tokens = len(self.tokenizer.tokenize(text))
+        # Use cached token count if available
+        if text not in self.doc_tokens:
+            self.doc_tokens[text] = len(self.tokenizer.tokenize(text))
+        doc_tokens = self.doc_tokens[text]
+
         if doc_tokens <= token_limit:
             return text
 
         # Use spaCy to get sentence boundaries
-        doc = self.nlp(text)
+        # Use cached spaCy doc if available
+        if text not in self.doc_objects:
+            self.doc_objects[text] = self.nlp(text)
+        doc = self.doc_objects[text]
         sentences = list(doc.sents)
 
         # Find the sentence containing the reference
