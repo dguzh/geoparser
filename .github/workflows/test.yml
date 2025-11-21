@@ -51,7 +51,7 @@ jobs:
       - name: Install project dependencies
         run: poetry install
       
-      - name: Free up disk space (Linux)
+      - name: Free up disk space (Linux only)
         if: runner.os == 'Linux'
         run: |
           echo "Disk space before cleanup:"
@@ -62,28 +62,6 @@ jobs:
           sudo rm -rf "$AGENT_TOOLSDIRECTORY"
           echo "Disk space after cleanup:"
           df -h
-      
-      - name: Free up disk space (macOS)
-        if: runner.os == 'macOS'
-        run: |
-          echo "Disk space before cleanup:"
-          df -h
-          sudo rm -rf /usr/local/share/boost
-          sudo rm -rf ~/Library/Android
-          rm -rf ~/Library/Caches/Homebrew
-          echo "Disk space after cleanup:"
-          df -h
-      
-      - name: Free up disk space (Windows)
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          Write-Host "Disk space before cleanup:"
-          Get-PSDrive C | Select-Object Used,Free
-          Remove-Item -Path "C:\hostedtoolcache\windows\Ruby" -Recurse -Force -ErrorAction SilentlyContinue
-          Remove-Item -Path "C:\hostedtoolcache\windows\Python" -Recurse -Force -ErrorAction SilentlyContinue
-          Write-Host "Disk space after cleanup:"
-          Get-PSDrive C | Select-Object Used,Free
       
       - name: Run pytest
         run: poetry run pytest -v --cov=geoparser
