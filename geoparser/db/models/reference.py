@@ -40,9 +40,7 @@ class Reference(ReferenceBase, table=True):
             String, ForeignKey("recognizer.id", ondelete="CASCADE"), nullable=False
         )
     )
-    document: "Document" = Relationship(
-        back_populates="references", sa_relationship_kwargs={"lazy": "joined"}
-    )
+    document: "Document" = Relationship(back_populates="references")
     recognizer: "Recognizer" = Relationship(
         back_populates="references", sa_relationship_kwargs={"lazy": "joined"}
     )
