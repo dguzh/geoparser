@@ -8,13 +8,16 @@ from datasets import Dataset
 from sentence_transformers import SentenceTransformer, SentenceTransformerTrainer
 from sentence_transformers.losses import ContrastiveLoss
 from sentence_transformers.training_args import SentenceTransformerTrainingArguments
-from transformers import AutoTokenizer
+from transformers import AutoTokenizer, logging
 
 from geoparser.gazetteer.gazetteer import Gazetteer
 from geoparser.modules.resolvers import Resolver
 
 if t.TYPE_CHECKING:
     from geoparser.db.models.feature import Feature
+
+# Suppress transformers tokenizer token length warnings
+logging.set_verbosity_error()
 
 
 class SentenceTransformerResolver(Resolver):
@@ -51,7 +54,7 @@ class SentenceTransformerResolver(Resolver):
         model_name: str = "dguzh/geo-all-MiniLM-L6-v2",
         gazetteer_name: str = "geonames",
         min_similarity: float = 0.6,
-        max_iter: int = 3,
+        max_tiers: int = 3,
         attribute_map: dict = None,
     ):
         """
@@ -61,7 +64,7 @@ class SentenceTransformerResolver(Resolver):
             model_name: HuggingFace model name for SentenceTransformer
             gazetteer_name: Name of the gazetteer to search
             min_similarity: Minimum similarity threshold to stop candidate generation
-            max_iter: Maximum number of iterations through search methods with increasing tiers
+            max_tiers: Maximum number of tiers to expand through search methods
             attribute_map: Optional custom attribute mapping for gazetteer.
                           If None, will look up gazetteer_name in GAZETTEER_ATTRIBUTE_MAP.
                           If provided, will be used directly.
@@ -72,7 +75,7 @@ class SentenceTransformerResolver(Resolver):
             model_name=model_name,
             gazetteer_name=gazetteer_name,
             min_similarity=min_similarity,
-            max_iter=max_iter,
+            max_tiers=max_tiers,
             attribute_map=attribute_map,
         )
 
@@ -80,7 +83,7 @@ class SentenceTransformerResolver(Resolver):
         self.model_name = model_name
         self.gazetteer_name = gazetteer_name
         self.min_similarity = min_similarity
-        self.max_iter = max_iter
+        self.max_tiers = max_tiers
 
         # Validate and set attribute map
         self.attribute_map = self._validate_and_set_attribute_map(
@@ -96,6 +99,10 @@ class SentenceTransformerResolver(Resolver):
 
         # Initialize gazetteer
         self.gazetteer = Gazetteer(gazetteer_name)
+
+        # Caches for document processing to avoid recomputation
+        self.doc_tokens: Dict[str, int] = {}  # text -> token count
+        self.doc_objects: Dict[str, spacy.tokens.Doc] = {}  # text -> spaCy doc object
 
         # Caches for embeddings to avoid recomputation
         self.context_embeddings: Dict[str, torch.Tensor] = {}  # context -> embedding
@@ -192,7 +199,7 @@ class SentenceTransformerResolver(Resolver):
         ]
 
         # Iterative search strategy with increasing tiers
-        for tiers in range(1, self.max_iter + 1):
+        for tiers in range(1, self.max_tiers + 1):
             for method in search_methods:
                 # Skip exact method for tiers > 1
                 if method == "exact" and tiers > 1:
@@ -220,9 +227,6 @@ class SentenceTransformerResolver(Resolver):
             # If all references resolved, we can stop
             if all(all(r is not None for r in doc_results) for doc_results in results):
                 break
-
-        # Handle remaining unresolved references by selecting best candidates (min_similarity=0.0)
-        self._evaluate_candidates(contexts, candidates, results)
 
         return results
 
@@ -440,12 +444,19 @@ class SentenceTransformerResolver(Resolver):
         token_limit = max_seq_length - 2
 
         # Check if entire document fits within token limit
-        doc_tokens = len(self.tokenizer.tokenize(text))
+        # Use cached token count if available
+        if text not in self.doc_tokens:
+            self.doc_tokens[text] = len(self.tokenizer.tokenize(text))
+        doc_tokens = self.doc_tokens[text]
+
         if doc_tokens <= token_limit:
             return text
 
         # Use spaCy to get sentence boundaries
-        doc = self.nlp(text)
+        # Use cached spaCy doc if available
+        if text not in self.doc_objects:
+            self.doc_objects[text] = self.nlp(text)
+        doc = self.doc_objects[text]
         sentences = list(doc.sents)
 
         # Find the sentence containing the reference
