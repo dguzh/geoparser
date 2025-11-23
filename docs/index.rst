@@ -21,9 +21,12 @@ Key Features
 Getting Started
 ---------------
 
-To begin using the Irchel Geoparser, follow the :doc:`installation` guide to set up the library and install a gazetteer. Then proceed to the :doc:`quickstart` guide for a simple example of parsing text and accessing results.
+To begin using the Irchel Geoparser, follow the :doc:`installation` guide to set up the library and install a gazetteer. Then proceed to the :doc:`quickstart` guide for a simple example of parsing text and accessing results. For more advanced usage, explore the user guides that cover :doc:`guides/projects`, :doc:`guides/modules`, :doc:`guides/training`, and :doc:`guides/gazetteers`.
 
-For more advanced usage, explore the user guides that cover :doc:`guides/projects`, :doc:`guides/modules`, :doc:`guides/training`, and :doc:`guides/gazetteers`. The API reference provides detailed documentation of all classes and methods.
+Demo
+----
+
+Discover what is possible with the Irchel Geoparser. Our :doc:`demo` page showcases an interactive visualization of place names mentioned in Jules Verne's "Around the World in Eighty Days". The demo includes a complete Jupyter notebook and Docker setup so you can reproduce the analysis yourself.
 
 Contributing
 ------------
