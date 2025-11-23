@@ -109,7 +109,7 @@ def mock_sentencetransformer_resolver():
         "model_name": "dguzh/geo-all-MiniLM-L6-v2",
         "gazetteer_name": "geonames",
         "min_similarity": 0.6,
-        "max_iter": 3,
+        "max_tiers": 3,
     }
     mock_resolver.predict = Mock(return_value=[])
     return mock_resolver
@@ -166,7 +166,7 @@ def real_sentencetransformer_resolver():
         model_name="dguzh/geo-all-MiniLM-L6-v2",
         gazetteer_name="andorranames",
         min_similarity=0.5,
-        max_iter=2,
+        max_tiers=2,
         attribute_map=andorra_attribute_map,
     )
 
