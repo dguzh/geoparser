@@ -149,19 +149,19 @@ class TestCompleteParsingPipeline:
         }
 
         # Act - Run different resolver configurations with different parameters
-        # Different similarity thresholds and max iterations
+        # Different similarity thresholds and maximum tiers to expand through
         resolver1 = SentenceTransformerResolver(
             gazetteer_name="andorranames",
             model_name="dguzh/geo-all-MiniLM-L6-v2",
             min_similarity=0.6,
-            max_iter=3,
+            max_tiers=3,
             attribute_map=andorra_attribute_map,
         )
         resolver2 = SentenceTransformerResolver(
             gazetteer_name="andorranames",
             model_name="dguzh/geo-all-MiniLM-L6-v2",
             min_similarity=0.5,
-            max_iter=5,
+            max_tiers=5,
             attribute_map=andorra_attribute_map,
         )
 

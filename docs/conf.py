@@ -14,7 +14,7 @@ sys.path.insert(0, os.path.abspath(".."))
 project = "Irchel Geoparser"
 copyright = "2025, Diego Gomes"
 author = "Diego Gomes"
-release = "0.3.0"
+release = "0.3.1"
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
@@ -34,6 +34,6 @@ add_module_names = False
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
 
 html_theme = "sphinx_rtd_theme"
-# html_static_path = ["_static"]
+html_static_path = ["_static"]
 
 html_show_sourcelink = False

@@ -62,7 +62,7 @@ To use the SentenceTransformerResolver with default settings:
 
    resolver = SentenceTransformerResolver()
 
-The default configuration uses the ``dguzh/geo-all-MiniLM-L6-v2`` model with the ``geonames`` gazetteer, a minimum similarity threshold of 0.6, and up to 3 iterations through increasingly broad search methods. You can customize any of these parameters:
+The default configuration uses the ``dguzh/geo-all-MiniLM-L6-v2`` model with the ``geonames`` gazetteer, a minimum similarity threshold of 0.6, and expands through up to 3 tiers of increasingly broad search methods. You can customize any of these parameters:
 
 .. code-block:: python
 
@@ -73,16 +73,16 @@ The default configuration uses the ``dguzh/geo-all-MiniLM-L6-v2`` model with the
        model_name="dguzh/geo-all-distilroberta-v1",
        gazetteer_name="swissnames3d",
        min_similarity=0.5,  # Accept more candidates
-       max_iter=2  # Less exhaustive candidate search
+       max_tiers=2  # Search through fewer tiers for faster processing
    )
 
 The ``model_name`` parameter specifies which SentenceTransformer model to use for generating embeddings. The library provides two pre-trained models fine-tuned for toponym disambiguation: ``dguzh/geo-all-MiniLM-L6-v2`` offers fast processing with good accuracy, while ``dguzh/geo-all-distilroberta-v1`` provides higher accuracy at the cost of speed and memory. These models were trained on English news articles and work best with English text and the GeoNames gazetteer. For other languages or domains, you should train a custom model as described in the :doc:`training` guide.
 
 The ``gazetteer_name`` parameter determines which geographic database to search. The specified gazetteer must be installed on your system. Each gazetteer has different coverage and attribute schemas, so make sure your application requirements match the gazetteer's capabilities.
 
-The ``min_similarity`` threshold controls how confident the resolver must be before accepting a match. Higher thresholds reduce false positives but may leave more toponyms unresolved. Lower thresholds resolve more toponyms but may introduce incorrect matches.
+The ``min_similarity`` threshold controls how confident the resolver must be before accepting a match. Higher thresholds reduce false positives but may leave more toponyms unresolved. Lower thresholds resolve more toponyms but may introduce incorrect matches. If no candidates meet this threshold, the toponym remains unresolved (preserving precision over recall).
 
-The ``max_iter`` parameter controls how aggressively the resolver searches for candidates. The resolver uses an iterative strategy starting with exact string matching and progressively relaxing to phrase matching, partial matching, and fuzzy matching. Each iteration also considers more rank tiers of search results. A higher ``max_iter`` value means the resolver will try harder to find candidates for difficult toponyms, but this increases processing time.
+The ``max_tiers`` parameter controls how aggressively the resolver searches for candidates. The resolver uses an iterative strategy starting with exact string matching and progressively relaxing to phrase matching, partial matching, and fuzzy matching. For each search method, it ranks results by relevance and groups them into tiers. The ``max_tiers`` parameter determines how many of these tiers to include—higher values mean the resolver expands its search to include more potential candidates, which can help resolve difficult toponyms but increases processing time.
 
 For gazetteers other than GeoNames and SwissNames3D, you need to provide a custom ``attribute_map`` that tells the resolver which attributes to use when generating location descriptions:
 

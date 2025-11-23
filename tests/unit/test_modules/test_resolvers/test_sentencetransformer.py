@@ -37,7 +37,7 @@ class TestSentenceTransformerResolverInitialization:
         assert resolver.model_name == "dguzh/geo-all-MiniLM-L6-v2"
         assert resolver.gazetteer_name == "geonames"
         assert resolver.min_similarity == 0.6
-        assert resolver.max_iter == 3
+        assert resolver.max_tiers == 3
 
     @patch("geoparser.modules.resolvers.sentencetransformer.spacy.load")
     @patch(
@@ -67,7 +67,7 @@ class TestSentenceTransformerResolverInitialization:
             model_name="custom-model",
             gazetteer_name="custom-gazetteer",
             min_similarity=0.8,
-            max_iter=5,
+            max_tiers=5,
             attribute_map=custom_map,
         )
 
@@ -75,7 +75,7 @@ class TestSentenceTransformerResolverInitialization:
         assert resolver.model_name == "custom-model"
         assert resolver.gazetteer_name == "custom-gazetteer"
         assert resolver.min_similarity == 0.8
-        assert resolver.max_iter == 5
+        assert resolver.max_tiers == 5
 
     @patch("geoparser.modules.resolvers.sentencetransformer.spacy.load")
     @patch(
@@ -105,7 +105,7 @@ class TestSentenceTransformerResolverInitialization:
             model_name="test-model",
             gazetteer_name="test-gazetteer",
             min_similarity=0.75,
-            max_iter=4,
+            max_tiers=4,
             attribute_map=custom_map,
         )
 
@@ -113,7 +113,7 @@ class TestSentenceTransformerResolverInitialization:
         assert resolver.config["model_name"] == "test-model"
         assert resolver.config["gazetteer_name"] == "test-gazetteer"
         assert resolver.config["min_similarity"] == 0.75
-        assert resolver.config["max_iter"] == 4
+        assert resolver.config["max_tiers"] == 4
 
     @patch("geoparser.modules.resolvers.sentencetransformer.spacy.load")
     @patch(
@@ -218,7 +218,7 @@ class TestSentenceTransformerResolverInitialization:
     def test_initializes_empty_caches(
         self, mock_gazetteer, mock_transformer, mock_tokenizer, mock_spacy_load
     ):
-        """Test that embedding caches are initialized as empty dictionaries."""
+        """Test that all caches are initialized as empty dictionaries."""
         # Arrange
         from geoparser.modules.resolvers.sentencetransformer import (
             SentenceTransformerResolver,
@@ -228,6 +228,8 @@ class TestSentenceTransformerResolverInitialization:
         resolver = SentenceTransformerResolver()
 
         # Assert
+        assert resolver.doc_tokens == {}
+        assert resolver.doc_objects == {}
         assert resolver.context_embeddings == {}
         assert resolver.candidate_embeddings == {}
 
@@ -273,13 +275,13 @@ class TestSentenceTransformerResolverInitialization:
             model_name="model1",
             gazetteer_name="geonames",
             min_similarity=0.6,
-            max_iter=3,
+            max_tiers=3,
         )
         resolver2 = SentenceTransformerResolver(
             model_name="model1",
             gazetteer_name="geonames",
             min_similarity=0.6,
-            max_iter=3,
+            max_tiers=3,
         )
 
         # Assert
@@ -617,6 +619,127 @@ class TestSentenceTransformerResolverPredict:
 
         # Assert - Candidate with id=1 should be in cache
         assert 1 in resolver.candidate_embeddings
+
+    @patch("geoparser.modules.resolvers.sentencetransformer.spacy.load")
+    @patch(
+        "geoparser.modules.resolvers.sentencetransformer.AutoTokenizer.from_pretrained"
+    )
+    @patch("geoparser.modules.resolvers.sentencetransformer.SentenceTransformer")
+    @patch("geoparser.modules.resolvers.sentencetransformer.Gazetteer")
+    def test_caches_doc_tokens(
+        self, mock_gazetteer, mock_transformer, mock_tokenizer, mock_spacy_load
+    ):
+        """Test that document token counts are cached to avoid recomputation."""
+        # Arrange
+        from geoparser.modules.resolvers.sentencetransformer import (
+            SentenceTransformerResolver,
+        )
+
+        mock_transformer_instance = mock_transformer.return_value
+        mock_transformer_instance.get_max_seq_length.return_value = 512
+        mock_transformer_instance.encode.return_value = torch.tensor([[0.1, 0.2, 0.3]])
+
+        mock_tokenizer_instance = mock_tokenizer.return_value
+        mock_tokenizer_instance.tokenize.return_value = ["test", "token"]
+
+        # Mock gazetteer search
+        mock_gazetteer_instance = mock_gazetteer.return_value
+        mock_candidate = Mock()
+        mock_candidate.id = 1
+        mock_candidate.location_id_value = "123"
+        mock_candidate.data = {
+            "name": "Paris",
+            "feature_name": "city",
+            "country_name": "France",
+        }
+        mock_gazetteer_instance.search.return_value = [mock_candidate]
+
+        resolver = SentenceTransformerResolver()
+
+        # Act - Call predict with document containing multiple references
+        text = "Test text"
+        resolver.predict(texts=[text], references=[[(0, 4), (5, 9)]])
+
+        # Assert - Token count for text should be cached
+        assert text in resolver.doc_tokens
+        assert resolver.doc_tokens[text] == 2
+
+        # Act - Call tokenize count before second predict
+        tokenize_call_count_first = mock_tokenizer_instance.tokenize.call_count
+
+        # Call predict again with same text
+        resolver.predict(texts=[text], references=[[(0, 4)]])
+        tokenize_call_count_second = mock_tokenizer_instance.tokenize.call_count
+
+        # Assert - tokenize should not be called again for the document text
+        # (it may be called for sentence tokenization, but not for full doc)
+        assert text in resolver.doc_tokens
+
+    @patch("geoparser.modules.resolvers.sentencetransformer.spacy.load")
+    @patch(
+        "geoparser.modules.resolvers.sentencetransformer.AutoTokenizer.from_pretrained"
+    )
+    @patch("geoparser.modules.resolvers.sentencetransformer.SentenceTransformer")
+    @patch("geoparser.modules.resolvers.sentencetransformer.Gazetteer")
+    def test_caches_doc_objects(
+        self, mock_gazetteer, mock_transformer, mock_tokenizer, mock_spacy_load
+    ):
+        """Test that spaCy doc objects are cached to avoid recomputation."""
+        # Arrange
+        from geoparser.modules.resolvers.sentencetransformer import (
+            SentenceTransformerResolver,
+        )
+
+        mock_transformer_instance = mock_transformer.return_value
+        mock_transformer_instance.get_max_seq_length.return_value = 512
+        mock_transformer_instance.encode.return_value = torch.tensor([[0.1, 0.2, 0.3]])
+
+        mock_tokenizer_instance = mock_tokenizer.return_value
+        # Return many tokens to trigger sentence splitting
+        mock_tokenizer_instance.tokenize.return_value = ["token"] * 600
+
+        # Mock spaCy
+        mock_nlp_instance = Mock()
+        mock_sent = Mock()
+        mock_sent.start_char = 0
+        mock_sent.end_char = 9
+        mock_sent.text = "Test text"
+        mock_doc = Mock()
+        mock_doc.sents = [mock_sent]
+        mock_nlp_instance.return_value = mock_doc
+        mock_spacy_load.return_value = mock_nlp_instance
+
+        # Mock gazetteer search
+        mock_gazetteer_instance = mock_gazetteer.return_value
+        mock_candidate = Mock()
+        mock_candidate.id = 1
+        mock_candidate.location_id_value = "123"
+        mock_candidate.data = {
+            "name": "Paris",
+            "feature_name": "city",
+            "country_name": "France",
+        }
+        mock_gazetteer_instance.search.return_value = [mock_candidate]
+
+        resolver = SentenceTransformerResolver()
+
+        # Act - Call predict with document containing multiple references
+        text = "Test text"
+        resolver.predict(texts=[text], references=[[(0, 4), (5, 9)]])
+
+        # Assert - spaCy doc for text should be cached
+        assert text in resolver.doc_objects
+
+        # Act - Count spaCy calls before second predict
+        nlp_call_count_first = mock_nlp_instance.call_count
+
+        # Call predict again with same text
+        resolver.predict(texts=[text], references=[[(0, 4)]])
+        nlp_call_count_second = mock_nlp_instance.call_count
+
+        # Assert - spaCy should not be called again for the same text
+        assert nlp_call_count_second == nlp_call_count_first
+        assert text in resolver.doc_objects
 
 
 @pytest.mark.unit
