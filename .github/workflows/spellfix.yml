@@ -188,8 +188,8 @@ jobs:
 
     - name: Commit and push binaries
       run: |
-        git config --local user.email "action@github.com"
-        git config --local user.name "GitHub Action"
+        git config --local user.name "${{ github.actor }}"
+        git config --local user.email "${{ github.actor }}@users.noreply.github.com"
         
         # Add all spellfix binaries
         git add geoparser/db/extensions/spellfix/binaries/
