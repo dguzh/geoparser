@@ -90,5 +90,5 @@ def load_spatialite_extension(dbapi_connection, spatialite_path: Path):
         # Always disable extension loading for security
         try:
             dbapi_connection.enable_load_extension(False)
-        except Exception:
+        except Exception:  # pragma: no cover
             pass  # Ignore errors when disabling
