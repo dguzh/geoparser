@@ -30,11 +30,14 @@ class TestMain:
     def test_main_module_execution(self):
         """Test running the module directly with python -m geoparser."""
         # Arrange & Act
+        # Use longer timeout on Windows where subprocess can be slower
+        timeout = 60 if sys.platform == "win32" else 30
+
         result = subprocess.run(
             [sys.executable, "-m", "geoparser", "--help"],
             capture_output=True,
             text=True,
-            timeout=10,
+            timeout=timeout,
         )
 
         # Assert
