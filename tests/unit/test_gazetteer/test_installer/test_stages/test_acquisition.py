@@ -664,3 +664,113 @@ class TestAcquisitionStageFindTargetFileQuiet:
 
             # Assert
             assert result == target_file
+
+
+@pytest.mark.unit
+class TestAcquisitionStageShouldSkipExtraction:
+    """Test AcquisitionStage._should_skip_extraction() method."""
+
+    def test_returns_true_for_local_directory_source(self):
+        """Test that extraction is skipped for local directories (not files)."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            # Arrange
+            stage = AcquisitionStage(Path(temp_dir))
+
+            # Local directory (not a file)
+            source_dir = Path(temp_dir) / "local_data"
+            source_dir.mkdir()
+
+            extraction_dir = Path(temp_dir) / "extraction"
+            extraction_dir.mkdir()
+
+            # Act - archive_path is a directory, not a file
+            result = stage._should_skip_extraction(
+                source_dir, extraction_dir, "target.csv"
+            )
+
+            # Assert - Should return True (skip extraction for directories)
+            assert result is True
+
+    def test_returns_true_when_extraction_dir_matches_target_and_is_newer(self):
+        """Test extraction skipped when extraction dir name matches target and is newer."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            # Arrange
+            stage = AcquisitionStage(Path(temp_dir))
+
+            archive_path = Path(temp_dir) / "archive.zip"
+            archive_path.write_text("archive content")
+
+            # Extraction directory with same name as target
+            extraction_dir = Path(temp_dir) / "mydata"
+            extraction_dir.mkdir()
+
+            # Make extraction dir newer than archive
+            import time
+
+            time.sleep(0.01)
+            extraction_dir.touch()
+
+            # Act
+            result = stage._should_skip_extraction(
+                archive_path, extraction_dir, "mydata"
+            )
+
+            # Assert
+            assert result is True
+
+    def test_returns_false_as_fallback(self):
+        """Test that False is returned when no cache conditions are met."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            # Arrange
+            stage = AcquisitionStage(Path(temp_dir))
+
+            archive_path = Path(temp_dir) / "archive.zip"
+            archive_path.write_text("archive content")
+
+            # Extraction directory with different name
+            extraction_dir = Path(temp_dir) / "extraction"
+            extraction_dir.mkdir()
+
+            # Make archive newer than extraction dir
+            import time
+
+            time.sleep(0.01)
+            archive_path.touch()
+
+            # Act - no target file exists, timestamps don't match
+            result = stage._should_skip_extraction(
+                archive_path, extraction_dir, "target.csv"
+            )
+
+            # Assert
+            assert result is False
+
+
+@pytest.mark.unit
+class TestAcquisitionStageExtractZip:
+    """Test AcquisitionStage._extract_zip() method."""
+
+    def test_removes_existing_extraction_directory(self):
+        """Test that existing extraction directory is removed before extraction."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            # Arrange
+            stage = AcquisitionStage(Path(temp_dir))
+
+            # Create archive
+            archive_path = Path(temp_dir) / "archive.zip"
+            with zipfile.ZipFile(archive_path, "w") as zf:
+                zf.writestr("target.csv", "new content")
+
+            # Create existing extraction directory with old content
+            extraction_dir = Path(temp_dir) / "archive"
+            extraction_dir.mkdir()
+            old_file = extraction_dir / "old.txt"
+            old_file.write_text("old content")
+
+            # Act
+            result = stage._extract_zip(archive_path, extraction_dir, "target.csv")
+
+            # Assert
+            assert not old_file.exists()  # Old file should be removed
+            assert result.exists()
+            assert result.read_text() == "new content"
