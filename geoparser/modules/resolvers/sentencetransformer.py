@@ -40,6 +40,13 @@ class SentenceTransformerResolver(Resolver):
             "level2": "admin1_name",
             "level3": "admin2_name",
         },
+        "geonames-cities": {
+            "name": "name",
+            "type": "feature_name",
+            "level1": "country_name",
+            "level2": "admin1_name",
+            "level3": "admin2_name",
+        },
         "swissnames3d": {
             "name": "NAME",
             "type": "OBJEKTART",
