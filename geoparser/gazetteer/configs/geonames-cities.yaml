@@ -1,4 +1,4 @@
-name: geonames_cities
+name: geonames-cities
 sources:
   - name: cities500
     url: https://download.geonames.org/export/dump/cities500.zip
