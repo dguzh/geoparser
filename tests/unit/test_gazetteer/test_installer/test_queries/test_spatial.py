@@ -84,6 +84,20 @@ class TestSpatialOptimizerOptimizeJoinCondition:
         assert "search_frame = geometry1" in result
         assert "ST_Within(geometry1, table2.geometry2)" in result
 
+    def test_centroid_fallback_when_pattern_doesnt_match(self):
+        """Test _optimize_centroid_join returns original when pattern doesn't match."""
+        # Arrange
+        optimizer = SpatialOptimizer()
+        # Condition has ST_Centroid but doesn't match the expected pattern
+        # (e.g., malformed or unexpected structure)
+        condition = "ST_Centroid(table1.geom) AND other_condition"
+
+        # Act
+        result = optimizer._optimize_centroid_join(condition)
+
+        # Assert - Should return original condition unchanged
+        assert result == condition
+
     def test_returns_original_for_non_spatial_condition(self):
         """Test that non-spatial conditions are returned unchanged."""
         # Arrange
