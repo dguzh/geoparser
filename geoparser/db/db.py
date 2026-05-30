@@ -1,10 +1,3 @@
-"""
-Database configuration and session management.
-
-This module provides SQLAlchemy engine, session factory, and database utilities
-following SQLAlchemy best practices for the geoparser application.
-"""
-
 from __future__ import annotations
 
 import os
