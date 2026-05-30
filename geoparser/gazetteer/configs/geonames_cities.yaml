@@ -1,0 +1,645 @@
+name: geonames_cities
+sources:
+  - name: cities500
+    url: https://download.geonames.org/export/dump/cities500.zip
+    file: cities500.txt
+    type: tabular
+    separator: "\t"
+    attributes:
+      original:
+        - name: geonameid
+          type: INTEGER
+          index: true
+        - name: name
+          type: TEXT
+        - name: asciiname
+          type: TEXT
+        - name: alternatenames
+          type: TEXT
+        - name: latitude
+          type: REAL
+        - name: longitude
+          type: REAL
+        - name: feature_class
+          type: TEXT
+        - name: feature_code
+          type: TEXT
+        - name: country_code
+          type: TEXT
+          index: true
+        - name: cc2
+          type: TEXT
+        - name: admin1_code
+          type: TEXT
+        - name: admin2_code
+          type: TEXT
+        - name: admin3_code
+          type: TEXT
+        - name: admin4_code
+          type: TEXT
+        - name: population
+          type: INTEGER
+        - name: elevation
+          type: INTEGER
+        - name: dem
+          type: INTEGER
+        - name: timezone
+          type: TEXT
+        - name: modification_date
+          type: TEXT
+      derived:
+        - name: geometry
+          type: GEOMETRY
+          expression: "'POINT(' || longitude || ' ' || latitude || ')'"
+          index: true
+          srid: 4326
+        - name: feature_code_full
+          type: TEXT
+          expression: "feature_class || '.' || feature_code"
+          index: true
+        - name: admin1_code_full
+          type: TEXT
+          expression: "country_code || '.' || admin1_code"
+          index: true
+        - name: admin2_code_full
+          type: TEXT
+          expression: "country_code || '.' || admin1_code || '.' || admin2_code"
+          index: true
+        - name: name_no_parens
+          type: TEXT
+          expression: "CASE WHEN instr(name, '(') > 0 THEN trim(substr(name, 1, instr(name, '(') - 1)) ELSE name END"
+        - name: asciiname_no_parens
+          type: TEXT
+          expression: "CASE WHEN instr(asciiname, '(') > 0 THEN trim(substr(asciiname, 1, instr(asciiname, '(') - 1)) ELSE asciiname END"
+    view:
+      select:
+        - source: cities500
+          column: geonameid
+        - source: cities500
+          column: name
+        - source: cities500
+          column: name_no_parens
+        - source: cities500
+          column: asciiname
+        - source: cities500
+          column: asciiname_no_parens
+        - source: cities500
+          column: alternatenames
+        - source: cities500
+          column: latitude
+        - source: cities500
+          column: longitude
+        - source: cities500
+          column: feature_class
+        - source: cities500
+          column: feature_code
+        - source: featureCodes
+          column: name
+          alias: feature_name
+        - source: cities500
+          column: country_code
+        - source: countryInfo
+          column: Country
+          alias: country_name
+        - source: cities500
+          column: cc2
+        - source: cities500
+          column: admin1_code
+        - source: admin1CodesASCII
+          column: name
+          alias: admin1_name
+        - source: cities500
+          column: admin2_code
+        - source: admin2Codes
+          column: name
+          alias: admin2_name
+        - source: cities500
+          column: admin3_code
+        - source: cities500
+          column: admin4_code
+        - source: cities500
+          column: population
+        - source: cities500
+          column: elevation
+        - source: cities500
+          column: dem
+        - source: cities500
+          column: timezone
+        - source: cities500
+          column: modification_date
+        - source: cities500
+          column: geometry
+      join:
+        - type: LEFT JOIN
+          source: countryInfo
+          condition: cities500.country_code = countryInfo.ISO
+        - type: LEFT JOIN
+          source: admin1CodesASCII
+          condition: cities500.admin1_code_full = admin1CodesASCII.code
+        - type: LEFT JOIN
+          source: admin2Codes
+          condition: cities500.admin2_code_full = admin2Codes.code
+        - type: LEFT JOIN
+          source: featureCodes
+          condition: cities500.feature_code_full = featureCodes.code
+    features:
+      identifier:
+        - column: geonameid
+      names:
+        - column: name
+        - column: name_no_parens
+        - column: asciiname
+        - column: asciiname_no_parens
+        - column: alternatenames
+          separator: ","
+
+  - name: countryInfo
+    url: https://download.geonames.org/export/dump/countryInfo.txt
+    file: countryInfo.txt
+    type: tabular
+    separator: "\t"
+    skiprows: 50
+    attributes:
+      original:
+        - name: ISO
+          type: TEXT
+          index: true
+        - name: ISO3
+          type: TEXT
+        - name: ISO_Numeric
+          type: INTEGER
+        - name: fips
+          type: TEXT
+        - name: Country
+          type: TEXT
+        - name: Capital
+          type: TEXT
+        - name: Area
+          type: REAL
+        - name: Population
+          type: INTEGER
+        - name: Continent
+          type: TEXT
+        - name: tld
+          type: TEXT
+        - name: CurrencyCode
+          type: TEXT
+        - name: CurrencyName
+          type: TEXT
+        - name: Phone
+          type: TEXT
+        - name: PostalCodeFormat
+          type: TEXT
+        - name: PostalCodeRegex
+          type: TEXT
+        - name: Languages
+          type: TEXT
+        - name: geonameid
+          type: INTEGER
+        - name: neighbours
+          type: TEXT
+        - name: EquivalentFipsCode
+          type: TEXT
+      derived:
+        - name: name_no_parens
+          type: TEXT
+          expression: "CASE WHEN instr(Country, '(') > 0 THEN trim(substr(Country, 1, instr(Country, '(') - 1)) ELSE Country END"
+        - name: asciiname
+          type: TEXT
+          expression: "NULL"
+        - name: asciiname_no_parens
+          type: TEXT
+          expression: "NULL"
+        - name: alternatenames
+          type: TEXT
+          expression: "NULL"
+        - name: latitude
+          type: REAL
+          expression: "NULL"
+        - name: longitude
+          type: REAL
+          expression: "NULL"
+        - name: feature_class
+          type: TEXT
+          expression: "NULL"
+        - name: feature_code
+          type: TEXT
+          expression: "NULL"
+        - name: feature_name
+          type: TEXT
+          expression: "NULL"
+        - name: cc2
+          type: TEXT
+          expression: "NULL"
+        - name: admin1_code
+          type: TEXT
+          expression: "NULL"
+        - name: admin1_name
+          type: TEXT
+          expression: "NULL"
+        - name: admin2_code
+          type: TEXT
+          expression: "NULL"
+        - name: admin2_name
+          type: TEXT
+          expression: "NULL"
+        - name: admin3_code
+          type: TEXT
+          expression: "NULL"
+        - name: admin4_code
+          type: TEXT
+          expression: "NULL"
+        - name: elevation
+          type: INTEGER
+          expression: "NULL"
+        - name: dem
+          type: INTEGER
+          expression: "NULL"
+        - name: timezone
+          type: TEXT
+          expression: "NULL"
+        - name: modification_date
+          type: TEXT
+          expression: "NULL"
+        - name: geometry
+          type: GEOMETRY
+          expression: "NULL"
+          srid: 4326
+    view:
+      select:
+        - source: countryInfo
+          column: geonameid
+        - source: countryInfo
+          column: Country
+          alias: name
+        - source: countryInfo
+          column: name_no_parens
+        - source: countryInfo
+          column: asciiname
+        - source: countryInfo
+          column: asciiname_no_parens
+        - source: countryInfo
+          column: alternatenames
+        - source: countryInfo
+          column: latitude
+        - source: countryInfo
+          column: longitude
+        - source: countryInfo
+          column: feature_class
+        - source: countryInfo
+          column: feature_code
+        - source: countryInfo
+          column: feature_name
+        - source: countryInfo
+          column: ISO
+          alias: country_code
+        - source: countryInfo
+          column: Country
+          alias: country_name
+        - source: countryInfo
+          column: cc2
+        - source: countryInfo
+          column: admin1_code
+        - source: countryInfo
+          column: admin1_name
+        - source: countryInfo
+          column: admin2_code
+        - source: countryInfo
+          column: admin2_name
+        - source: countryInfo
+          column: admin3_code
+        - source: countryInfo
+          column: admin4_code
+        - source: countryInfo
+          column: Population
+          alias: population
+        - source: countryInfo
+          column: elevation
+        - source: countryInfo
+          column: dem
+        - source: countryInfo
+          column: timezone
+        - source: countryInfo
+          column: modification_date
+        - source: countryInfo
+          column: geometry
+    features:
+      identifier:
+        - column: geonameid
+      names:
+        - column: Country
+
+  - name: admin1CodesASCII
+    url: https://download.geonames.org/export/dump/admin1CodesASCII.txt
+    file: admin1CodesASCII.txt
+    type: tabular
+    separator: "\t"
+    attributes:
+      original:
+        - name: code
+          type: TEXT
+          index: true
+        - name: name
+          type: TEXT
+        - name: asciiname
+          type: TEXT
+        - name: geonameid
+          type: INTEGER
+      derived:
+        - name: name_no_parens
+          type: TEXT
+          expression: "CASE WHEN instr(name, '(') > 0 THEN trim(substr(name, 1, instr(name, '(') - 1)) ELSE name END"
+        - name: asciiname_no_parens
+          type: TEXT
+          expression: "CASE WHEN instr(asciiname, '(') > 0 THEN trim(substr(asciiname, 1, instr(asciiname, '(') - 1)) ELSE asciiname END"
+        - name: country_code
+          type: TEXT
+          expression: "CASE WHEN instr(code, '.') > 0 THEN substr(code, 1, instr(code, '.') - 1) ELSE code END"
+        - name: admin1_code
+          type: TEXT
+          expression: "CASE WHEN instr(code, '.') > 0 THEN substr(code, instr(code, '.') + 1) ELSE NULL END"
+        - name: alternatenames
+          type: TEXT
+          expression: "NULL"
+        - name: latitude
+          type: REAL
+          expression: "NULL"
+        - name: longitude
+          type: REAL
+          expression: "NULL"
+        - name: feature_class
+          type: TEXT
+          expression: "NULL"
+        - name: feature_code
+          type: TEXT
+          expression: "NULL"
+        - name: feature_name
+          type: TEXT
+          expression: "NULL"
+        - name: cc2
+          type: TEXT
+          expression: "NULL"
+        - name: admin2_code
+          type: TEXT
+          expression: "NULL"
+        - name: admin2_name
+          type: TEXT
+          expression: "NULL"
+        - name: admin3_code
+          type: TEXT
+          expression: "NULL"
+        - name: admin4_code
+          type: TEXT
+          expression: "NULL"
+        - name: population
+          type: INTEGER
+          expression: "NULL"
+        - name: elevation
+          type: INTEGER
+          expression: "NULL"
+        - name: dem
+          type: INTEGER
+          expression: "NULL"
+        - name: timezone
+          type: TEXT
+          expression: "NULL"
+        - name: modification_date
+          type: TEXT
+          expression: "NULL"
+        - name: geometry
+          type: GEOMETRY
+          expression: "NULL"
+          srid: 4326
+    view:
+      select:
+        - source: admin1CodesASCII
+          column: geonameid
+        - source: admin1CodesASCII
+          column: name
+        - source: admin1CodesASCII
+          column: name_no_parens
+        - source: admin1CodesASCII
+          column: asciiname
+        - source: admin1CodesASCII
+          column: asciiname_no_parens
+        - source: admin1CodesASCII
+          column: alternatenames
+        - source: admin1CodesASCII
+          column: latitude
+        - source: admin1CodesASCII
+          column: longitude
+        - source: admin1CodesASCII
+          column: feature_class
+        - source: admin1CodesASCII
+          column: feature_code
+        - source: admin1CodesASCII
+          column: feature_name
+        - source: admin1CodesASCII
+          column: country_code
+        - source: countryInfo
+          column: Country
+          alias: country_name
+        - source: admin1CodesASCII
+          column: cc2
+        - source: admin1CodesASCII
+          column: admin1_code
+        - source: admin1CodesASCII
+          column: name
+          alias: admin1_name
+        - source: admin1CodesASCII
+          column: admin2_code
+        - source: admin1CodesASCII
+          column: admin2_name
+        - source: admin1CodesASCII
+          column: admin3_code
+        - source: admin1CodesASCII
+          column: admin4_code
+        - source: admin1CodesASCII
+          column: population
+        - source: admin1CodesASCII
+          column: elevation
+        - source: admin1CodesASCII
+          column: dem
+        - source: admin1CodesASCII
+          column: timezone
+        - source: admin1CodesASCII
+          column: modification_date
+        - source: admin1CodesASCII
+          column: geometry
+      join:
+        - type: LEFT JOIN
+          source: countryInfo
+          condition: admin1CodesASCII.country_code = countryInfo.ISO
+    features:
+      identifier:
+        - column: geonameid
+      names:
+        - column: name
+        - column: asciiname
+
+  - name: admin2Codes
+    url: https://download.geonames.org/export/dump/admin2Codes.txt
+    file: admin2Codes.txt
+    type: tabular
+    separator: "\t"
+    attributes:
+      original:
+        - name: code
+          type: TEXT
+          index: true
+        - name: name
+          type: TEXT
+        - name: asciiname
+          type: TEXT
+        - name: geonameid
+          type: INTEGER
+      derived:
+        - name: name_no_parens
+          type: TEXT
+          expression: "CASE WHEN instr(name, '(') > 0 THEN trim(substr(name, 1, instr(name, '(') - 1)) ELSE name END"
+        - name: asciiname_no_parens
+          type: TEXT
+          expression: "CASE WHEN instr(asciiname, '(') > 0 THEN trim(substr(asciiname, 1, instr(asciiname, '(') - 1)) ELSE asciiname END"
+        - name: country_code
+          type: TEXT
+          expression: "CASE WHEN instr(code, '.') > 0 THEN substr(code, 1, instr(code, '.') - 1) ELSE code END"
+        - name: admin1_code
+          type: TEXT
+          expression: "CASE WHEN instr(code, '.') > 0 AND instr(substr(code, instr(code, '.') + 1), '.') > 0 THEN substr(substr(code, instr(code, '.') + 1), 1, instr(substr(code, instr(code, '.') + 1), '.') - 1) ELSE NULL END"
+        - name: admin2_code
+          type: TEXT
+          expression: "CASE WHEN instr(code, '.') > 0 AND instr(substr(code, instr(code, '.') + 1), '.') > 0 THEN substr(substr(code, instr(code, '.') + 1), instr(substr(code, instr(code, '.') + 1), '.') + 1) ELSE NULL END"
+        - name: admin1_code_full
+          type: TEXT
+          expression: "country_code || '.' || admin1_code"
+        - name: alternatenames
+          type: TEXT
+          expression: "NULL"
+        - name: latitude
+          type: REAL
+          expression: "NULL"
+        - name: longitude
+          type: REAL
+          expression: "NULL"
+        - name: feature_class
+          type: TEXT
+          expression: "NULL"
+        - name: feature_code
+          type: TEXT
+          expression: "NULL"
+        - name: feature_name
+          type: TEXT
+          expression: "NULL"
+        - name: cc2
+          type: TEXT
+          expression: "NULL"
+        - name: admin3_code
+          type: TEXT
+          expression: "NULL"
+        - name: admin4_code
+          type: TEXT
+          expression: "NULL"
+        - name: population
+          type: INTEGER
+          expression: "NULL"
+        - name: elevation
+          type: INTEGER
+          expression: "NULL"
+        - name: dem
+          type: INTEGER
+          expression: "NULL"
+        - name: timezone
+          type: TEXT
+          expression: "NULL"
+        - name: modification_date
+          type: TEXT
+          expression: "NULL"
+        - name: geometry
+          type: GEOMETRY
+          expression: "NULL"
+          srid: 4326
+    view:
+      select:
+        - source: admin2Codes
+          column: geonameid
+        - source: admin2Codes
+          column: name
+        - source: admin2Codes
+          column: name_no_parens
+        - source: admin2Codes
+          column: asciiname
+        - source: admin2Codes
+          column: asciiname_no_parens
+        - source: admin2Codes
+          column: alternatenames
+        - source: admin2Codes
+          column: latitude
+        - source: admin2Codes
+          column: longitude
+        - source: admin2Codes
+          column: feature_class
+        - source: admin2Codes
+          column: feature_code
+        - source: admin2Codes
+          column: feature_name
+        - source: admin2Codes
+          column: country_code
+        - source: countryInfo
+          column: Country
+          alias: country_name
+        - source: admin2Codes
+          column: cc2
+        - source: admin2Codes
+          column: admin1_code
+        - source: admin1CodesASCII
+          column: name
+          alias: admin1_name
+        - source: admin2Codes
+          column: admin2_code
+        - source: admin2Codes
+          column: name
+          alias: admin2_name
+        - source: admin2Codes
+          column: admin3_code
+        - source: admin2Codes
+          column: admin4_code
+        - source: admin2Codes
+          column: population
+        - source: admin2Codes
+          column: elevation
+        - source: admin2Codes
+          column: dem
+        - source: admin2Codes
+          column: timezone
+        - source: admin2Codes
+          column: modification_date
+        - source: admin2Codes
+          column: geometry
+      join:
+        - type: LEFT JOIN
+          source: countryInfo
+          condition: admin2Codes.country_code = countryInfo.ISO
+        - type: LEFT JOIN
+          source: admin1CodesASCII
+          condition: admin2Codes.admin1_code_full = admin1CodesASCII.code
+    features:
+      identifier:
+        - column: geonameid
+      names:
+        - column: name
+        - column: asciiname
+
+  - name: featureCodes
+    url: https://download.geonames.org/export/dump/featureCodes_en.txt
+    file: featureCodes_en.txt
+    type: tabular
+    separator: "\t"
+    attributes:
+      original:
+        - name: code
+          type: TEXT
+          index: true
+        - name: name
+          type: TEXT
+        - name: description
+          type: TEXT
