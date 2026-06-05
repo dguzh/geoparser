@@ -201,9 +201,10 @@ class GazetteerConfig(BaseModel):
     @classmethod
     def validate_name(cls, v: str) -> str:
         """Validate that name contains only allowed characters."""
-        if not all(c.isalnum() or c == "_" for c in v):
+        if not all(c.isalnum() or c in "_-" for c in v):
             raise ValueError(
-                "Gazetteer name must contain only alphanumeric characters and underscores"
+                "Gazetteer name must contain only alphanumeric characters, "
+                "underscores, and hyphens"
             )
         return v
 

@@ -574,27 +574,37 @@ class TestGazetteerConfig:
         assert config.name == "test_gazetteer"
         assert len(config.sources) == 1
 
-    def test_rejects_name_with_special_characters(self):
-        """Test that gazetteer name with special characters is rejected."""
-        # Act & Assert
-        with pytest.raises(
-            ValueError,
-            match="Gazetteer name must contain only alphanumeric characters and underscores",
-        ):
-            GazetteerConfig(
-                name="test-gazetteer",  # Hyphen not allowed
-                sources=[],
-            )
+    def test_accepts_name_with_hyphens(self):
+        """Test that gazetteer name with hyphens is accepted."""
+        config = GazetteerConfig(
+            name="test-gazetteer",
+            sources=[],
+        )
+
+        assert config.name == "test-gazetteer"
 
     def test_rejects_name_with_spaces(self):
         """Test that gazetteer name with spaces is rejected."""
         # Act & Assert
         with pytest.raises(
             ValueError,
-            match="Gazetteer name must contain only alphanumeric characters and underscores",
+            match="Gazetteer name must contain only alphanumeric characters, "
+            "underscores, and hyphens",
         ):
             GazetteerConfig(
                 name="test gazetteer",
+                sources=[],
+            )
+
+    def test_rejects_name_with_other_special_characters(self):
+        """Test that gazetteer name with other special characters is rejected."""
+        with pytest.raises(
+            ValueError,
+            match="Gazetteer name must contain only alphanumeric characters, "
+            "underscores, and hyphens",
+        ):
+            GazetteerConfig(
+                name="test.gazetteer",
                 sources=[],
             )
 
@@ -793,7 +803,7 @@ class TestGazetteerConfigFromYAML:
         """Test that loaded YAML is validated."""
         # Arrange
         yaml_content = {
-            "name": "test-invalid",  # Invalid name
+            "name": "test.invalid",  # Invalid name (dot not allowed)
             "sources": [],
         }
 
