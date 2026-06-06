@@ -2,7 +2,9 @@ from typing import List
 
 from geoparser.gazetteer.installer.model import DataType, SourceConfig
 from geoparser.gazetteer.installer.queries.base import QueryBuilder
-from geoparser.gazetteer.installer.queries.spatial import SpatialOptimizer
+from geoparser.gazetteer.installer.queries.spatial import (
+    build_spatial_equality_condition,
+)
 
 
 class TableBuilder(QueryBuilder):
@@ -10,8 +12,7 @@ class TableBuilder(QueryBuilder):
     Builds CREATE TABLE statements for gazetteer sources.
 
     This builder creates table schemas based on source configurations,
-    handling both regular columns and geometry columns (which require
-    special handling in SpatiaLite).
+    handling both regular columns and geometry columns (stored as WKT text).
     """
 
     def build_create_table(self, source: SourceConfig, table_name: str) -> str:
@@ -32,35 +33,6 @@ class TableBuilder(QueryBuilder):
 
         return f"CREATE TABLE {table_name} ({columns_sql})"
 
-    def build_add_geometry_column(
-        self,
-        table_name: str,
-        column_name: str,
-        srid: int,
-        geometry_type: str = "GEOMETRY",
-        dimension: str = "XY",
-    ) -> str:
-        """
-        Build an AddGeometryColumn statement for SpatiaLite.
-
-        Args:
-            table_name: Name of the table
-            column_name: Name of the geometry column
-            srid: Spatial Reference System Identifier
-            geometry_type: Type of geometry (default: "GEOMETRY")
-            dimension: Coordinate dimension (default: "XY")
-
-        Returns:
-            SQL statement to add a geometry column
-        """
-        self.sanitize_identifier(table_name)
-        self.sanitize_identifier(column_name)
-
-        return (
-            f"SELECT AddGeometryColumn('{table_name}', '{column_name}', "
-            f"{srid}, '{geometry_type}', '{dimension}')"
-        )
-
     def _build_column_definitions(self, source: SourceConfig) -> List[str]:
         """
         Build column definitions for a table.
@@ -77,16 +49,16 @@ class TableBuilder(QueryBuilder):
         for attr in source.attributes.original:
             if not attr.drop:
                 if attr.type == DataType.GEOMETRY:
-                    # Geometry columns start as TEXT with _wkt suffix
-                    definitions.append(f"{attr.name}_wkt TEXT")
+                    # Geometry is stored as WKT text
+                    definitions.append(f"{attr.name} text")
                 else:
                     definitions.append(f"{attr.name} {attr.type.value}")
 
         # Add derived attribute columns
         for attr in source.attributes.derived:
             if attr.type == DataType.GEOMETRY:
-                # Geometry columns start as TEXT with _wkt suffix
-                definitions.append(f"{attr.name}_wkt TEXT")
+                # Geometry is stored as WKT text
+                definitions.append(f"{attr.name} text")
             else:
                 definitions.append(f"{attr.name} {attr.type.value}")
 
@@ -98,15 +70,11 @@ class ViewBuilder(QueryBuilder):
     Builds CREATE VIEW statements for gazetteer sources.
 
     This builder creates views that can join multiple sources together
-    and select specific columns. It also integrates spatial join
-    optimization.
+    and select specific columns. Spatial joins are precomputed at install
+    time, so here they are emitted as plain equality conditions.
     """
 
     VIEW_SUFFIX = "_view"
-
-    def __init__(self):
-        """Initialize the view builder with a spatial optimizer."""
-        self.spatial_optimizer = SpatialOptimizer()
 
     def build_create_view(
         self,
@@ -187,12 +155,14 @@ class ViewBuilder(QueryBuilder):
 
         join_parts = []
         for join_item in view_config.join:
-            # Optimize spatial join conditions with index hints
-            optimized_condition = self.spatial_optimizer.optimize_join_condition(
-                join_item.condition
-            )
-            join_parts.append(
-                f"{join_item.type} {join_item.source} ON {optimized_condition}"
-            )
+            join_condition = join_item.condition
+
+            if join_condition.is_spatial:
+                # Spatial joins are precomputed; join on the stored key column
+                condition = build_spatial_equality_condition(join_condition)
+            else:
+                condition = f"{join_condition.left} = {join_condition.right}"
+
+            join_parts.append(f"{join_item.method} {join_item.source} ON {condition}")
 
         return " " + " ".join(join_parts)

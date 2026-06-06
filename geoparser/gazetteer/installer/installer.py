@@ -13,7 +13,9 @@ from geoparser.gazetteer.installer.stages.indexing import IndexingStage
 from geoparser.gazetteer.installer.stages.ingestion import IngestionStage
 from geoparser.gazetteer.installer.stages.registration import RegistrationStage
 from geoparser.gazetteer.installer.stages.schema import SchemaStage
+from geoparser.gazetteer.installer.stages.spatial import SpatialStage
 from geoparser.gazetteer.installer.stages.transformation import TransformationStage
+from geoparser.gazetteer.installer.stages.view import ViewStage
 from geoparser.gazetteer.installer.utils.dependency import DependencyResolver
 
 # Suppress geopandas warning about geometry column.
@@ -35,11 +37,13 @@ class GazetteerInstaller:
     clear, linear flow:
 
     1. Acquisition: Download and extract source files
-    2. Schema: Create database tables and views
+    2. Schema: Create database tables
     3. Ingestion: Load data into tables
-    4. Transformation: Apply derivations and build geometries
-    5. Indexing: Create database indices
-    6. Registration: Register features and names
+    4. Transformation: Apply derivations (geometries stored as WKT)
+    5. Spatial: Precompute spatial joins with GeoPandas
+    6. View: Create database views
+    7. Indexing: Create database indices
+    8. Registration: Register features and names
 
     Each stage is independent and testable, with well-defined
     responsibilities and interfaces.
@@ -82,7 +86,7 @@ class GazetteerInstaller:
         ordered_sources = self.dependency_resolver.resolve(config.sources)
 
         # Create pipeline stages
-        pipeline = self._create_pipeline(config.name, downloads_dir, chunksize)
+        pipeline = self._create_pipeline(config, downloads_dir, chunksize)
 
         # Execute pipeline for each source
         for source in ordered_sources:
@@ -129,7 +133,7 @@ class GazetteerInstaller:
 
     def _create_pipeline(
         self,
-        gazetteer_name: str,
+        config: GazetteerConfig,
         downloads_dir: Path,
         chunksize: int,
     ) -> List:
@@ -137,20 +141,24 @@ class GazetteerInstaller:
         Create the pipeline of stages.
 
         Args:
-            gazetteer_name: Name of the gazetteer
+            config: Gazetteer configuration
             downloads_dir: Directory for downloaded files
             chunksize: Number of records to process at once
 
         Returns:
             List of pipeline stages in execution order
         """
+        source_map = {source.name: source for source in config.sources}
+
         return [
             AcquisitionStage(downloads_dir),
             SchemaStage(),
             IngestionStage(chunksize),
             TransformationStage(),
+            SpatialStage(source_map),
+            ViewStage(),
             IndexingStage(),
-            RegistrationStage(gazetteer_name),
+            RegistrationStage(config.name),
         ]
 
     def _execute_pipeline(self, source: SourceConfig, pipeline: List) -> None:

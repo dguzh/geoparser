@@ -12,8 +12,9 @@ class IndexingStage(Stage):
     """
     Creates database indices for optimized queries.
 
-    This stage creates both B-tree indices for regular columns and
-    spatial R-tree indices for geometry columns.
+    This stage creates B-tree indices for regular columns. Geometry columns
+    are not indexed in the database: spatial joins are precomputed at install
+    time (their key columns are indexed by the spatial join stage).
     """
 
     def __init__(self):
@@ -54,14 +55,14 @@ class IndexingStage(Stage):
         """
         indexed_columns = []
 
-        # Check original attributes
+        # Check original attributes (geometry columns are not indexed)
         for attr in source.attributes.original:
-            if attr.index and not attr.drop:
+            if attr.index and not attr.drop and attr.type != DataType.GEOMETRY:
                 indexed_columns.append((attr.name, attr.type))
 
-        # Check derived attributes
+        # Check derived attributes (geometry columns are not indexed)
         for attr in source.attributes.derived:
-            if attr.index:
+            if attr.index and attr.type != DataType.GEOMETRY:
                 indexed_columns.append((attr.name, attr.type))
 
         return indexed_columns
@@ -79,12 +80,9 @@ class IndexingStage(Stage):
             indexed_columns: List of (column_name, column_type) tuples
         """
         with get_connection() as connection:
-            for column_name, column_type in indexed_columns:
+            for column_name, _column_type in indexed_columns:
                 try:
-                    if column_type == DataType.GEOMETRY:
-                        self._create_spatial_index(connection, table_name, column_name)
-                    else:
-                        self._create_btree_index(connection, table_name, column_name)
+                    self._create_btree_index(connection, table_name, column_name)
                 except sa.exc.DatabaseError as e:
                     # Log warning but continue with other indices
                     print(
@@ -93,30 +91,6 @@ class IndexingStage(Stage):
                     )
 
             connection.commit()
-
-    def _create_spatial_index(
-        self,
-        connection: sa.engine.Connection,
-        table_name: str,
-        column_name: str,
-    ) -> None:
-        """
-        Create a spatial R-tree index for a geometry column.
-
-        Args:
-            connection: Database connection
-            table_name: Name of the table
-            column_name: Name of the geometry column
-        """
-        index_sql = f"SELECT CreateSpatialIndex('{table_name}', '{column_name}')"
-
-        with create_progress_bar(
-            1,
-            f"Indexing {table_name}.{column_name}",
-            "index",
-        ) as pbar:
-            connection.execute(sa.text(index_sql))
-            pbar.update(1)
 
     def _create_btree_index(
         self,
