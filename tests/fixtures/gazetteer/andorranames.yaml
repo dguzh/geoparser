@@ -8,68 +8,68 @@ sources:
     attributes:
       original:
         - name: geonameid
-          type: INTEGER
+          type: integer
           index: true
         - name: name
-          type: TEXT
+          type: text
         - name: asciiname
-          type: TEXT
+          type: text
         - name: alternatenames
-          type: TEXT
+          type: text
         - name: latitude
-          type: REAL
+          type: real
         - name: longitude
-          type: REAL
+          type: real
         - name: feature_class
-          type: TEXT
+          type: text
         - name: feature_code
-          type: TEXT
+          type: text
         - name: country_code
-          type: TEXT
+          type: text
           index: true
         - name: cc2
-          type: TEXT
+          type: text
         - name: admin1_code
-          type: TEXT
+          type: text
         - name: admin2_code
-          type: TEXT
+          type: text
         - name: admin3_code
-          type: TEXT
+          type: text
         - name: admin4_code
-          type: TEXT
+          type: text
         - name: population
-          type: INTEGER
+          type: integer
         - name: elevation
-          type: INTEGER
+          type: integer
         - name: dem
-          type: INTEGER
+          type: integer
         - name: timezone
-          type: TEXT
+          type: text
         - name: modification_date
-          type: TEXT
+          type: text
       derived:
         - name: geometry
-          type: GEOMETRY
+          type: geometry
           expression: "'POINT(' || longitude || ' ' || latitude || ')'"
           index: true
           srid: 4326
         - name: feature_code_full
-          type: TEXT
+          type: text
           expression: "feature_class || '.' || feature_code"
           index: true
         - name: admin1_code_full
-          type: TEXT
+          type: text
           expression: "country_code || '.' || admin1_code"
           index: true
         - name: admin2_code_full
-          type: TEXT
+          type: text
           expression: "country_code || '.' || admin1_code || '.' || admin2_code"
           index: true
         - name: name_no_parens
-          type: TEXT
+          type: text
           expression: "CASE WHEN instr(name, '(') > 0 THEN trim(substr(name, 1, instr(name, '(') - 1)) ELSE name END"
         - name: asciiname_no_parens
-          type: TEXT
+          type: text
           expression: "CASE WHEN instr(asciiname, '(') > 0 THEN trim(substr(asciiname, 1, instr(asciiname, '(') - 1)) ELSE asciiname END"
     view:
       select:
@@ -132,21 +132,41 @@ sources:
         - source: andorra
           column: geometry
       join:
-        - type: LEFT JOIN
+        - method: left join
           source: countryInfo
-          condition: andorra.country_code = countryInfo.ISO
-        - type: LEFT JOIN
+          condition:
+            type: attribute
+            predicate: equals
+            left: andorra.country_code
+            right: countryInfo.ISO
+        - method: left join
           source: admin1CodesASCII
-          condition: andorra.admin1_code_full = admin1CodesASCII.code
-        - type: LEFT JOIN
+          condition:
+            type: attribute
+            predicate: equals
+            left: andorra.admin1_code_full
+            right: admin1CodesASCII.code
+        - method: left join
           source: admin2Codes
-          condition: andorra.admin2_code_full = admin2Codes.code
-        - type: LEFT JOIN
+          condition:
+            type: attribute
+            predicate: equals
+            left: andorra.admin2_code_full
+            right: admin2Codes.code
+        - method: left join
           source: featureCodes
-          condition: andorra.feature_code_full = featureCodes.code
-        - type: LEFT JOIN
+          condition:
+            type: attribute
+            predicate: equals
+            left: andorra.feature_code_full
+            right: featureCodes.code
+        - method: left join
           source: shape
-          condition: ST_Within(andorra.geometry, shape.geometry)
+          condition:
+            type: spatial
+            predicate: within
+            left: andorra.geometry
+            right: shape.geometry
     features:
       identifier:
         - column: geonameid
@@ -166,14 +186,14 @@ sources:
     attributes:
       original:
         - name: code
-          type: TEXT
+          type: text
           index: true
         - name: name
-          type: TEXT
+          type: text
         - name: asciiname
-          type: TEXT
+          type: text
         - name: geonameid
-          type: INTEGER
+          type: integer
 
   - name: admin2Codes
     path: tests/fixtures/gazetteer/data/admin2Codes.txt
@@ -183,14 +203,14 @@ sources:
     attributes:
       original:
         - name: code
-          type: TEXT
+          type: text
           index: true
         - name: name
-          type: TEXT
+          type: text
         - name: asciiname
-          type: TEXT
+          type: text
         - name: geonameid
-          type: INTEGER
+          type: integer
 
   - name: countryInfo
     path: tests/fixtures/gazetteer/data/countryInfo.txt
@@ -201,44 +221,44 @@ sources:
     attributes:
       original:
         - name: ISO
-          type: TEXT
+          type: text
           index: true
         - name: ISO3
-          type: TEXT
+          type: text
         - name: ISO_Numeric
-          type: INTEGER
+          type: integer
         - name: fips
-          type: TEXT
+          type: text
         - name: Country
-          type: TEXT
+          type: text
         - name: Capital
-          type: TEXT
+          type: text
         - name: Area
-          type: REAL
+          type: real
         - name: Population
-          type: INTEGER
+          type: integer
         - name: Continent
-          type: TEXT
+          type: text
         - name: tld
-          type: TEXT
+          type: text
         - name: CurrencyCode
-          type: TEXT
+          type: text
         - name: CurrencyName
-          type: TEXT
+          type: text
         - name: Phone
-          type: TEXT
+          type: text
         - name: PostalCodeFormat
-          type: TEXT
+          type: text
         - name: PostalCodeRegex
-          type: TEXT
+          type: text
         - name: Languages
-          type: TEXT
+          type: text
         - name: geonameid
-          type: INTEGER
+          type: integer
         - name: neighbours
-          type: TEXT
+          type: text
         - name: EquivalentFipsCode
-          type: TEXT
+          type: text
 
   - name: featureCodes
     path: tests/fixtures/gazetteer/data/featureCodes_en.txt
@@ -248,12 +268,12 @@ sources:
     attributes:
       original:
         - name: code
-          type: TEXT
+          type: text
           index: true
         - name: name
-          type: TEXT
+          type: text
         - name: description
-          type: TEXT
+          type: text
 
   - name: shape
     path: tests/fixtures/gazetteer/data/shape.shp
@@ -262,10 +282,10 @@ sources:
     attributes:
       original:
         - name: geometry
-          type: GEOMETRY
+          type: geometry
           index: true
           srid: 4326
       derived:
         - name: dummy
-          type: TEXT
+          type: text
           expression: "'Dummy Text'"

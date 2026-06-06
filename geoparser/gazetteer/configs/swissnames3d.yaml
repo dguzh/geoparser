@@ -7,38 +7,38 @@ sources:
     attributes:
       original:
         - name: UUID
-          type: TEXT
+          type: text
           index: true
         - name: OBJEKTART
-          type: TEXT
+          type: text
         - name: OBJEKTKLAS
-          type: TEXT
+          type: text
         - name: HOEHE
-          type: REAL
+          type: real
         - name: GEBAEUDENU
-          type: INTEGER
+          type: integer
         - name: NAME_UUID
-          type: TEXT
+          type: text
         - name: NAME
-          type: TEXT
+          type: text
         - name: STATUS
-          type: TEXT
+          type: text
         - name: SPRACHCODE
-          type: TEXT
+          type: text
         - name: NAMEN_TYP
-          type: TEXT
+          type: text
         - name: NAMENGRUPP
-          type: TEXT
+          type: text
         - name: geometry
-          type: GEOMETRY
+          type: geometry
           index: true
           srid: 2056
       derived:
         - name: NAME_NO_PARENS
-          type: TEXT
+          type: text
           expression: "CASE WHEN instr(NAME, '(') > 0 THEN trim(substr(NAME, 1, instr(NAME, '(') - 1)) ELSE NAME END"
         - name: NAME_NO_CODE
-          type: TEXT
+          type: text
           expression: "CASE WHEN length(NAME) > 3 AND substr(NAME, -3, 1) = ' ' AND substr(NAME, -2, 2) GLOB '[A-Z][A-Z]' THEN trim(substr(NAME, 1, length(NAME) - 3)) ELSE NAME END"
     view:
       select:
@@ -89,15 +89,27 @@ sources:
           column: KANTONSNUM
           alias: KANTONSNUM
       join:
-        - type: LEFT JOIN
+        - method: left join
           source: swissBOUNDARIES3D_HOHEITSGEBIET
-          condition: ST_Within(swissNAMES3D_PKT.geometry, swissBOUNDARIES3D_HOHEITSGEBIET.geometry)
-        - type: LEFT JOIN
+          condition:
+            type: spatial
+            predicate: within
+            left: swissNAMES3D_PKT.geometry
+            right: swissBOUNDARIES3D_HOHEITSGEBIET.geometry
+        - method: left join
           source: swissBOUNDARIES3D_BEZIRKSGEBIET
-          condition: swissBOUNDARIES3D_HOHEITSGEBIET.BEZIRKSNUM = swissBOUNDARIES3D_BEZIRKSGEBIET.BEZIRKSNUM
-        - type: LEFT JOIN
+          condition:
+            type: attribute
+            predicate: equals
+            left: swissBOUNDARIES3D_HOHEITSGEBIET.BEZIRKSNUM
+            right: swissBOUNDARIES3D_BEZIRKSGEBIET.BEZIRKSNUM
+        - method: left join
           source: swissBOUNDARIES3D_KANTONSGEBIET
-          condition: swissBOUNDARIES3D_BEZIRKSGEBIET.KANTONSNUM = swissBOUNDARIES3D_KANTONSGEBIET.KANTONSNUM
+          condition:
+            type: attribute
+            predicate: equals
+            left: swissBOUNDARIES3D_BEZIRKSGEBIET.KANTONSNUM
+            right: swissBOUNDARIES3D_KANTONSGEBIET.KANTONSNUM
     features:
       identifier:
         - column: UUID
@@ -113,36 +125,36 @@ sources:
     attributes:
       original:
         - name: UUID
-          type: TEXT
+          type: text
           index: true
         - name: OBJEKTART
-          type: TEXT
+          type: text
         - name: OBJEKTKLAS
-          type: TEXT
+          type: text
         - name: KUNSTBAUTE
-          type: TEXT
+          type: text
         - name: NAME_UUID
-          type: TEXT
+          type: text
         - name: NAME
-          type: TEXT
+          type: text
         - name: STATUS
-          type: TEXT
+          type: text
         - name: SPRACHCODE
-          type: TEXT
+          type: text
         - name: NAMEN_TYP
-          type: TEXT
+          type: text
         - name: NAMENGRUPP
-          type: TEXT
+          type: text
         - name: geometry
-          type: GEOMETRY
+          type: geometry
           index: true
           srid: 2056
       derived:
         - name: NAME_NO_PARENS
-          type: TEXT
+          type: text
           expression: "CASE WHEN instr(NAME, '(') > 0 THEN trim(substr(NAME, 1, instr(NAME, '(') - 1)) ELSE NAME END"
         - name: NAME_NO_CODE
-          type: TEXT
+          type: text
           expression: "CASE WHEN length(NAME) > 3 AND substr(NAME, -3, 1) = ' ' AND substr(NAME, -2, 2) GLOB '[A-Z][A-Z]' THEN trim(substr(NAME, 1, length(NAME) - 3)) ELSE NAME END"
     view:
       select:
@@ -191,15 +203,28 @@ sources:
           column: KANTONSNUM
           alias: KANTONSNUM
       join:
-        - type: LEFT JOIN
+        - method: left join
           source: swissBOUNDARIES3D_HOHEITSGEBIET
-          condition: ST_Within(ST_Centroid(swissNAMES3D_LIN.geometry), swissBOUNDARIES3D_HOHEITSGEBIET.geometry)
-        - type: LEFT JOIN
+          condition:
+            type: spatial
+            predicate: within
+            left: swissNAMES3D_LIN.geometry
+            left_transform: centroid
+            right: swissBOUNDARIES3D_HOHEITSGEBIET.geometry
+        - method: left join
           source: swissBOUNDARIES3D_BEZIRKSGEBIET
-          condition: swissBOUNDARIES3D_HOHEITSGEBIET.BEZIRKSNUM = swissBOUNDARIES3D_BEZIRKSGEBIET.BEZIRKSNUM
-        - type: LEFT JOIN
+          condition:
+            type: attribute
+            predicate: equals
+            left: swissBOUNDARIES3D_HOHEITSGEBIET.BEZIRKSNUM
+            right: swissBOUNDARIES3D_BEZIRKSGEBIET.BEZIRKSNUM
+        - method: left join
           source: swissBOUNDARIES3D_KANTONSGEBIET
-          condition: swissBOUNDARIES3D_BEZIRKSGEBIET.KANTONSNUM = swissBOUNDARIES3D_KANTONSGEBIET.KANTONSNUM
+          condition:
+            type: attribute
+            predicate: equals
+            left: swissBOUNDARIES3D_BEZIRKSGEBIET.KANTONSNUM
+            right: swissBOUNDARIES3D_KANTONSGEBIET.KANTONSNUM
     features:
       identifier:
         - column: UUID
@@ -215,38 +240,38 @@ sources:
     attributes:
       original:
         - name: UUID
-          type: TEXT
+          type: text
           index: true
         - name: OBJEKTART
-          type: TEXT
+          type: text
         - name: OBJEKTKLAS
-          type: TEXT
+          type: text
         - name: EINWOHNERK
-          type: INTEGER
+          type: integer
         - name: NAME_UUID
-          type: TEXT
+          type: text
         - name: NAME
-          type: TEXT
+          type: text
         - name: STATUS
-          type: TEXT
+          type: text
         - name: SPRACHCODE
-          type: TEXT
+          type: text
         - name: NAMEN_TYP
-          type: TEXT
+          type: text
         - name: NAMENGRUPP
-          type: TEXT
+          type: text
         - name: ISCED
-          type: TEXT
+          type: text
         - name: geometry
-          type: GEOMETRY
+          type: geometry
           index: true
           srid: 2056
       derived:
         - name: NAME_NO_PARENS
-          type: TEXT
+          type: text
           expression: "CASE WHEN instr(NAME, '(') > 0 THEN trim(substr(NAME, 1, instr(NAME, '(') - 1)) ELSE NAME END"
         - name: NAME_NO_CODE
-          type: TEXT
+          type: text
           expression: "CASE WHEN length(NAME) > 3 AND substr(NAME, -3, 1) = ' ' AND substr(NAME, -2, 2) GLOB '[A-Z][A-Z]' THEN trim(substr(NAME, 1, length(NAME) - 3)) ELSE NAME END"
     view:
       select:
@@ -297,15 +322,28 @@ sources:
           column: KANTONSNUM
           alias: KANTONSNUM
       join:
-        - type: LEFT JOIN
+        - method: left join
           source: swissBOUNDARIES3D_HOHEITSGEBIET
-          condition: ST_Within(ST_Centroid(swissNAMES3D_PLY.geometry), swissBOUNDARIES3D_HOHEITSGEBIET.geometry)
-        - type: LEFT JOIN
+          condition:
+            type: spatial
+            predicate: within
+            left: swissNAMES3D_PLY.geometry
+            left_transform: centroid
+            right: swissBOUNDARIES3D_HOHEITSGEBIET.geometry
+        - method: left join
           source: swissBOUNDARIES3D_BEZIRKSGEBIET
-          condition: swissBOUNDARIES3D_HOHEITSGEBIET.BEZIRKSNUM = swissBOUNDARIES3D_BEZIRKSGEBIET.BEZIRKSNUM
-        - type: LEFT JOIN
+          condition:
+            type: attribute
+            predicate: equals
+            left: swissBOUNDARIES3D_HOHEITSGEBIET.BEZIRKSNUM
+            right: swissBOUNDARIES3D_BEZIRKSGEBIET.BEZIRKSNUM
+        - method: left join
           source: swissBOUNDARIES3D_KANTONSGEBIET
-          condition: swissBOUNDARIES3D_BEZIRKSGEBIET.KANTONSNUM = swissBOUNDARIES3D_KANTONSGEBIET.KANTONSNUM
+          condition:
+            type: attribute
+            predicate: equals
+            left: swissBOUNDARIES3D_BEZIRKSGEBIET.KANTONSNUM
+            right: swissBOUNDARIES3D_KANTONSGEBIET.KANTONSNUM
     features:
       identifier:
         - column: UUID
@@ -321,61 +359,61 @@ sources:
     attributes:
       original:
         - name: UUID
-          type: TEXT
+          type: text
           index: true
         - name: DATUM_AEND
-          type: TEXT
+          type: text
         - name: DATUM_ERST
-          type: TEXT
+          type: text
         - name: ERSTELL_J
-          type: INTEGER
+          type: integer
         - name: ERSTELL_M
-          type: INTEGER
+          type: integer
         - name: GRUND_AEND
-          type: TEXT
+          type: text
         - name: HERKUNFT
-          type: TEXT
+          type: text
         - name: HERKUNFT_J
-          type: INTEGER
+          type: integer
         - name: HERKUNFT_M
-          type: INTEGER
+          type: integer
         - name: REVISION_J
-          type: INTEGER
+          type: integer
         - name: REVISION_M
-          type: INTEGER
+          type: integer
         - name: REVISION_Q
-          type: INTEGER
+          type: integer
         - name: OBJEKTART
-          type: TEXT
+          type: text
         - name: BFS_NUMMER
-          type: INTEGER
+          type: integer
         - name: BEZIRKSNUM
-          type: INTEGER
+          type: integer
           index: true
         - name: KANTONSNUM
-          type: INTEGER
+          type: integer
           index: true
         - name: NAME
-          type: TEXT
+          type: text
         - name: GEM_FLAECH
-          type: REAL
+          type: real
         - name: SEE_FLAECH
-          type: REAL
+          type: real
         - name: ICC
-          type: TEXT
+          type: text
         - name: SHN
-          type: TEXT
+          type: text
         - name: EINWOHNERZ
-          type: INTEGER
+          type: integer
         - name: HIST_NR
-          type: INTEGER
+          type: integer
         - name: geometry
-          type: GEOMETRY
+          type: geometry
           index: true
           srid: 2056
       derived:
         - name: NAME_NO_PARENS
-          type: TEXT
+          type: text
           expression: "CASE WHEN instr(NAME, '(') > 0 THEN trim(substr(NAME, 1, instr(NAME, '(') - 1)) ELSE NAME END"
     view:
       select:
@@ -436,12 +474,20 @@ sources:
         - source: swissBOUNDARIES3D_HOHEITSGEBIET
           column: geometry
       join:
-        - type: LEFT JOIN
+        - method: left join
           source: swissBOUNDARIES3D_BEZIRKSGEBIET
-          condition: swissBOUNDARIES3D_HOHEITSGEBIET.BEZIRKSNUM = swissBOUNDARIES3D_BEZIRKSGEBIET.BEZIRKSNUM
-        - type: LEFT JOIN
+          condition:
+            type: attribute
+            predicate: equals
+            left: swissBOUNDARIES3D_HOHEITSGEBIET.BEZIRKSNUM
+            right: swissBOUNDARIES3D_BEZIRKSGEBIET.BEZIRKSNUM
+        - method: left join
           source: swissBOUNDARIES3D_KANTONSGEBIET
-          condition: swissBOUNDARIES3D_HOHEITSGEBIET.KANTONSNUM = swissBOUNDARIES3D_KANTONSGEBIET.KANTONSNUM
+          condition:
+            type: attribute
+            predicate: equals
+            left: swissBOUNDARIES3D_HOHEITSGEBIET.KANTONSNUM
+            right: swissBOUNDARIES3D_KANTONSGEBIET.KANTONSNUM
     features:
       identifier:
         - column: UUID
@@ -456,55 +502,55 @@ sources:
     attributes:
       original:
         - name: UUID
-          type: TEXT
+          type: text
           index: true
         - name: DATUM_AEND
-          type: TEXT
+          type: text
         - name: DATUM_ERST
-          type: TEXT
+          type: text
         - name: ERSTELL_J
-          type: INTEGER
+          type: integer
         - name: ERSTELL_M
-          type: INTEGER
+          type: integer
         - name: GRUND_AEND
-          type: TEXT
+          type: text
         - name: HERKUNFT
-          type: TEXT
+          type: text
         - name: HERKUNFT_J
-          type: INTEGER
+          type: integer
         - name: HERKUNFT_M
-          type: INTEGER
+          type: integer
         - name: REVISION_J
-          type: INTEGER
+          type: integer
         - name: REVISION_M
-          type: INTEGER
+          type: integer
         - name: REVISION_Q
-          type: INTEGER
+          type: integer
         - name: OBJEKTART
-          type: TEXT
+          type: text
         - name: BEZIRKSNUM
-          type: INTEGER
+          type: integer
           index: true
         - name: SEE_FLAECH
-          type: REAL
+          type: real
         - name: BEZIRKSFLA
-          type: REAL
+          type: real
         - name: NAME
-          type: TEXT
+          type: text
         - name: KANTONSNUM
-          type: INTEGER
+          type: integer
           index: true
         - name: ICC
-          type: TEXT
+          type: text
         - name: EINWOHNERZ
-          type: INTEGER
+          type: integer
         - name: geometry
-          type: GEOMETRY
+          type: geometry
           index: true
           srid: 2056
       derived:
         - name: NAME_NO_PARENS
-          type: TEXT
+          type: text
           expression: "CASE WHEN instr(NAME, '(') > 0 THEN trim(substr(NAME, 1, instr(NAME, '(') - 1)) ELSE NAME END"
     view:
       select:
@@ -556,9 +602,13 @@ sources:
         - source: swissBOUNDARIES3D_BEZIRKSGEBIET
           column: geometry
       join:
-        - type: LEFT JOIN
+        - method: left join
           source: swissBOUNDARIES3D_KANTONSGEBIET
-          condition: swissBOUNDARIES3D_BEZIRKSGEBIET.KANTONSNUM = swissBOUNDARIES3D_KANTONSGEBIET.KANTONSNUM
+          condition:
+            type: attribute
+            predicate: equals
+            left: swissBOUNDARIES3D_BEZIRKSGEBIET.KANTONSNUM
+            right: swissBOUNDARIES3D_KANTONSGEBIET.KANTONSNUM
     features:
       identifier:
         - column: UUID
@@ -573,47 +623,47 @@ sources:
     attributes:
       original:
         - name: UUID
-          type: TEXT
+          type: text
           index: true
         - name: DATUM_AEND
-          type: TEXT
+          type: text
         - name: DATUM_ERST
-          type: TEXT
+          type: text
         - name: ERSTELL_J
-          type: INTEGER
+          type: integer
         - name: ERSTELL_M
-          type: INTEGER
+          type: integer
         - name: GRUND_AEND
-          type: TEXT
+          type: text
         - name: HERKUNFT
-          type: TEXT
+          type: text
         - name: HERKUNFT_J
-          type: INTEGER
+          type: integer
         - name: HERKUNFT_M
-          type: INTEGER
+          type: integer
         - name: REVISION_J
-          type: INTEGER
+          type: integer
         - name: REVISION_M
-          type: INTEGER
+          type: integer
         - name: REVISION_Q
-          type: INTEGER
+          type: integer
         - name: OBJEKTART
-          type: TEXT
+          type: text
         - name: KANTONSNUM
-          type: INTEGER
+          type: integer
           index: true
         - name: SEE_FLAECH
-          type: REAL
+          type: real
         - name: KANTONSFLA
-          type: REAL
+          type: real
         - name: NAME
-          type: TEXT
+          type: text
         - name: ICC
-          type: TEXT
+          type: text
         - name: EINWOHNERZ
-          type: INTEGER
+          type: integer
         - name: geometry
-          type: GEOMETRY
+          type: geometry
           index: true
           srid: 2056
     view:
