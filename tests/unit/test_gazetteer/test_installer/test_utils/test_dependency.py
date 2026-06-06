@@ -7,6 +7,7 @@ Tests the DependencyResolver class for topological sorting of sources.
 import pytest
 
 from geoparser.gazetteer.installer.model import (
+    AttributeConditionConfig,
     AttributesConfig,
     DataType,
     OriginalAttributeConfig,
@@ -120,9 +121,11 @@ class TestDependencyResolverResolve:
                 select=[SelectConfig(source="source2", column="id")],
                 join=[
                     ViewJoinConfig(
-                        type="LEFT JOIN",
+                        method="left join",
                         source="source1",
-                        condition="source2.id = source1.id",
+                        condition=AttributeConditionConfig(
+                            left="source2.id", right="source1.id"
+                        ),
                     )
                 ],
             ),
@@ -341,9 +344,11 @@ class TestDependencyResolverBuildDependencyGraph:
                 select=[SelectConfig(source="source2", column="id")],
                 join=[
                     ViewJoinConfig(
-                        type="INNER JOIN",
+                        method="inner join",
                         source="source1",
-                        condition="source2.id = source1.id",
+                        condition=AttributeConditionConfig(
+                            left="source2.id", right="source1.id"
+                        ),
                     )
                 ],
             ),

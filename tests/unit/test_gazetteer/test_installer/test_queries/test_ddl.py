@@ -7,6 +7,7 @@ Tests the TableBuilder and ViewBuilder classes for DDL SQL generation.
 import pytest
 
 from geoparser.gazetteer.installer.model import (
+    AttributeConditionConfig,
     AttributesConfig,
     DataType,
     DerivedAttributeConfig,
@@ -14,6 +15,7 @@ from geoparser.gazetteer.installer.model import (
     SelectConfig,
     SourceConfig,
     SourceType,
+    SpatialConditionConfig,
     ViewConfig,
     ViewJoinConfig,
 )
@@ -44,7 +46,7 @@ class TestTableBuilderBuildCreateTable:
         sql = builder.build_create_table(source, "test_table")
 
         # Assert
-        assert sql == "CREATE TABLE test_table (id INTEGER)"
+        assert sql == "CREATE TABLE test_table (id integer)"
 
     def test_builds_table_with_multiple_columns(self):
         """Test building CREATE TABLE with multiple columns."""
@@ -70,7 +72,7 @@ class TestTableBuilderBuildCreateTable:
         sql = builder.build_create_table(source, "test_table")
 
         # Assert
-        assert sql == "CREATE TABLE test_table (id INTEGER, name TEXT, value REAL)"
+        assert sql == "CREATE TABLE test_table (id integer, name text, value real)"
 
     def test_excludes_dropped_columns(self):
         """Test that dropped columns are excluded from table creation."""
@@ -97,10 +99,10 @@ class TestTableBuilderBuildCreateTable:
 
         # Assert
         assert "temp" not in sql
-        assert sql == "CREATE TABLE test_table (id INTEGER, name TEXT)"
+        assert sql == "CREATE TABLE test_table (id integer, name text)"
 
     def test_creates_geometry_column_as_wkt_text(self):
-        """Test that geometry columns are created as TEXT with _wkt suffix."""
+        """Test that geometry columns are created as TEXT (storing WKT)."""
         # Arrange
         source = SourceConfig(
             name="test_source",
@@ -123,7 +125,7 @@ class TestTableBuilderBuildCreateTable:
         sql = builder.build_create_table(source, "test_table")
 
         # Assert
-        assert sql == "CREATE TABLE test_table (id INTEGER, geometry_wkt TEXT)"
+        assert sql == "CREATE TABLE test_table (id integer, geometry text)"
 
     def test_includes_derived_columns(self):
         """Test that derived columns are included in table creation."""
@@ -155,55 +157,7 @@ class TestTableBuilderBuildCreateTable:
         sql = builder.build_create_table(source, "test_table")
 
         # Assert
-        assert "full_name TEXT" in sql
-
-
-@pytest.mark.unit
-class TestTableBuilderBuildAddGeometryColumn:
-    """Test TableBuilder.build_add_geometry_column() method."""
-
-    def test_builds_add_geometry_column_with_defaults(self):
-        """Test building AddGeometryColumn with default parameters."""
-        # Arrange
-        builder = TableBuilder()
-
-        # Act
-        sql = builder.build_add_geometry_column("test_table", "geometry", 4326)
-
-        # Assert
-        assert sql == (
-            "SELECT AddGeometryColumn('test_table', 'geometry', 4326, 'GEOMETRY', 'XY')"
-        )
-
-    def test_builds_add_geometry_column_with_custom_type(self):
-        """Test building AddGeometryColumn with custom geometry type."""
-        # Arrange
-        builder = TableBuilder()
-
-        # Act
-        sql = builder.build_add_geometry_column(
-            "test_table", "geometry", 4326, geometry_type="POINT"
-        )
-
-        # Assert
-        assert sql == (
-            "SELECT AddGeometryColumn('test_table', 'geometry', 4326, 'POINT', 'XY')"
-        )
-
-    def test_builds_add_geometry_column_with_custom_dimension(self):
-        """Test building AddGeometryColumn with custom dimension."""
-        # Arrange
-        builder = TableBuilder()
-
-        # Act
-        sql = builder.build_add_geometry_column(
-            "test_table", "geometry", 4326, dimension="XYZ"
-        )
-
-        # Assert
-        assert sql == (
-            "SELECT AddGeometryColumn('test_table', 'geometry', 4326, 'GEOMETRY', 'XYZ')"
-        )
+        assert "full_name text" in sql
 
 
 @pytest.mark.unit
@@ -307,9 +261,13 @@ class TestViewBuilderBuildCreateView:
                 select=[SelectConfig(source="source2", column="id")],
                 join=[
                     ViewJoinConfig(
-                        type="LEFT JOIN",
+                        method="left join",
                         source="source1",
-                        condition="source2.id = source1.id",
+                        condition=AttributeConditionConfig(
+                            predicate="equals",
+                            left="source2.id",
+                            right="source1.id",
+                        ),
                     )
                 ],
             ),
@@ -321,8 +279,54 @@ class TestViewBuilderBuildCreateView:
         sql = builder.build_create_view(source, "test_view")
 
         # Assert
-        assert "LEFT JOIN source1 ON" in sql
+        assert "left join source1 ON" in sql
         assert "source2.id = source1.id" in sql
+
+    def test_builds_view_with_spatial_join_as_equality(self):
+        """Test that spatial joins are emitted as precomputed equality joins."""
+        # Arrange
+        source = SourceConfig(
+            name="points",
+            url="http://example.com/data.csv",
+            file="data.csv",
+            type=SourceType.TABULAR,
+            separator=",",
+            attributes=AttributesConfig(
+                original=[OriginalAttributeConfig(name="id", type=DataType.INTEGER)],
+                derived=[
+                    DerivedAttributeConfig(
+                        name="geometry",
+                        type=DataType.GEOMETRY,
+                        expression="'POINT(0 0)'",
+                        srid=4326,
+                    )
+                ],
+            ),
+            view=ViewConfig(
+                select=[SelectConfig(source="points", column="id")],
+                join=[
+                    ViewJoinConfig(
+                        method="left join",
+                        source="regions",
+                        condition=SpatialConditionConfig(
+                            predicate="within",
+                            left="points.geometry",
+                            right="regions.geometry",
+                        ),
+                    )
+                ],
+            ),
+        )
+
+        builder = ViewBuilder()
+
+        # Act
+        sql = builder.build_create_view(source, "test_view")
+
+        # Assert
+        assert "left join regions ON" in sql
+        assert "points.__spatial_join_regions = regions.rowid" in sql
+        assert "ST_Within" not in sql
 
     def test_raises_error_when_source_has_no_view(self):
         """Test that error is raised when source has no view configuration."""

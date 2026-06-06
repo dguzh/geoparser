@@ -328,12 +328,7 @@ class TestFeatureGeometryProperty:
         # Create table with geometry but no data
         with get_connection() as connection:
             connection.execute(
-                text(f"CREATE TABLE {source.name} (id TEXT PRIMARY KEY)")
-            )
-            connection.execute(
-                text(
-                    f"SELECT AddGeometryColumn('{source.name}', 'geometry', 4326, 'POINT', 'XY')"
-                )
+                text(f"CREATE TABLE {source.name} (id TEXT PRIMARY KEY, geometry TEXT)")
             )
             connection.commit()
 
@@ -368,12 +363,7 @@ class TestFeatureGeometryProperty:
         # Create table with geometry and insert row with NULL geometry
         with get_connection() as connection:
             connection.execute(
-                text(f"CREATE TABLE {source.name} (id TEXT PRIMARY KEY)")
-            )
-            connection.execute(
-                text(
-                    f"SELECT AddGeometryColumn('{source.name}', 'geometry', 4326, 'POINT', 'XY')"
-                )
+                text(f"CREATE TABLE {source.name} (id TEXT PRIMARY KEY, geometry TEXT)")
             )
             connection.execute(
                 text(f"INSERT INTO {source.name} (id, geometry) VALUES ('1', NULL)")
@@ -390,6 +380,50 @@ class TestFeatureGeometryProperty:
 
         # Assert
         assert result is None
+
+    def test_geometry_returns_shapely_object_from_wkt(
+        self, test_session: Session, gazetteer_factory, source_factory
+    ):
+        """Test that geometry property parses stored WKT into a Shapely object."""
+        # Arrange
+        from sqlalchemy import text
+        from shapely.geometry import Point
+
+        from geoparser.db.db import get_connection
+        from geoparser.db.models import Feature
+
+        gazetteer = gazetteer_factory(name="test_gaz")
+        source = source_factory(
+            name="geo_source",
+            location_id_name="id",
+            gazetteer_id=gazetteer.id,
+        )
+
+        # Create table with geometry stored as WKT text
+        with get_connection() as connection:
+            connection.execute(
+                text(f"CREATE TABLE {source.name} (id TEXT PRIMARY KEY, geometry TEXT)")
+            )
+            connection.execute(
+                text(
+                    f"INSERT INTO {source.name} (id, geometry) "
+                    "VALUES ('1', 'POINT(8.5 47.4)')"
+                )
+            )
+            connection.commit()
+
+        feature = Feature(source_id=source.id, location_id_value="1")
+        test_session.add(feature)
+        test_session.commit()
+        test_session.refresh(feature)
+
+        # Act
+        result = feature.geometry
+
+        # Assert
+        assert isinstance(result, Point)
+        assert result.x == pytest.approx(8.5)
+        assert result.y == pytest.approx(47.4)
 
     def test_geometry_returns_none_on_exception(
         self, test_session: Session, source_factory

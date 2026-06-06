@@ -59,38 +59,6 @@ class TestTransformationBuilderBuildDerivationUpdate:
 
 
 @pytest.mark.unit
-class TestTransformationBuilderBuildGeometryUpdate:
-    """Test TransformationBuilder.build_geometry_update() method."""
-
-    def test_builds_geometry_update(self):
-        """Test building UPDATE statement to convert WKT to geometry."""
-        # Arrange
-        builder = TransformationBuilder()
-
-        # Act
-        sql = builder.build_geometry_update("test_table", "geometry", 4326)
-
-        # Assert
-        assert sql == (
-            "UPDATE test_table "
-            "SET geometry = GeomFromText(geometry_wkt, 4326) "
-            "WHERE geometry_wkt IS NOT NULL"
-        )
-
-    def test_uses_wkt_column_suffix(self):
-        """Test that _wkt suffix is used for source column."""
-        # Arrange
-        builder = TransformationBuilder()
-
-        # Act
-        sql = builder.build_geometry_update("test_table", "geom", 3857)
-
-        # Assert
-        assert "geom_wkt" in sql
-        assert "GeomFromText(geom_wkt, 3857)" in sql
-
-
-@pytest.mark.unit
 class TestFeatureRegistrationBuilderBuildFeatureInsert:
     """Test FeatureRegistrationBuilder.build_feature_insert() method."""
 

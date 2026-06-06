@@ -11,17 +11,23 @@ import pytest
 import yaml
 
 from geoparser.gazetteer.installer.model import (
+    AttributeConditionConfig,
+    AttributePredicate,
     AttributesConfig,
     ColumnConfig,
     DataType,
     DerivedAttributeConfig,
     FeatureConfig,
     GazetteerConfig,
+    GeometryTransform,
+    JoinConditionType,
     NameColumnConfig,
     OriginalAttributeConfig,
     SelectConfig,
     SourceConfig,
     SourceType,
+    SpatialConditionConfig,
+    SpatialPredicate,
     ViewConfig,
     ViewJoinConfig,
 )
@@ -33,23 +39,23 @@ class TestDataTypeEnum:
 
     def test_has_text_type(self):
         """Test that DATA_TYPE has TEXT."""
-        assert DataType.TEXT == "TEXT"
+        assert DataType.TEXT == "text"
 
     def test_has_integer_type(self):
         """Test that DataType has INTEGER."""
-        assert DataType.INTEGER == "INTEGER"
+        assert DataType.INTEGER == "integer"
 
     def test_has_real_type(self):
         """Test that DataType has REAL."""
-        assert DataType.REAL == "REAL"
+        assert DataType.REAL == "real"
 
     def test_has_blob_type(self):
         """Test that DataType has BLOB."""
-        assert DataType.BLOB == "BLOB"
+        assert DataType.BLOB == "blob"
 
     def test_has_geometry_type(self):
         """Test that DataType has GEOMETRY."""
-        assert DataType.GEOMETRY == "GEOMETRY"
+        assert DataType.GEOMETRY == "geometry"
 
 
 @pytest.mark.unit
@@ -239,19 +245,181 @@ class TestSelectConfig:
 class TestViewJoinConfig:
     """Test ViewJoinConfig model."""
 
-    def test_creates_with_valid_data(self):
-        """Test creating with valid join data."""
+    def test_creates_with_attribute_condition(self):
+        """Test creating with an attribute equality condition."""
         # Act
         join = ViewJoinConfig(
-            type="LEFT JOIN",
+            method="left join",
             source="table2",
-            condition="table1.id = table2.ref_id",
+            condition=AttributeConditionConfig(
+                predicate="equals",
+                left="table1.id",
+                right="table2.ref_id",
+            ),
         )
 
         # Assert
-        assert join.type == "LEFT JOIN"
+        assert join.method == "left join"
         assert join.source == "table2"
-        assert join.condition == "table1.id = table2.ref_id"
+        assert join.condition.type == JoinConditionType.ATTRIBUTE
+        assert join.condition.predicate == AttributePredicate.EQUALS
+        assert not join.condition.is_spatial
+
+    def test_creates_with_spatial_condition(self):
+        """Test creating a join whose condition is a spatial join."""
+        # Act
+        join = ViewJoinConfig(
+            method="left join",
+            source="regions",
+            condition=SpatialConditionConfig(
+                predicate="within",
+                left="places.geometry",
+                right="regions.geometry",
+            ),
+        )
+
+        # Assert
+        assert join.condition.type == JoinConditionType.SPATIAL
+        assert join.condition.predicate == SpatialPredicate.WITHIN
+        assert join.condition.is_spatial
+
+    def test_parses_attribute_condition_from_mapping(self):
+        """Test that a mapping with type 'attribute' parses to the right model."""
+        # Act
+        join = ViewJoinConfig(
+            method="left join",
+            source="regions",
+            condition={
+                "type": "attribute",
+                "predicate": "equals",
+                "left": "places.admin_code",
+                "right": "regions.code",
+            },
+        )
+
+        # Assert
+        assert isinstance(join.condition, AttributeConditionConfig)
+        assert join.condition.left_source == "places"
+
+    def test_parses_spatial_condition_from_mapping(self):
+        """Test that a mapping with type 'spatial' parses to the right model."""
+        # Act
+        join = ViewJoinConfig(
+            method="left join",
+            source="regions",
+            condition={
+                "type": "spatial",
+                "predicate": "within",
+                "left": "places.geometry",
+                "right": "regions.geometry",
+            },
+        )
+
+        # Assert
+        assert isinstance(join.condition, SpatialConditionConfig)
+        assert join.condition.left_source == "places"
+
+    def test_requires_condition(self):
+        """Test that a join must specify a condition."""
+        # Act & Assert
+        with pytest.raises(ValueError):
+            ViewJoinConfig(method="left join", source="regions")
+
+
+@pytest.mark.unit
+class TestAttributeConditionConfig:
+    """Test AttributeConditionConfig model."""
+
+    def test_defaults(self):
+        """Test that an attribute condition defaults to the equals predicate."""
+        # Act
+        condition = AttributeConditionConfig(
+            left="places.admin_code",
+            right="regions.code",
+        )
+
+        # Assert
+        assert condition.type == JoinConditionType.ATTRIBUTE
+        assert condition.predicate == AttributePredicate.EQUALS
+        assert not condition.is_spatial
+
+    def test_parses_source_and_column_references(self):
+        """Test that left/right references are parsed into source and column."""
+        # Act
+        condition = AttributeConditionConfig(
+            left="places.admin_code",
+            right="regions.code",
+        )
+
+        # Assert
+        assert condition.left_source == "places"
+        assert condition.left_column == "admin_code"
+        assert condition.right_source == "regions"
+        assert condition.right_column == "code"
+
+    def test_rejects_invalid_reference(self):
+        """Test that references must use the 'source.column' format."""
+        # Act & Assert
+        with pytest.raises(ValueError, match="format 'source.column'"):
+            AttributeConditionConfig(left="places", right="regions.code")
+
+
+@pytest.mark.unit
+class TestSpatialConditionConfig:
+    """Test SpatialConditionConfig model."""
+
+    def test_defaults(self):
+        """Test that a spatial condition defaults to the within predicate."""
+        # Act
+        condition = SpatialConditionConfig(
+            left="places.geometry",
+            right="regions.geometry",
+        )
+
+        # Assert
+        assert condition.type == JoinConditionType.SPATIAL
+        assert condition.predicate == SpatialPredicate.WITHIN
+        assert condition.is_spatial
+        assert condition.left_transform is None
+        assert condition.right_transform is None
+
+    def test_parses_source_and_column_references(self):
+        """Test that left/right references are parsed into source and column."""
+        # Act
+        condition = SpatialConditionConfig(
+            predicate="within",
+            left="places.geom",
+            right="regions.boundary",
+        )
+
+        # Assert
+        assert condition.left_source == "places"
+        assert condition.left_column == "geom"
+        assert condition.right_source == "regions"
+        assert condition.right_column == "boundary"
+
+    def test_accepts_centroid_transform(self):
+        """Test that a centroid transform can be specified."""
+        # Act
+        condition = SpatialConditionConfig(
+            predicate="within",
+            left="roads.geometry",
+            left_transform="centroid",
+            right="regions.geometry",
+        )
+
+        # Assert
+        assert condition.left_transform == GeometryTransform.CENTROID
+
+    def test_rejects_invalid_reference(self):
+        """Test that references must use the 'source.column' format."""
+        # Act & Assert
+        with pytest.raises(ValueError, match="format 'source.column'"):
+            SpatialConditionConfig(
+                predicate="within",
+                left="places",
+                right="regions.geometry",
+            )
 
 
 @pytest.mark.unit
@@ -325,7 +493,11 @@ class TestViewConfig:
         view = ViewConfig(
             select=[SelectConfig(source="t1", column="col1")],
             join=[
-                ViewJoinConfig(type="LEFT JOIN", source="t2", condition="t1.id=t2.id")
+                ViewJoinConfig(
+                    method="left join",
+                    source="t2",
+                    condition=AttributeConditionConfig(left="t1.id", right="t2.id"),
+                )
             ],
         )
 
@@ -701,9 +873,12 @@ class TestGazetteerConfig:
                             select=[SelectConfig(source="source1", column="col1")],
                             join=[
                                 ViewJoinConfig(
-                                    type="LEFT JOIN",
+                                    method="left join",
                                     source="non_existent_source",
-                                    condition="source1.id = non_existent_source.id",
+                                condition=AttributeConditionConfig(
+                                    left="source1.id",
+                                    right="non_existent_source.id",
+                                ),
                                 )
                             ],
                         ),
@@ -747,9 +922,11 @@ class TestGazetteerConfig:
                         ],
                         join=[
                             ViewJoinConfig(
-                                type="LEFT JOIN",
+                                method="left join",
                                 source="source1",
-                                condition="source2.ref_id = source1.id",
+                                condition=AttributeConditionConfig(
+                                    left="source2.ref_id", right="source1.id"
+                                ),
                             )
                         ],
                     ),
@@ -778,7 +955,7 @@ class TestGazetteerConfigFromYAML:
                     "type": "tabular",
                     "separator": ",",
                     "attributes": {
-                        "original": [{"name": "id", "type": "INTEGER"}],
+                        "original": [{"name": "id", "type": "integer"}],
                     },
                 }
             ],
