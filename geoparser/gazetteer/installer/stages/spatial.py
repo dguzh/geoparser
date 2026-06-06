@@ -230,7 +230,9 @@ class SpatialStage(Stage):
                     }
                 )
                 mapping_frame = mapping_frame.dropna(subset=["right_rowid"])
-                mapping_frame["left_rowid"] = mapping_frame["left_rowid"].astype("int64")
+                mapping_frame["left_rowid"] = mapping_frame["left_rowid"].astype(
+                    "int64"
+                )
                 mapping_frame["right_rowid"] = mapping_frame["right_rowid"].astype(
                     "int64"
                 )

@@ -386,8 +386,8 @@ class TestFeatureGeometryProperty:
     ):
         """Test that geometry property parses stored WKT into a Shapely object."""
         # Arrange
-        from sqlalchemy import text
         from shapely.geometry import Point
+        from sqlalchemy import text
 
         from geoparser.db.db import get_connection
         from geoparser.db.models import Feature

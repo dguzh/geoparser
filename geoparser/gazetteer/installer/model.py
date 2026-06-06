@@ -362,9 +362,9 @@ class SourceConfig(BaseModel):
         if self.features is None:
             return self
 
-        feature_columns = [
-            item.column for item in self.features.identifier
-        ] + [name.column for name in self.features.names]
+        feature_columns = [item.column for item in self.features.identifier] + [
+            name.column for name in self.features.names
+        ]
         for column in feature_columns:
             if column.source != self.name:
                 raise ValueError(

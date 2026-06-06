@@ -383,7 +383,9 @@ class TestAttributeConditionConfig:
         # Act & Assert
         with pytest.raises(ValueError, match="can not use geometry transforms"):
             AttributeConditionConfig(
-                left=JoinOperandConfig(column="places.admin_code", transform="centroid"),
+                left=JoinOperandConfig(
+                    column="places.admin_code", transform="centroid"
+                ),
                 right=JoinOperandConfig(column="regions.code"),
             )
 
@@ -925,9 +927,7 @@ class TestGazetteerConfig:
                             ]
                         ),
                         view=ViewConfig(
-                            select=[
-                                SelectConfig(column="non_existent_source.col1")
-                            ]
+                            select=[SelectConfig(column="non_existent_source.col1")]
                         ),
                     )
                 ],

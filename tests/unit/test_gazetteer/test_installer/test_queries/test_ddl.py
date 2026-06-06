@@ -201,9 +201,7 @@ class TestViewBuilderBuildCreateView:
                 original=[OriginalAttributeConfig(name="id", type=DataType.INTEGER)]
             ),
             view=ViewConfig(
-                select=[
-                    SelectConfig(column="test_source.id", alias="source_id")
-                ]
+                select=[SelectConfig(column="test_source.id", alias="source_id")]
             ),
         )
 
