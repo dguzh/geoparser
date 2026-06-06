@@ -3,7 +3,7 @@ sources:
   - name: andorra
     path: tests/fixtures/gazetteer/data/AD.txt
     file: AD.txt
-    type: tabular
+    kind: tabular
     separator: "\t"
     attributes:
       original:
@@ -73,115 +73,93 @@ sources:
           expression: "CASE WHEN instr(asciiname, '(') > 0 THEN trim(substr(asciiname, 1, instr(asciiname, '(') - 1)) ELSE asciiname END"
     view:
       select:
-        - source: andorra
-          column: geonameid
-        - source: andorra
-          column: name
-        - source: andorra
-          column: name_no_parens
-        - source: andorra
-          column: asciiname
-        - source: andorra
-          column: asciiname_no_parens
-        - source: andorra
-          column: alternatenames
-        - source: andorra
-          column: latitude
-        - source: andorra
-          column: longitude
-        - source: andorra
-          column: feature_class
-        - source: andorra
-          column: feature_code
-        - source: featureCodes
-          column: name
+        - column: andorra.geonameid
+        - column: andorra.name
+        - column: andorra.name_no_parens
+        - column: andorra.asciiname
+        - column: andorra.asciiname_no_parens
+        - column: andorra.alternatenames
+        - column: andorra.latitude
+        - column: andorra.longitude
+        - column: andorra.feature_class
+        - column: andorra.feature_code
+        - column: featureCodes.name
           alias: feature_name
-        - source: andorra
-          column: country_code
-        - source: countryInfo
-          column: Country
+        - column: andorra.country_code
+        - column: countryInfo.Country
           alias: country_name
-        - source: andorra
-          column: cc2
-        - source: andorra
-          column: admin1_code
-        - source: admin1CodesASCII
-          column: name
+        - column: andorra.cc2
+        - column: andorra.admin1_code
+        - column: admin1CodesASCII.name
           alias: admin1_name
-        - source: andorra
-          column: admin2_code
-        - source: admin2Codes
-          column: name
+        - column: andorra.admin2_code
+        - column: admin2Codes.name
           alias: admin2_name
-        - source: andorra
-          column: admin3_code
-        - source: andorra
-          column: admin4_code
-        - source: andorra
-          column: population
-        - source: andorra
-          column: elevation
-        - source: andorra
-          column: dem
-        - source: andorra
-          column: timezone
-        - source: andorra
-          column: modification_date
-        - source: shape
-          column: dummy
-        - source: andorra
-          column: geometry
+        - column: andorra.admin3_code
+        - column: andorra.admin4_code
+        - column: andorra.population
+        - column: andorra.elevation
+        - column: andorra.dem
+        - column: andorra.timezone
+        - column: andorra.modification_date
+        - column: shape.dummy
+        - column: andorra.geometry
       join:
         - method: left join
-          source: countryInfo
           condition:
             type: attribute
             predicate: equals
-            left: andorra.country_code
-            right: countryInfo.ISO
+            left:
+              column: andorra.country_code
+            right:
+              column: countryInfo.ISO
         - method: left join
-          source: admin1CodesASCII
           condition:
             type: attribute
             predicate: equals
-            left: andorra.admin1_code_full
-            right: admin1CodesASCII.code
+            left:
+              column: andorra.admin1_code_full
+            right:
+              column: admin1CodesASCII.code
         - method: left join
-          source: admin2Codes
           condition:
             type: attribute
             predicate: equals
-            left: andorra.admin2_code_full
-            right: admin2Codes.code
+            left:
+              column: andorra.admin2_code_full
+            right:
+              column: admin2Codes.code
         - method: left join
-          source: featureCodes
           condition:
             type: attribute
             predicate: equals
-            left: andorra.feature_code_full
-            right: featureCodes.code
+            left:
+              column: andorra.feature_code_full
+            right:
+              column: featureCodes.code
         - method: left join
-          source: shape
           condition:
             type: spatial
             predicate: within
-            left: andorra.geometry
-            right: shape.geometry
+            left:
+              column: andorra.geometry
+            right:
+              column: shape.geometry
     features:
       identifier:
-        - column: geonameid
+        - column: andorra.geonameid
       names:
-        - column: name
-        - column: name_no_parens
-        - column: asciiname
-        - column: asciiname_no_parens
-        - column: alternatenames
+        - column: andorra.name
+        - column: andorra.name_no_parens
+        - column: andorra.asciiname
+        - column: andorra.asciiname_no_parens
+        - column: andorra.alternatenames
           separator: ","
 
   - name: admin1CodesASCII
     path: tests/fixtures/gazetteer/data/admin1CodesASCII.txt
     file: admin1CodesASCII.txt
-    type: tabular
+    kind: tabular
     separator: "\t"
     attributes:
       original:
@@ -198,7 +176,7 @@ sources:
   - name: admin2Codes
     path: tests/fixtures/gazetteer/data/admin2Codes.txt
     file: admin2Codes.txt
-    type: tabular
+    kind: tabular
     separator: "\t"
     attributes:
       original:
@@ -215,7 +193,7 @@ sources:
   - name: countryInfo
     path: tests/fixtures/gazetteer/data/countryInfo.txt
     file: countryInfo.txt
-    type: tabular
+    kind: tabular
     separator: "\t"
     skiprows: 50
     attributes:
@@ -263,7 +241,7 @@ sources:
   - name: featureCodes
     path: tests/fixtures/gazetteer/data/featureCodes_en.txt
     file: featureCodes_en.txt
-    type: tabular
+    kind: tabular
     separator: "\t"
     attributes:
       original:
@@ -278,7 +256,7 @@ sources:
   - name: shape
     path: tests/fixtures/gazetteer/data/shape.shp
     file: AD.shp
-    type: spatial
+    kind: spatial
     attributes:
       original:
         - name: geometry

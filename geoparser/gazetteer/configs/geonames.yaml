@@ -3,7 +3,7 @@ sources:
   - name: allCountries
     url: https://download.geonames.org/export/dump/allCountries.zip
     file: allCountries.txt
-    type: tabular
+    kind: tabular
     separator: "\t"
     attributes:
       original:
@@ -73,106 +73,84 @@ sources:
           expression: "CASE WHEN instr(asciiname, '(') > 0 THEN trim(substr(asciiname, 1, instr(asciiname, '(') - 1)) ELSE asciiname END"
     view:
       select:
-        - source: allCountries
-          column: geonameid
-        - source: allCountries
-          column: name
-        - source: allCountries
-          column: name_no_parens
-        - source: allCountries
-          column: asciiname
-        - source: allCountries
-          column: asciiname_no_parens
-        - source: allCountries
-          column: alternatenames
-        - source: allCountries
-          column: latitude
-        - source: allCountries
-          column: longitude
-        - source: allCountries
-          column: feature_class
-        - source: allCountries
-          column: feature_code
-        - source: featureCodes
-          column: name
+        - column: allCountries.geonameid
+        - column: allCountries.name
+        - column: allCountries.name_no_parens
+        - column: allCountries.asciiname
+        - column: allCountries.asciiname_no_parens
+        - column: allCountries.alternatenames
+        - column: allCountries.latitude
+        - column: allCountries.longitude
+        - column: allCountries.feature_class
+        - column: allCountries.feature_code
+        - column: featureCodes.name
           alias: feature_name
-        - source: allCountries
-          column: country_code
-        - source: countryInfo
-          column: Country
+        - column: allCountries.country_code
+        - column: countryInfo.Country
           alias: country_name
-        - source: allCountries
-          column: cc2
-        - source: allCountries
-          column: admin1_code
-        - source: admin1CodesASCII
-          column: name
+        - column: allCountries.cc2
+        - column: allCountries.admin1_code
+        - column: admin1CodesASCII.name
           alias: admin1_name
-        - source: allCountries
-          column: admin2_code
-        - source: admin2Codes
-          column: name
+        - column: allCountries.admin2_code
+        - column: admin2Codes.name
           alias: admin2_name
-        - source: allCountries
-          column: admin3_code
-        - source: allCountries
-          column: admin4_code
-        - source: allCountries
-          column: population
-        - source: allCountries
-          column: elevation
-        - source: allCountries
-          column: dem
-        - source: allCountries
-          column: timezone
-        - source: allCountries
-          column: modification_date
-        - source: allCountries
-          column: geometry
+        - column: allCountries.admin3_code
+        - column: allCountries.admin4_code
+        - column: allCountries.population
+        - column: allCountries.elevation
+        - column: allCountries.dem
+        - column: allCountries.timezone
+        - column: allCountries.modification_date
+        - column: allCountries.geometry
       join:
         - method: left join
-          source: countryInfo
           condition:
             type: attribute
             predicate: equals
-            left: allCountries.country_code
-            right: countryInfo.ISO
+            left:
+              column: allCountries.country_code
+            right:
+              column: countryInfo.ISO
         - method: left join
-          source: admin1CodesASCII
           condition:
             type: attribute
             predicate: equals
-            left: allCountries.admin1_code_full
-            right: admin1CodesASCII.code
+            left:
+              column: allCountries.admin1_code_full
+            right:
+              column: admin1CodesASCII.code
         - method: left join
-          source: admin2Codes
           condition:
             type: attribute
             predicate: equals
-            left: allCountries.admin2_code_full
-            right: admin2Codes.code
+            left:
+              column: allCountries.admin2_code_full
+            right:
+              column: admin2Codes.code
         - method: left join
-          source: featureCodes
           condition:
             type: attribute
             predicate: equals
-            left: allCountries.feature_code_full
-            right: featureCodes.code
+            left:
+              column: allCountries.feature_code_full
+            right:
+              column: featureCodes.code
     features:
       identifier:
-        - column: geonameid
+        - column: allCountries.geonameid
       names:
-        - column: name
-        - column: name_no_parens
-        - column: asciiname
-        - column: asciiname_no_parens
-        - column: alternatenames
+        - column: allCountries.name
+        - column: allCountries.name_no_parens
+        - column: allCountries.asciiname
+        - column: allCountries.asciiname_no_parens
+        - column: allCountries.alternatenames
           separator: ","
 
   - name: admin1CodesASCII
     url: https://download.geonames.org/export/dump/admin1CodesASCII.txt
     file: admin1CodesASCII.txt
-    type: tabular
+    kind: tabular
     separator: "\t"
     attributes:
       original:
@@ -189,7 +167,7 @@ sources:
   - name: admin2Codes
     url: https://download.geonames.org/export/dump/admin2Codes.txt
     file: admin2Codes.txt
-    type: tabular
+    kind: tabular
     separator: "\t"
     attributes:
       original:
@@ -206,7 +184,7 @@ sources:
   - name: countryInfo
     url: https://download.geonames.org/export/dump/countryInfo.txt
     file: countryInfo.txt
-    type: tabular
+    kind: tabular
     separator: "\t"
     skiprows: 50
     attributes:
@@ -254,7 +232,7 @@ sources:
   - name: featureCodes
     url: https://download.geonames.org/export/dump/featureCodes_en.txt
     file: featureCodes_en.txt
-    type: tabular
+    kind: tabular
     separator: "\t"
     attributes:
       original:
