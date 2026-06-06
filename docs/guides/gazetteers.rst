@@ -12,7 +12,7 @@ The Irchel Geoparser uses gazetteers as the authoritative source of geographic i
 
 The library's architecture separates the gazetteer system from the processing modules. Resolvers don't access gazetteers directly through SQL queries or file reads—instead, they use the ``Gazetteer`` class interface which provides standardized search methods. This abstraction allows gazetteers to have different internal schemas and still be used interchangeably by resolvers.
 
-Gazetteers are stored in a centralized SQLite database that includes spatial indexing capabilities through the SpatiaLite extension. This database can contain multiple gazetteers simultaneously, each with its own tables and indices. The gazetteer installer handles all the complexity of downloading source data, transforming it into the right format, creating database schemas, and building indices.
+Gazetteers are stored in a centralized SQLite database. Spatial relationships (such as which administrative region contains a place) are precomputed at install time using GeoPandas, so no spatial database extension is required. This database can contain multiple gazetteers simultaneously, each with its own tables and indices. The gazetteer installer handles all the complexity of downloading source data, transforming it into the right format, creating database schemas, and building indices.
 
 Built-in Gazetteers
 -------------------
@@ -244,16 +244,16 @@ Original attributes match columns in the source file. Specify their data types (
    attributes:
      original:
        - name: geonameid
-         type: INTEGER
+         type: integer
          index: true         # Create database index
        - name: name
-         type: TEXT
+         type: text
        - name: latitude
-         type: REAL
+         type: real
        - name: longitude
-         type: REAL
+         type: real
        - name: population
-         type: INTEGER
+         type: integer
 
 Derived attributes are computed using SQL expressions. This is useful for constructing geometries from coordinates, concatenating fields, or applying transformations:
 
@@ -262,16 +262,16 @@ Derived attributes are computed using SQL expressions. This is useful for constr
    attributes:
      derived:
        - name: geometry
-         type: GEOMETRY
+         type: geometry
          expression: "'POINT(' || longitude || ' ' || latitude || ')'"
          index: true
          srid: 4326           # Spatial reference system
        - name: full_code
-         type: TEXT
+         type: text
          expression: "country_code || '.' || admin_code"
          index: true
        - name: name_normalized
-         type: TEXT
+         type: text
          expression: "lower(trim(name))"
 
 Creating Views with Joins
@@ -297,25 +297,47 @@ If you have multiple sources, you need to define a view that specifies which col
        - source: places
          column: geometry
      join:
-       - type: LEFT JOIN       # Join type
+       - method: left join     # Join method
          source: admin_names   # Source to join
-         condition: places.admin_code = admin_names.code  # Join condition
+         condition:
+           type: attribute                      # attribute | spatial
+           predicate: equals                    # equals
+           left: places.admin_code              # reference as source.column
+           right: admin_names.code
 
-You can use any SQL join type (LEFT JOIN, INNER JOIN, etc.) and specify complex join conditions. This allows you to enrich your main features table with data from auxiliary tables.
+A join ``condition`` always has the same shape: a ``type`` (``attribute`` or ``spatial``), a ``predicate`` relating a ``left`` and ``right`` reference (each written as ``source.column``). An ``attribute`` condition produces a plain SQL join (currently the ``equals`` predicate), enriching your main features table with data from auxiliary tables.
 
 Spatial Joins
 ~~~~~~~~~~~~~
 
-For determining spatial relationships (e.g., which administrative region contains each feature), you can use spatial join conditions with SpatiaLite functions:
+For determining spatial relationships (e.g., which administrative region contains each feature), use a ``spatial`` condition with a spatial ``predicate``. Spatial joins are precomputed at install time with GeoPandas, so no spatial database extension is needed:
 
 .. code-block:: yaml
 
    join:
-     - type: LEFT JOIN
+     - method: left join
        source: municipalities
-       condition: ST_Within(places.geometry, municipalities.geometry)
+       condition:
+         type: spatial                # attribute | spatial
+         predicate: within            # within | intersects | contains
+         left: places.geometry        # geometry reference as source.column
+         right: municipalities.geometry
 
-This joins each place with the municipality whose boundary contains it. Note that spatial joins can be computationally expensive for large datasets.
+This joins each place with the municipality whose boundary contains it. You can optionally transform a geometry before the predicate is evaluated with ``left_transform`` or ``right_transform`` (currently ``centroid``), which is useful when matching lines or polygons to the region that contains their centroid:
+
+.. code-block:: yaml
+
+   join:
+     - method: left join
+       source: municipalities
+       condition:
+         type: spatial
+         predicate: within
+         left: roads.geometry
+         left_transform: centroid
+         right: municipalities.geometry
+
+Each geometry column must declare an ``srid``; if the two sides use different reference systems, geometries are reprojected automatically before the join. Note that spatial joins can be computationally expensive for large datasets.
 
 Defining Features
 ~~~~~~~~~~~~~~~~~
@@ -353,17 +375,17 @@ Here's a complete configuration demonstrating both tabular and spatial sources c
        attributes:
          original:
            - name: id
-             type: INTEGER
+             type: integer
              index: true
            - name: name
-             type: TEXT
+             type: text
            - name: lat
-             type: REAL
+             type: real
            - name: lon
-             type: REAL
+             type: real
          derived:
            - name: geometry
-             type: GEOMETRY
+             type: geometry
              expression: "'POINT(' || lon || ' ' || lat || ')'"
              index: true
              srid: 4326
@@ -382,9 +404,13 @@ Here's a complete configuration demonstrating both tabular and spatial sources c
            - source: places
              column: geometry
          join:
-           - type: LEFT JOIN
-             source: regions
-             condition: ST_Within(places.geometry, regions.geometry)
+          - method: left join
+            source: regions
+            condition:
+              type: spatial
+              predicate: within
+              left: places.geometry
+              right: regions.geometry
        features:
          identifier:
            - column: id
@@ -399,11 +425,11 @@ Here's a complete configuration demonstrating both tabular and spatial sources c
        attributes:
          original:
            - name: region_id
-             type: INTEGER
+             type: integer
            - name: region_name
-             type: TEXT
+             type: text
            - name: geometry
-             type: GEOMETRY
+             type: geometry
              index: true
              srid: 4326
 

@@ -3,7 +3,7 @@
 macOS Compatibility Guide
 ==========================
 
-The Irchel Geoparser requires Python with SQLite extension loading support. Unfortunately, the default macOS system Python and Python installed from the official Python website do not support loading SQLite extensions, which are essential for the library's gazetteer functionality (SpatiaLite for spatial indexing and Spellfix for fuzzy matching).
+The Irchel Geoparser requires Python with SQLite extension loading support. Unfortunately, the default macOS system Python and Python installed from the official Python website do not support loading SQLite extensions, which are essential for the library's gazetteer functionality (Spellfix for fuzzy matching).
 
 This guide walks you through setting up Python via Homebrew, which includes SQLite compiled with extension loading support. After completing these steps, you can return to the :doc:`installation` page and follow the standard installation instructions.
 
