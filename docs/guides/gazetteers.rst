@@ -218,7 +218,7 @@ Sources can be either tabular (CSV, TSV) or spatial (shapefiles, GeoPackage). Fo
      - name: places
        url: https://example.com/data.zip  # Downloaded and extracted
        file: places.csv                   # File within the ZIP
-       type: tabular
+       kind: tabular
        separator: ","
 
 For local files, provide both the ``path`` (directory containing the file) and ``file`` (filename):
@@ -229,7 +229,7 @@ For local files, provide both the ``path`` (directory containing the file) and `
      - name: local_data
        path: /path/to/data/directory
        file: data.csv
-       type: tabular
+       kind: tabular
        separator: "\t"
 
 Defining Attributes
@@ -237,7 +237,7 @@ Defining Attributes
 
 Each source must declare its attributes in two categories: original attributes that exist in the source file, and derived attributes computed from SQL expressions.
 
-Original attributes match columns in the source file. Specify their data types (TEXT, INTEGER, REAL, GEOMETRY) and optionally mark them for indexing:
+Original attributes match columns in the source file. Specify their data types (text, integer, real, geometry) and optionally mark them for indexing:
 
 .. code-block:: yaml
 
@@ -283,29 +283,24 @@ If you have multiple sources, you need to define a view that specifies which col
 
    view:
      select:
-       - source: places        # Source table name
-         column: geonameid     # Column to include
-       - source: places
-         column: name
-       - source: places
-         column: latitude
-       - source: places
-         column: longitude
-       - source: admin_names   # From a different source
-         column: name
-         alias: admin_name     # Rename column in view
-       - source: places
-         column: geometry
+       - column: places.geonameid    # source.column to include
+       - column: places.name
+       - column: places.latitude
+       - column: places.longitude
+       - column: admin_names.name     # From a different source
+         alias: admin_name            # Rename column in view
+       - column: places.geometry
      join:
-       - method: left join     # Join method
-         source: admin_names   # Source to join
+       - method: left join            # Join method
          condition:
-           type: attribute                      # attribute | spatial
-           predicate: equals                    # equals
-           left: places.admin_code              # reference as source.column
-           right: admin_names.code
+           type: attribute            # attribute | spatial
+           predicate: equals          # equals
+           left:
+             column: places.admin_code    # source.column reference
+           right:
+             column: admin_names.code
 
-A join ``condition`` always has the same shape: a ``type`` (``attribute`` or ``spatial``), a ``predicate`` relating a ``left`` and ``right`` reference (each written as ``source.column``). An ``attribute`` condition produces a plain SQL join (currently the ``equals`` predicate), enriching your main features table with data from auxiliary tables.
+Both a ``select`` item and a join operand reference a column with a single ``source.column`` string. A join ``condition`` always has the same shape: a ``type`` (``attribute`` or ``spatial``), a ``predicate``, and ``left``/``right`` operands. The joined source is inferred from the right operand, so it does not need to be repeated. An ``attribute`` condition produces a plain SQL join (currently the ``equals`` predicate), enriching your main features table with data from auxiliary tables.
 
 Spatial Joins
 ~~~~~~~~~~~~~
@@ -316,46 +311,48 @@ For determining spatial relationships (e.g., which administrative region contain
 
    join:
      - method: left join
-       source: municipalities
        condition:
          type: spatial                # attribute | spatial
          predicate: within            # within | intersects | contains
-         left: places.geometry        # geometry reference as source.column
-         right: municipalities.geometry
+         left:
+           column: places.geometry    # geometry source.column reference
+         right:
+           column: municipalities.geometry
 
-This joins each place with the municipality whose boundary contains it. You can optionally transform a geometry before the predicate is evaluated with ``left_transform`` or ``right_transform`` (currently ``centroid``), which is useful when matching lines or polygons to the region that contains their centroid:
+This joins each place with the municipality whose boundary contains it. An operand may optionally apply a geometry ``transform`` (currently ``centroid``) before the predicate is evaluated, which is useful when matching lines or polygons to the region that contains their centroid:
 
 .. code-block:: yaml
 
    join:
      - method: left join
-       source: municipalities
        condition:
          type: spatial
          predicate: within
-         left: roads.geometry
-         left_transform: centroid
-         right: municipalities.geometry
+         left:
+           column: roads.geometry
+           transform: centroid
+         right:
+           column: municipalities.geometry
 
 Each geometry column must declare an ``srid``; if the two sides use different reference systems, geometries are reprojected automatically before the join. Note that spatial joins can be computationally expensive for large datasets.
 
 Defining Features
 ~~~~~~~~~~~~~~~~~
 
-The final step is specifying how features are identified and named. The identifier column(s) provide unique IDs for features, while name columns define searchable names:
+The final step is specifying how features are identified and named. The identifier column(s) provide unique IDs for features, while name columns define searchable names. Features are extracted from the source's own table, so every column is referenced as ``source.column`` pointing at that source:
 
 .. code-block:: yaml
 
    features:
      identifier:
-       - column: geonameid     # Primary identifier column
+       - column: places.geonameid     # source.column identifier
      names:
-       - column: name          # Main name
-       - column: asciiname     # ASCII variant
-       - column: alternatenames  # Multiple names in one column
-         separator: ","        # Split on commas
+       - column: places.name          # Main name
+       - column: places.asciiname     # ASCII variant
+       - column: places.alternatenames  # Multiple names in one column
+         separator: ","               # Split on commas
 
-Name columns with separators are split into individual names during registration, allowing a single feature to be found under multiple name variants.
+Both identifiers and names wrap a ``column`` reference; a name additionally accepts an optional ``separator``. Name columns with separators are split into individual names during registration, allowing a single feature to be found under multiple name variants.
 
 Complete Example
 ~~~~~~~~~~~~~~~~
@@ -370,7 +367,7 @@ Here's a complete configuration demonstrating both tabular and spatial sources c
      - name: places
        url: https://example.com/places.csv
        file: places.csv
-       type: tabular
+       kind: tabular
        separator: ","
        attributes:
          original:
@@ -391,37 +388,32 @@ Here's a complete configuration demonstrating both tabular and spatial sources c
              srid: 4326
        view:
          select:
-           - source: places
-             column: id
-           - source: places
-             column: name
-           - source: places
-             column: lat
-           - source: places
-             column: lon
-           - source: regions
-             column: region_name
-           - source: places
-             column: geometry
+           - column: places.id
+           - column: places.name
+           - column: places.lat
+           - column: places.lon
+           - column: regions.region_name
+           - column: places.geometry
          join:
           - method: left join
-            source: regions
             condition:
               type: spatial
               predicate: within
-              left: places.geometry
-              right: regions.geometry
+              left:
+                column: places.geometry
+              right:
+                column: regions.geometry
        features:
          identifier:
-           - column: id
+           - column: places.id
          names:
-           - column: name
+           - column: places.name
      
      # Auxiliary spatial source with administrative boundaries
      - name: regions
        url: https://example.com/regions.zip
        file: regions.shp
-       type: spatial
+       kind: spatial
        attributes:
          original:
            - name: region_id
