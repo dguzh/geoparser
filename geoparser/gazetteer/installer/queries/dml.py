@@ -63,7 +63,7 @@ class FeatureRegistrationBuilder(QueryBuilder):
             raise ValueError(f"Source '{source.name}' has no feature configuration")
 
         # Use first identifier column (currently only support single column)
-        identifier_column = source.features.identifier[0].column
+        identifier_column = source.features.identifier[0].column.column
         source_table = source.name
 
         return f"""
@@ -99,7 +99,7 @@ class FeatureRegistrationBuilder(QueryBuilder):
         if source.features is None:
             raise ValueError(f"Source '{source.name}' has no feature configuration")
 
-        identifier_column = source.features.identifier[0].column
+        identifier_column = source.features.identifier[0].column.column
         source_table = source.name
 
         return f"""
@@ -141,7 +141,7 @@ class FeatureRegistrationBuilder(QueryBuilder):
         if source.features is None:
             raise ValueError(f"Source '{source.name}' has no feature configuration")
 
-        identifier_column = source.features.identifier[0].column
+        identifier_column = source.features.identifier[0].column.column
         source_table = source.name
 
         return f"""

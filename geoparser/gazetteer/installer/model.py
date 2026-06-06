@@ -6,8 +6,8 @@ import yaml
 from pydantic import BaseModel, Field, field_validator, model_validator
 
 
-class SourceType(str, Enum):
-    """Type of source data."""
+class SourceKind(str, Enum):
+    """Kind of source data."""
 
     TABULAR = "tabular"
     SPATIAL = "spatial"
@@ -95,38 +95,70 @@ class AttributesConfig(BaseModel):
     derived: t.List[DerivedAttributeConfig] = []
 
 
+class ColumnConfig(BaseModel):
+    """
+    Reference to a column in a specific source.
+
+    Written in configuration as the string ``source.column`` and parsed into
+    its ``source`` and ``column`` parts. Used wherever a config needs to point
+    at a specific column in a specific source (e.g. ``select`` items and join
+    operands).
+    """
+
+    source: str
+    column: str
+
+    @model_validator(mode="before")
+    @classmethod
+    def parse_reference(cls, data: t.Any) -> t.Any:
+        """Allow a ``'source.column'`` string in place of an explicit mapping."""
+        if isinstance(data, str):
+            parts = data.split(".")
+            if len(parts) != 2 or not all(parts):
+                raise ValueError(
+                    f"Column reference '{data}' must be in the format "
+                    "'source.column'"
+                )
+            return {"source": parts[0], "column": parts[1]}
+        return data
+
+    @property
+    def sql(self) -> str:
+        """The column reference rendered as ``source.column``."""
+        return f"{self.source}.{self.column}"
+
+
 class SelectConfig(BaseModel):
     """Configuration for a SELECT clause element."""
 
-    source: str  # Source/view name (replaces 'table')
-    column: str
+    column: ColumnConfig
     alias: t.Optional[str] = None
+
+
+class JoinOperandConfig(BaseModel):
+    """
+    One side (left or right) of a join condition.
+
+    References a column and, for spatial joins, may apply a geometry transform
+    (e.g. ``centroid``) before the predicate is evaluated.
+    """
+
+    column: ColumnConfig
+    transform: t.Optional[GeometryTransform] = None
 
 
 class ConditionConfig(BaseModel):
     """
     Base configuration for a join condition.
 
-    A condition relates a ``left`` and ``right`` reference, each given as
-    ``source.column``. The concrete ``type`` (attribute or spatial) determines
-    how the condition is evaluated.
+    A condition relates a ``left`` and ``right`` operand, each referencing a
+    column. The concrete ``type`` (attribute or spatial) determines how the
+    condition is evaluated.
     """
 
     type: JoinConditionType
-    left: str  # Reference as "source.column"
-    right: str  # Reference as "source.column"
-
-    @field_validator("left", "right")
-    @classmethod
-    def validate_reference(cls, v: str) -> str:
-        """Validate that references use the 'source.column' format."""
-        parts = v.split(".")
-        if len(parts) != 2 or not all(parts):
-            raise ValueError(
-                f"Join condition reference '{v}' must be in the "
-                "format 'source.column'"
-            )
-        return v
+    left: JoinOperandConfig
+    right: JoinOperandConfig
 
     @property
     def is_spatial(self) -> bool:
@@ -135,23 +167,23 @@ class ConditionConfig(BaseModel):
 
     @property
     def left_source(self) -> str:
-        """Source/table name of the left reference."""
-        return self.left.split(".", 1)[0]
+        """Source/table name of the left operand."""
+        return self.left.column.source
 
     @property
     def left_column(self) -> str:
-        """Column name of the left reference."""
-        return self.left.split(".", 1)[1]
+        """Column name of the left operand."""
+        return self.left.column.column
 
     @property
     def right_source(self) -> str:
-        """Source/table name of the right reference."""
-        return self.right.split(".", 1)[0]
+        """Source/table name of the right operand."""
+        return self.right.column.source
 
     @property
     def right_column(self) -> str:
-        """Column name of the right reference."""
-        return self.right.split(".", 1)[1]
+        """Column name of the right operand."""
+        return self.right.column.column
 
 
 class AttributeConditionConfig(ConditionConfig):
@@ -165,6 +197,15 @@ class AttributeConditionConfig(ConditionConfig):
     type: t.Literal[JoinConditionType.ATTRIBUTE] = JoinConditionType.ATTRIBUTE
     predicate: AttributePredicate = AttributePredicate.EQUALS
 
+    @model_validator(mode="after")
+    def validate_no_transforms(self) -> "AttributeConditionConfig":
+        """Validate that attribute operands do not use geometry transforms."""
+        if self.left.transform is not None or self.right.transform is not None:
+            raise ValueError(
+                "Attribute join conditions can not use geometry transforms"
+            )
+        return self
+
 
 class SpatialConditionConfig(ConditionConfig):
     """
@@ -172,14 +213,12 @@ class SpatialConditionConfig(ConditionConfig):
 
     Relates two geometry columns through a spatial predicate (e.g. ``within``).
     Spatial joins are precomputed at install time using GeoPandas, so no spatial
-    database extension is required. A geometry may optionally be transformed
-    (e.g. to its ``centroid``) before the predicate is evaluated.
+    database extension is required. A geometry operand may optionally be
+    transformed (e.g. to its ``centroid``) before the predicate is evaluated.
     """
 
     type: t.Literal[JoinConditionType.SPATIAL] = JoinConditionType.SPATIAL
     predicate: SpatialPredicate = SpatialPredicate.WITHIN
-    left_transform: t.Optional[GeometryTransform] = None
-    right_transform: t.Optional[GeometryTransform] = None
 
 
 # Join condition discriminated on the ``type`` field.
@@ -193,27 +232,41 @@ class ViewJoinConfig(BaseModel):
     """Configuration for a JOIN clause element in a view."""
 
     method: str  # e.g., "left join", "inner join", "right join"
-    source: str  # The source/view to join
     condition: JoinConditionConfig  # The join condition
 
+    @property
+    def source(self) -> str:
+        """Source/table introduced by this join (the right operand's source)."""
+        return self.condition.right.column.source
 
-class ColumnConfig(BaseModel):
-    """Configuration for a column reference."""
 
-    column: str
+class IdentifierColumnConfig(BaseModel):
+    """A column of the source's own table used for feature extraction."""
+
+    column: ColumnConfig
 
 
-class NameColumnConfig(BaseModel):
-    """Configuration for extracting a name column."""
+class NameColumnConfig(IdentifierColumnConfig):
+    """
+    A feature column extracted as a name.
 
-    column: str
+    Optionally provides a ``separator`` used to split a single field into
+    multiple names (analogous to how :class:`JoinOperandConfig` wraps a column
+    and an optional transform).
+    """
+
     separator: t.Optional[str] = None
 
 
 class FeatureConfig(BaseModel):
-    """Configuration for extracting features from a source."""
+    """
+    Configuration for extracting features from a source.
 
-    identifier: t.List[ColumnConfig]  # List of identifier columns
+    Features are extracted from the source's own table, so the referenced
+    columns all belong to that source.
+    """
+
+    identifier: t.List[IdentifierColumnConfig]  # List of identifier columns
     names: t.List[NameColumnConfig]
 
 
@@ -231,7 +284,7 @@ class SourceConfig(BaseModel):
     url: t.Optional[str] = None
     path: t.Optional[str] = None
     file: str
-    type: SourceType
+    kind: SourceKind
     separator: t.Optional[str] = None
     skiprows: int = 0
     attributes: AttributesConfig
@@ -246,13 +299,13 @@ class SourceConfig(BaseModel):
         return self
 
     @model_validator(mode="after")
-    def validate_type_specific_fields(self) -> "SourceConfig":
-        """Validate that fields are appropriate for the source type."""
-        if self.type == SourceType.TABULAR:
+    def validate_kind_specific_fields(self) -> "SourceConfig":
+        """Validate that fields are appropriate for the source kind."""
+        if self.kind == SourceKind.TABULAR:
             # Tabular sources must have separator
             if self.separator is None:
                 raise ValueError("Tabular sources must specify a separator")
-        elif self.type == SourceType.SPATIAL:
+        elif self.kind == SourceKind.SPATIAL:
             # Spatial sources should not have separator or skiprows
             if self.separator is not None:
                 raise ValueError("Separator can not be specified for spatial sources")
@@ -303,6 +356,24 @@ class SourceConfig(BaseModel):
 
         return self
 
+    @model_validator(mode="after")
+    def validate_feature_references(self) -> "SourceConfig":
+        """Validate that feature columns reference the source's own table."""
+        if self.features is None:
+            return self
+
+        feature_columns = [
+            item.column for item in self.features.identifier
+        ] + [name.column for name in self.features.names]
+        for column in feature_columns:
+            if column.source != self.name:
+                raise ValueError(
+                    f"Feature columns must reference the source's own table "
+                    f"'{self.name}', got '{column.sql}'"
+                )
+
+        return self
+
 
 class GazetteerConfig(BaseModel):
     """Configuration for a gazetteer."""
@@ -343,20 +414,14 @@ class GazetteerConfig(BaseModel):
 
             # Check all select source references
             for select_item in view_config.select:
-                if select_item.source not in source_names:
+                if select_item.column.source not in source_names:
                     raise ValueError(
-                        f"View for source '{source.name}' select references non-existent source: {select_item.source}"
+                        f"View for source '{source.name}' select references non-existent source: {select_item.column.source}"
                     )
 
-            # Check all join source references
+            # Check all join operand source references
             if view_config.join:
                 for join_item in view_config.join:
-                    if join_item.source not in source_names:
-                        raise ValueError(
-                            f"View for source '{source.name}' join references non-existent source: {join_item.source}"
-                        )
-
-                    # Check join condition references
                     for ref_source in (
                         join_item.condition.left_source,
                         join_item.condition.right_source,

@@ -84,13 +84,13 @@ class SpatialStage(Stage):
             "column",
         ) as pbar:
             left_geometries = self._load_geometries(
-                left_table, condition.left_column, left_srid, condition.left_transform
+                left_table, condition.left_column, left_srid, condition.left.transform
             )
             right_geometries = self._load_geometries(
                 right_table,
                 condition.right_column,
                 right_srid,
-                condition.right_transform,
+                condition.right.transform,
             )
 
             # Align coordinate reference systems before evaluating the predicate

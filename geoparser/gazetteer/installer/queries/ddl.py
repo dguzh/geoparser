@@ -119,7 +119,7 @@ class ViewBuilder(QueryBuilder):
         select_parts = []
 
         for select_item in view_config.select:
-            column_ref = f"{select_item.source}.{select_item.column}"
+            column_ref = select_item.column.sql
             if select_item.alias:
                 column_ref += f" AS {select_item.alias}"
             select_parts.append(column_ref)
@@ -161,7 +161,10 @@ class ViewBuilder(QueryBuilder):
                 # Spatial joins are precomputed; join on the stored key column
                 condition = build_spatial_equality_condition(join_condition)
             else:
-                condition = f"{join_condition.left} = {join_condition.right}"
+                condition = (
+                    f"{join_condition.left.column.sql} = "
+                    f"{join_condition.right.column.sql}"
+                )
 
             join_parts.append(f"{join_item.method} {join_item.source} ON {condition}")
 
