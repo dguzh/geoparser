@@ -3,7 +3,7 @@ from enum import Enum
 from pathlib import Path
 
 import yaml
-from pydantic import BaseModel, field_validator, model_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 
 class SourceType(str, Enum):
@@ -16,11 +16,38 @@ class SourceType(str, Enum):
 class DataType(str, Enum):
     """Data type for columns."""
 
-    TEXT = "TEXT"
-    INTEGER = "INTEGER"
-    REAL = "REAL"
-    BLOB = "BLOB"
-    GEOMETRY = "GEOMETRY"
+    TEXT = "text"
+    INTEGER = "integer"
+    REAL = "real"
+    BLOB = "blob"
+    GEOMETRY = "geometry"
+
+
+class JoinConditionType(str, Enum):
+    """Kind of join condition, used to discriminate between condition shapes."""
+
+    ATTRIBUTE = "attribute"
+    SPATIAL = "spatial"
+
+
+class AttributePredicate(str, Enum):
+    """Predicate relating the two sides of an attribute join condition."""
+
+    EQUALS = "equals"
+
+
+class SpatialPredicate(str, Enum):
+    """Predicate relating the two geometries of a spatial join condition."""
+
+    WITHIN = "within"
+    INTERSECTS = "intersects"
+    CONTAINS = "contains"
+
+
+class GeometryTransform(str, Enum):
+    """Transform applied to a geometry before evaluating a spatial predicate."""
+
+    CENTROID = "centroid"
 
 
 class OriginalAttributeConfig(BaseModel):
@@ -76,12 +103,98 @@ class SelectConfig(BaseModel):
     alias: t.Optional[str] = None
 
 
+class ConditionConfig(BaseModel):
+    """
+    Base configuration for a join condition.
+
+    A condition relates a ``left`` and ``right`` reference, each given as
+    ``source.column``. The concrete ``type`` (attribute or spatial) determines
+    how the condition is evaluated.
+    """
+
+    type: JoinConditionType
+    left: str  # Reference as "source.column"
+    right: str  # Reference as "source.column"
+
+    @field_validator("left", "right")
+    @classmethod
+    def validate_reference(cls, v: str) -> str:
+        """Validate that references use the 'source.column' format."""
+        parts = v.split(".")
+        if len(parts) != 2 or not all(parts):
+            raise ValueError(
+                f"Join condition reference '{v}' must be in the "
+                "format 'source.column'"
+            )
+        return v
+
+    @property
+    def is_spatial(self) -> bool:
+        """Whether this condition is a spatial join."""
+        return self.type == JoinConditionType.SPATIAL
+
+    @property
+    def left_source(self) -> str:
+        """Source/table name of the left reference."""
+        return self.left.split(".", 1)[0]
+
+    @property
+    def left_column(self) -> str:
+        """Column name of the left reference."""
+        return self.left.split(".", 1)[1]
+
+    @property
+    def right_source(self) -> str:
+        """Source/table name of the right reference."""
+        return self.right.split(".", 1)[0]
+
+    @property
+    def right_column(self) -> str:
+        """Column name of the right reference."""
+        return self.right.split(".", 1)[1]
+
+
+class AttributeConditionConfig(ConditionConfig):
+    """
+    Attribute join condition.
+
+    Relates two columns through a non-spatial predicate, producing a plain SQL
+    join (e.g. ``left = right`` for the ``equals`` predicate).
+    """
+
+    type: t.Literal[JoinConditionType.ATTRIBUTE] = JoinConditionType.ATTRIBUTE
+    predicate: AttributePredicate = AttributePredicate.EQUALS
+
+
+class SpatialConditionConfig(ConditionConfig):
+    """
+    Spatial join condition.
+
+    Relates two geometry columns through a spatial predicate (e.g. ``within``).
+    Spatial joins are precomputed at install time using GeoPandas, so no spatial
+    database extension is required. A geometry may optionally be transformed
+    (e.g. to its ``centroid``) before the predicate is evaluated.
+    """
+
+    type: t.Literal[JoinConditionType.SPATIAL] = JoinConditionType.SPATIAL
+    predicate: SpatialPredicate = SpatialPredicate.WITHIN
+    left_transform: t.Optional[GeometryTransform] = None
+    right_transform: t.Optional[GeometryTransform] = None
+
+
+# Join condition discriminated on the ``type`` field.
+JoinConditionConfig = t.Annotated[
+    t.Union[AttributeConditionConfig, SpatialConditionConfig],
+    Field(discriminator="type"),
+]
+
+
 class ViewJoinConfig(BaseModel):
     """Configuration for a JOIN clause element in a view."""
 
-    type: str  # e.g., "LEFT JOIN", "INNER JOIN", "RIGHT JOIN"
+    method: str  # e.g., "left join", "inner join", "right join"
     source: str  # The source/view to join
-    condition: str  # The join condition
+    condition: JoinConditionConfig  # The join condition
 
 
 class ColumnConfig(BaseModel):
@@ -242,6 +355,17 @@ class GazetteerConfig(BaseModel):
                         raise ValueError(
                             f"View for source '{source.name}' join references non-existent source: {join_item.source}"
                         )
+
+                    # Check join condition references
+                    for ref_source in (
+                        join_item.condition.left_source,
+                        join_item.condition.right_source,
+                    ):
+                        if ref_source not in source_names:
+                            raise ValueError(
+                                f"View for source '{source.name}' join condition "
+                                f"references non-existent source: {ref_source}"
+                            )
 
         return self
 
