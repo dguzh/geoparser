@@ -10,10 +10,11 @@ from geoparser.gazetteer.installer.model import (
     AttributeConditionConfig,
     AttributesConfig,
     DataType,
+    JoinOperandConfig,
     OriginalAttributeConfig,
     SelectConfig,
     SourceConfig,
-    SourceType,
+    SourceKind,
     ViewConfig,
     ViewJoinConfig,
 )
@@ -31,7 +32,7 @@ class TestDependencyResolverResolve:
             name="source1",
             url="http://example.com/data1.csv",
             file="data1.csv",
-            type=SourceType.TABULAR,
+            kind=SourceKind.TABULAR,
             separator=",",
             attributes=AttributesConfig(
                 original=[OriginalAttributeConfig(name="id", type=DataType.INTEGER)]
@@ -41,7 +42,7 @@ class TestDependencyResolverResolve:
             name="source2",
             url="http://example.com/data2.csv",
             file="data2.csv",
-            type=SourceType.TABULAR,
+            kind=SourceKind.TABULAR,
             separator=",",
             attributes=AttributesConfig(
                 original=[OriginalAttributeConfig(name="id", type=DataType.INTEGER)]
@@ -67,7 +68,7 @@ class TestDependencyResolverResolve:
             name="source1",
             url="http://example.com/data1.csv",
             file="data1.csv",
-            type=SourceType.TABULAR,
+            kind=SourceKind.TABULAR,
             separator=",",
             attributes=AttributesConfig(
                 original=[OriginalAttributeConfig(name="id", type=DataType.INTEGER)]
@@ -77,12 +78,12 @@ class TestDependencyResolverResolve:
             name="source2",
             url="http://example.com/data2.csv",
             file="data2.csv",
-            type=SourceType.TABULAR,
+            kind=SourceKind.TABULAR,
             separator=",",
             attributes=AttributesConfig(
                 original=[OriginalAttributeConfig(name="ref_id", type=DataType.INTEGER)]
             ),
-            view=ViewConfig(select=[SelectConfig(source="source1", column="id")]),
+            view=ViewConfig(select=[SelectConfig(column="source1.id")]),
         )
 
         resolver = DependencyResolver()
@@ -102,7 +103,7 @@ class TestDependencyResolverResolve:
             name="source1",
             url="http://example.com/data1.csv",
             file="data1.csv",
-            type=SourceType.TABULAR,
+            kind=SourceKind.TABULAR,
             separator=",",
             attributes=AttributesConfig(
                 original=[OriginalAttributeConfig(name="id", type=DataType.INTEGER)]
@@ -112,19 +113,19 @@ class TestDependencyResolverResolve:
             name="source2",
             url="http://example.com/data2.csv",
             file="data2.csv",
-            type=SourceType.TABULAR,
+            kind=SourceKind.TABULAR,
             separator=",",
             attributes=AttributesConfig(
                 original=[OriginalAttributeConfig(name="id", type=DataType.INTEGER)]
             ),
             view=ViewConfig(
-                select=[SelectConfig(source="source2", column="id")],
+                select=[SelectConfig(column="source2.id")],
                 join=[
                     ViewJoinConfig(
                         method="left join",
-                        source="source1",
                         condition=AttributeConditionConfig(
-                            left="source2.id", right="source1.id"
+                            left=JoinOperandConfig(column="source2.id"),
+                            right=JoinOperandConfig(column="source1.id"),
                         ),
                     )
                 ],
@@ -150,7 +151,7 @@ class TestDependencyResolverResolve:
             name="source1",
             url="http://example.com/data1.csv",
             file="data1.csv",
-            type=SourceType.TABULAR,
+            kind=SourceKind.TABULAR,
             separator=",",
             attributes=AttributesConfig(
                 original=[OriginalAttributeConfig(name="id", type=DataType.INTEGER)]
@@ -160,26 +161,26 @@ class TestDependencyResolverResolve:
             name="source2",
             url="http://example.com/data2.csv",
             file="data2.csv",
-            type=SourceType.TABULAR,
+            kind=SourceKind.TABULAR,
             separator=",",
             attributes=AttributesConfig(
                 original=[OriginalAttributeConfig(name="id", type=DataType.INTEGER)]
             ),
-            view=ViewConfig(select=[SelectConfig(source="source1", column="id")]),
+            view=ViewConfig(select=[SelectConfig(column="source1.id")]),
         )
         source3 = SourceConfig(
             name="source3",
             url="http://example.com/data3.csv",
             file="data3.csv",
-            type=SourceType.TABULAR,
+            kind=SourceKind.TABULAR,
             separator=",",
             attributes=AttributesConfig(
                 original=[OriginalAttributeConfig(name="id", type=DataType.INTEGER)]
             ),
             view=ViewConfig(
                 select=[
-                    SelectConfig(source="source1", column="id", alias="s1_id"),
-                    SelectConfig(source="source2", column="id", alias="s2_id"),
+                    SelectConfig(column="source1.id", alias="s1_id"),
+                    SelectConfig(column="source2.id", alias="s2_id"),
                 ]
             ),
         )
@@ -203,23 +204,23 @@ class TestDependencyResolverResolve:
             name="source1",
             url="http://example.com/data1.csv",
             file="data1.csv",
-            type=SourceType.TABULAR,
+            kind=SourceKind.TABULAR,
             separator=",",
             attributes=AttributesConfig(
                 original=[OriginalAttributeConfig(name="id", type=DataType.INTEGER)]
             ),
-            view=ViewConfig(select=[SelectConfig(source="source2", column="id")]),
+            view=ViewConfig(select=[SelectConfig(column="source2.id")]),
         )
         source2 = SourceConfig(
             name="source2",
             url="http://example.com/data2.csv",
             file="data2.csv",
-            type=SourceType.TABULAR,
+            kind=SourceKind.TABULAR,
             separator=",",
             attributes=AttributesConfig(
                 original=[OriginalAttributeConfig(name="id", type=DataType.INTEGER)]
             ),
-            view=ViewConfig(select=[SelectConfig(source="source1", column="id")]),
+            view=ViewConfig(select=[SelectConfig(column="source1.id")]),
         )
 
         resolver = DependencyResolver()
@@ -235,15 +236,15 @@ class TestDependencyResolverResolve:
             name="source1",
             url="http://example.com/data1.csv",
             file="data1.csv",
-            type=SourceType.TABULAR,
+            kind=SourceKind.TABULAR,
             separator=",",
             attributes=AttributesConfig(
                 original=[OriginalAttributeConfig(name="id", type=DataType.INTEGER)]
             ),
             view=ViewConfig(
                 select=[
-                    SelectConfig(source="source1", column="id"),  # Self-reference
-                    SelectConfig(source="source1", column="name"),  # Self-reference
+                    SelectConfig(column="source1.id"),  # Self-reference
+                    SelectConfig(column="source1.name"),  # Self-reference
                 ]
             ),
         )
@@ -269,7 +270,7 @@ class TestDependencyResolverBuildDependencyGraph:
             name="source1",
             url="http://example.com/data1.csv",
             file="data1.csv",
-            type=SourceType.TABULAR,
+            kind=SourceKind.TABULAR,
             separator=",",
             attributes=AttributesConfig(
                 original=[OriginalAttributeConfig(name="id", type=DataType.INTEGER)]
@@ -292,7 +293,7 @@ class TestDependencyResolverBuildDependencyGraph:
             name="source1",
             url="http://example.com/data1.csv",
             file="data1.csv",
-            type=SourceType.TABULAR,
+            kind=SourceKind.TABULAR,
             separator=",",
             attributes=AttributesConfig(
                 original=[OriginalAttributeConfig(name="id", type=DataType.INTEGER)]
@@ -302,12 +303,12 @@ class TestDependencyResolverBuildDependencyGraph:
             name="source2",
             url="http://example.com/data2.csv",
             file="data2.csv",
-            type=SourceType.TABULAR,
+            kind=SourceKind.TABULAR,
             separator=",",
             attributes=AttributesConfig(
                 original=[OriginalAttributeConfig(name="id", type=DataType.INTEGER)]
             ),
-            view=ViewConfig(select=[SelectConfig(source="source1", column="id")]),
+            view=ViewConfig(select=[SelectConfig(column="source1.id")]),
         )
 
         resolver = DependencyResolver()
@@ -325,7 +326,7 @@ class TestDependencyResolverBuildDependencyGraph:
             name="source1",
             url="http://example.com/data1.csv",
             file="data1.csv",
-            type=SourceType.TABULAR,
+            kind=SourceKind.TABULAR,
             separator=",",
             attributes=AttributesConfig(
                 original=[OriginalAttributeConfig(name="id", type=DataType.INTEGER)]
@@ -335,19 +336,19 @@ class TestDependencyResolverBuildDependencyGraph:
             name="source2",
             url="http://example.com/data2.csv",
             file="data2.csv",
-            type=SourceType.TABULAR,
+            kind=SourceKind.TABULAR,
             separator=",",
             attributes=AttributesConfig(
                 original=[OriginalAttributeConfig(name="id", type=DataType.INTEGER)]
             ),
             view=ViewConfig(
-                select=[SelectConfig(source="source2", column="id")],
+                select=[SelectConfig(column="source2.id")],
                 join=[
                     ViewJoinConfig(
                         method="inner join",
-                        source="source1",
                         condition=AttributeConditionConfig(
-                            left="source2.id", right="source1.id"
+                            left=JoinOperandConfig(column="source2.id"),
+                            right=JoinOperandConfig(column="source1.id"),
                         ),
                     )
                 ],

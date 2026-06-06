@@ -7,7 +7,10 @@ key columns and plain SQL equality conditions.
 
 import pytest
 
-from geoparser.gazetteer.installer.model import SpatialConditionConfig
+from geoparser.gazetteer.installer.model import (
+    JoinOperandConfig,
+    SpatialConditionConfig,
+)
 from geoparser.gazetteer.installer.queries.spatial import (
     build_spatial_equality_condition,
     spatial_join_column_name,
@@ -32,8 +35,8 @@ class TestBuildSpatialEqualityCondition:
         # Arrange
         spatial = SpatialConditionConfig(
             predicate="within",
-            left="places.geometry",
-            right="regions.geometry",
+            left=JoinOperandConfig(column="places.geometry"),
+            right=JoinOperandConfig(column="regions.geometry"),
         )
 
         # Act
@@ -47,9 +50,8 @@ class TestBuildSpatialEqualityCondition:
         # Arrange
         spatial = SpatialConditionConfig(
             predicate="within",
-            left="roads.geometry",
-            left_transform="centroid",
-            right="municipalities.geometry",
+            left=JoinOperandConfig(column="roads.geometry", transform="centroid"),
+            right=JoinOperandConfig(column="municipalities.geometry"),
         )
 
         # Act

@@ -8,13 +8,13 @@ import pytest
 
 from geoparser.gazetteer.installer.model import (
     AttributesConfig,
-    ColumnConfig,
     DataType,
     FeatureConfig,
+    IdentifierColumnConfig,
     NameColumnConfig,
     OriginalAttributeConfig,
     SourceConfig,
-    SourceType,
+    SourceKind,
 )
 from geoparser.gazetteer.installer.queries.dml import (
     FeatureRegistrationBuilder,
@@ -69,14 +69,14 @@ class TestFeatureRegistrationBuilderBuildFeatureInsert:
             name="test_source",
             url="http://example.com/data.csv",
             file="data.csv",
-            type=SourceType.TABULAR,
+            kind=SourceKind.TABULAR,
             separator=",",
             attributes=AttributesConfig(
                 original=[OriginalAttributeConfig(name="id", type=DataType.INTEGER)]
             ),
             features=FeatureConfig(
-                identifier=[ColumnConfig(column="id")],
-                names=[NameColumnConfig(column="name")],
+                identifier=[IdentifierColumnConfig(column="test_source.id")],
+                names=[NameColumnConfig(column="test_source.name")],
             ),
         )
 
@@ -100,7 +100,7 @@ class TestFeatureRegistrationBuilderBuildFeatureInsert:
             name="test_source",
             url="http://example.com/data.csv",
             file="data.csv",
-            type=SourceType.TABULAR,
+            kind=SourceKind.TABULAR,
             separator=",",
             attributes=AttributesConfig(
                 original=[OriginalAttributeConfig(name="id", type=DataType.INTEGER)]
@@ -125,7 +125,7 @@ class TestFeatureRegistrationBuilderBuildNameInsert:
             name="test_source",
             url="http://example.com/data.csv",
             file="data.csv",
-            type=SourceType.TABULAR,
+            kind=SourceKind.TABULAR,
             separator=",",
             attributes=AttributesConfig(
                 original=[
@@ -134,8 +134,8 @@ class TestFeatureRegistrationBuilderBuildNameInsert:
                 ]
             ),
             features=FeatureConfig(
-                identifier=[ColumnConfig(column="id")],
-                names=[NameColumnConfig(column="name")],
+                identifier=[IdentifierColumnConfig(column="test_source.id")],
+                names=[NameColumnConfig(column="test_source.name")],
             ),
         )
 
@@ -160,7 +160,7 @@ class TestFeatureRegistrationBuilderBuildNameInsert:
             name="test_source",
             url="http://example.com/data.csv",
             file="data.csv",
-            type=SourceType.TABULAR,
+            kind=SourceKind.TABULAR,
             separator=",",
             attributes=AttributesConfig(
                 original=[OriginalAttributeConfig(name="id", type=DataType.INTEGER)]
@@ -185,7 +185,7 @@ class TestFeatureRegistrationBuilderBuildNameInsertSeparated:
             name="test_source",
             url="http://example.com/data.csv",
             file="data.csv",
-            type=SourceType.TABULAR,
+            kind=SourceKind.TABULAR,
             separator=",",
             attributes=AttributesConfig(
                 original=[
@@ -194,8 +194,8 @@ class TestFeatureRegistrationBuilderBuildNameInsertSeparated:
                 ]
             ),
             features=FeatureConfig(
-                identifier=[ColumnConfig(column="id")],
-                names=[NameColumnConfig(column="names", separator="|")],
+                identifier=[IdentifierColumnConfig(column="test_source.id")],
+                names=[NameColumnConfig(column="test_source.names", separator="|")],
             ),
         )
 
@@ -221,14 +221,14 @@ class TestFeatureRegistrationBuilderBuildNameInsertSeparated:
             name="test_source",
             url="http://example.com/data.csv",
             file="data.csv",
-            type=SourceType.TABULAR,
+            kind=SourceKind.TABULAR,
             separator=",",
             attributes=AttributesConfig(
                 original=[OriginalAttributeConfig(name="id", type=DataType.INTEGER)]
             ),
             features=FeatureConfig(
-                identifier=[ColumnConfig(column="id")],
-                names=[NameColumnConfig(column="names", separator=",")],
+                identifier=[IdentifierColumnConfig(column="test_source.id")],
+                names=[NameColumnConfig(column="test_source.names", separator=",")],
             ),
         )
 
@@ -250,7 +250,7 @@ class TestFeatureRegistrationBuilderBuildNameInsertSeparated:
             name="test_source",
             url="http://example.com/data.csv",
             file="data.csv",
-            type=SourceType.TABULAR,
+            kind=SourceKind.TABULAR,
             separator=",",
             attributes=AttributesConfig(
                 original=[OriginalAttributeConfig(name="id", type=DataType.INTEGER)]

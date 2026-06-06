@@ -11,10 +11,11 @@ from geoparser.gazetteer.installer.model import (
     AttributesConfig,
     DataType,
     DerivedAttributeConfig,
+    JoinOperandConfig,
     OriginalAttributeConfig,
     SelectConfig,
     SourceConfig,
-    SourceType,
+    SourceKind,
     SpatialConditionConfig,
     ViewConfig,
     ViewJoinConfig,
@@ -33,7 +34,7 @@ class TestTableBuilderBuildCreateTable:
             name="test_source",
             url="http://example.com/data.csv",
             file="data.csv",
-            type=SourceType.TABULAR,
+            kind=SourceKind.TABULAR,
             separator=",",
             attributes=AttributesConfig(
                 original=[OriginalAttributeConfig(name="id", type=DataType.INTEGER)]
@@ -55,7 +56,7 @@ class TestTableBuilderBuildCreateTable:
             name="test_source",
             url="http://example.com/data.csv",
             file="data.csv",
-            type=SourceType.TABULAR,
+            kind=SourceKind.TABULAR,
             separator=",",
             attributes=AttributesConfig(
                 original=[
@@ -81,7 +82,7 @@ class TestTableBuilderBuildCreateTable:
             name="test_source",
             url="http://example.com/data.csv",
             file="data.csv",
-            type=SourceType.TABULAR,
+            kind=SourceKind.TABULAR,
             separator=",",
             attributes=AttributesConfig(
                 original=[
@@ -108,7 +109,7 @@ class TestTableBuilderBuildCreateTable:
             name="test_source",
             url="http://example.com/data.shp",
             file="data.shp",
-            type=SourceType.SPATIAL,
+            kind=SourceKind.SPATIAL,
             attributes=AttributesConfig(
                 original=[
                     OriginalAttributeConfig(name="id", type=DataType.INTEGER),
@@ -134,7 +135,7 @@ class TestTableBuilderBuildCreateTable:
             name="test_source",
             url="http://example.com/data.csv",
             file="data.csv",
-            type=SourceType.TABULAR,
+            kind=SourceKind.TABULAR,
             separator=",",
             attributes=AttributesConfig(
                 original=[
@@ -171,12 +172,12 @@ class TestViewBuilderBuildCreateView:
             name="test_source",
             url="http://example.com/data.csv",
             file="data.csv",
-            type=SourceType.TABULAR,
+            kind=SourceKind.TABULAR,
             separator=",",
             attributes=AttributesConfig(
                 original=[OriginalAttributeConfig(name="id", type=DataType.INTEGER)]
             ),
-            view=ViewConfig(select=[SelectConfig(source="test_source", column="id")]),
+            view=ViewConfig(select=[SelectConfig(column="test_source.id")]),
         )
 
         builder = ViewBuilder()
@@ -194,14 +195,14 @@ class TestViewBuilderBuildCreateView:
             name="test_source",
             url="http://example.com/data.csv",
             file="data.csv",
-            type=SourceType.TABULAR,
+            kind=SourceKind.TABULAR,
             separator=",",
             attributes=AttributesConfig(
                 original=[OriginalAttributeConfig(name="id", type=DataType.INTEGER)]
             ),
             view=ViewConfig(
                 select=[
-                    SelectConfig(source="test_source", column="id", alias="source_id")
+                    SelectConfig(column="test_source.id", alias="source_id")
                 ]
             ),
         )
@@ -221,7 +222,7 @@ class TestViewBuilderBuildCreateView:
             name="test_source",
             url="http://example.com/data.csv",
             file="data.csv",
-            type=SourceType.TABULAR,
+            kind=SourceKind.TABULAR,
             separator=",",
             attributes=AttributesConfig(
                 original=[
@@ -231,8 +232,8 @@ class TestViewBuilderBuildCreateView:
             ),
             view=ViewConfig(
                 select=[
-                    SelectConfig(source="test_source", column="id"),
-                    SelectConfig(source="test_source", column="name"),
+                    SelectConfig(column="test_source.id"),
+                    SelectConfig(column="test_source.name"),
                 ]
             ),
         )
@@ -252,21 +253,20 @@ class TestViewBuilderBuildCreateView:
             name="source2",
             url="http://example.com/data.csv",
             file="data.csv",
-            type=SourceType.TABULAR,
+            kind=SourceKind.TABULAR,
             separator=",",
             attributes=AttributesConfig(
                 original=[OriginalAttributeConfig(name="id", type=DataType.INTEGER)]
             ),
             view=ViewConfig(
-                select=[SelectConfig(source="source2", column="id")],
+                select=[SelectConfig(column="source2.id")],
                 join=[
                     ViewJoinConfig(
                         method="left join",
-                        source="source1",
                         condition=AttributeConditionConfig(
                             predicate="equals",
-                            left="source2.id",
-                            right="source1.id",
+                            left=JoinOperandConfig(column="source2.id"),
+                            right=JoinOperandConfig(column="source1.id"),
                         ),
                     )
                 ],
@@ -289,7 +289,7 @@ class TestViewBuilderBuildCreateView:
             name="points",
             url="http://example.com/data.csv",
             file="data.csv",
-            type=SourceType.TABULAR,
+            kind=SourceKind.TABULAR,
             separator=",",
             attributes=AttributesConfig(
                 original=[OriginalAttributeConfig(name="id", type=DataType.INTEGER)],
@@ -303,15 +303,14 @@ class TestViewBuilderBuildCreateView:
                 ],
             ),
             view=ViewConfig(
-                select=[SelectConfig(source="points", column="id")],
+                select=[SelectConfig(column="points.id")],
                 join=[
                     ViewJoinConfig(
                         method="left join",
-                        source="regions",
                         condition=SpatialConditionConfig(
                             predicate="within",
-                            left="points.geometry",
-                            right="regions.geometry",
+                            left=JoinOperandConfig(column="points.geometry"),
+                            right=JoinOperandConfig(column="regions.geometry"),
                         ),
                     )
                 ],
@@ -335,7 +334,7 @@ class TestViewBuilderBuildCreateView:
             name="test_source",
             url="http://example.com/data.csv",
             file="data.csv",
-            type=SourceType.TABULAR,
+            kind=SourceKind.TABULAR,
             separator=",",
             attributes=AttributesConfig(
                 original=[OriginalAttributeConfig(name="id", type=DataType.INTEGER)]

@@ -14,7 +14,7 @@ from geoparser.gazetteer.installer.model import (
     DerivedAttributeConfig,
     OriginalAttributeConfig,
     SourceConfig,
-    SourceType,
+    SourceKind,
 )
 from geoparser.gazetteer.installer.stages.transformation import TransformationStage
 
@@ -53,7 +53,7 @@ class TestTransformationStageApplyDerivations:
             name="test_source",
             path="/test/data.csv",
             file="data.csv",
-            type=SourceType.TABULAR,
+            kind=SourceKind.TABULAR,
             separator=",",
             attributes=AttributesConfig(
                 original=[OriginalAttributeConfig(name="id", type=DataType.INTEGER)]
@@ -80,7 +80,7 @@ class TestTransformationStageApplyDerivations:
             name="test_source",
             path="/test/data.csv",
             file="data.csv",
-            type=SourceType.TABULAR,
+            kind=SourceKind.TABULAR,
             separator=",",
             attributes=AttributesConfig(
                 original=[

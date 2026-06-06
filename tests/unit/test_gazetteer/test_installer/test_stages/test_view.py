@@ -14,7 +14,7 @@ from geoparser.gazetteer.installer.model import (
     OriginalAttributeConfig,
     SelectConfig,
     SourceConfig,
-    SourceType,
+    SourceKind,
     ViewConfig,
 )
 from geoparser.gazetteer.installer.stages.view import ViewStage
@@ -23,13 +23,13 @@ from geoparser.gazetteer.installer.stages.view import ViewStage
 def _build_source(with_view: bool) -> SourceConfig:
     view = None
     if with_view:
-        view = ViewConfig(select=[SelectConfig(source="test_source", column="id")])
+        view = ViewConfig(select=[SelectConfig(column="test_source.id")])
 
     return SourceConfig(
         name="test_source",
         url="http://example.com/data.csv",
         file="data.csv",
-        type=SourceType.TABULAR,
+        kind=SourceKind.TABULAR,
         separator=",",
         attributes=AttributesConfig(
             original=[OriginalAttributeConfig(name="id", type=DataType.INTEGER)]

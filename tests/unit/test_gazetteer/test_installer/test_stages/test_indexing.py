@@ -14,7 +14,7 @@ from geoparser.gazetteer.installer.model import (
     DerivedAttributeConfig,
     OriginalAttributeConfig,
     SourceConfig,
-    SourceType,
+    SourceKind,
 )
 from geoparser.gazetteer.installer.stages.indexing import IndexingStage
 
@@ -44,7 +44,7 @@ class TestIndexingStageCollectIndexedColumns:
             name="test",
             url="http://example.com/data.csv",
             file="data.csv",
-            type=SourceType.TABULAR,
+            kind=SourceKind.TABULAR,
             separator=",",
             attributes=AttributesConfig(
                 original=[
@@ -73,7 +73,7 @@ class TestIndexingStageCollectIndexedColumns:
             name="test",
             url="http://example.com/data.csv",
             file="data.csv",
-            type=SourceType.TABULAR,
+            kind=SourceKind.TABULAR,
             separator=",",
             attributes=AttributesConfig(
                 original=[
@@ -103,7 +103,7 @@ class TestIndexingStageCollectIndexedColumns:
             name="test",
             url="http://example.com/data.csv",
             file="data.csv",
-            type=SourceType.TABULAR,
+            kind=SourceKind.TABULAR,
             separator=",",
             attributes=AttributesConfig(
                 original=[
@@ -136,7 +136,7 @@ class TestIndexingStageCollectIndexedColumns:
             name="test",
             url="http://example.com/data.csv",
             file="data.csv",
-            type=SourceType.TABULAR,
+            kind=SourceKind.TABULAR,
             separator=",",
             attributes=AttributesConfig(
                 original=[
@@ -166,7 +166,7 @@ class TestIndexingStageCollectIndexedColumns:
             name="test",
             url="http://example.com/data.shp",
             file="data.shp",
-            type=SourceType.SPATIAL,
+            kind=SourceKind.SPATIAL,
             attributes=AttributesConfig(
                 original=[
                     OriginalAttributeConfig(
@@ -198,7 +198,7 @@ class TestIndexingStageCollectIndexedColumns:
             name="test",
             url="http://example.com/data.csv",
             file="data.csv",
-            type=SourceType.TABULAR,
+            kind=SourceKind.TABULAR,
             separator=",",
             attributes=AttributesConfig(
                 original=[
@@ -239,7 +239,7 @@ class TestIndexingStageExecute:
             name="test",
             path="/test/data.csv",
             file="data.csv",
-            type=SourceType.TABULAR,
+            kind=SourceKind.TABULAR,
             separator=",",
             attributes=AttributesConfig(
                 original=[
