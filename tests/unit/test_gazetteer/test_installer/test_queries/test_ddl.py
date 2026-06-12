@@ -7,13 +7,16 @@ Tests the TableBuilder and ViewBuilder classes for DDL SQL generation.
 import pytest
 
 from geoparser.gazetteer.installer.model import (
+    AttributeConditionConfig,
     AttributesConfig,
     DataType,
     DerivedAttributeConfig,
+    JoinOperandConfig,
     OriginalAttributeConfig,
     SelectConfig,
     SourceConfig,
-    SourceType,
+    SourceKind,
+    SpatialConditionConfig,
     ViewConfig,
     ViewJoinConfig,
 )
@@ -31,7 +34,7 @@ class TestTableBuilderBuildCreateTable:
             name="test_source",
             url="http://example.com/data.csv",
             file="data.csv",
-            type=SourceType.TABULAR,
+            kind=SourceKind.TABULAR,
             separator=",",
             attributes=AttributesConfig(
                 original=[OriginalAttributeConfig(name="id", type=DataType.INTEGER)]
@@ -44,7 +47,7 @@ class TestTableBuilderBuildCreateTable:
         sql = builder.build_create_table(source, "test_table")
 
         # Assert
-        assert sql == "CREATE TABLE test_table (id INTEGER)"
+        assert sql == "CREATE TABLE test_table (id integer)"
 
     def test_builds_table_with_multiple_columns(self):
         """Test building CREATE TABLE with multiple columns."""
@@ -53,7 +56,7 @@ class TestTableBuilderBuildCreateTable:
             name="test_source",
             url="http://example.com/data.csv",
             file="data.csv",
-            type=SourceType.TABULAR,
+            kind=SourceKind.TABULAR,
             separator=",",
             attributes=AttributesConfig(
                 original=[
@@ -70,7 +73,7 @@ class TestTableBuilderBuildCreateTable:
         sql = builder.build_create_table(source, "test_table")
 
         # Assert
-        assert sql == "CREATE TABLE test_table (id INTEGER, name TEXT, value REAL)"
+        assert sql == "CREATE TABLE test_table (id integer, name text, value real)"
 
     def test_excludes_dropped_columns(self):
         """Test that dropped columns are excluded from table creation."""
@@ -79,7 +82,7 @@ class TestTableBuilderBuildCreateTable:
             name="test_source",
             url="http://example.com/data.csv",
             file="data.csv",
-            type=SourceType.TABULAR,
+            kind=SourceKind.TABULAR,
             separator=",",
             attributes=AttributesConfig(
                 original=[
@@ -97,16 +100,16 @@ class TestTableBuilderBuildCreateTable:
 
         # Assert
         assert "temp" not in sql
-        assert sql == "CREATE TABLE test_table (id INTEGER, name TEXT)"
+        assert sql == "CREATE TABLE test_table (id integer, name text)"
 
     def test_creates_geometry_column_as_wkt_text(self):
-        """Test that geometry columns are created as TEXT with _wkt suffix."""
+        """Test that geometry columns are created as TEXT (storing WKT)."""
         # Arrange
         source = SourceConfig(
             name="test_source",
             url="http://example.com/data.shp",
             file="data.shp",
-            type=SourceType.SPATIAL,
+            kind=SourceKind.SPATIAL,
             attributes=AttributesConfig(
                 original=[
                     OriginalAttributeConfig(name="id", type=DataType.INTEGER),
@@ -123,7 +126,7 @@ class TestTableBuilderBuildCreateTable:
         sql = builder.build_create_table(source, "test_table")
 
         # Assert
-        assert sql == "CREATE TABLE test_table (id INTEGER, geometry_wkt TEXT)"
+        assert sql == "CREATE TABLE test_table (id integer, geometry text)"
 
     def test_includes_derived_columns(self):
         """Test that derived columns are included in table creation."""
@@ -132,7 +135,7 @@ class TestTableBuilderBuildCreateTable:
             name="test_source",
             url="http://example.com/data.csv",
             file="data.csv",
-            type=SourceType.TABULAR,
+            kind=SourceKind.TABULAR,
             separator=",",
             attributes=AttributesConfig(
                 original=[
@@ -155,55 +158,7 @@ class TestTableBuilderBuildCreateTable:
         sql = builder.build_create_table(source, "test_table")
 
         # Assert
-        assert "full_name TEXT" in sql
-
-
-@pytest.mark.unit
-class TestTableBuilderBuildAddGeometryColumn:
-    """Test TableBuilder.build_add_geometry_column() method."""
-
-    def test_builds_add_geometry_column_with_defaults(self):
-        """Test building AddGeometryColumn with default parameters."""
-        # Arrange
-        builder = TableBuilder()
-
-        # Act
-        sql = builder.build_add_geometry_column("test_table", "geometry", 4326)
-
-        # Assert
-        assert sql == (
-            "SELECT AddGeometryColumn('test_table', 'geometry', 4326, 'GEOMETRY', 'XY')"
-        )
-
-    def test_builds_add_geometry_column_with_custom_type(self):
-        """Test building AddGeometryColumn with custom geometry type."""
-        # Arrange
-        builder = TableBuilder()
-
-        # Act
-        sql = builder.build_add_geometry_column(
-            "test_table", "geometry", 4326, geometry_type="POINT"
-        )
-
-        # Assert
-        assert sql == (
-            "SELECT AddGeometryColumn('test_table', 'geometry', 4326, 'POINT', 'XY')"
-        )
-
-    def test_builds_add_geometry_column_with_custom_dimension(self):
-        """Test building AddGeometryColumn with custom dimension."""
-        # Arrange
-        builder = TableBuilder()
-
-        # Act
-        sql = builder.build_add_geometry_column(
-            "test_table", "geometry", 4326, dimension="XYZ"
-        )
-
-        # Assert
-        assert sql == (
-            "SELECT AddGeometryColumn('test_table', 'geometry', 4326, 'GEOMETRY', 'XYZ')"
-        )
+        assert "full_name text" in sql
 
 
 @pytest.mark.unit
@@ -217,12 +172,12 @@ class TestViewBuilderBuildCreateView:
             name="test_source",
             url="http://example.com/data.csv",
             file="data.csv",
-            type=SourceType.TABULAR,
+            kind=SourceKind.TABULAR,
             separator=",",
             attributes=AttributesConfig(
                 original=[OriginalAttributeConfig(name="id", type=DataType.INTEGER)]
             ),
-            view=ViewConfig(select=[SelectConfig(source="test_source", column="id")]),
+            view=ViewConfig(select=[SelectConfig(column="test_source.id")]),
         )
 
         builder = ViewBuilder()
@@ -240,15 +195,13 @@ class TestViewBuilderBuildCreateView:
             name="test_source",
             url="http://example.com/data.csv",
             file="data.csv",
-            type=SourceType.TABULAR,
+            kind=SourceKind.TABULAR,
             separator=",",
             attributes=AttributesConfig(
                 original=[OriginalAttributeConfig(name="id", type=DataType.INTEGER)]
             ),
             view=ViewConfig(
-                select=[
-                    SelectConfig(source="test_source", column="id", alias="source_id")
-                ]
+                select=[SelectConfig(column="test_source.id", alias="source_id")]
             ),
         )
 
@@ -267,7 +220,7 @@ class TestViewBuilderBuildCreateView:
             name="test_source",
             url="http://example.com/data.csv",
             file="data.csv",
-            type=SourceType.TABULAR,
+            kind=SourceKind.TABULAR,
             separator=",",
             attributes=AttributesConfig(
                 original=[
@@ -277,8 +230,8 @@ class TestViewBuilderBuildCreateView:
             ),
             view=ViewConfig(
                 select=[
-                    SelectConfig(source="test_source", column="id"),
-                    SelectConfig(source="test_source", column="name"),
+                    SelectConfig(column="test_source.id"),
+                    SelectConfig(column="test_source.name"),
                 ]
             ),
         )
@@ -298,18 +251,21 @@ class TestViewBuilderBuildCreateView:
             name="source2",
             url="http://example.com/data.csv",
             file="data.csv",
-            type=SourceType.TABULAR,
+            kind=SourceKind.TABULAR,
             separator=",",
             attributes=AttributesConfig(
                 original=[OriginalAttributeConfig(name="id", type=DataType.INTEGER)]
             ),
             view=ViewConfig(
-                select=[SelectConfig(source="source2", column="id")],
+                select=[SelectConfig(column="source2.id")],
                 join=[
                     ViewJoinConfig(
-                        type="LEFT JOIN",
-                        source="source1",
-                        condition="source2.id = source1.id",
+                        method="left join",
+                        condition=AttributeConditionConfig(
+                            predicate="equals",
+                            left=JoinOperandConfig(column="source2.id"),
+                            right=JoinOperandConfig(column="source1.id"),
+                        ),
                     )
                 ],
             ),
@@ -321,8 +277,53 @@ class TestViewBuilderBuildCreateView:
         sql = builder.build_create_view(source, "test_view")
 
         # Assert
-        assert "LEFT JOIN source1 ON" in sql
+        assert "left join source1 ON" in sql
         assert "source2.id = source1.id" in sql
+
+    def test_builds_view_with_spatial_join_as_equality(self):
+        """Test that spatial joins are emitted as precomputed equality joins."""
+        # Arrange
+        source = SourceConfig(
+            name="points",
+            url="http://example.com/data.csv",
+            file="data.csv",
+            kind=SourceKind.TABULAR,
+            separator=",",
+            attributes=AttributesConfig(
+                original=[OriginalAttributeConfig(name="id", type=DataType.INTEGER)],
+                derived=[
+                    DerivedAttributeConfig(
+                        name="geometry",
+                        type=DataType.GEOMETRY,
+                        expression="'POINT(0 0)'",
+                        srid=4326,
+                    )
+                ],
+            ),
+            view=ViewConfig(
+                select=[SelectConfig(column="points.id")],
+                join=[
+                    ViewJoinConfig(
+                        method="left join",
+                        condition=SpatialConditionConfig(
+                            predicate="within",
+                            left=JoinOperandConfig(column="points.geometry"),
+                            right=JoinOperandConfig(column="regions.geometry"),
+                        ),
+                    )
+                ],
+            ),
+        )
+
+        builder = ViewBuilder()
+
+        # Act
+        sql = builder.build_create_view(source, "test_view")
+
+        # Assert
+        assert "left join regions ON" in sql
+        assert "points.__spatial_join_regions = regions.rowid" in sql
+        assert "ST_Within" not in sql
 
     def test_raises_error_when_source_has_no_view(self):
         """Test that error is raised when source has no view configuration."""
@@ -331,7 +332,7 @@ class TestViewBuilderBuildCreateView:
             name="test_source",
             url="http://example.com/data.csv",
             file="data.csv",
-            type=SourceType.TABULAR,
+            kind=SourceKind.TABULAR,
             separator=",",
             attributes=AttributesConfig(
                 original=[OriginalAttributeConfig(name="id", type=DataType.INTEGER)]

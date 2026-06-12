@@ -11,7 +11,7 @@ from geoparser.gazetteer.installer.model import (
     DataType,
     OriginalAttributeConfig,
     SourceConfig,
-    SourceType,
+    SourceKind,
 )
 from geoparser.gazetteer.installer.strategies.tabular import TabularLoadStrategy
 
@@ -27,7 +27,7 @@ class TestTabularLoadStrategyGetColumnNames:
             name="test",
             url="http://example.com/data.csv",
             file="data.csv",
-            type=SourceType.TABULAR,
+            kind=SourceKind.TABULAR,
             separator=",",
             attributes=AttributesConfig(
                 original=[
@@ -53,7 +53,7 @@ class TestTabularLoadStrategyGetColumnNames:
             name="test",
             url="http://example.com/data.csv",
             file="data.csv",
-            type=SourceType.TABULAR,
+            kind=SourceKind.TABULAR,
             separator=",",
             attributes=AttributesConfig(
                 original=[
@@ -84,7 +84,7 @@ class TestTabularLoadStrategyGetDtypeMapping:
             name="test",
             url="http://example.com/data.csv",
             file="data.csv",
-            type=SourceType.TABULAR,
+            kind=SourceKind.TABULAR,
             separator=",",
             attributes=AttributesConfig(
                 original=[OriginalAttributeConfig(name="name", type=DataType.TEXT)]
@@ -106,7 +106,7 @@ class TestTabularLoadStrategyGetDtypeMapping:
             name="test",
             url="http://example.com/data.csv",
             file="data.csv",
-            type=SourceType.TABULAR,
+            kind=SourceKind.TABULAR,
             separator=",",
             attributes=AttributesConfig(
                 original=[OriginalAttributeConfig(name="id", type=DataType.INTEGER)]
@@ -128,7 +128,7 @@ class TestTabularLoadStrategyGetDtypeMapping:
             name="test",
             url="http://example.com/data.csv",
             file="data.csv",
-            type=SourceType.TABULAR,
+            kind=SourceKind.TABULAR,
             separator=",",
             attributes=AttributesConfig(
                 original=[OriginalAttributeConfig(name="value", type=DataType.REAL)]
@@ -150,7 +150,7 @@ class TestTabularLoadStrategyGetDtypeMapping:
             name="test",
             url="http://example.com/data.csv",
             file="data.csv",
-            type=SourceType.TABULAR,
+            kind=SourceKind.TABULAR,
             separator=",",
             attributes=AttributesConfig(
                 original=[
@@ -178,7 +178,7 @@ class TestTabularLoadStrategyGetDtypeMapping:
             name="test",
             url="http://example.com/data.csv",
             file="data.csv",
-            type=SourceType.TABULAR,
+            kind=SourceKind.TABULAR,
             separator=",",
             attributes=AttributesConfig(
                 original=[

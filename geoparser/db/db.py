@@ -14,7 +14,6 @@ from sqlmodel import Session, SQLModel, create_engine
 
 import geoparser.db.models  # noqa: F401
 
-from .extensions.spatialite.loader import get_spatialite_path, load_spatialite_extension
 from .extensions.spellfix.loader import get_spellfix_path, load_spellfix_extension
 
 # Database URL configuration (SQLite)
@@ -28,15 +27,15 @@ db_path = DATABASE_URL.replace("sqlite:///", "")
 Path(db_path).parent.mkdir(parents=True, exist_ok=True)
 
 
-# Event listener for SQLite foreign keys and SpatiaLite
+# Event listener for SQLite foreign keys and the Spellfix extension
 # This applies to ALL Engine instances (including test engines)
 @event.listens_for(Engine, "connect")
 def _set_sqlite_pragma(dbapi_connection, connection_record):
     """
     Configure SQLite connections on connect.
 
-    Enables foreign key enforcement and loads SpatiaLite and Spellfix extensions
-    for all SQLite connections.
+    Enables foreign key enforcement and loads the Spellfix extension for all
+    SQLite connections.
 
     Args:
         dbapi_connection: Database API connection object
@@ -47,16 +46,6 @@ def _set_sqlite_pragma(dbapi_connection, connection_record):
         cursor = dbapi_connection.cursor()
         cursor.execute("PRAGMA foreign_keys=ON")
         cursor.close()
-
-        # Load SpatiaLite extension
-        spatialite_path = get_spatialite_path()
-        if spatialite_path is None:
-            raise RuntimeError("SpatiaLite library not found.")
-
-        try:
-            load_spatialite_extension(dbapi_connection, spatialite_path)
-        except Exception as e:
-            raise RuntimeError(f"Failed to load SpatiaLite extension: {e}") from e
 
         # Load Spellfix extension
         spellfix_path = get_spellfix_path()

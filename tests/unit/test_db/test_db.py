@@ -25,13 +25,6 @@ class TestTestEngineFixture:
         foreign_keys_enabled = result.scalar()
         assert foreign_keys_enabled == 1
 
-    def test_loads_spatialite(self, test_session):
-        """Test that SpatiaLite extension is loaded via global event listener."""
-        result = test_session.exec(text("SELECT spatialite_version()"))
-        version = result.scalar()
-        assert version is not None
-        assert isinstance(version, str)
-
     def test_creates_tables(self, test_session):
         """Test that tables are created automatically."""
         result = test_session.exec(
@@ -96,55 +89,10 @@ class TestPatchDbFixture:
 class TestSetSqlitePragma:
     """Test the _set_sqlite_pragma event listener."""
 
-    def test_raises_runtime_error_when_spatialite_not_found(self):
-        """Test that RuntimeError is raised when SpatiaLite library is not found."""
-        # Arrange
-        import sqlite3
-        from unittest.mock import patch
-
-        from geoparser.db.db import _set_sqlite_pragma
-
-        connection = sqlite3.connect(":memory:")
-
-        # Act & Assert
-        with patch("geoparser.db.db.get_spatialite_path", return_value=None):
-            with pytest.raises(RuntimeError, match="SpatiaLite library not found"):
-                _set_sqlite_pragma(connection, None)
-
-        connection.close()
-
-    def test_raises_runtime_error_when_spatialite_fails_to_load(self):
-        """Test that RuntimeError is raised when SpatiaLite fails to load."""
-        # Arrange
-        import sqlite3
-        from pathlib import Path
-        from unittest.mock import patch
-
-        from geoparser.db.db import _set_sqlite_pragma
-
-        connection = sqlite3.connect(":memory:")
-
-        # Act & Assert
-        with patch(
-            "geoparser.db.db.get_spatialite_path",
-            return_value=Path("/fake/path/mod_spatialite.so"),
-        ):
-            with patch(
-                "geoparser.db.db.load_spatialite_extension",
-                side_effect=Exception("Load failed"),
-            ):
-                with pytest.raises(
-                    RuntimeError, match="Failed to load SpatiaLite extension"
-                ):
-                    _set_sqlite_pragma(connection, None)
-
-        connection.close()
-
     def test_raises_runtime_error_when_spellfix_not_found(self):
         """Test that RuntimeError is raised when Spellfix library is not found."""
         # Arrange
         import sqlite3
-        from pathlib import Path
         from unittest.mock import patch
 
         from geoparser.db.db import _set_sqlite_pragma
@@ -152,16 +100,9 @@ class TestSetSqlitePragma:
         connection = sqlite3.connect(":memory:")
 
         # Act & Assert
-        with patch(
-            "geoparser.db.db.get_spatialite_path",
-            return_value=Path("/fake/path/mod_spatialite.so"),
-        ):
-            with patch("geoparser.db.db.load_spatialite_extension"):
-                with patch("geoparser.db.db.get_spellfix_path", return_value=None):
-                    with pytest.raises(
-                        RuntimeError, match="Spellfix library not found"
-                    ):
-                        _set_sqlite_pragma(connection, None)
+        with patch("geoparser.db.db.get_spellfix_path", return_value=None):
+            with pytest.raises(RuntimeError, match="Spellfix library not found"):
+                _set_sqlite_pragma(connection, None)
 
         connection.close()
 
@@ -178,21 +119,16 @@ class TestSetSqlitePragma:
 
         # Act & Assert
         with patch(
-            "geoparser.db.db.get_spatialite_path",
-            return_value=Path("/fake/path/mod_spatialite.so"),
+            "geoparser.db.db.get_spellfix_path",
+            return_value=Path("/fake/path/spellfix.so"),
         ):
-            with patch("geoparser.db.db.load_spatialite_extension"):
-                with patch(
-                    "geoparser.db.db.get_spellfix_path",
-                    return_value=Path("/fake/path/spellfix.so"),
+            with patch(
+                "geoparser.db.db.load_spellfix_extension",
+                side_effect=Exception("Load failed"),
+            ):
+                with pytest.raises(
+                    RuntimeError, match="Failed to load Spellfix extension"
                 ):
-                    with patch(
-                        "geoparser.db.db.load_spellfix_extension",
-                        side_effect=Exception("Load failed"),
-                    ):
-                        with pytest.raises(
-                            RuntimeError, match="Failed to load Spellfix extension"
-                        ):
-                            _set_sqlite_pragma(connection, None)
+                    _set_sqlite_pragma(connection, None)
 
         connection.close()

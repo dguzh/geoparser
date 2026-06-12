@@ -193,21 +193,22 @@ class TestGazetteerInstallerIntegration:
         result = test_session.exec(sql).first()
         assert result is not None
 
-    def test_creates_spatial_indexes(self, andorra_gazetteer, test_session):
-        """Test that spatial indexes are created."""
+    def test_precomputes_spatial_join(self, andorra_gazetteer, test_session):
+        """Test that the declarative spatial join is precomputed at install time."""
         # Arrange & Act - andorra_gazetteer fixture installs the gazetteer
 
-        # Assert - Check that spatial indexes exist
-        sql = text(
-            """
-            SELECT 1 FROM sqlite_master 
-            WHERE type='table' AND name LIKE 'idx_%'
-            """
-        )
-        results = test_session.exec(sql).all()
-        # Note: Spatial indexes may be created differently
-        # Just verify query runs without error
-        assert isinstance(results, list)
+        # Assert - the precomputed spatial-join key column exists on the table
+        columns = test_session.exec(text("PRAGMA table_info(andorra)")).all()
+        column_names = {row[1] for row in columns}
+        assert "__spatial_join_shape" in column_names
+
+        # Assert - the spatial join matched at least one point to the shape,
+        # so the dummy column sourced from the shape is populated in the view
+        result = test_session.exec(
+            text("SELECT COUNT(*) FROM andorra_view WHERE dummy IS NOT NULL")
+        ).first()
+        assert result is not None
+        assert result[0] > 0
 
     def test_installs_specific_andorra_location(self, andorra_gazetteer):
         """Test that specific known Andorra location is installed."""

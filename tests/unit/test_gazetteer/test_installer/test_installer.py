@@ -107,6 +107,8 @@ class TestGazetteerInstallerCreatePipeline:
 
     @patch("geoparser.gazetteer.installer.installer.RegistrationStage")
     @patch("geoparser.gazetteer.installer.installer.IndexingStage")
+    @patch("geoparser.gazetteer.installer.installer.ViewStage")
+    @patch("geoparser.gazetteer.installer.installer.SpatialStage")
     @patch("geoparser.gazetteer.installer.installer.TransformationStage")
     @patch("geoparser.gazetteer.installer.installer.IngestionStage")
     @patch("geoparser.gazetteer.installer.installer.SchemaStage")
@@ -117,6 +119,8 @@ class TestGazetteerInstallerCreatePipeline:
         mock_schema,
         mock_ingestion,
         mock_transformation,
+        mock_spatial,
+        mock_view,
         mock_indexing,
         mock_registration,
     ):
@@ -124,21 +128,28 @@ class TestGazetteerInstallerCreatePipeline:
         # Arrange
         installer = GazetteerInstaller()
         downloads_dir = Path("/tmp/downloads")
+        config = Mock()
+        config.name = "test_gaz"
+        config.sources = []
 
         # Act
-        pipeline = installer._create_pipeline("test_gaz", downloads_dir, 10000)
+        pipeline = installer._create_pipeline(config, downloads_dir, 10000)
 
         # Assert
-        assert len(pipeline) == 6
+        assert len(pipeline) == 8
         mock_acquisition.assert_called_once_with(downloads_dir)
         mock_schema.assert_called_once()
         mock_ingestion.assert_called_once_with(10000)
         mock_transformation.assert_called_once()
+        mock_spatial.assert_called_once_with({})
+        mock_view.assert_called_once()
         mock_indexing.assert_called_once()
         mock_registration.assert_called_once_with("test_gaz")
 
     @patch("geoparser.gazetteer.installer.installer.RegistrationStage")
     @patch("geoparser.gazetteer.installer.installer.IndexingStage")
+    @patch("geoparser.gazetteer.installer.installer.ViewStage")
+    @patch("geoparser.gazetteer.installer.installer.SpatialStage")
     @patch("geoparser.gazetteer.installer.installer.TransformationStage")
     @patch("geoparser.gazetteer.installer.installer.IngestionStage")
     @patch("geoparser.gazetteer.installer.installer.SchemaStage")
@@ -149,6 +160,8 @@ class TestGazetteerInstallerCreatePipeline:
         mock_schema,
         mock_ingestion,
         mock_transformation,
+        mock_spatial,
+        mock_view,
         mock_indexing,
         mock_registration,
     ):
@@ -156,18 +169,24 @@ class TestGazetteerInstallerCreatePipeline:
         # Arrange
         installer = GazetteerInstaller()
         downloads_dir = Path("/tmp/downloads")
+        config = Mock()
+        config.name = "test_gaz"
+        config.sources = []
 
         # Act
-        pipeline = installer._create_pipeline("test_gaz", downloads_dir, 10000)
+        pipeline = installer._create_pipeline(config, downloads_dir, 10000)
 
         # Assert
-        # Pipeline order: Acquisition, Schema, Ingestion, Transformation, Indexing, Registration
+        # Order: Acquisition, Schema, Ingestion, Transformation,
+        # Spatial, View, Indexing, Registration
         assert pipeline[0] == mock_acquisition.return_value
         assert pipeline[1] == mock_schema.return_value
         assert pipeline[2] == mock_ingestion.return_value
         assert pipeline[3] == mock_transformation.return_value
-        assert pipeline[4] == mock_indexing.return_value
-        assert pipeline[5] == mock_registration.return_value
+        assert pipeline[4] == mock_spatial.return_value
+        assert pipeline[5] == mock_view.return_value
+        assert pipeline[6] == mock_indexing.return_value
+        assert pipeline[7] == mock_registration.return_value
 
 
 @pytest.mark.unit

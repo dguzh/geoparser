@@ -14,7 +14,7 @@ from geoparser.gazetteer.installer.model import (
     DerivedAttributeConfig,
     OriginalAttributeConfig,
     SourceConfig,
-    SourceType,
+    SourceKind,
 )
 from geoparser.gazetteer.installer.stages.indexing import IndexingStage
 
@@ -44,7 +44,7 @@ class TestIndexingStageCollectIndexedColumns:
             name="test",
             url="http://example.com/data.csv",
             file="data.csv",
-            type=SourceType.TABULAR,
+            kind=SourceKind.TABULAR,
             separator=",",
             attributes=AttributesConfig(
                 original=[
@@ -73,7 +73,7 @@ class TestIndexingStageCollectIndexedColumns:
             name="test",
             url="http://example.com/data.csv",
             file="data.csv",
-            type=SourceType.TABULAR,
+            kind=SourceKind.TABULAR,
             separator=",",
             attributes=AttributesConfig(
                 original=[
@@ -103,7 +103,7 @@ class TestIndexingStageCollectIndexedColumns:
             name="test",
             url="http://example.com/data.csv",
             file="data.csv",
-            type=SourceType.TABULAR,
+            kind=SourceKind.TABULAR,
             separator=",",
             attributes=AttributesConfig(
                 original=[
@@ -136,7 +136,7 @@ class TestIndexingStageCollectIndexedColumns:
             name="test",
             url="http://example.com/data.csv",
             file="data.csv",
-            type=SourceType.TABULAR,
+            kind=SourceKind.TABULAR,
             separator=",",
             attributes=AttributesConfig(
                 original=[
@@ -159,6 +159,38 @@ class TestIndexingStageCollectIndexedColumns:
         assert len(result) == 1
         assert result[0] == ("id", DataType.INTEGER)
 
+    def test_excludes_geometry_columns(self):
+        """Test that geometry columns are not indexed in the database."""
+        # Arrange
+        source = SourceConfig(
+            name="test",
+            url="http://example.com/data.shp",
+            file="data.shp",
+            kind=SourceKind.SPATIAL,
+            attributes=AttributesConfig(
+                original=[
+                    OriginalAttributeConfig(
+                        name="id", type=DataType.INTEGER, index=True
+                    ),
+                    OriginalAttributeConfig(
+                        name="geometry",
+                        type=DataType.GEOMETRY,
+                        index=True,
+                        srid=4326,
+                    ),
+                ]
+            ),
+        )
+
+        stage = IndexingStage()
+
+        # Act
+        result = stage._collect_indexed_columns(source)
+
+        # Assert
+        assert len(result) == 1
+        assert result[0] == ("id", DataType.INTEGER)
+
     def test_collects_both_original_and_derived_indexed_columns(self):
         """Test that both original and derived indexed columns are collected."""
         # Arrange
@@ -166,7 +198,7 @@ class TestIndexingStageCollectIndexedColumns:
             name="test",
             url="http://example.com/data.csv",
             file="data.csv",
-            type=SourceType.TABULAR,
+            kind=SourceKind.TABULAR,
             separator=",",
             attributes=AttributesConfig(
                 original=[
@@ -207,7 +239,7 @@ class TestIndexingStageExecute:
             name="test",
             path="/test/data.csv",
             file="data.csv",
-            type=SourceType.TABULAR,
+            kind=SourceKind.TABULAR,
             separator=",",
             attributes=AttributesConfig(
                 original=[

@@ -51,7 +51,7 @@ class RegistrationStage(Stage):
         # Ensure Source record exists
         source_record = self._ensure_source_record(
             registration_table,
-            source.features.identifier[0].column,
+            source.features.identifier[0].column.column,
         )
 
         self._register_features(source, source_record.id)
@@ -120,7 +120,7 @@ class RegistrationStage(Stage):
             source_id: ID of the source record
         """
         for name_config in source.features.names:
-            name_column = name_config.column
+            name_column = name_config.column.column
             separator = name_config.separator
 
             # Choose appropriate insert builder

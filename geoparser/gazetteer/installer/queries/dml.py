@@ -6,8 +6,8 @@ class TransformationBuilder(QueryBuilder):
     """
     Builds UPDATE statements for data transformations.
 
-    This builder creates queries for applying derived column calculations
-    and converting WKT text to SpatiaLite geometry objects.
+    This builder creates queries for applying derived column calculations,
+    including geometries that are stored as WKT text.
     """
 
     def build_derivation_update(
@@ -31,34 +31,6 @@ class TransformationBuilder(QueryBuilder):
         self.sanitize_identifier(column_name)
 
         return f"UPDATE {table_name} SET {column_name} = {expression}"
-
-    def build_geometry_update(
-        self,
-        table_name: str,
-        column_name: str,
-        srid: int,
-    ) -> str:
-        """
-        Build an UPDATE statement to convert WKT to geometry.
-
-        Args:
-            table_name: Name of the table
-            column_name: Name of the geometry column
-            srid: Spatial Reference System Identifier
-
-        Returns:
-            SQL UPDATE statement
-        """
-        self.sanitize_identifier(table_name)
-        self.sanitize_identifier(column_name)
-
-        wkt_column = f"{column_name}_wkt"
-
-        return (
-            f"UPDATE {table_name} "
-            f"SET {column_name} = GeomFromText({wkt_column}, {srid}) "
-            f"WHERE {wkt_column} IS NOT NULL"
-        )
 
 
 class FeatureRegistrationBuilder(QueryBuilder):
@@ -91,7 +63,7 @@ class FeatureRegistrationBuilder(QueryBuilder):
             raise ValueError(f"Source '{source.name}' has no feature configuration")
 
         # Use first identifier column (currently only support single column)
-        identifier_column = source.features.identifier[0].column
+        identifier_column = source.features.identifier[0].column.column
         source_table = source.name
 
         return f"""
@@ -127,7 +99,7 @@ class FeatureRegistrationBuilder(QueryBuilder):
         if source.features is None:
             raise ValueError(f"Source '{source.name}' has no feature configuration")
 
-        identifier_column = source.features.identifier[0].column
+        identifier_column = source.features.identifier[0].column.column
         source_table = source.name
 
         return f"""
@@ -169,7 +141,7 @@ class FeatureRegistrationBuilder(QueryBuilder):
         if source.features is None:
             raise ValueError(f"Source '{source.name}' has no feature configuration")
 
-        identifier_column = source.features.identifier[0].column
+        identifier_column = source.features.identifier[0].column.column
         source_table = source.name
 
         return f"""
