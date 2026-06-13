@@ -14,7 +14,7 @@ from sqlmodel import Session, SQLModel, create_engine
 
 import geoparser.db.models  # noqa: F401
 
-from .extensions.spellfix.loader import get_spellfix_path, load_spellfix_extension
+from .functions import levenshtein, soundex
 
 # Database URL configuration (SQLite)
 DATABASE_URL = os.getenv(
@@ -27,15 +27,15 @@ db_path = DATABASE_URL.replace("sqlite:///", "")
 Path(db_path).parent.mkdir(parents=True, exist_ok=True)
 
 
-# Event listener for SQLite foreign keys and the Spellfix extension
+# Event listener for SQLite foreign keys and fuzzy matching functions
 # This applies to ALL Engine instances (including test engines)
 @event.listens_for(Engine, "connect")
 def _set_sqlite_pragma(dbapi_connection, connection_record):
     """
     Configure SQLite connections on connect.
 
-    Enables foreign key enforcement and loads the Spellfix extension for all
-    SQLite connections.
+    Enables foreign key enforcement and registers the fuzzy matching functions
+    (soundex and levenshtein) for all SQLite connections.
 
     Args:
         dbapi_connection: Database API connection object
@@ -47,15 +47,11 @@ def _set_sqlite_pragma(dbapi_connection, connection_record):
         cursor.execute("PRAGMA foreign_keys=ON")
         cursor.close()
 
-        # Load Spellfix extension
-        spellfix_path = get_spellfix_path()
-        if spellfix_path is None:
-            raise RuntimeError("Spellfix library not found.")
-
-        try:
-            load_spellfix_extension(dbapi_connection, spellfix_path)
-        except Exception as e:
-            raise RuntimeError(f"Failed to load Spellfix extension: {e}") from e
+        # Register pure-Python fuzzy matching functions
+        dbapi_connection.create_function("soundex", 1, soundex, deterministic=True)
+        dbapi_connection.create_function(
+            "levenshtein", 2, levenshtein, deterministic=True
+        )
 
 
 # Create engine once at module level
