@@ -6,11 +6,6 @@ __pycache__/
 # C extensions
 *.so
 
-# Allow extension binaries
-!geoparser/db/extensions/**/binaries/**/*.so
-!geoparser/db/extensions/**/binaries/**/*.dylib
-!geoparser/db/extensions/**/binaries/**/*.dll
-
 # Distribution / packaging
 .Python
 build/
