@@ -134,8 +134,8 @@ class TestFeatureRepositoryGetByGazetteerAndNamePartial:
 class TestFeatureRepositoryGetByGazetteerAndNameFuzzy:
     """Test FeatureRepository.get_by_gazetteer_and_name_fuzzy() method."""
 
-    def test_builds_fuzzy_query_with_spellfix(self, test_session):
-        """Test that fuzzy query uses spellfix with phonetic hashing and edit distance."""
+    def test_builds_fuzzy_query_with_soundex(self, test_session):
+        """Test that fuzzy query uses Soundex candidate retrieval and rapidfuzz ranking."""
         # Arrange
         mock_result = Mock()
         mock_result.unique.return_value.all.return_value = []
@@ -148,5 +148,5 @@ class TestFeatureRepositoryGetByGazetteerAndNameFuzzy:
 
         # Assert
         assert result == []
-        # Should build query with spellfix joins and k2 phonetic hash matching
+        # Should build query with soundex joins and levenshtein ranking
         test_session.exec.assert_called_once()

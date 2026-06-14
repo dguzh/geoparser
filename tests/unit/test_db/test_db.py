@@ -89,46 +89,27 @@ class TestPatchDbFixture:
 class TestSetSqlitePragma:
     """Test the _set_sqlite_pragma event listener."""
 
-    def test_raises_runtime_error_when_spellfix_not_found(self):
-        """Test that RuntimeError is raised when Spellfix library is not found."""
-        # Arrange
-        import sqlite3
-        from unittest.mock import patch
+    def test_registers_soundex_function(self, test_session):
+        """Test that the soundex function is registered on connections."""
+        result = test_session.exec(text("SELECT soundex('Andorra')"))
+        assert result.scalar() == "A536"
+
+    def test_registers_levenshtein_function(self, test_session):
+        """Test that the levenshtein function is registered on connections."""
+        result = test_session.exec(text("SELECT levenshtein('Paris', 'Paris')"))
+        assert result.scalar() == 0
+
+    def test_skips_non_sqlite_connections(self):
+        """Test that non-SQLite connections are left unmodified."""
+        from unittest.mock import Mock
 
         from geoparser.db.db import _set_sqlite_pragma
 
-        connection = sqlite3.connect(":memory:")
+        connection = Mock()
 
-        # Act & Assert
-        with patch("geoparser.db.db.get_spellfix_path", return_value=None):
-            with pytest.raises(RuntimeError, match="Spellfix library not found"):
-                _set_sqlite_pragma(connection, None)
+        # Act - a non-sqlite3 connection should be ignored without error
+        _set_sqlite_pragma(connection, None)
 
-        connection.close()
-
-    def test_raises_runtime_error_when_spellfix_fails_to_load(self):
-        """Test that RuntimeError is raised when Spellfix fails to load."""
-        # Arrange
-        import sqlite3
-        from pathlib import Path
-        from unittest.mock import patch
-
-        from geoparser.db.db import _set_sqlite_pragma
-
-        connection = sqlite3.connect(":memory:")
-
-        # Act & Assert
-        with patch(
-            "geoparser.db.db.get_spellfix_path",
-            return_value=Path("/fake/path/spellfix.so"),
-        ):
-            with patch(
-                "geoparser.db.db.load_spellfix_extension",
-                side_effect=Exception("Load failed"),
-            ):
-                with pytest.raises(
-                    RuntimeError, match="Failed to load Spellfix extension"
-                ):
-                    _set_sqlite_pragma(connection, None)
-
-        connection.close()
+        # Assert
+        connection.cursor.assert_not_called()
+        connection.create_function.assert_not_called()
