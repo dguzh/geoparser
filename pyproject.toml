@@ -11,7 +11,6 @@ include = [
     "LICENSE",
     "THIRD_PARTY_LICENSES",
     "README.md",
-    "geoparser/db/extensions/**/*",
 ]
 
 [tool.poetry.dependencies]
@@ -28,6 +27,7 @@ pyogrio = "^0.11.1"
 pyproj = "^3.7.1"
 python-multipart = "^0.0.20"
 pyyaml = "^6.0.3"
+rapidfuzz = "^3.14.5"
 requests = "^2.32.5"
 sentence-transformers = "^5.1.2"
 shapely = "^2.1.2"

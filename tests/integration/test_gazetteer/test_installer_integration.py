@@ -125,69 +125,53 @@ class TestGazetteerInstallerIntegration:
         result = test_session.exec(sql).first()
         assert result is not None
 
-    def test_creates_spellfix_tables(self, andorra_gazetteer, test_session):
-        """Test that spellfix virtual table and shadow table are created."""
+    def test_creates_soundex_table(self, andorra_gazetteer, test_session):
+        """Test that the soundex table is created."""
         # Arrange & Act - andorra_gazetteer fixture installs the gazetteer
 
-        # Assert - Check that spellfix virtual table exists
+        # Assert - Check that soundex table exists
         sql = text(
             """
             SELECT name FROM sqlite_master 
-            WHERE type='table' AND name='name_spellfix'
+            WHERE type='table' AND name='name_soundex'
             """
         )
         result = test_session.exec(sql).first()
         assert result is not None
 
-        # Assert - Check that spellfix shadow table exists
-        sql = text(
-            """
-            SELECT name FROM sqlite_master 
-            WHERE type='table' AND name='name_spellfix_vocab'
-            """
-        )
-        result = test_session.exec(sql).first()
-        assert result is not None
-
-    def test_spellfix_populated(self, andorra_gazetteer, test_session):
-        """Test that spellfix virtual table and shadow table are populated with place names."""
+    def test_soundex_populated(self, andorra_gazetteer, test_session):
+        """Test that the soundex table is populated with place names."""
         # Arrange & Act - andorra_gazetteer fixture installs the gazetteer
 
-        # Assert - Check that spellfix virtual table has entries
-        sql = text("SELECT COUNT(*) FROM name_spellfix")
+        # Assert - Check that soundex table has entries
+        sql = text("SELECT COUNT(*) FROM name_soundex")
         result = test_session.exec(sql).first()
         assert result is not None
         assert result[0] > 0
 
-        # Assert - Check that spellfix vocab shadow table has entries
-        sql = text("SELECT COUNT(*) FROM name_spellfix_vocab")
-        result = test_session.exec(sql).first()
-        assert result is not None
-        assert result[0] > 0
-
-    def test_spellfix_trigger_exists(self, andorra_gazetteer, test_session):
-        """Test that spellfix insert trigger is created."""
+    def test_soundex_trigger_exists(self, andorra_gazetteer, test_session):
+        """Test that the soundex insert trigger is created."""
         # Arrange & Act - andorra_gazetteer fixture installs the gazetteer
 
-        # Assert - Check that spellfix trigger exists
+        # Assert - Check that soundex trigger exists
         sql = text(
             """
             SELECT name FROM sqlite_master 
-            WHERE type='trigger' AND name='name_spellfix_insert'
+            WHERE type='trigger' AND name='name_soundex_insert'
             """
         )
         result = test_session.exec(sql).first()
         assert result is not None
 
-    def test_spellfix_k2_index_exists(self, andorra_gazetteer, test_session):
-        """Test that k2 index on spellfix vocab table is created."""
+    def test_soundex_code_index_exists(self, andorra_gazetteer, test_session):
+        """Test that the code index on the soundex table is created."""
         # Arrange & Act - andorra_gazetteer fixture installs the gazetteer
 
-        # Assert - Check that k2 index exists
+        # Assert - Check that code index exists
         sql = text(
             """
             SELECT name FROM sqlite_master 
-            WHERE type='index' AND name='idx_name_spellfix_vocab_k2'
+            WHERE type='index' AND name='idx_name_soundex_code'
             """
         )
         result = test_session.exec(sql).first()

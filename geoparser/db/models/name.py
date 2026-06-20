@@ -63,20 +63,20 @@ class NameFTS(SQLModel, table=True):
     text: str
 
 
-class NameSpellfixVocab(SQLModel, table=True):
+class NameSoundex(SQLModel, table=True):
     """
-    Read-only mapping to the name_spellfix_vocab shadow table.
+    Read-only mapping to the name_soundex table.
 
-    This provides access to the spellfix1 shadow table for fuzzy matching
-    operations on names using phonetic hashing and edit distance.
-    The shadow table is automatically maintained by the spellfix1 virtual table.
+    This provides access to the Soundex codes used for fuzzy matching. Each row
+    maps a name id to the Soundex code of its text, enabling phonetic candidate
+    retrieval before rapidfuzz ranking. The table is maintained by a trigger on
+    the name table.
     """
 
-    __tablename__ = "name_spellfix_vocab"
+    __tablename__ = "name_soundex"
 
     id: int = Field(primary_key=True)
-    word: str
-    k2: str
+    code: str
 
 
 class NameCreate(NameBase):
@@ -97,12 +97,12 @@ class NameUpdate(SQLModel):
 @event.listens_for(Name.__table__, "after_create")
 def setup_virtual_tables(target, connection, **kw):
     """
-    Create FTS and spellfix virtual tables and triggers for name search.
+    Create the FTS virtual table, soundex table, and triggers for name search.
 
     This function is automatically called when the name table is created.
     It sets up:
     1. An FTS5 virtual table with unicode61 tokenization for exact matching
-    2. A spellfix1 virtual table for fuzzy matching with edit distance
+    2. A soundex table for phonetic candidate retrieval in fuzzy matching
     3. Triggers to keep both tables in sync with the main name table
 
     Args:
@@ -112,8 +112,7 @@ def setup_virtual_tables(target, connection, **kw):
     """
     # Drop existing tables first (in case they were created by SQLModel)
     connection.execute(text("DROP TABLE IF EXISTS name_fts"))
-    connection.execute(text("DROP TABLE IF EXISTS name_spellfix"))
-    connection.execute(text("DROP TABLE IF EXISTS name_spellfix_vocab"))
+    connection.execute(text("DROP TABLE IF EXISTS name_soundex"))
 
     # Create FTS5 virtual table for exact matching with unicode61 tokenizer
     connection.execute(
@@ -128,25 +127,28 @@ def setup_virtual_tables(target, connection, **kw):
         )
     )
 
-    # Create spellfix1 virtual table for fuzzy matching
+    # Create soundex table for fuzzy matching candidate retrieval
     connection.execute(
         text(
             """
-        CREATE VIRTUAL TABLE name_spellfix USING spellfix1
+        CREATE TABLE name_soundex (
+            id INTEGER PRIMARY KEY,
+            code TEXT
+        )
     """
         )
     )
 
-    # Create index on k2 column in shadow table for efficient lookups
+    # Create index on code column for efficient candidate lookups
     connection.execute(
         text(
             """
-        CREATE INDEX IF NOT EXISTS idx_name_spellfix_vocab_k2 ON name_spellfix_vocab(k2)
+        CREATE INDEX IF NOT EXISTS idx_name_soundex_code ON name_soundex(code)
     """
         )
     )
 
-    # Create triggers for INSERT operations on FTS and spellfix tables
+    # Create triggers for INSERT operations on FTS and soundex tables
     connection.execute(
         text(
             """
@@ -162,10 +164,10 @@ def setup_virtual_tables(target, connection, **kw):
     connection.execute(
         text(
             """
-        CREATE TRIGGER IF NOT EXISTS name_spellfix_insert
+        CREATE TRIGGER IF NOT EXISTS name_soundex_insert
         AFTER INSERT ON name
         BEGIN
-            INSERT INTO name_spellfix(rowid, word) VALUES (new.id, new.text);
+            INSERT INTO name_soundex(id, code) VALUES (new.id, soundex(new.text));
         END
     """
         )

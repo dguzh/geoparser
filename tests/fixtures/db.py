@@ -23,7 +23,7 @@ def test_engine() -> Engine:
     Each test gets its own isolated database engine configured exactly like
     production. The global event listener `_set_sqlite_pragma` in
     geoparser.db.db automatically applies to ALL Engine instances, so foreign
-    keys and the Spellfix extension are configured without any extra setup.
+    keys and the fuzzy matching functions are configured without any extra setup.
 
     Yields:
         SQLAlchemy Engine instance with in-memory database
