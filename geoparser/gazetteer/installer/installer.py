@@ -5,7 +5,7 @@ from typing import List, Union
 from appdirs import user_data_dir
 
 from geoparser.db.crud.gazetteer import GazetteerRepository
-from geoparser.db.db import create_db_and_tables, get_session
+from geoparser.db.db import create_db_and_tables, get_session, optimized_writes
 from geoparser.db.models.gazetteer import GazetteerCreate
 from geoparser.gazetteer.installer.model import GazetteerConfig, SourceConfig
 from geoparser.gazetteer.installer.stages.acquisition import AcquisitionStage
@@ -88,9 +88,11 @@ class GazetteerInstaller:
         # Create pipeline stages
         pipeline = self._create_pipeline(config, downloads_dir, chunksize)
 
-        # Execute pipeline for each source
-        for source in ordered_sources:
-            self._execute_pipeline(source, pipeline)
+        # Tune connections for throughput while loading the gazetteer data
+        with optimized_writes():
+            # Execute pipeline for each source
+            for source in ordered_sources:
+                self._execute_pipeline(source, pipeline)
 
         # Cleanup if requested
         if not keep_downloads:

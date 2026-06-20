@@ -26,6 +26,11 @@ DATABASE_URL = os.getenv(
 db_path = DATABASE_URL.replace("sqlite:///", "")
 Path(db_path).parent.mkdir(parents=True, exist_ok=True)
 
+# Whether new connections should be tuned for write throughput. Toggled on only
+# for the duration of a gazetteer installation via the optimized_writes context
+# manager.
+_optimized_writes_enabled = False
+
 
 # Event listener for SQLite foreign keys and fuzzy matching functions
 # This applies to ALL Engine instances (including test engines)
@@ -35,7 +40,10 @@ def _set_sqlite_pragma(dbapi_connection, connection_record):
     Configure SQLite connections on connect.
 
     Enables foreign key enforcement and registers the fuzzy matching functions
-    (soundex and levenshtein) for all SQLite connections.
+    (soundex and levenshtein) for all SQLite connections. When optimized writes
+    are active, additionally applies throughput-oriented PRAGMAs that trade
+    durability for speed, which is acceptable during gazetteer installation
+    because the process is idempotent and can be re-run on failure.
 
     Args:
         dbapi_connection: Database API connection object
@@ -45,6 +53,15 @@ def _set_sqlite_pragma(dbapi_connection, connection_record):
         # Enable foreign key enforcement
         cursor = dbapi_connection.cursor()
         cursor.execute("PRAGMA foreign_keys=ON")
+
+        # Tune the connection for write throughput when enabled
+        if _optimized_writes_enabled:
+            cursor.execute("PRAGMA synchronous=OFF")
+            cursor.execute("PRAGMA journal_mode=MEMORY")
+            cursor.execute("PRAGMA temp_store=MEMORY")
+            cursor.execute("PRAGMA cache_size=-1048576")  # Up to ~1 GiB of page cache
+            cursor.execute("PRAGMA mmap_size=268435456")  # 256 MiB memory-mapped I/O
+
         cursor.close()
 
         # Register pure-Python fuzzy matching functions
@@ -108,3 +125,24 @@ def get_connection() -> Iterator[Connection]:
     """
     with engine.connect() as connection:
         yield connection
+
+
+@contextmanager
+def optimized_writes() -> Iterator[None]:
+    """
+    Tune new connections for write throughput within the context manager.
+
+    Connections opened while this context is active apply throughput-oriented
+    PRAGMAs instead of the default durable settings. This is intended for
+    gazetteer installation, where large volumes of data are written and the
+    process can simply be re-run on failure.
+
+    Yields:
+        None
+    """
+    global _optimized_writes_enabled
+    _optimized_writes_enabled = True
+    try:
+        yield
+    finally:
+        _optimized_writes_enabled = False
