@@ -7,7 +7,7 @@ test fixtures that redirect database operations to test databases.
 
 import pytest
 from sqlalchemy import Engine
-from sqlmodel import Session, text
+from sqlmodel import Session, create_engine, text
 
 
 @pytest.mark.unit
@@ -83,6 +83,65 @@ class TestPatchDbFixture:
             )
             table_name = result.scalar()
             assert table_name == "project"
+
+
+@pytest.mark.unit
+class TestDatabaseCompatibilityCheck:
+    """Test the legacy-database compatibility check in create_db_and_tables()."""
+
+    @staticmethod
+    def _make_engine():
+        from sqlalchemy.pool import StaticPool
+
+        return create_engine(
+            "sqlite:///:memory:",
+            poolclass=StaticPool,
+            connect_args={"check_same_thread": False},
+        )
+
+    def test_raises_for_legacy_database(self):
+        """A database with `name` but no `name_soundex` is rejected clearly."""
+        from unittest.mock import patch
+
+        import geoparser.db.db as db
+
+        legacy_engine = self._make_engine()
+        with legacy_engine.connect() as connection:
+            connection.execute(
+                text("CREATE TABLE name (id INTEGER PRIMARY KEY, text TEXT)")
+            )
+            connection.commit()
+
+        with patch.object(db, "engine", legacy_engine):
+            with pytest.raises(RuntimeError):
+                db.create_db_and_tables()
+
+    def test_allows_fresh_database(self):
+        """An empty database is fine and gets its tables created."""
+        from unittest.mock import patch
+
+        import geoparser.db.db as db
+
+        fresh_engine = self._make_engine()
+        with patch.object(db, "engine", fresh_engine):
+            db.create_db_and_tables()
+
+        with fresh_engine.connect() as connection:
+            result = connection.execute(
+                text(
+                    "SELECT 1 FROM sqlite_master "
+                    "WHERE type='table' AND name='name_soundex'"
+                )
+            )
+            assert result.first() is not None
+
+    def test_allows_current_database(self):
+        """A current database (name + name_soundex present) is accepted."""
+        import geoparser.db.db as db
+
+        # The autouse patch_db fixture points db.engine at the test engine,
+        # which already has both `name` and `name_soundex` from create_all().
+        db.create_db_and_tables()
 
 
 @pytest.mark.unit

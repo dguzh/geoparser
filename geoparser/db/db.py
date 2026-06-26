@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Iterator
 
 from appdirs import user_data_dir
-from sqlalchemy import Engine, event
+from sqlalchemy import Engine, event, text
 from sqlalchemy.engine import Connection
 from sqlalchemy.pool import NullPool
 from sqlmodel import Session, SQLModel, create_engine
@@ -81,6 +81,43 @@ engine: Engine = create_engine(
 )
 
 
+def _check_database_compatibility() -> None:
+    """
+    Fail early if the database was created by an incompatible older version.
+
+    We don't track schema versions yet, so we rely on a single feature check:
+    a database that has a ``name`` table but no companion ``name_soundex`` table
+    predates the current name-search schema and cannot be used as-is. A fresh
+    database has neither table; an up-to-date database has both.
+
+    Raises:
+        RuntimeError: If a legacy database layout is detected.
+    """
+    # The schema check is SQLite-specific; skip it for any other backend.
+    if engine.dialect.name != "sqlite":
+        return
+
+    with engine.connect() as connection:
+
+        def _table_exists(name: str) -> bool:
+            result = connection.execute(
+                text("SELECT 1 FROM sqlite_master WHERE type='table' AND name=:name"),
+                {"name": name},
+            )
+            return result.first() is not None
+
+        if _table_exists("name") and not _table_exists("name_soundex"):
+            raise RuntimeError(
+                "Your geoparser database was created by an older version and is not compatible "
+                "with this release:\n\n"
+                f"{db_path}\n\n"
+                "The Irchel Geoparser is still in active development, and the database format "
+                "may change between releases. There is no automatic upgrade path yet, so you "
+                "will need to delete the database file and reinstall the gazetteers to continue. "
+                "Doing so also removes any projects and results stored in the database. "
+            )
+
+
 def create_db_and_tables() -> None:
     """
     Create all database tables.
@@ -89,6 +126,7 @@ def create_db_and_tables() -> None:
     For this application, tables are created automatically at module import.
     This function is provided for explicit table creation if needed.
     """
+    _check_database_compatibility()
     SQLModel.metadata.create_all(engine)
 
 
