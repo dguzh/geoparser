@@ -38,6 +38,27 @@ class FeatureRepository(BaseRepository[Feature]):
         return db.exec(statement).unique().all()
 
     @classmethod
+    def count_by_gazetteer(cls, db: Session, gazetteer_name: str) -> int:
+        """
+        Count features registered for a gazetteer.
+
+        Args:
+            db: Database session
+            gazetteer_name: Name of the gazetteer
+
+        Returns:
+            Number of registered features
+        """
+        statement = (
+            select(func.count())
+            .select_from(Feature)
+            .join(Source, Feature.source_id == Source.id)
+            .join(Gazetteer, Source.gazetteer_id == Gazetteer.id)
+            .where(Gazetteer.name == gazetteer_name)
+        )
+        return db.exec(statement).one()
+
+    @classmethod
     def get_by_gazetteer_and_identifier(
         cls, db: Session, gazetteer_name: str, location_id_value: str
     ) -> t.Optional[Feature]:

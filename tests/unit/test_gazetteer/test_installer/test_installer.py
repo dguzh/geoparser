@@ -102,6 +102,27 @@ class TestGazetteerInstallerEnsureGazetteerRecord:
 
 
 @pytest.mark.unit
+class TestGazetteerInstallerCountRegisteredEntries:
+    """Test _count_registered_entries method."""
+
+    @patch("geoparser.gazetteer.installer.installer.NameRepository")
+    @patch("geoparser.gazetteer.installer.installer.FeatureRepository")
+    def test_returns_feature_and_name_counts(self, mock_feature_repo, mock_name_repo):
+        """Test that feature and name counts are returned from the repositories."""
+        # Arrange
+        mock_feature_repo.count_by_gazetteer.return_value = 3865
+        mock_name_repo.count_by_gazetteer.return_value = 47549
+        installer = GazetteerInstaller()
+
+        # Act
+        feature_count, name_count = installer._count_registered_entries("test_gaz")
+
+        # Assert
+        assert feature_count == 3865
+        assert name_count == 47549
+
+
+@pytest.mark.unit
 class TestGazetteerInstallerCreatePipeline:
     """Test _create_pipeline method."""
 

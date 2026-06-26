@@ -4,7 +4,9 @@ from typing import List, Union
 
 from appdirs import user_data_dir
 
+from geoparser.db.crud.feature import FeatureRepository
 from geoparser.db.crud.gazetteer import GazetteerRepository
+from geoparser.db.crud.name import NameRepository
 from geoparser.db.db import create_db_and_tables, get_session, optimized_writes
 from geoparser.db.models.gazetteer import GazetteerCreate
 from geoparser.gazetteer.installer.model import GazetteerConfig, SourceConfig
@@ -18,6 +20,11 @@ from geoparser.gazetteer.installer.stages.transformation import TransformationSt
 from geoparser.gazetteer.installer.stages.view import ViewStage
 from geoparser.gazetteer.installer.utils.chunking import CHUNKSIZE
 from geoparser.gazetteer.installer.utils.dependency import DependencyResolver
+from geoparser.gazetteer.installer.utils.progress import (
+    print_gazetteer_header,
+    print_gazetteer_summary,
+    source_progress,
+)
 
 # Suppress geopandas warning about geometry column.
 # This warning occurs when loading spatial data where the geometry column
@@ -86,6 +93,8 @@ class GazetteerInstaller:
         # Resolve dependencies and get processing order
         ordered_sources = self.dependency_resolver.resolve(config.sources)
 
+        print_gazetteer_header(config.name)
+
         # Create pipeline stages
         pipeline = self._create_pipeline(config, downloads_dir, chunksize)
 
@@ -94,6 +103,9 @@ class GazetteerInstaller:
             # Execute pipeline for each source
             for source in ordered_sources:
                 self._execute_pipeline(source, pipeline)
+
+        feature_count, name_count = self._count_registered_entries(config.name)
+        print_gazetteer_summary(feature_count, name_count)
 
         # Cleanup if requested
         if not keep_downloads:
@@ -133,6 +145,23 @@ class GazetteerInstaller:
             if gazetteer_record is None:
                 gazetteer_create = GazetteerCreate(name=gazetteer_name)
                 GazetteerRepository.create(session, gazetteer_create)
+
+    def _count_registered_entries(self, gazetteer_name: str) -> tuple[int, int]:
+        """
+        Count registered features and names for a gazetteer.
+
+        Args:
+            gazetteer_name: Name of the gazetteer
+
+        Returns:
+            Tuple of (feature_count, name_count)
+        """
+        with get_session() as session:
+            feature_count = FeatureRepository.count_by_gazetteer(
+                session, gazetteer_name
+            )
+            name_count = NameRepository.count_by_gazetteer(session, gazetteer_name)
+        return feature_count, name_count
 
     def _create_pipeline(
         self,
@@ -175,6 +204,10 @@ class GazetteerInstaller:
         # Context is shared across all stages for this source
         context = {}
 
-        # Execute each stage in sequence
-        for stage in pipeline:
-            stage.execute(source, context)
+        # Group all of this source's progress bars under a single source-level
+        # bar that tracks how many pipeline steps have completed.
+        with source_progress(source.name, total_steps=len(pipeline)) as progress:
+            # Execute each stage in sequence
+            for stage in pipeline:
+                stage.execute(source, context)
+                progress.advance_step()
