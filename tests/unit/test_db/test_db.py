@@ -113,3 +113,63 @@ class TestSetSqlitePragma:
         # Assert
         connection.cursor.assert_not_called()
         connection.create_function.assert_not_called()
+
+
+@pytest.mark.unit
+class TestOptimizedWrites:
+    """Test the optimized_writes context manager and its PRAGMAs."""
+
+    def test_enables_and_resets_flag(self):
+        """Test that the flag is enabled within the context and reset after."""
+        import geoparser.db.db as db
+
+        assert db._optimized_writes_enabled is False
+        with db.optimized_writes():
+            assert db._optimized_writes_enabled is True
+        assert db._optimized_writes_enabled is False
+
+    def test_resets_flag_on_error(self):
+        """Test that the flag is reset even when the context raises."""
+        import geoparser.db.db as db
+
+        with pytest.raises(ValueError):
+            with db.optimized_writes():
+                raise ValueError("boom")
+        assert db._optimized_writes_enabled is False
+
+    def test_applies_pragmas_when_enabled(self):
+        """Test that throughput PRAGMAs are applied to connections when enabled."""
+        import sqlite3
+
+        from geoparser.db.db import _set_sqlite_pragma, optimized_writes
+
+        connection = sqlite3.connect(":memory:")
+        try:
+            with optimized_writes():
+                _set_sqlite_pragma(connection, None)
+
+            cursor = connection.cursor()
+            assert cursor.execute("PRAGMA synchronous").fetchone()[0] == 0
+            assert cursor.execute("PRAGMA journal_mode").fetchone()[0] == "memory"
+            assert cursor.execute("PRAGMA temp_store").fetchone()[0] == 2
+            assert cursor.execute("PRAGMA cache_size").fetchone()[0] == -1048576
+            cursor.close()
+        finally:
+            connection.close()
+
+    def test_skips_pragmas_when_disabled(self):
+        """Test that throughput PRAGMAs are not applied outside the context."""
+        import sqlite3
+
+        from geoparser.db.db import _set_sqlite_pragma
+
+        connection = sqlite3.connect(":memory:")
+        try:
+            _set_sqlite_pragma(connection, None)
+
+            cursor = connection.cursor()
+            # Default synchronous is FULL (2), not OFF (0)
+            assert cursor.execute("PRAGMA synchronous").fetchone()[0] == 2
+            cursor.close()
+        finally:
+            connection.close()

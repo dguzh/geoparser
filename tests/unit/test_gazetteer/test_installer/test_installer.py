@@ -393,6 +393,41 @@ class TestGazetteerInstallerInstall:
     @patch("geoparser.gazetteer.installer.installer.user_data_dir")
     @patch("geoparser.gazetteer.installer.installer.GazetteerRepository")
     @patch("geoparser.gazetteer.installer.installer.GazetteerConfig")
+    @patch("geoparser.gazetteer.installer.installer.optimized_writes")
+    def test_executes_pipeline_within_optimized_writes(
+        self,
+        mock_optimized_writes,
+        mock_config_class,
+        mock_repo,
+        mock_user_data_dir,
+    ):
+        """Test that the pipeline runs inside the optimized_writes context."""
+        # Arrange
+        mock_config = Mock()
+        mock_config.name = "test_gaz"
+        mock_config.sources = []
+        mock_config_class.from_yaml.return_value = mock_config
+
+        mock_repo.get_by_name.return_value = Mock()
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            mock_user_data_dir.return_value = temp_dir
+
+            installer = GazetteerInstaller()
+            installer.dependency_resolver = Mock()
+            installer.dependency_resolver.resolve.return_value = []
+
+            # Act
+            installer.install("config.yaml")
+
+            # Assert
+            mock_optimized_writes.assert_called_once()
+            mock_optimized_writes.return_value.__enter__.assert_called_once()
+            mock_optimized_writes.return_value.__exit__.assert_called_once()
+
+    @patch("geoparser.gazetteer.installer.installer.user_data_dir")
+    @patch("geoparser.gazetteer.installer.installer.GazetteerRepository")
+    @patch("geoparser.gazetteer.installer.installer.GazetteerConfig")
     @patch("geoparser.gazetteer.installer.installer.AcquisitionStage")
     def test_keeps_downloads_when_requested(
         self,
