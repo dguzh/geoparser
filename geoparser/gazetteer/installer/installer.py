@@ -16,6 +16,7 @@ from geoparser.gazetteer.installer.stages.schema import SchemaStage
 from geoparser.gazetteer.installer.stages.spatial import SpatialStage
 from geoparser.gazetteer.installer.stages.transformation import TransformationStage
 from geoparser.gazetteer.installer.stages.view import ViewStage
+from geoparser.gazetteer.installer.utils.chunking import CHUNKSIZE
 from geoparser.gazetteer.installer.utils.dependency import DependencyResolver
 
 # Suppress geopandas warning about geometry column.
@@ -56,7 +57,7 @@ class GazetteerInstaller:
     def install(
         self,
         config_path: Union[str, Path],
-        chunksize: int = 20000,
+        chunksize: int = CHUNKSIZE,
         keep_downloads: bool = False,
     ) -> None:
         """
@@ -156,11 +157,11 @@ class GazetteerInstaller:
             AcquisitionStage(downloads_dir),
             SchemaStage(),
             IngestionStage(chunksize),
-            TransformationStage(),
+            TransformationStage(chunksize),
             SpatialStage(source_map),
             ViewStage(),
             IndexingStage(),
-            RegistrationStage(config.name),
+            RegistrationStage(config.name, chunksize),
         ]
 
     def _execute_pipeline(self, source: SourceConfig, pipeline: List) -> None:

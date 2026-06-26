@@ -9,6 +9,11 @@ from geoparser.db.models.source import SourceCreate
 from geoparser.gazetteer.installer.model import SourceConfig
 from geoparser.gazetteer.installer.queries.dml import FeatureRegistrationBuilder
 from geoparser.gazetteer.installer.stages.base import Stage
+from geoparser.gazetteer.installer.utils.chunking import (
+    CHUNKSIZE,
+    count_rows,
+    iter_rowid_ranges,
+)
 from geoparser.gazetteer.installer.utils.progress import create_progress_bar
 
 
@@ -17,21 +22,25 @@ class RegistrationStage(Stage):
     Registers features and names in the database.
 
     This stage extracts features and names from source tables and
-    registers them in the main feature and name tables for lookup.
+    registers them in the main feature and name tables for lookup. Inserts run
+    in rowid-bounded chunks so large sources are processed in batches rather
+    than in a single monolithic statement.
     """
 
-    def __init__(self, gazetteer_name: str):
+    def __init__(self, gazetteer_name: str, chunksize: int = CHUNKSIZE):
         """
         Initialize the registration stage.
 
         Args:
             gazetteer_name: Name of the gazetteer being installed
+            chunksize: Number of rows to process at once for chunked operations
         """
         super().__init__(
             name="Registration",
             description="Register features and names",
         )
         self.gazetteer_name = gazetteer_name
+        self.chunksize = chunksize
         self.builder = FeatureRegistrationBuilder()
 
     def execute(self, source: SourceConfig, context: Dict[str, Any]) -> None:
@@ -99,17 +108,23 @@ class RegistrationStage(Stage):
             source: Source configuration
             source_id: ID of the source record
         """
-        insert_sql = self.builder.build_feature_insert(source, source_id)
+        with get_connection() as connection:
+            total_rows = count_rows(connection, source.name)
 
-        with create_progress_bar(
-            1,
-            f"Registering {source.name}",
-            "source",
-        ) as pbar:
-            with get_connection() as connection:
-                connection.execute(sa.text(insert_sql))
-                connection.commit()
-            pbar.update(1)
+            with create_progress_bar(
+                total_rows,
+                f"Registering {source.name}",
+                "rows",
+            ) as pbar:
+                for rowid_start, rowid_end in iter_rowid_ranges(
+                    total_rows, self.chunksize
+                ):
+                    insert_sql = self.builder.build_feature_insert(
+                        source, source_id, rowid_start, rowid_end
+                    )
+                    connection.execute(sa.text(insert_sql))
+                    connection.commit()
+                    pbar.update(rowid_end - rowid_start + 1)
 
     def _register_names(self, source: SourceConfig, source_id: int) -> None:
         """
@@ -119,32 +134,41 @@ class RegistrationStage(Stage):
             source: Source configuration
             source_id: ID of the source record
         """
-        for name_config in source.features.names:
-            name_column = name_config.column.column
-            separator = name_config.separator
+        with get_connection() as connection:
+            total_rows = count_rows(connection, source.name)
 
-            # Choose appropriate insert builder
-            if separator:
-                insert_sql = self.builder.build_name_insert_separated(
-                    source,
-                    source_id,
-                    name_column,
-                    separator,
-                )
-            else:
-                insert_sql = self.builder.build_name_insert(
-                    source,
-                    source_id,
-                    name_column,
-                )
+            for name_config in source.features.names:
+                name_column = name_config.column.column
+                separator = name_config.separator
 
-            # Execute registration
-            with create_progress_bar(
-                1,
-                f"Registering {source.name}.{name_column}",
-                "column",
-            ) as pbar:
-                with get_connection() as connection:
-                    connection.execute(sa.text(insert_sql))
-                    connection.commit()
-                pbar.update(1)
+                # Track progress by the number of source rows processed
+                with create_progress_bar(
+                    total_rows,
+                    f"Registering {source.name}.{name_column}",
+                    "rows",
+                ) as pbar:
+                    for rowid_start, rowid_end in iter_rowid_ranges(
+                        total_rows, self.chunksize
+                    ):
+                        # Choose appropriate insert builder
+                        if separator:
+                            insert_sql = self.builder.build_name_insert_separated(
+                                source,
+                                source_id,
+                                name_column,
+                                separator,
+                                rowid_start,
+                                rowid_end,
+                            )
+                        else:
+                            insert_sql = self.builder.build_name_insert(
+                                source,
+                                source_id,
+                                name_column,
+                                rowid_start,
+                                rowid_end,
+                            )
+
+                        connection.execute(sa.text(insert_sql))
+                        connection.commit()
+                        pbar.update(rowid_end - rowid_start + 1)
