@@ -20,7 +20,7 @@ class TestIngestionStageInit:
         stage = IngestionStage()
 
         # Assert
-        assert stage.chunksize == 20000
+        assert stage.chunksize == 100_000
 
     def test_initializes_with_custom_chunksize(self):
         """Test that custom chunksize is accepted."""

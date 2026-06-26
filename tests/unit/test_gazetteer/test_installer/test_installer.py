@@ -140,11 +140,11 @@ class TestGazetteerInstallerCreatePipeline:
         mock_acquisition.assert_called_once_with(downloads_dir)
         mock_schema.assert_called_once()
         mock_ingestion.assert_called_once_with(10000)
-        mock_transformation.assert_called_once()
+        mock_transformation.assert_called_once_with(10000)
         mock_spatial.assert_called_once_with({})
         mock_view.assert_called_once()
         mock_indexing.assert_called_once()
-        mock_registration.assert_called_once_with("test_gaz")
+        mock_registration.assert_called_once_with("test_gaz", 10000)
 
     @patch("geoparser.gazetteer.installer.installer.RegistrationStage")
     @patch("geoparser.gazetteer.installer.installer.IndexingStage")

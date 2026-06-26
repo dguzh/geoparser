@@ -41,6 +41,22 @@ class TestTransformationStageInit:
         assert stage.name == "Transformation"
         assert stage.description == "Apply derivations"
 
+    def test_initializes_with_default_chunksize(self):
+        """Test that default chunksize is set."""
+        # Act
+        stage = TransformationStage()
+
+        # Assert
+        assert stage.chunksize == 100_000
+
+    def test_initializes_with_custom_chunksize(self):
+        """Test that custom chunksize is accepted."""
+        # Act
+        stage = TransformationStage(chunksize=5000)
+
+        # Assert
+        assert stage.chunksize == 5000
+
 
 @pytest.mark.unit
 class TestTransformationStageApplyDerivations:
@@ -111,6 +127,9 @@ class TestTransformationStageApplyDerivations:
         with patch(
             "geoparser.gazetteer.installer.stages.transformation.get_connection",
             return_value=mock_connection,
+        ), patch(
+            "geoparser.gazetteer.installer.stages.transformation.count_rows",
+            return_value=3,
         ):
             stage._apply_derivations(source, "test_table")
 
@@ -118,3 +137,49 @@ class TestTransformationStageApplyDerivations:
         assert any("SET geometry = " in c for c in executed)
         assert all("GeomFromText" not in c for c in executed)
         assert all("geometry_wkt" not in c for c in executed)
+
+    def test_applies_derivation_in_chunks(self):
+        """Test that derivations run in rowid-bounded chunks."""
+        # Arrange
+        source = SourceConfig(
+            name="test_source",
+            path="/test/data.csv",
+            file="data.csv",
+            kind=SourceKind.TABULAR,
+            separator=",",
+            attributes=AttributesConfig(
+                original=[OriginalAttributeConfig(name="name", type=DataType.TEXT)],
+                derived=[
+                    DerivedAttributeConfig(
+                        name="upper_name",
+                        type=DataType.TEXT,
+                        expression="upper(name)",
+                    )
+                ],
+            ),
+        )
+
+        stage = TransformationStage(chunksize=2)
+
+        executed = []
+        mock_connection = Mock()
+        mock_connection.execute = lambda stmt: executed.append(str(stmt))
+        mock_connection.commit = Mock()
+        mock_connection.__enter__ = Mock(return_value=mock_connection)
+        mock_connection.__exit__ = Mock(return_value=None)
+
+        # Act - 5 rows with chunksize 2 should produce 3 chunked updates
+        with patch(
+            "geoparser.gazetteer.installer.stages.transformation.get_connection",
+            return_value=mock_connection,
+        ), patch(
+            "geoparser.gazetteer.installer.stages.transformation.count_rows",
+            return_value=5,
+        ):
+            stage._apply_derivations(source, "test_table")
+
+        # Assert - one update per chunk with the expected rowid bounds
+        assert len(executed) == 3
+        assert any("WHERE rowid BETWEEN 1 AND 2" in c for c in executed)
+        assert any("WHERE rowid BETWEEN 3 AND 4" in c for c in executed)
+        assert any("WHERE rowid BETWEEN 5 AND 5" in c for c in executed)
