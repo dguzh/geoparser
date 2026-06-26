@@ -386,15 +386,15 @@ class TestSentenceTransformerResolverIntegration:
     ):
         """Test that resolver searches the gazetteer for location candidates."""
         # Arrange
-        texts = ["Visit Encamp, a beautiful parish."]
-        references = [[(6, 12)]]  # "Encamp"
+        texts = ["Canillo is known for its ski resorts."]
+        references = [[(0, 7)]]  # "Canillo"
 
         # Act
         results = real_sentencetransformer_resolver.predict(texts, references)
 
         # Assert
         assert len(results) == 1
-        # Should find Encamp in Andorra gazetteer
+        # Should find Canillo in Andorra gazetteer
         assert results[0][0] is not None
         gazetteer_name, identifier = results[0][0]
         assert gazetteer_name == "andorranames"
@@ -514,8 +514,8 @@ class TestSentenceTransformerResolverIntegration:
     ):
         """Test that fit accepts and uses custom training parameters."""
         # Arrange
-        texts = ["Encamp is a parish."]
-        references = [[(0, 6)]]  # "Encamp"
+        texts = ["Canillo is a parish."]
+        references = [[(0, 7)]]  # "Canillo"
         referents = [[("andorranames", "3041204")]]
         output_path = tmp_path / "trained_model"
 
