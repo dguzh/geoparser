@@ -17,8 +17,8 @@ RUN python -m spacy download en_core_web_sm && \
     python -m spacy download en_core_web_trf && \
     python -m spacy download xx_sent_ud_sm
 
-# Pre-download and install GeoNames gazetteer
-RUN python -m geoparser download geonames
+# Pre-install GeoNames gazetteer
+RUN python -m geoparser install geonames
 
 # Create workspace directory
 WORKDIR /workspace

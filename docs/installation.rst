@@ -20,7 +20,10 @@ Install the Irchel Geoparser using pip:
 Installing Gazetteers
 ---------------------
 
-The library requires gazetteer data to resolve toponyms to geographic locations. Gazetteers are stored in a SQLite database in your system's application data directory. You can install gazetteers using a single command that downloads the data and sets up the database automatically.
+The library requires gazetteer data to resolve toponyms to geographic locations. Gazetteers are stored in a SQLite database in your system's application data directory. You can install gazetteers using a single command that downloads the source data and sets up the database automatically.
+
+.. note::
+   The gazetteer CLI command was renamed from ``download`` to ``install``.
 
 If you want to try geoparsing quickly, start with **GeoNames Cities**, a lightweight subset that installs in a few minutes. For real geoparsing work, use the full **GeoNames** gazetteer instead: it covers far more than cities alone, including towns, natural features, landmarks, and fine-grained place names that the cities subset omits entirely.
 
@@ -37,7 +40,7 @@ If you want to try geoparsing quickly, start with **GeoNames Cities**, a lightwe
 
       .. code-block:: bash
 
-         python -m geoparser download geonames-cities
+         python -m geoparser install geonames-cities
 
       Installation typically completes within a few minutes. Many place types (towns, rivers, mountains, and so on) are not included at all. Use this gazetteer to experiment with the library; switch to full GeoNames for serious geoparsing.
 
@@ -52,7 +55,7 @@ If you want to try geoparsing quickly, start with **GeoNames Cities**, a lightwe
 
       .. code-block:: bash
 
-         python -m geoparser download geonames
+         python -m geoparser install geonames
 
       This command downloads the GeoNames data files, processes them, and creates the necessary database tables and indices. The process may take 20-40 minutes depending on your system.
 
@@ -67,7 +70,7 @@ If you want to try geoparsing quickly, start with **GeoNames Cities**, a lightwe
 
       .. code-block:: bash
 
-         python -m geoparser download swissnames3d
+         python -m geoparser install swissnames3d
 
       This command downloads the SwissNames3D data, processes it, and creates the database. The process typically completes within a few minutes.
 

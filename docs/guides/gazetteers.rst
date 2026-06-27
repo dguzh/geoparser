@@ -30,7 +30,7 @@ To install GeoNames Cities:
 
 .. code-block:: bash
 
-   python -m geoparser download geonames-cities
+   python -m geoparser install geonames-cities
 
 Installation typically completes within a few minutes.
 
@@ -45,7 +45,7 @@ To install GeoNames:
 
 .. code-block:: bash
 
-   python -m geoparser download geonames
+   python -m geoparser install geonames
 
 The installation process can take up to 20-40 minutes depending on your system.
 
@@ -58,7 +58,7 @@ To install SwissNames3D:
 
 .. code-block:: bash
 
-   python -m geoparser download swissnames3d
+   python -m geoparser install swissnames3d
 
 The installation process typically completes within a few minutes.
 
@@ -434,7 +434,7 @@ To install a custom gazetteer, provide the path to your configuration file:
 
 .. code-block:: bash
 
-   python -m geoparser download path/to/my_gazetteer.yaml
+   python -m geoparser install path/to/my_gazetteer.yaml
 
 The installer validates the configuration, downloads or locates the specified files, creates database tables according to the attribute specifications, loads the data, applies transformations and derivations, creates indices, and registers the gazetteer so it can be queried through the standard interface.
 
