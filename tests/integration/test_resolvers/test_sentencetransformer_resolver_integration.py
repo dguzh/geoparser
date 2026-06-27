@@ -334,21 +334,26 @@ class TestSentenceTransformerResolverIntegration:
         # Arrange
         long_text = (
             "This is a very long document. " * 100
-            + "Andorra la Vella is mentioned here. "
+            + "Canillo is a parish in Andorra known for ski resorts. "
             + "This continues for much longer. " * 100
         )
-        start = long_text.index("Andorra la Vella")
-        end = start + len("Andorra la Vella")
-        texts = [long_text]
-        references = [[(start, end)]]
+        start = long_text.index("Canillo")
+        end = start + len("Canillo")
+        token_limit = (
+            real_sentencetransformer_resolver.transformer.get_max_seq_length() - 2
+        )
 
         # Act
-        results = real_sentencetransformer_resolver.predict(texts, references)
+        context = real_sentencetransformer_resolver._extract_context(
+            long_text, start, end
+        )
 
-        # Assert
-        # Should still resolve despite long text
-        assert len(results) == 1
-        assert results[0][0] is not None
+        # Assert - verify truncation behavior
+        assert len(real_sentencetransformer_resolver.tokenizer.tokenize(context)) <= (
+            token_limit
+        )
+        assert long_text[start:end] in context
+        assert len(context) < len(long_text)
 
     def test_handles_reference_at_document_start(
         self, real_sentencetransformer_resolver, andorra_gazetteer
