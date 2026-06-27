@@ -93,10 +93,6 @@ def _check_database_compatibility() -> None:
     Raises:
         RuntimeError: If a legacy database layout is detected.
     """
-    # The schema check is SQLite-specific; skip it for any other backend.
-    if engine.dialect.name != "sqlite":
-        return
-
     with engine.connect() as connection:
 
         def _table_exists(name: str) -> bool:
