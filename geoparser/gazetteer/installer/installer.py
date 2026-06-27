@@ -1,4 +1,5 @@
 import warnings
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import List, Union
 
@@ -8,7 +9,7 @@ from geoparser.db.crud.feature import FeatureRepository
 from geoparser.db.crud.gazetteer import GazetteerRepository
 from geoparser.db.crud.name import NameRepository
 from geoparser.db.db import create_db_and_tables, get_session, optimized_writes
-from geoparser.db.models.gazetteer import GazetteerCreate
+from geoparser.db.models.gazetteer import GazetteerCreate, GazetteerUpdate
 from geoparser.gazetteer.installer.model import GazetteerConfig, SourceConfig
 from geoparser.gazetteer.installer.stages.acquisition import AcquisitionStage
 from geoparser.gazetteer.installer.stages.indexing import IndexingStage
@@ -107,6 +108,9 @@ class GazetteerInstaller:
         feature_count, name_count = self._count_registered_entries(config.name)
         print_gazetteer_summary(feature_count, name_count)
 
+        # Mark the gazetteer as installed
+        self._mark_gazetteer_installed(config.name)
+
         # Cleanup if requested
         if not keep_downloads:
             pipeline[0].cleanup()  # AcquisitionStage has cleanup method
@@ -145,6 +149,34 @@ class GazetteerInstaller:
             if gazetteer_record is None:
                 gazetteer_create = GazetteerCreate(name=gazetteer_name)
                 GazetteerRepository.create(session, gazetteer_create)
+            else:
+                # Re-installing: clear the previous completion marker so an
+                # interrupted reinstall doesn't leave the gazetteer looking usable.
+                gazetteer_update = GazetteerUpdate(
+                    id=gazetteer_record.id, installed_at=None
+                )
+                GazetteerRepository.update(
+                    session, db_obj=gazetteer_record, obj_in=gazetteer_update
+                )
+
+    def _mark_gazetteer_installed(self, gazetteer_name: str) -> None:
+        """
+        Mark the gazetteer record as successfully installed.
+
+        Args:
+            gazetteer_name: Name of the gazetteer
+        """
+        with get_session() as session:
+            gazetteer_record = GazetteerRepository.get_by_name(session, gazetteer_name)
+            if gazetteer_record is None:
+                return
+            gazetteer_update = GazetteerUpdate(
+                id=gazetteer_record.id,
+                installed_at=datetime.now(timezone.utc),
+            )
+            GazetteerRepository.update(
+                session, db_obj=gazetteer_record, obj_in=gazetteer_update
+            )
 
     def _count_registered_entries(self, gazetteer_name: str) -> tuple[int, int]:
         """
