@@ -15,14 +15,18 @@ class TransformationBuilder(QueryBuilder):
         table_name: str,
         column_name: str,
         expression: str,
+        rowid_start: int,
+        rowid_end: int,
     ) -> str:
         """
-        Build an UPDATE statement to compute a derived column.
+        Build an UPDATE statement to compute a derived column for a rowid range.
 
         Args:
             table_name: Name of the table
             column_name: Name of the column to update
             expression: SQL expression to compute the value
+            rowid_start: Inclusive lower rowid bound of the chunk
+            rowid_end: Inclusive upper rowid bound of the chunk
 
         Returns:
             SQL UPDATE statement
@@ -30,7 +34,10 @@ class TransformationBuilder(QueryBuilder):
         self.sanitize_identifier(table_name)
         self.sanitize_identifier(column_name)
 
-        return f"UPDATE {table_name} SET {column_name} = {expression}"
+        return (
+            f"UPDATE {table_name} SET {column_name} = {expression} "
+            f"WHERE rowid BETWEEN {rowid_start} AND {rowid_end}"
+        )
 
 
 class FeatureRegistrationBuilder(QueryBuilder):
@@ -45,13 +52,17 @@ class FeatureRegistrationBuilder(QueryBuilder):
         self,
         source: SourceConfig,
         source_id: int,
+        rowid_start: int,
+        rowid_end: int,
     ) -> str:
         """
-        Build an INSERT statement to register features.
+        Build an INSERT statement to register features for a rowid range.
 
         Args:
             source: Source configuration with feature definition
             source_id: ID of the source record
+            rowid_start: Inclusive lower rowid bound of the chunk
+            rowid_end: Inclusive upper rowid bound of the chunk
 
         Returns:
             SQL INSERT statement
@@ -73,6 +84,7 @@ class FeatureRegistrationBuilder(QueryBuilder):
                 CAST({identifier_column} AS TEXT) as location_id_value
             FROM {source_table}
             WHERE {identifier_column} IS NOT NULL
+              AND {source_table}.rowid BETWEEN {rowid_start} AND {rowid_end}
             GROUP BY CAST({identifier_column} AS TEXT)
         """
 
@@ -81,14 +93,18 @@ class FeatureRegistrationBuilder(QueryBuilder):
         source: SourceConfig,
         source_id: int,
         name_column: str,
+        rowid_start: int,
+        rowid_end: int,
     ) -> str:
         """
-        Build an INSERT statement to register simple names.
+        Build an INSERT statement to register simple names for a rowid range.
 
         Args:
             source: Source configuration
             source_id: ID of the source record
             name_column: Column containing names
+            rowid_start: Inclusive lower rowid bound of the chunk
+            rowid_end: Inclusive upper rowid bound of the chunk
 
         Returns:
             SQL INSERT statement
@@ -111,6 +127,7 @@ class FeatureRegistrationBuilder(QueryBuilder):
             JOIN feature f ON f.source_id = {source_id}
                            AND f.location_id_value = CAST(s.{identifier_column} AS TEXT)
             WHERE s.{name_column} IS NOT NULL AND s.{name_column} != ''
+              AND s.rowid BETWEEN {rowid_start} AND {rowid_end}
         """
 
     def build_name_insert_separated(
@@ -119,18 +136,23 @@ class FeatureRegistrationBuilder(QueryBuilder):
         source_id: int,
         name_column: str,
         separator: str,
+        rowid_start: int,
+        rowid_end: int,
     ) -> str:
         """
-        Build an INSERT statement to register separated names.
+        Build an INSERT statement to register separated names for a rowid range.
 
         Uses a recursive CTE to split names on a separator and register
-        each individual name.
+        each individual name. Restricting the base case to a rowid range keeps
+        the recursion bounded to the rows in the current chunk.
 
         Args:
             source: Source configuration
             source_id: ID of the source record
             name_column: Column containing names
             separator: String to split names on
+            rowid_start: Inclusive lower rowid bound of the chunk
+            rowid_end: Inclusive upper rowid bound of the chunk
 
         Returns:
             SQL INSERT statement
@@ -156,6 +178,7 @@ class FeatureRegistrationBuilder(QueryBuilder):
                 JOIN feature f ON f.source_id = {source_id}
                                AND f.location_id_value = CAST(s.{identifier_column} AS TEXT)
                 WHERE s.{name_column} IS NOT NULL AND s.{name_column} != ''
+                  AND s.rowid BETWEEN {rowid_start} AND {rowid_end}
 
                 UNION ALL
 

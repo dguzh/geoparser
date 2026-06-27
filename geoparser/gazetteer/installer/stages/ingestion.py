@@ -4,6 +4,7 @@ from geoparser.gazetteer.installer.model import SourceConfig, SourceKind
 from geoparser.gazetteer.installer.stages.base import Stage
 from geoparser.gazetteer.installer.strategies.spatial import SpatialLoadStrategy
 from geoparser.gazetteer.installer.strategies.tabular import TabularLoadStrategy
+from geoparser.gazetteer.installer.utils.chunking import CHUNKSIZE
 
 
 class IngestionStage(Stage):
@@ -14,7 +15,7 @@ class IngestionStage(Stage):
     the appropriate strategy based on the source type (tabular vs spatial).
     """
 
-    def __init__(self, chunksize: int = 20000):
+    def __init__(self, chunksize: int = CHUNKSIZE):
         """
         Initialize the ingestion stage.
 

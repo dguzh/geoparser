@@ -5,12 +5,20 @@ Tests the GazetteerInstaller orchestrator class.
 """
 
 import tempfile
+import uuid
 from pathlib import Path
 from unittest.mock import Mock, patch
 
 import pytest
 
 from geoparser.gazetteer.installer.installer import GazetteerInstaller
+
+
+def _mock_gazetteer_record() -> Mock:
+    """Return a mock gazetteer record with a valid UUID id."""
+    mock_gazetteer_record = Mock()
+    mock_gazetteer_record.id = uuid.uuid4()
+    return mock_gazetteer_record
 
 
 @pytest.mark.unit
@@ -89,8 +97,8 @@ class TestGazetteerInstallerEnsureGazetteerRecord:
         """Test reusing existing gazetteer record."""
         # Arrange
 
-        mock_existing = Mock()
-        mock_repo.get_by_name.return_value = mock_existing  # Already exists
+        mock_gazetteer_record = _mock_gazetteer_record()
+        mock_repo.get_by_name.return_value = mock_gazetteer_record  # Already exists
 
         installer = GazetteerInstaller()
 
@@ -99,6 +107,51 @@ class TestGazetteerInstallerEnsureGazetteerRecord:
 
         # Assert
         mock_repo.create.assert_not_called()
+        mock_repo.update.assert_called_once()
+        update_call = mock_repo.update.call_args
+        assert update_call.kwargs["obj_in"].installed_at is None
+
+
+@pytest.mark.unit
+class TestGazetteerInstallerMarkInstalled:
+    """Test _mark_gazetteer_installed method."""
+
+    @patch("geoparser.gazetteer.installer.installer.GazetteerRepository")
+    def test_marks_gazetteer_installed(self, mock_repo):
+        """Test that the gazetteer is marked installed."""
+        # Arrange
+        mock_gazetteer_record = _mock_gazetteer_record()
+        mock_repo.get_by_name.return_value = mock_gazetteer_record
+        installer = GazetteerInstaller()
+
+        # Act
+        installer._mark_gazetteer_installed("test_gaz")
+
+        # Assert
+        mock_repo.get_by_name.assert_called_once()
+        mock_repo.update.assert_called_once()
+        assert mock_repo.update.call_args.kwargs["obj_in"].installed_at is not None
+
+
+@pytest.mark.unit
+class TestGazetteerInstallerCountRegisteredEntries:
+    """Test _count_registered_entries method."""
+
+    @patch("geoparser.gazetteer.installer.installer.NameRepository")
+    @patch("geoparser.gazetteer.installer.installer.FeatureRepository")
+    def test_returns_feature_and_name_counts(self, mock_feature_repo, mock_name_repo):
+        """Test that feature and name counts are returned from the repositories."""
+        # Arrange
+        mock_feature_repo.count_by_gazetteer.return_value = 3865
+        mock_name_repo.count_by_gazetteer.return_value = 47549
+        installer = GazetteerInstaller()
+
+        # Act
+        feature_count, name_count = installer._count_registered_entries("test_gaz")
+
+        # Assert
+        assert feature_count == 3865
+        assert name_count == 47549
 
 
 @pytest.mark.unit
@@ -140,11 +193,11 @@ class TestGazetteerInstallerCreatePipeline:
         mock_acquisition.assert_called_once_with(downloads_dir)
         mock_schema.assert_called_once()
         mock_ingestion.assert_called_once_with(10000)
-        mock_transformation.assert_called_once()
+        mock_transformation.assert_called_once_with(10000)
         mock_spatial.assert_called_once_with({})
         mock_view.assert_called_once()
         mock_indexing.assert_called_once()
-        mock_registration.assert_called_once_with("test_gaz")
+        mock_registration.assert_called_once_with("test_gaz", 10000)
 
     @patch("geoparser.gazetteer.installer.installer.RegistrationStage")
     @patch("geoparser.gazetteer.installer.installer.IndexingStage")
@@ -263,7 +316,7 @@ class TestGazetteerInstallerInstall:
         mock_config.sources = []
         mock_config_class.from_yaml.return_value = mock_config
 
-        mock_repo.get_by_name.return_value = Mock()  # Existing gazetteer
+        mock_repo.get_by_name.return_value = _mock_gazetteer_record()
 
         with tempfile.TemporaryDirectory() as temp_dir:
             mock_user_data_dir.return_value = temp_dir
@@ -393,6 +446,41 @@ class TestGazetteerInstallerInstall:
     @patch("geoparser.gazetteer.installer.installer.user_data_dir")
     @patch("geoparser.gazetteer.installer.installer.GazetteerRepository")
     @patch("geoparser.gazetteer.installer.installer.GazetteerConfig")
+    @patch("geoparser.gazetteer.installer.installer.optimized_writes")
+    def test_executes_pipeline_within_optimized_writes(
+        self,
+        mock_optimized_writes,
+        mock_config_class,
+        mock_repo,
+        mock_user_data_dir,
+    ):
+        """Test that the pipeline runs inside the optimized_writes context."""
+        # Arrange
+        mock_config = Mock()
+        mock_config.name = "test_gaz"
+        mock_config.sources = []
+        mock_config_class.from_yaml.return_value = mock_config
+
+        mock_repo.get_by_name.return_value = _mock_gazetteer_record()
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            mock_user_data_dir.return_value = temp_dir
+
+            installer = GazetteerInstaller()
+            installer.dependency_resolver = Mock()
+            installer.dependency_resolver.resolve.return_value = []
+
+            # Act
+            installer.install("config.yaml")
+
+            # Assert
+            mock_optimized_writes.assert_called_once()
+            mock_optimized_writes.return_value.__enter__.assert_called_once()
+            mock_optimized_writes.return_value.__exit__.assert_called_once()
+
+    @patch("geoparser.gazetteer.installer.installer.user_data_dir")
+    @patch("geoparser.gazetteer.installer.installer.GazetteerRepository")
+    @patch("geoparser.gazetteer.installer.installer.GazetteerConfig")
     @patch("geoparser.gazetteer.installer.installer.AcquisitionStage")
     def test_keeps_downloads_when_requested(
         self,
@@ -408,7 +496,7 @@ class TestGazetteerInstallerInstall:
         mock_config.sources = []
         mock_config_class.from_yaml.return_value = mock_config
 
-        mock_repo.get_by_name.return_value = Mock()
+        mock_repo.get_by_name.return_value = _mock_gazetteer_record()
 
         mock_stage = Mock()
         mock_acquisition.return_value = mock_stage
@@ -444,7 +532,7 @@ class TestGazetteerInstallerInstall:
         mock_config.sources = []
         mock_config_class.from_yaml.return_value = mock_config
 
-        mock_repo.get_by_name.return_value = Mock()
+        mock_repo.get_by_name.return_value = _mock_gazetteer_record()
 
         mock_stage = Mock()
         mock_acquisition.return_value = mock_stage
