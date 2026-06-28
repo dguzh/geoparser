@@ -16,7 +16,7 @@ class ManualResolver(Resolver):
     a label, enabling multiple annotation sets (e.g., from different annotators)
     to be stored for the same references.
 
-    The annotations are provided at initialization and returned by predict_referents()
+    The annotations are provided at initialization and returned by predict()
     in the same order as the input references. The label is stored in the database
     config to differentiate between different annotation sets.
     """
