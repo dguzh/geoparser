@@ -22,8 +22,6 @@ A Python library for extracting place names from text and linking them to geogra
 pip install geoparser
 ```
 
-> **Note for macOS users**: The library requires SQLite extension support. Please see the [macOS setup guide](https://docs.geoparser.app/en/latest/macos.html) for installation instructions using Homebrew Python.
-
 ## Quick Start
 
 ```python
