@@ -1,20 +1,31 @@
 import warnings
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import List, Union
 
 from appdirs import user_data_dir
 
+from geoparser.db.crud.feature import FeatureRepository
 from geoparser.db.crud.gazetteer import GazetteerRepository
-from geoparser.db.db import create_db_and_tables, get_session
-from geoparser.db.models.gazetteer import GazetteerCreate
+from geoparser.db.crud.name import NameRepository
+from geoparser.db.db import create_db_and_tables, get_session, optimized_writes
+from geoparser.db.models.gazetteer import GazetteerCreate, GazetteerUpdate
 from geoparser.gazetteer.installer.model import GazetteerConfig, SourceConfig
 from geoparser.gazetteer.installer.stages.acquisition import AcquisitionStage
 from geoparser.gazetteer.installer.stages.indexing import IndexingStage
 from geoparser.gazetteer.installer.stages.ingestion import IngestionStage
 from geoparser.gazetteer.installer.stages.registration import RegistrationStage
 from geoparser.gazetteer.installer.stages.schema import SchemaStage
+from geoparser.gazetteer.installer.stages.spatial import SpatialStage
 from geoparser.gazetteer.installer.stages.transformation import TransformationStage
+from geoparser.gazetteer.installer.stages.view import ViewStage
+from geoparser.gazetteer.installer.utils.chunking import CHUNKSIZE
 from geoparser.gazetteer.installer.utils.dependency import DependencyResolver
+from geoparser.gazetteer.installer.utils.progress import (
+    print_gazetteer_header,
+    print_gazetteer_summary,
+    source_progress,
+)
 
 # Suppress geopandas warning about geometry column.
 # This warning occurs when loading spatial data where the geometry column
@@ -35,11 +46,13 @@ class GazetteerInstaller:
     clear, linear flow:
 
     1. Acquisition: Download and extract source files
-    2. Schema: Create database tables and views
+    2. Schema: Create database tables
     3. Ingestion: Load data into tables
-    4. Transformation: Apply derivations and build geometries
-    5. Indexing: Create database indices
-    6. Registration: Register features and names
+    4. Transformation: Apply derivations (geometries stored as WKT)
+    5. Spatial: Precompute spatial joins with GeoPandas
+    6. View: Create database views
+    7. Indexing: Create database indices
+    8. Registration: Register features and names
 
     Each stage is independent and testable, with well-defined
     responsibilities and interfaces.
@@ -52,7 +65,7 @@ class GazetteerInstaller:
     def install(
         self,
         config_path: Union[str, Path],
-        chunksize: int = 20000,
+        chunksize: int = CHUNKSIZE,
         keep_downloads: bool = False,
     ) -> None:
         """
@@ -81,12 +94,22 @@ class GazetteerInstaller:
         # Resolve dependencies and get processing order
         ordered_sources = self.dependency_resolver.resolve(config.sources)
 
-        # Create pipeline stages
-        pipeline = self._create_pipeline(config.name, downloads_dir, chunksize)
+        print_gazetteer_header(config.name)
 
-        # Execute pipeline for each source
-        for source in ordered_sources:
-            self._execute_pipeline(source, pipeline)
+        # Create pipeline stages
+        pipeline = self._create_pipeline(config, downloads_dir, chunksize)
+
+        # Tune connections for throughput while loading the gazetteer data
+        with optimized_writes():
+            # Execute pipeline for each source
+            for source in ordered_sources:
+                self._execute_pipeline(source, pipeline)
+
+        feature_count, name_count = self._count_registered_entries(config.name)
+        print_gazetteer_summary(feature_count, name_count)
+
+        # Mark the gazetteer as installed
+        self._mark_gazetteer_installed(config.name)
 
         # Cleanup if requested
         if not keep_downloads:
@@ -126,10 +149,55 @@ class GazetteerInstaller:
             if gazetteer_record is None:
                 gazetteer_create = GazetteerCreate(name=gazetteer_name)
                 GazetteerRepository.create(session, gazetteer_create)
+            else:
+                # Re-installing: clear the previous completion marker so an
+                # interrupted reinstall doesn't leave the gazetteer looking usable.
+                gazetteer_update = GazetteerUpdate(
+                    id=gazetteer_record.id, installed_at=None
+                )
+                GazetteerRepository.update(
+                    session, db_obj=gazetteer_record, obj_in=gazetteer_update
+                )
+
+    def _mark_gazetteer_installed(self, gazetteer_name: str) -> None:
+        """
+        Mark the gazetteer record as successfully installed.
+
+        Args:
+            gazetteer_name: Name of the gazetteer
+        """
+        with get_session() as session:
+            gazetteer_record = GazetteerRepository.get_by_name(session, gazetteer_name)
+            if gazetteer_record is None:
+                return
+            gazetteer_update = GazetteerUpdate(
+                id=gazetteer_record.id,
+                installed_at=datetime.now(timezone.utc),
+            )
+            GazetteerRepository.update(
+                session, db_obj=gazetteer_record, obj_in=gazetteer_update
+            )
+
+    def _count_registered_entries(self, gazetteer_name: str) -> tuple[int, int]:
+        """
+        Count registered features and names for a gazetteer.
+
+        Args:
+            gazetteer_name: Name of the gazetteer
+
+        Returns:
+            Tuple of (feature_count, name_count)
+        """
+        with get_session() as session:
+            feature_count = FeatureRepository.count_by_gazetteer(
+                session, gazetteer_name
+            )
+            name_count = NameRepository.count_by_gazetteer(session, gazetteer_name)
+        return feature_count, name_count
 
     def _create_pipeline(
         self,
-        gazetteer_name: str,
+        config: GazetteerConfig,
         downloads_dir: Path,
         chunksize: int,
     ) -> List:
@@ -137,20 +205,24 @@ class GazetteerInstaller:
         Create the pipeline of stages.
 
         Args:
-            gazetteer_name: Name of the gazetteer
+            config: Gazetteer configuration
             downloads_dir: Directory for downloaded files
             chunksize: Number of records to process at once
 
         Returns:
             List of pipeline stages in execution order
         """
+        source_map = {source.name: source for source in config.sources}
+
         return [
             AcquisitionStage(downloads_dir),
             SchemaStage(),
             IngestionStage(chunksize),
-            TransformationStage(),
+            TransformationStage(chunksize),
+            SpatialStage(source_map),
+            ViewStage(),
             IndexingStage(),
-            RegistrationStage(gazetteer_name),
+            RegistrationStage(config.name, chunksize),
         ]
 
     def _execute_pipeline(self, source: SourceConfig, pipeline: List) -> None:
@@ -164,6 +236,10 @@ class GazetteerInstaller:
         # Context is shared across all stages for this source
         context = {}
 
-        # Execute each stage in sequence
-        for stage in pipeline:
-            stage.execute(source, context)
+        # Group all of this source's progress bars under a single source-level
+        # bar that tracks how many pipeline steps have completed.
+        with source_progress(source.name, total_steps=len(pipeline)) as progress:
+            # Execute each stage in sequence
+            for stage in pipeline:
+                stage.execute(source, context)
+                progress.advance_step()

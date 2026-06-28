@@ -6,7 +6,7 @@ from geoparser.db.models.name import (
     Name,
     NameCreate,
     NameFTS,
-    NameSpellfixVocab,
+    NameSoundex,
     NameUpdate,
 )
 from geoparser.db.models.project import Project, ProjectCreate, ProjectUpdate

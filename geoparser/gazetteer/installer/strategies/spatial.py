@@ -93,17 +93,19 @@ class SpatialLoadStrategy(LoadStrategy):
         ]
         chunk = chunk[keep_columns]
 
-        # Convert geometry to WKT
+        # Convert geometry to WKT text before persisting as a plain table
         geometry_attr = self._find_geometry_attribute(source)
+        wkt_geometry = None
         if geometry_attr and geometry_attr.name in chunk.columns:
-            chunk[f"{geometry_attr.name}_wkt"] = chunk[geometry_attr.name].to_wkt()
-            chunk = chunk.drop(columns=[geometry_attr.name])
+            wkt_geometry = chunk[geometry_attr.name].to_wkt()
+
+        frame = pd.DataFrame(chunk)
+        if wkt_geometry is not None:
+            frame[geometry_attr.name] = wkt_geometry.to_numpy()
 
         # Load to database
         with get_connection() as connection:
-            pd.DataFrame(chunk).to_sql(
-                table_name, connection, index=False, if_exists="append"
-            )
+            frame.to_sql(table_name, connection, index=False, if_exists="append")
 
     def _rename_columns(
         self,

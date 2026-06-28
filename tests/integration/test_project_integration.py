@@ -450,8 +450,8 @@ class TestProjectIntegration:
         """Test that train_resolver passes custom training parameters."""
         # Arrange
         project = Project("train_res_params_test")
-        texts = ["Encamp is a parish."]
-        references = [[(0, 6)]]
+        texts = ["Canillo is a parish."]
+        references = [[(0, 7)]]
         referents = [[("andorranames", "3041204")]]
 
         project.create_documents(texts)

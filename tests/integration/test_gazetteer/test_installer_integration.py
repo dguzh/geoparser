@@ -125,89 +125,74 @@ class TestGazetteerInstallerIntegration:
         result = test_session.exec(sql).first()
         assert result is not None
 
-    def test_creates_spellfix_tables(self, andorra_gazetteer, test_session):
-        """Test that spellfix virtual table and shadow table are created."""
+    def test_creates_soundex_table(self, andorra_gazetteer, test_session):
+        """Test that the soundex table is created."""
         # Arrange & Act - andorra_gazetteer fixture installs the gazetteer
 
-        # Assert - Check that spellfix virtual table exists
+        # Assert - Check that soundex table exists
         sql = text(
             """
             SELECT name FROM sqlite_master 
-            WHERE type='table' AND name='name_spellfix'
+            WHERE type='table' AND name='name_soundex'
             """
         )
         result = test_session.exec(sql).first()
         assert result is not None
 
-        # Assert - Check that spellfix shadow table exists
-        sql = text(
-            """
-            SELECT name FROM sqlite_master 
-            WHERE type='table' AND name='name_spellfix_vocab'
-            """
-        )
-        result = test_session.exec(sql).first()
-        assert result is not None
-
-    def test_spellfix_populated(self, andorra_gazetteer, test_session):
-        """Test that spellfix virtual table and shadow table are populated with place names."""
+    def test_soundex_populated(self, andorra_gazetteer, test_session):
+        """Test that the soundex table is populated with place names."""
         # Arrange & Act - andorra_gazetteer fixture installs the gazetteer
 
-        # Assert - Check that spellfix virtual table has entries
-        sql = text("SELECT COUNT(*) FROM name_spellfix")
+        # Assert - Check that soundex table has entries
+        sql = text("SELECT COUNT(*) FROM name_soundex")
         result = test_session.exec(sql).first()
         assert result is not None
         assert result[0] > 0
 
-        # Assert - Check that spellfix vocab shadow table has entries
-        sql = text("SELECT COUNT(*) FROM name_spellfix_vocab")
+    def test_soundex_trigger_exists(self, andorra_gazetteer, test_session):
+        """Test that the soundex insert trigger is created."""
+        # Arrange & Act - andorra_gazetteer fixture installs the gazetteer
+
+        # Assert - Check that soundex trigger exists
+        sql = text(
+            """
+            SELECT name FROM sqlite_master 
+            WHERE type='trigger' AND name='name_soundex_insert'
+            """
+        )
         result = test_session.exec(sql).first()
+        assert result is not None
+
+    def test_soundex_code_index_exists(self, andorra_gazetteer, test_session):
+        """Test that the code index on the soundex table is created."""
+        # Arrange & Act - andorra_gazetteer fixture installs the gazetteer
+
+        # Assert - Check that code index exists
+        sql = text(
+            """
+            SELECT name FROM sqlite_master 
+            WHERE type='index' AND name='idx_name_soundex_code'
+            """
+        )
+        result = test_session.exec(sql).first()
+        assert result is not None
+
+    def test_precomputes_spatial_join(self, andorra_gazetteer, test_session):
+        """Test that the declarative spatial join is precomputed at install time."""
+        # Arrange & Act - andorra_gazetteer fixture installs the gazetteer
+
+        # Assert - the precomputed spatial-join key column exists on the table
+        columns = test_session.exec(text("PRAGMA table_info(andorra)")).all()
+        column_names = {row[1] for row in columns}
+        assert "__spatial_join_shape" in column_names
+
+        # Assert - the spatial join matched at least one point to the shape,
+        # so the dummy column sourced from the shape is populated in the view
+        result = test_session.exec(
+            text("SELECT COUNT(*) FROM andorra_view WHERE dummy IS NOT NULL")
+        ).first()
         assert result is not None
         assert result[0] > 0
-
-    def test_spellfix_trigger_exists(self, andorra_gazetteer, test_session):
-        """Test that spellfix insert trigger is created."""
-        # Arrange & Act - andorra_gazetteer fixture installs the gazetteer
-
-        # Assert - Check that spellfix trigger exists
-        sql = text(
-            """
-            SELECT name FROM sqlite_master 
-            WHERE type='trigger' AND name='name_spellfix_insert'
-            """
-        )
-        result = test_session.exec(sql).first()
-        assert result is not None
-
-    def test_spellfix_k2_index_exists(self, andorra_gazetteer, test_session):
-        """Test that k2 index on spellfix vocab table is created."""
-        # Arrange & Act - andorra_gazetteer fixture installs the gazetteer
-
-        # Assert - Check that k2 index exists
-        sql = text(
-            """
-            SELECT name FROM sqlite_master 
-            WHERE type='index' AND name='idx_name_spellfix_vocab_k2'
-            """
-        )
-        result = test_session.exec(sql).first()
-        assert result is not None
-
-    def test_creates_spatial_indexes(self, andorra_gazetteer, test_session):
-        """Test that spatial indexes are created."""
-        # Arrange & Act - andorra_gazetteer fixture installs the gazetteer
-
-        # Assert - Check that spatial indexes exist
-        sql = text(
-            """
-            SELECT 1 FROM sqlite_master 
-            WHERE type='table' AND name LIKE 'idx_%'
-            """
-        )
-        results = test_session.exec(sql).all()
-        # Note: Spatial indexes may be created differently
-        # Just verify query runs without error
-        assert isinstance(results, list)
 
     def test_installs_specific_andorra_location(self, andorra_gazetteer):
         """Test that specific known Andorra location is installed."""

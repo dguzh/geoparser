@@ -8,16 +8,16 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from geoparser.gazetteer.installer.stages.schema import SchemaStage
+from geoparser.gazetteer.installer.stages.schema import VIEW_SUFFIX, SchemaStage
 
 
 @pytest.mark.unit
 class TestSchemaStageConstants:
-    """Test SchemaStage constants."""
+    """Test schema module constants."""
 
     def test_has_view_suffix_constant(self):
         """Test that VIEW_SUFFIX constant is defined."""
-        assert SchemaStage.VIEW_SUFFIX == "_view"
+        assert VIEW_SUFFIX == "_view"
 
 
 @pytest.mark.unit
@@ -33,15 +33,6 @@ class TestSchemaStageInit:
         assert stage.table_builder is not None
         assert hasattr(stage.table_builder, "build_create_table")
 
-    def test_initializes_view_builder(self):
-        """Test that ViewBuilder is initialized."""
-        # Act
-        stage = SchemaStage()
-
-        # Assert
-        assert stage.view_builder is not None
-        assert hasattr(stage.view_builder, "build_create_view")
-
     def test_sets_name_and_description(self):
         """Test that stage name and description are set."""
         # Act
@@ -49,31 +40,23 @@ class TestSchemaStageInit:
 
         # Assert
         assert stage.name == "Schema"
-        assert stage.description == "Create database tables and views"
+        assert stage.description == "Create database tables"
 
 
 @pytest.mark.unit
-class TestSchemaStageDropExistingTable:
-    """Test SchemaStage._drop_existing_table() method."""
+class TestSchemaStageDropExisting:
+    """Test SchemaStage._drop_existing() method."""
 
-    def test_falls_back_to_drop_table_on_spatialite_error(self):
-        """Test that standard DROP TABLE is used when DropTable() fails."""
+    def test_drops_view_and_table(self):
+        """Test that both the view and table are dropped with plain SQL."""
         # Arrange
-        import sqlalchemy as sa
-
         stage = SchemaStage()
 
-        # Mock connection that fails on DropTable but succeeds on DROP TABLE
         mock_connection = Mock()
-        # First execute raises error, second succeeds
         execute_calls = []
 
         def mock_execute(stmt):
             execute_calls.append(str(stmt))
-            if len(execute_calls) == 1:
-                raise sa.exc.DatabaseError(
-                    "statement", {}, Exception("DropTable failed")
-                )
             return None
 
         mock_connection.execute = mock_execute
@@ -86,11 +69,12 @@ class TestSchemaStageDropExistingTable:
             "geoparser.gazetteer.installer.stages.schema.get_connection",
             return_value=mock_connection,
         ):
-            stage._drop_existing_table("test_table")
+            stage._drop_existing("test_table")
 
-        # Assert - Should call execute twice (DropTable, then DROP TABLE)
+        # Assert
         assert len(execute_calls) == 2
-        assert "DropTable" in execute_calls[0]
-        assert "DROP TABLE" in execute_calls[1]
-        # commit should be called once at the end
+        assert "DROP VIEW IF EXISTS test_table_view" in execute_calls[0]
+        assert "DROP TABLE IF EXISTS test_table" in execute_calls[1]
+        assert "DropTable" not in execute_calls[0]
+        assert "DropTable" not in execute_calls[1]
         assert mock_connection.commit.call_count == 1

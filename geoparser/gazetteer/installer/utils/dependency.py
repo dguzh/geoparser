@@ -64,8 +64,8 @@ class DependencyResolver:
 
             # Extract dependencies from select clause
             for select_item in source.view.select:
-                if select_item.source != source.name:
-                    dependencies.add(select_item.source)
+                if select_item.column.source != source.name:
+                    dependencies.add(select_item.column.source)
 
         return graph
 

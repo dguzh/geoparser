@@ -6,7 +6,7 @@ from sqlmodel import Session, select
 from geoparser.db.crud.base import BaseRepository
 from geoparser.db.models.feature import Feature
 from geoparser.db.models.gazetteer import Gazetteer
-from geoparser.db.models.name import Name, NameFTS, NameSpellfixVocab
+from geoparser.db.models.name import Name, NameFTS, NameSoundex
 from geoparser.db.models.source import Source
 
 
@@ -36,6 +36,27 @@ class FeatureRepository(BaseRepository[Feature]):
             .where(Gazetteer.name == gazetteer_name)
         )
         return db.exec(statement).unique().all()
+
+    @classmethod
+    def count_by_gazetteer(cls, db: Session, gazetteer_name: str) -> int:
+        """
+        Count features registered for a gazetteer.
+
+        Args:
+            db: Database session
+            gazetteer_name: Name of the gazetteer
+
+        Returns:
+            Number of registered features
+        """
+        statement = (
+            select(func.count())
+            .select_from(Feature)
+            .join(Source, Feature.source_id == Source.id)
+            .join(Gazetteer, Source.gazetteer_id == Gazetteer.id)
+            .where(Gazetteer.name == gazetteer_name)
+        )
+        return db.exec(statement).one()
 
     @classmethod
     def get_by_gazetteer_and_identifier(
@@ -242,24 +263,22 @@ class FeatureRepository(BaseRepository[Feature]):
         """
         Get all features for a gazetteer that have names fuzzy matching the search term.
 
-        Uses the spellfix1 virtual table for fuzzy matching with phonetic hashing and edit distance.
-        This method computes the phonetic hash (k2) of the query and finds candidates with the same
-        k2 value, then groups results by edit distance. The tiers parameter controls how many
-        distance tiers to include in the results.
+        Uses Soundex for phonetic candidate retrieval and the rapidfuzz Levenshtein
+        distance for ranking. This method computes the Soundex code of the query and finds
+        candidates with the same code, then groups results by edit distance. The tiers
+        parameter controls how many distance tiers to include in the results.
 
         Args:
             db: Database session
             gazetteer_name: Name of the gazetteer
             name: Name string to search for
             limit: Maximum number of results to return (default: 10000)
-            tiers: Number of rank tiers (edit distance levels) to include in results (default: 1)
+            tiers: Number of rank tiers (distance levels) to include in results (default: 1)
 
         Returns:
             List of features that have names fuzzy matching this text, grouped by edit distance
         """
-        score = func.min(
-            func.editdist3(name, literal_column("name_spellfix_vocab.word"))
-        )
+        score = func.min(func.levenshtein(name, Name.text))
 
         scored = (
             select(
@@ -269,10 +288,10 @@ class FeatureRepository(BaseRepository[Feature]):
             .join(Source, Feature.source_id == Source.id)
             .join(Gazetteer, Source.gazetteer_id == Gazetteer.id)
             .join(Name, Feature.id == Name.feature_id)
-            .join(NameSpellfixVocab, Name.id == NameSpellfixVocab.id)
+            .join(NameSoundex, Name.id == NameSoundex.id)
             .where(
                 Gazetteer.name == gazetteer_name,
-                NameSpellfixVocab.k2 == func.spellfix1_phonehash(name),
+                NameSoundex.code == func.soundex(name),
             )
             .group_by(Feature.id)
             .order_by(score.asc())

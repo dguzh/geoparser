@@ -23,6 +23,30 @@ class TestGazetteerInitialization:
         # Assert
         assert gazetteer.gazetteer_name == "geonames"
 
+    def test_raises_when_gazetteer_not_installed(self):
+        """Test that constructing an uninstalled gazetteer raises ValueError."""
+        with pytest.raises(ValueError, match="not installed"):
+            Gazetteer("not-installed-gazetteer")
+
+    def test_raises_on_fresh_database_without_tables(self):
+        """A brand-new database should get a clear not-installed error, not SQL errors."""
+        from unittest.mock import patch
+
+        from sqlalchemy.pool import StaticPool
+        from sqlmodel import create_engine
+
+        import geoparser.db.db as db
+
+        fresh_engine = create_engine(
+            "sqlite:///:memory:",
+            poolclass=StaticPool,
+            connect_args={"check_same_thread": False},
+        )
+
+        with patch.object(db, "engine", fresh_engine):
+            with pytest.raises(ValueError, match="not installed"):
+                Gazetteer("geonames")
+
 
 @pytest.mark.unit
 class TestGazetteerSearch:

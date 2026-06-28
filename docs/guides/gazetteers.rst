@@ -12,12 +12,29 @@ The Irchel Geoparser uses gazetteers as the authoritative source of geographic i
 
 The library's architecture separates the gazetteer system from the processing modules. Resolvers don't access gazetteers directly through SQL queries or file reads—instead, they use the ``Gazetteer`` class interface which provides standardized search methods. This abstraction allows gazetteers to have different internal schemas and still be used interchangeably by resolvers.
 
-Gazetteers are stored in a centralized SQLite database that includes spatial indexing capabilities through the SpatiaLite extension. This database can contain multiple gazetteers simultaneously, each with its own tables and indices. The gazetteer installer handles all the complexity of downloading source data, transforming it into the right format, creating database schemas, and building indices.
+Gazetteers are stored in a centralized SQLite database. Spatial relationships (such as which administrative region contains a place) are precomputed at install time using GeoPandas, so no spatial database extension is required. This database can contain multiple gazetteers simultaneously, each with its own tables and indices. The gazetteer installer handles all the complexity of downloading source data, transforming it into the right format, creating database schemas, and building indices.
 
 Built-in Gazetteers
 -------------------
 
-The library includes support for two major gazetteers that cover different geographic scopes and use cases.
+The library includes several built-in gazetteers that cover different geographic scopes and use cases.
+
+GeoNames Cities
+~~~~~~~~~~~~~~~
+
+GeoNames Cities is a lightweight alternative to the full GeoNames gazetteer, designed as a quick way to start experimenting with geoparsing. It is built from GeoNames' ``cities500`` dataset (cities with a population of at least 500), supplemented by country and first- and second-level administrative names from GeoNames lookup files.
+
+Only city features include geographic data: coordinates, geometry, and the full set of place attributes. Countries, admin1 divisions, and admin2 divisions are included as searchable features, but they carry **no geographic data**.
+
+To install GeoNames Cities:
+
+.. code-block:: bash
+
+   python -m geoparser install geonames-cities
+
+Installation typically completes within a few minutes.
+
+This gazetteer omits the vast majority of GeoNames coverage: small towns, neighborhoods, natural features, landmarks, and other place types are not included at all. For real geoparsing beyond a quick trial, install the full GeoNames gazetteer instead.
 
 GeoNames
 ~~~~~~~~
@@ -28,9 +45,9 @@ To install GeoNames:
 
 .. code-block:: bash
 
-   python -m geoparser download geonames
+   python -m geoparser install geonames
 
-The installation process can take up to 15-30 minutes depending on your system.
+The installation process can take up to 20-40 minutes depending on your system.
 
 SwissNames3D
 ~~~~~~~~~~~~
@@ -41,7 +58,7 @@ To install SwissNames3D:
 
 .. code-block:: bash
 
-   python -m geoparser download swissnames3d
+   python -m geoparser install swissnames3d
 
 The installation process typically completes within a few minutes.
 
@@ -91,7 +108,7 @@ The search method parameter controls the matching strategy:
 
 - ``"fuzzy"``: Uses fuzzy string matching to find features with names similar to the search string, even with spelling variations or typos. This is the most permissive method and generates the most candidates.
 
-For the non-exact search methods, you can specify a ``tiers`` parameter that controls how many rank tiers of results to include. Results are ranked by their match score (BM25 relevance for phrase/partial methods, edit distance for fuzzy method), and tiers group results into brackets of similar scores. Higher tier values include more results but also results with lower match quality:
+For the non-exact search methods, you can specify a ``tiers`` parameter that controls how many rank tiers of results to include. Results are ranked by their match score (BM25 relevance for phrase/partial methods, fuzzy distance for fuzzy method), and tiers group results into brackets of similar scores. Higher tier values include more results but also results with lower match quality:
 
 .. code-block:: python
 
@@ -201,7 +218,7 @@ Sources can be either tabular (CSV, TSV) or spatial (shapefiles, GeoPackage). Fo
      - name: places
        url: https://example.com/data.zip  # Downloaded and extracted
        file: places.csv                   # File within the ZIP
-       type: tabular
+       kind: tabular
        separator: ","
 
 For local files, provide both the ``path`` (directory containing the file) and ``file`` (filename):
@@ -212,7 +229,7 @@ For local files, provide both the ``path`` (directory containing the file) and `
      - name: local_data
        path: /path/to/data/directory
        file: data.csv
-       type: tabular
+       kind: tabular
        separator: "\t"
 
 Defining Attributes
@@ -220,23 +237,23 @@ Defining Attributes
 
 Each source must declare its attributes in two categories: original attributes that exist in the source file, and derived attributes computed from SQL expressions.
 
-Original attributes match columns in the source file. Specify their data types (TEXT, INTEGER, REAL, GEOMETRY) and optionally mark them for indexing:
+Original attributes match columns in the source file. Specify their data types (text, integer, real, geometry) and optionally mark them for indexing:
 
 .. code-block:: yaml
 
    attributes:
      original:
        - name: geonameid
-         type: INTEGER
+         type: integer
          index: true         # Create database index
        - name: name
-         type: TEXT
+         type: text
        - name: latitude
-         type: REAL
+         type: real
        - name: longitude
-         type: REAL
+         type: real
        - name: population
-         type: INTEGER
+         type: integer
 
 Derived attributes are computed using SQL expressions. This is useful for constructing geometries from coordinates, concatenating fields, or applying transformations:
 
@@ -245,16 +262,16 @@ Derived attributes are computed using SQL expressions. This is useful for constr
    attributes:
      derived:
        - name: geometry
-         type: GEOMETRY
+         type: geometry
          expression: "'POINT(' || longitude || ' ' || latitude || ')'"
          index: true
          srid: 4326           # Spatial reference system
        - name: full_code
-         type: TEXT
+         type: text
          expression: "country_code || '.' || admin_code"
          index: true
        - name: name_normalized
-         type: TEXT
+         type: text
          expression: "lower(trim(name))"
 
 Creating Views with Joins
@@ -266,57 +283,76 @@ If you have multiple sources, you need to define a view that specifies which col
 
    view:
      select:
-       - source: places        # Source table name
-         column: geonameid     # Column to include
-       - source: places
-         column: name
-       - source: places
-         column: latitude
-       - source: places
-         column: longitude
-       - source: admin_names   # From a different source
-         column: name
-         alias: admin_name     # Rename column in view
-       - source: places
-         column: geometry
+       - column: places.geonameid    # source.column to include
+       - column: places.name
+       - column: places.latitude
+       - column: places.longitude
+       - column: admin_names.name     # From a different source
+         alias: admin_name            # Rename column in view
+       - column: places.geometry
      join:
-       - type: LEFT JOIN       # Join type
-         source: admin_names   # Source to join
-         condition: places.admin_code = admin_names.code  # Join condition
+       - method: left join            # Join method
+         condition:
+           type: attribute            # attribute | spatial
+           predicate: equals          # equals
+           left:
+             column: places.admin_code    # source.column reference
+           right:
+             column: admin_names.code
 
-You can use any SQL join type (LEFT JOIN, INNER JOIN, etc.) and specify complex join conditions. This allows you to enrich your main features table with data from auxiliary tables.
+Both a ``select`` item and a join operand reference a column with a single ``source.column`` string. A join ``condition`` always has the same shape: a ``type`` (``attribute`` or ``spatial``), a ``predicate``, and ``left``/``right`` operands. The joined source is inferred from the right operand, so it does not need to be repeated. An ``attribute`` condition produces a plain SQL join (currently the ``equals`` predicate), enriching your main features table with data from auxiliary tables.
 
 Spatial Joins
 ~~~~~~~~~~~~~
 
-For determining spatial relationships (e.g., which administrative region contains each feature), you can use spatial join conditions with SpatiaLite functions:
+For determining spatial relationships (e.g., which administrative region contains each feature), use a ``spatial`` condition with a spatial ``predicate``. Spatial joins are precomputed at install time with GeoPandas, so no spatial database extension is needed:
 
 .. code-block:: yaml
 
    join:
-     - type: LEFT JOIN
-       source: municipalities
-       condition: ST_Within(places.geometry, municipalities.geometry)
+     - method: left join
+       condition:
+         type: spatial                # attribute | spatial
+         predicate: within            # within | intersects | contains
+         left:
+           column: places.geometry    # geometry source.column reference
+         right:
+           column: municipalities.geometry
 
-This joins each place with the municipality whose boundary contains it. Note that spatial joins can be computationally expensive for large datasets.
+This joins each place with the municipality whose boundary contains it. An operand may optionally apply a geometry ``transform`` (currently ``centroid``) before the predicate is evaluated, which is useful when matching lines or polygons to the region that contains their centroid:
+
+.. code-block:: yaml
+
+   join:
+     - method: left join
+       condition:
+         type: spatial
+         predicate: within
+         left:
+           column: roads.geometry
+           transform: centroid
+         right:
+           column: municipalities.geometry
+
+Each geometry column must declare an ``srid``; if the two sides use different reference systems, geometries are reprojected automatically before the join. Note that spatial joins can be computationally expensive for large datasets.
 
 Defining Features
 ~~~~~~~~~~~~~~~~~
 
-The final step is specifying how features are identified and named. The identifier column(s) provide unique IDs for features, while name columns define searchable names:
+The final step is specifying how features are identified and named. The identifier column(s) provide unique IDs for features, while name columns define searchable names. Features are extracted from the source's own table, so every column is referenced as ``source.column`` pointing at that source:
 
 .. code-block:: yaml
 
    features:
      identifier:
-       - column: geonameid     # Primary identifier column
+       - column: places.geonameid     # source.column identifier
      names:
-       - column: name          # Main name
-       - column: asciiname     # ASCII variant
-       - column: alternatenames  # Multiple names in one column
-         separator: ","        # Split on commas
+       - column: places.name          # Main name
+       - column: places.asciiname     # ASCII variant
+       - column: places.alternatenames  # Multiple names in one column
+         separator: ","               # Split on commas
 
-Name columns with separators are split into individual names during registration, allowing a single feature to be found under multiple name variants.
+Both identifiers and names wrap a ``column`` reference; a name additionally accepts an optional ``separator``. Name columns with separators are split into individual names during registration, allowing a single feature to be found under multiple name variants.
 
 Complete Example
 ~~~~~~~~~~~~~~~~
@@ -331,62 +367,61 @@ Here's a complete configuration demonstrating both tabular and spatial sources c
      - name: places
        url: https://example.com/places.csv
        file: places.csv
-       type: tabular
+       kind: tabular
        separator: ","
        attributes:
          original:
            - name: id
-             type: INTEGER
+             type: integer
              index: true
            - name: name
-             type: TEXT
+             type: text
            - name: lat
-             type: REAL
+             type: real
            - name: lon
-             type: REAL
+             type: real
          derived:
            - name: geometry
-             type: GEOMETRY
+             type: geometry
              expression: "'POINT(' || lon || ' ' || lat || ')'"
              index: true
              srid: 4326
        view:
          select:
-           - source: places
-             column: id
-           - source: places
-             column: name
-           - source: places
-             column: lat
-           - source: places
-             column: lon
-           - source: regions
-             column: region_name
-           - source: places
-             column: geometry
+           - column: places.id
+           - column: places.name
+           - column: places.lat
+           - column: places.lon
+           - column: regions.region_name
+           - column: places.geometry
          join:
-           - type: LEFT JOIN
-             source: regions
-             condition: ST_Within(places.geometry, regions.geometry)
+          - method: left join
+            condition:
+              type: spatial
+              predicate: within
+              left:
+                column: places.geometry
+              right:
+                column: regions.geometry
        features:
          identifier:
-           - column: id
+           - column: places.id
          names:
-           - column: name
+           - column: places.name
      
      # Auxiliary spatial source with administrative boundaries
      - name: regions
        url: https://example.com/regions.zip
        file: regions.shp
-       type: spatial
+       kind: spatial
        attributes:
          original:
            - name: region_id
-             type: INTEGER
+             type: integer
            - name: region_name
-             type: TEXT
+             type: text
            - name: geometry
-             type: GEOMETRY
+             type: geometry
              index: true
              srid: 4326
 
@@ -399,7 +434,7 @@ To install a custom gazetteer, provide the path to your configuration file:
 
 .. code-block:: bash
 
-   python -m geoparser download path/to/my_gazetteer.yaml
+   python -m geoparser install path/to/my_gazetteer.yaml
 
 The installer validates the configuration, downloads or locates the specified files, creates database tables according to the attribute specifications, loads the data, applies transformations and derivations, creates indices, and registers the gazetteer so it can be queried through the standard interface.
 

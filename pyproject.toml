@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "geoparser"
-version = "0.3.1"
+version = "0.4.0"
 description = "A customizable geoparsing library for unstructured text"
 authors = ["Diego Gomes <diego.gomes@uzh.ch>"]
 readme = "README.md"
@@ -11,7 +11,6 @@ include = [
     "LICENSE",
     "THIRD_PARTY_LICENSES",
     "README.md",
-    "geoparser/db/extensions/**/*",
 ]
 
 [tool.poetry.dependencies]
@@ -28,14 +27,15 @@ pyogrio = "^0.11.1"
 pyproj = "^3.7.1"
 python-multipart = "^0.0.20"
 pyyaml = "^6.0.3"
+rapidfuzz = "^3.14.5"
 requests = "^2.32.5"
+rich = "^13.9.4"
 sentence-transformers = "^5.1.2"
 shapely = "^2.1.2"
 spacy = "^3.8.7"
 sqlalchemy = "^2.0.44"
 sqlmodel = "^0.0.27"
 torch = "^2.9.0"
-tqdm = "^4.67.1"
 transformers = "^4.57.1"
 typer = "^0.20.0"
 uvicorn = "^0.38.0"

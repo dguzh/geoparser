@@ -8,13 +8,13 @@ import pytest
 
 from geoparser.gazetteer.installer.model import (
     AttributesConfig,
-    ColumnConfig,
     DataType,
     FeatureConfig,
+    IdentifierColumnConfig,
     NameColumnConfig,
     OriginalAttributeConfig,
     SourceConfig,
-    SourceType,
+    SourceKind,
 )
 from geoparser.gazetteer.installer.queries.dml import (
     FeatureRegistrationBuilder,
@@ -33,11 +33,14 @@ class TestTransformationBuilderBuildDerivationUpdate:
 
         # Act
         sql = builder.build_derivation_update(
-            "test_table", "full_name", "first_name || ' ' || last_name"
+            "test_table", "full_name", "first_name || ' ' || last_name", 1, 20000
         )
 
         # Assert
-        assert sql == "UPDATE test_table SET full_name = first_name || ' ' || last_name"
+        assert sql == (
+            "UPDATE test_table SET full_name = first_name || ' ' || last_name "
+            "WHERE rowid BETWEEN 1 AND 20000"
+        )
 
     def test_sanitizes_table_name(self):
         """Test that table name is sanitized."""
@@ -46,7 +49,7 @@ class TestTransformationBuilderBuildDerivationUpdate:
 
         # Act & Assert
         with pytest.raises(ValueError, match="Invalid identifier"):
-            builder.build_derivation_update("table-name", "col", "expression")
+            builder.build_derivation_update("table-name", "col", "expression", 1, 100)
 
     def test_sanitizes_column_name(self):
         """Test that column name is sanitized."""
@@ -55,39 +58,7 @@ class TestTransformationBuilderBuildDerivationUpdate:
 
         # Act & Assert
         with pytest.raises(ValueError, match="Invalid identifier"):
-            builder.build_derivation_update("table", "col-name", "expression")
-
-
-@pytest.mark.unit
-class TestTransformationBuilderBuildGeometryUpdate:
-    """Test TransformationBuilder.build_geometry_update() method."""
-
-    def test_builds_geometry_update(self):
-        """Test building UPDATE statement to convert WKT to geometry."""
-        # Arrange
-        builder = TransformationBuilder()
-
-        # Act
-        sql = builder.build_geometry_update("test_table", "geometry", 4326)
-
-        # Assert
-        assert sql == (
-            "UPDATE test_table "
-            "SET geometry = GeomFromText(geometry_wkt, 4326) "
-            "WHERE geometry_wkt IS NOT NULL"
-        )
-
-    def test_uses_wkt_column_suffix(self):
-        """Test that _wkt suffix is used for source column."""
-        # Arrange
-        builder = TransformationBuilder()
-
-        # Act
-        sql = builder.build_geometry_update("test_table", "geom", 3857)
-
-        # Assert
-        assert "geom_wkt" in sql
-        assert "GeomFromText(geom_wkt, 3857)" in sql
+            builder.build_derivation_update("table", "col-name", "expression", 1, 100)
 
 
 @pytest.mark.unit
@@ -101,21 +72,23 @@ class TestFeatureRegistrationBuilderBuildFeatureInsert:
             name="test_source",
             url="http://example.com/data.csv",
             file="data.csv",
-            type=SourceType.TABULAR,
+            kind=SourceKind.TABULAR,
             separator=",",
             attributes=AttributesConfig(
                 original=[OriginalAttributeConfig(name="id", type=DataType.INTEGER)]
             ),
             features=FeatureConfig(
-                identifier=[ColumnConfig(column="id")],
-                names=[NameColumnConfig(column="name")],
+                identifier=[IdentifierColumnConfig(column="test_source.id")],
+                names=[NameColumnConfig(column="test_source.name")],
             ),
         )
 
         builder = FeatureRegistrationBuilder()
 
         # Act
-        sql = builder.build_feature_insert(source, source_id=123)
+        sql = builder.build_feature_insert(
+            source, source_id=123, rowid_start=1, rowid_end=20000
+        )
 
         # Assert
         assert "INSERT OR IGNORE INTO feature" in sql
@@ -124,6 +97,7 @@ class TestFeatureRegistrationBuilderBuildFeatureInsert:
         assert "CAST(id AS TEXT) as location_id_value" in sql
         assert "FROM test_source" in sql
         assert "WHERE id IS NOT NULL" in sql
+        assert "test_source.rowid BETWEEN 1 AND 20000" in sql
 
     def test_raises_error_when_source_has_no_features(self):
         """Test that error is raised when source has no feature configuration."""
@@ -132,7 +106,7 @@ class TestFeatureRegistrationBuilderBuildFeatureInsert:
             name="test_source",
             url="http://example.com/data.csv",
             file="data.csv",
-            type=SourceType.TABULAR,
+            kind=SourceKind.TABULAR,
             separator=",",
             attributes=AttributesConfig(
                 original=[OriginalAttributeConfig(name="id", type=DataType.INTEGER)]
@@ -143,7 +117,9 @@ class TestFeatureRegistrationBuilderBuildFeatureInsert:
 
         # Act & Assert
         with pytest.raises(ValueError, match="has no feature configuration"):
-            builder.build_feature_insert(source, source_id=123)
+            builder.build_feature_insert(
+                source, source_id=123, rowid_start=1, rowid_end=20000
+            )
 
 
 @pytest.mark.unit
@@ -157,7 +133,7 @@ class TestFeatureRegistrationBuilderBuildNameInsert:
             name="test_source",
             url="http://example.com/data.csv",
             file="data.csv",
-            type=SourceType.TABULAR,
+            kind=SourceKind.TABULAR,
             separator=",",
             attributes=AttributesConfig(
                 original=[
@@ -166,15 +142,17 @@ class TestFeatureRegistrationBuilderBuildNameInsert:
                 ]
             ),
             features=FeatureConfig(
-                identifier=[ColumnConfig(column="id")],
-                names=[NameColumnConfig(column="name")],
+                identifier=[IdentifierColumnConfig(column="test_source.id")],
+                names=[NameColumnConfig(column="test_source.name")],
             ),
         )
 
         builder = FeatureRegistrationBuilder()
 
         # Act
-        sql = builder.build_name_insert(source, source_id=123, name_column="name")
+        sql = builder.build_name_insert(
+            source, source_id=123, name_column="name", rowid_start=1, rowid_end=20000
+        )
 
         # Assert
         assert "INSERT OR IGNORE INTO name" in sql
@@ -184,6 +162,7 @@ class TestFeatureRegistrationBuilderBuildNameInsert:
         assert "FROM test_source s" in sql
         assert "JOIN feature f ON f.source_id = 123" in sql
         assert "WHERE s.name IS NOT NULL AND s.name != ''" in sql
+        assert "s.rowid BETWEEN 1 AND 20000" in sql
 
     def test_raises_error_when_source_has_no_features(self):
         """Test that error is raised when source has no feature configuration."""
@@ -192,7 +171,7 @@ class TestFeatureRegistrationBuilderBuildNameInsert:
             name="test_source",
             url="http://example.com/data.csv",
             file="data.csv",
-            type=SourceType.TABULAR,
+            kind=SourceKind.TABULAR,
             separator=",",
             attributes=AttributesConfig(
                 original=[OriginalAttributeConfig(name="id", type=DataType.INTEGER)]
@@ -203,7 +182,13 @@ class TestFeatureRegistrationBuilderBuildNameInsert:
 
         # Act & Assert
         with pytest.raises(ValueError, match="has no feature configuration"):
-            builder.build_name_insert(source, source_id=123, name_column="name")
+            builder.build_name_insert(
+                source,
+                source_id=123,
+                name_column="name",
+                rowid_start=1,
+                rowid_end=20000,
+            )
 
 
 @pytest.mark.unit
@@ -217,7 +202,7 @@ class TestFeatureRegistrationBuilderBuildNameInsertSeparated:
             name="test_source",
             url="http://example.com/data.csv",
             file="data.csv",
-            type=SourceType.TABULAR,
+            kind=SourceKind.TABULAR,
             separator=",",
             attributes=AttributesConfig(
                 original=[
@@ -226,8 +211,8 @@ class TestFeatureRegistrationBuilderBuildNameInsertSeparated:
                 ]
             ),
             features=FeatureConfig(
-                identifier=[ColumnConfig(column="id")],
-                names=[NameColumnConfig(column="names", separator="|")],
+                identifier=[IdentifierColumnConfig(column="test_source.id")],
+                names=[NameColumnConfig(column="test_source.names", separator="|")],
             ),
         )
 
@@ -235,7 +220,12 @@ class TestFeatureRegistrationBuilderBuildNameInsertSeparated:
 
         # Act
         sql = builder.build_name_insert_separated(
-            source, source_id=123, name_column="names", separator="|"
+            source,
+            source_id=123,
+            name_column="names",
+            separator="|",
+            rowid_start=1,
+            rowid_end=20000,
         )
 
         # Assert
@@ -245,6 +235,7 @@ class TestFeatureRegistrationBuilderBuildNameInsertSeparated:
         assert "s.names || '|' as remaining" in sql
         assert "FROM test_source s" in sql
         assert "JOIN feature f ON f.source_id = 123" in sql
+        assert "s.rowid BETWEEN 1 AND 20000" in sql
 
     def test_uses_separator_in_recursive_cte(self):
         """Test that separator is correctly used in recursive CTE."""
@@ -253,14 +244,14 @@ class TestFeatureRegistrationBuilderBuildNameInsertSeparated:
             name="test_source",
             url="http://example.com/data.csv",
             file="data.csv",
-            type=SourceType.TABULAR,
+            kind=SourceKind.TABULAR,
             separator=",",
             attributes=AttributesConfig(
                 original=[OriginalAttributeConfig(name="id", type=DataType.INTEGER)]
             ),
             features=FeatureConfig(
-                identifier=[ColumnConfig(column="id")],
-                names=[NameColumnConfig(column="names", separator=",")],
+                identifier=[IdentifierColumnConfig(column="test_source.id")],
+                names=[NameColumnConfig(column="test_source.names", separator=",")],
             ),
         )
 
@@ -268,7 +259,12 @@ class TestFeatureRegistrationBuilderBuildNameInsertSeparated:
 
         # Act
         sql = builder.build_name_insert_separated(
-            source, source_id=123, name_column="names", separator=","
+            source,
+            source_id=123,
+            name_column="names",
+            separator=",",
+            rowid_start=1,
+            rowid_end=20000,
         )
 
         # Assert
@@ -282,7 +278,7 @@ class TestFeatureRegistrationBuilderBuildNameInsertSeparated:
             name="test_source",
             url="http://example.com/data.csv",
             file="data.csv",
-            type=SourceType.TABULAR,
+            kind=SourceKind.TABULAR,
             separator=",",
             attributes=AttributesConfig(
                 original=[OriginalAttributeConfig(name="id", type=DataType.INTEGER)]
@@ -294,5 +290,10 @@ class TestFeatureRegistrationBuilderBuildNameInsertSeparated:
         # Act & Assert
         with pytest.raises(ValueError, match="has no feature configuration"):
             builder.build_name_insert_separated(
-                source, source_id=123, name_column="names", separator=","
+                source,
+                source_id=123,
+                name_column="names",
+                separator=",",
+                rowid_start=1,
+                rowid_end=20000,
             )

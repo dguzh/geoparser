@@ -135,7 +135,7 @@ def mock_manual_resolver():
 
 
 @pytest.fixture(scope="function")
-def real_sentencetransformer_resolver():
+def real_sentencetransformer_resolver(andorra_gazetteer):
     """
     Create a real SentenceTransformerResolver with actual transformer model.
 
@@ -143,8 +143,10 @@ def real_sentencetransformer_resolver():
     the transformer model is expensive (~2-3s per test), this approach guarantees
     that each test has its own isolated state and no cross-test contamination.
 
-    Note: Uses a small model for faster testing. Tests that need gazetteer access
-    should explicitly request the andorra_gazetteer fixture to populate the database.
+    Note: Uses a small model for faster testing. The resolver targets the Andorra
+    gazetteer, which must be installed before the resolver is constructed (the
+    Gazetteer guard rejects uninstalled gazetteers), so this fixture depends on
+    andorra_gazetteer.
 
     The autouse patch_db fixture automatically redirects all database operations
     to use the test database, so no manual patching is needed.
