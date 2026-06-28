@@ -14,18 +14,35 @@ Install the Irchel Geoparser using pip:
 
    pip install geoparser
 
-.. warning::
-   **macOS users**: The Irchel Geoparser requires Python with SQLite extension loading support, which is **not available** in the default macOS system Python or Python installed from the official Python website. You must use Python installed via Homebrew. See the :doc:`macos` guide for detailed setup instructions.
-
 .. note::
    The library uses PyTorch through the sentence-transformers package. If you have a CUDA-enabled GPU, you can significantly speed up geoparsing tasks by installing PyTorch with CUDA support. Visit the PyTorch `Get Started <https://pytorch.org/get-started/locally/>`_ page and follow the instructions appropriate for your system.
 
 Installing Gazetteers
 ---------------------
 
-The library requires gazetteer data to resolve toponyms to geographic locations. Gazetteers are stored in a SQLite database in your system's application data directory. You can install gazetteers using a single command that downloads the data and sets up the database automatically.
+The library requires gazetteer data to resolve toponyms to geographic locations. Gazetteers are stored in a SQLite database in your system's application data directory. You can install gazetteers using a single command that downloads the source data and sets up the database automatically.
+
+.. note::
+   The gazetteer CLI command was renamed from ``download`` to ``install``.
+
+If you want to try geoparsing quickly, start with **GeoNames Cities**, a lightweight subset that installs in a few minutes. For real geoparsing work, use the full **GeoNames** gazetteer instead: it covers far more than cities alone, including towns, natural features, landmarks, and fine-grained place names that the cities subset omits entirely.
 
 .. tabs::
+
+   .. tab:: GeoNames Cities
+
+      **GeoNames Cities** is a lightweight GeoNames subset intended for getting started quickly. It includes cities with a population of at least 500. Countries and first- and second-level administrative divisions are also included so that names like "France" or "Bavaria" can be resolved, but those features have **no geographic data**—no coordinates, geometry, or other spatial attributes.
+
+      - **Website**: `geonames.org <https://www.geonames.org/>`_
+      - **Coverage**: Global cities (population ≥ 500)
+      - **Required Disk Space**: Approximately **700 MB**
+      - **Installation Command**:
+
+      .. code-block:: bash
+
+         python -m geoparser install geonames-cities
+
+      Installation typically completes within a few minutes. Many place types (towns, rivers, mountains, and so on) are not included at all. Use this gazetteer to experiment with the library; switch to full GeoNames for serious geoparsing.
 
    .. tab:: GeoNames
 
@@ -38,9 +55,9 @@ The library requires gazetteer data to resolve toponyms to geographic locations.
 
       .. code-block:: bash
 
-         python -m geoparser download geonames
+         python -m geoparser install geonames
 
-      This command downloads the GeoNames data files, processes them, and creates the necessary database tables and indices. The process may take 15-30 minutes depending on your system.
+      This command downloads the GeoNames data files, processes them, and creates the necessary database tables and indices. The process may take 20-40 minutes depending on your system.
 
    .. tab:: SwissNames3D
 
@@ -53,7 +70,7 @@ The library requires gazetteer data to resolve toponyms to geographic locations.
 
       .. code-block:: bash
 
-         python -m geoparser download swissnames3d
+         python -m geoparser install swissnames3d
 
       This command downloads the SwissNames3D data, processes it, and creates the database. The process typically completes within a few minutes.
 

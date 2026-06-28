@@ -4,7 +4,8 @@ import re
 from typing import List
 
 from geoparser.db.crud.feature import FeatureRepository
-from geoparser.db.db import get_session
+from geoparser.db.crud.gazetteer import GazetteerRepository
+from geoparser.db.db import create_db_and_tables, get_session
 from geoparser.db.models.feature import Feature
 
 
@@ -23,7 +24,19 @@ class Gazetteer:
 
         Args:
             gazetteer_name: Name of the gazetteer to query for candidates
+
+        Raises:
+            ValueError: If the gazetteer is not installed. Querying an
+                uninstalled gazetteer would silently return no results, so we
+                fail here instead of letting that happen unnoticed.
         """
+        create_db_and_tables()
+
+        with get_session() as session:
+            gazetteer_record = GazetteerRepository.get_by_name(session, gazetteer_name)
+            if gazetteer_record is None or gazetteer_record.installed_at is None:
+                raise ValueError(f"Gazetteer '{gazetteer_name}' is not installed.")
+
         self.gazetteer_name = gazetteer_name
 
     def search(

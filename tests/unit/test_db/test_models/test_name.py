@@ -214,23 +214,22 @@ class TestNameFTS:
 
 
 @pytest.mark.unit
-class TestNameSpellfixVocab:
-    """Test the NameSpellfixVocab shadow table model."""
+class TestNameSoundex:
+    """Test the NameSoundex table model."""
 
     def test_has_correct_tablename(self):
-        """Test that NameSpellfixVocab references the correct shadow table."""
+        """Test that NameSoundex references the correct table."""
         # Arrange
-        from geoparser.db.models import NameSpellfixVocab
+        from geoparser.db.models import NameSoundex
 
         # Assert
-        assert NameSpellfixVocab.__tablename__ == "name_spellfix_vocab"
+        assert NameSoundex.__tablename__ == "name_soundex"
 
     def test_has_required_fields(self):
-        """Test that NameSpellfixVocab has the required field definitions."""
+        """Test that NameSoundex has the required field definitions."""
         # Arrange
-        from geoparser.db.models import NameSpellfixVocab
+        from geoparser.db.models import NameSoundex
 
         # Assert
-        assert hasattr(NameSpellfixVocab, "id")
-        assert hasattr(NameSpellfixVocab, "word")
-        assert hasattr(NameSpellfixVocab, "k2")
+        assert hasattr(NameSoundex, "id")
+        assert hasattr(NameSoundex, "code")

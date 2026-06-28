@@ -1,5 +1,6 @@
 import typing as t
 import uuid
+from datetime import datetime
 
 from sqlmodel import Field, Relationship, SQLModel
 
@@ -21,6 +22,7 @@ class Gazetteer(GazetteerBase, table=True):
     """
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    installed_at: t.Optional[datetime] = Field(default=None)
     sources: list["Source"] = Relationship(back_populates="gazetteer")
 
 
@@ -33,3 +35,4 @@ class GazetteerUpdate(SQLModel):
 
     id: uuid.UUID
     name: t.Optional[str] = None
+    installed_at: t.Optional[datetime] = None

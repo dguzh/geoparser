@@ -6,7 +6,7 @@ Tests the IngestionStage class.
 
 import pytest
 
-from geoparser.gazetteer.installer.model import SourceType
+from geoparser.gazetteer.installer.model import SourceKind
 from geoparser.gazetteer.installer.stages.ingestion import IngestionStage
 
 
@@ -20,7 +20,7 @@ class TestIngestionStageInit:
         stage = IngestionStage()
 
         # Assert
-        assert stage.chunksize == 20000
+        assert stage.chunksize == 100_000
 
     def test_initializes_with_custom_chunksize(self):
         """Test that custom chunksize is accepted."""
@@ -36,8 +36,8 @@ class TestIngestionStageInit:
         stage = IngestionStage()
 
         # Assert
-        assert SourceType.TABULAR in stage.strategies
-        assert SourceType.SPATIAL in stage.strategies
+        assert SourceKind.TABULAR in stage.strategies
+        assert SourceKind.SPATIAL in stage.strategies
 
     def test_sets_name_and_description(self):
         """Test that stage name and description are set."""

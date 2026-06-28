@@ -95,7 +95,7 @@ class DocumentRepository(BaseRepository):
             filename = secure_filename(file.filename)
             text = file.file.read().decode("utf-8")
             if apply_spacy and recognizer:
-                references = recognizer.predict_references([text])[0]
+                references = recognizer.predict([text])[0]
                 toponyms = [
                     AnnotatorToponymCreate(text=text[start:end], start=start, end=end)
                     for start, end in references
@@ -183,7 +183,7 @@ class DocumentRepository(BaseRepository):
     def parse(cls, db: DBSession, id: uuid.UUID) -> AnnotatorDocument:
         document = cls.read(db, id)
         recognizer = SpacyRecognizer(model_name=document.spacy_model)
-        references = recognizer.predict_references([document.text])[0]
+        references = recognizer.predict([document.text])[0]
         spacy_toponyms = [
             AnnotatorToponymCreate(text=document.text[start:end], start=start, end=end)
             for start, end in references

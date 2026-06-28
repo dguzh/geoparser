@@ -13,7 +13,7 @@ from geoparser.gazetteer.installer.model import (
     DataType,
     OriginalAttributeConfig,
     SourceConfig,
-    SourceType,
+    SourceKind,
 )
 from geoparser.gazetteer.installer.strategies.base import LoadStrategy
 
@@ -63,7 +63,7 @@ class TestLoadStrategy:
             name="test_source",
             url="http://example.com/data.csv",
             file="data.csv",
-            type=SourceType.TABULAR,
+            kind=SourceKind.TABULAR,
             separator=",",
             attributes=AttributesConfig(
                 original=[OriginalAttributeConfig(name="id", type=DataType.INTEGER)]

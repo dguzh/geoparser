@@ -17,7 +17,7 @@ from geoparser.gazetteer.installer.model import (
     DataType,
     OriginalAttributeConfig,
     SourceConfig,
-    SourceType,
+    SourceKind,
 )
 from geoparser.gazetteer.installer.stages.acquisition import AcquisitionStage
 
@@ -113,7 +113,7 @@ class TestAcquisitionStageValidateLocalPath:
                 name="test",
                 path=str(local_file),
                 file="test.csv",
-                type=SourceType.TABULAR,
+                kind=SourceKind.TABULAR,
                 separator=",",
                 attributes=AttributesConfig(
                     original=[OriginalAttributeConfig(name="id", type=DataType.INTEGER)]
@@ -136,7 +136,7 @@ class TestAcquisitionStageValidateLocalPath:
                 name="test",
                 path="/nonexistent/path/data.csv",
                 file="data.csv",
-                type=SourceType.TABULAR,
+                kind=SourceKind.TABULAR,
                 separator=",",
                 attributes=AttributesConfig(
                     original=[OriginalAttributeConfig(name="id", type=DataType.INTEGER)]
@@ -163,7 +163,7 @@ class TestAcquisitionStageResolveSourcePath:
                 name="test",
                 url="http://example.com/data.csv",
                 file="data.csv",
-                type=SourceType.TABULAR,
+                kind=SourceKind.TABULAR,
                 separator=",",
                 attributes=AttributesConfig(
                     original=[OriginalAttributeConfig(name="id", type=DataType.INTEGER)]
@@ -189,7 +189,7 @@ class TestAcquisitionStageResolveSourcePath:
                 name="test",
                 path="/local/data.csv",
                 file="data.csv",
-                type=SourceType.TABULAR,
+                kind=SourceKind.TABULAR,
                 separator=",",
                 attributes=AttributesConfig(
                     original=[OriginalAttributeConfig(name="id", type=DataType.INTEGER)]
@@ -219,7 +219,7 @@ class TestAcquisitionStageDownloadFile:
                 name="test",
                 url="http://example.com/data.csv",
                 file="data.csv",
-                type=SourceType.TABULAR,
+                kind=SourceKind.TABULAR,
                 separator=",",
                 attributes=AttributesConfig(
                     original=[OriginalAttributeConfig(name="id", type=DataType.INTEGER)]
@@ -256,7 +256,7 @@ class TestAcquisitionStageDownloadFile:
                 name="test",
                 url="http://example.com/data.csv",
                 file="data.csv",
-                type=SourceType.TABULAR,
+                kind=SourceKind.TABULAR,
                 separator=",",
                 attributes=AttributesConfig(
                     original=[OriginalAttributeConfig(name="id", type=DataType.INTEGER)]
@@ -292,7 +292,7 @@ class TestAcquisitionStageDownloadFile:
                 name="test",
                 url="http://example.com/data.csv",
                 file="data.csv",
-                type=SourceType.TABULAR,
+                kind=SourceKind.TABULAR,
                 separator=",",
                 attributes=AttributesConfig(
                     original=[OriginalAttributeConfig(name="id", type=DataType.INTEGER)]
@@ -329,7 +329,7 @@ class TestAcquisitionStageDownloadFile:
                 name="test",
                 url="http://example.com/data.csv",
                 file="data.csv",
-                type=SourceType.TABULAR,
+                kind=SourceKind.TABULAR,
                 separator=",",
                 attributes=AttributesConfig(
                     original=[OriginalAttributeConfig(name="id", type=DataType.INTEGER)]
@@ -368,7 +368,7 @@ class TestAcquisitionStageDownloadFile:
                 name="test",
                 url="http://example.com/data.csv",
                 file="data.csv",
-                type=SourceType.TABULAR,
+                kind=SourceKind.TABULAR,
                 separator=",",
                 attributes=AttributesConfig(
                     original=[OriginalAttributeConfig(name="id", type=DataType.INTEGER)]
@@ -409,7 +409,7 @@ class TestAcquisitionStageResolveFilePath:
                 name="test",
                 path=str(test_file),
                 file="data.csv",
-                type=SourceType.TABULAR,
+                kind=SourceKind.TABULAR,
                 separator=",",
                 attributes=AttributesConfig(
                     original=[OriginalAttributeConfig(name="id", type=DataType.INTEGER)]
@@ -435,7 +435,7 @@ class TestAcquisitionStageResolveFilePath:
                 name="test",
                 path=str(test_file),
                 file="expected.csv",
-                type=SourceType.TABULAR,
+                kind=SourceKind.TABULAR,
                 separator=",",
                 attributes=AttributesConfig(
                     original=[OriginalAttributeConfig(name="id", type=DataType.INTEGER)]
@@ -463,7 +463,7 @@ class TestAcquisitionStageResolveFilePath:
                 name="test",
                 path=str(data_dir),
                 file="target.csv",
-                type=SourceType.TABULAR,
+                kind=SourceKind.TABULAR,
                 separator=",",
                 attributes=AttributesConfig(
                     original=[OriginalAttributeConfig(name="id", type=DataType.INTEGER)]
@@ -492,7 +492,7 @@ class TestAcquisitionStageResolveFilePath:
                 name="test",
                 path=str(data_dir),
                 file="target.csv",
-                type=SourceType.TABULAR,
+                kind=SourceKind.TABULAR,
                 separator=",",
                 attributes=AttributesConfig(
                     original=[OriginalAttributeConfig(name="id", type=DataType.INTEGER)]
@@ -519,7 +519,7 @@ class TestAcquisitionStageResolveFilePath:
                 name="test",
                 url="http://example.com/archive.zip",
                 file="target.csv",
-                type=SourceType.TABULAR,
+                kind=SourceKind.TABULAR,
                 separator=",",
                 attributes=AttributesConfig(
                     original=[OriginalAttributeConfig(name="id", type=DataType.INTEGER)]
@@ -560,7 +560,7 @@ class TestAcquisitionStageResolveFilePath:
                 name="test",
                 url="http://example.com/archive.zip",
                 file="target.csv",
-                type=SourceType.TABULAR,
+                kind=SourceKind.TABULAR,
                 separator=",",
                 attributes=AttributesConfig(
                     original=[OriginalAttributeConfig(name="id", type=DataType.INTEGER)]
@@ -587,7 +587,7 @@ class TestAcquisitionStageResolveFilePath:
                 name="test",
                 url="http://example.com/archive.zip",
                 file="target.csv",
-                type=SourceType.TABULAR,
+                kind=SourceKind.TABULAR,
                 separator=",",
                 attributes=AttributesConfig(
                     original=[OriginalAttributeConfig(name="id", type=DataType.INTEGER)]
@@ -614,7 +614,7 @@ class TestAcquisitionStageResolveFilePath:
                 name="test",
                 url="http://example.com/data.zip",
                 file="data",  # Target is the directory name
-                type=SourceType.TABULAR,
+                kind=SourceKind.TABULAR,
                 separator=",",
                 attributes=AttributesConfig(
                     original=[OriginalAttributeConfig(name="id", type=DataType.INTEGER)]

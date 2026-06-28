@@ -1,7 +1,7 @@
 import typing as t
 from functools import cached_property
 
-from shapely import wkb
+from shapely import wkt
 from shapely.geometry.base import BaseGeometry
 from sqlalchemy import UniqueConstraint
 from sqlmodel import Field, Relationship, SQLModel, text
@@ -86,7 +86,7 @@ class Feature(FeatureBase, table=True):
         Get the geometry for this feature as a Shapely object.
 
         This property retrieves the geometry from the gazetteer table and
-        converts it from WKB binary format to a Shapely geometry object.
+        converts it from WKT text format to a Shapely geometry object.
         Results are cached automatically.
 
         Returns:
@@ -97,9 +97,9 @@ class Feature(FeatureBase, table=True):
 
         with get_session() as session:
             try:
-                # Use SpatiaLite's AsBinary() to convert to standard WKB format
+                # Geometry is stored as WKT text
                 query = text(
-                    f"SELECT AsBinary(geometry) FROM {self.source.name} WHERE {self.source.location_id_name} = '{self.location_id_value}' LIMIT 1"
+                    f"SELECT geometry FROM {self.source.name} WHERE {self.source.location_id_name} = '{self.location_id_value}' LIMIT 1"
                 )
 
                 result = session.execute(query)
@@ -108,8 +108,8 @@ class Feature(FeatureBase, table=True):
                 if row is None or row[0] is None:
                     return None
 
-                # Convert WKB binary data to Shapely geometry
-                return wkb.loads(row[0])
+                # Convert WKT text to Shapely geometry
+                return wkt.loads(row[0])
 
             except Exception:
                 # Handle cases where geometry column doesn't exist or geometry data is corrupted

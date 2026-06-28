@@ -38,3 +38,19 @@ class TestRegistrationStageInit:
         # Assert
         assert stage.name == "Registration"
         assert stage.description == "Register features and names"
+
+    def test_initializes_with_default_chunksize(self):
+        """Test that default chunksize is set."""
+        # Act
+        stage = RegistrationStage("test_gaz")
+
+        # Assert
+        assert stage.chunksize == 100_000
+
+    def test_initializes_with_custom_chunksize(self):
+        """Test that custom chunksize is accepted."""
+        # Act
+        stage = RegistrationStage("test_gaz", chunksize=5000)
+
+        # Assert
+        assert stage.chunksize == 5000

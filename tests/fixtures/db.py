@@ -21,15 +21,12 @@ def test_engine() -> Engine:
     Create a fresh in-memory test database for each test.
 
     Each test gets its own isolated database engine configured exactly like
-    production (with SpatiaLite). The global event listener `_set_sqlite_pragma`
-    in geoparser.db.db automatically applies to ALL Engine instances, so
-    foreign keys and SpatiaLite are configured without any extra setup.
-
-    Since SpatiaLite initialization is fast (<0.01s), the overhead is minimal
-    while providing perfect test isolation.
+    production. The global event listener `_set_sqlite_pragma` in
+    geoparser.db.db automatically applies to ALL Engine instances, so foreign
+    keys and the fuzzy matching functions are configured without any extra setup.
 
     Yields:
-        SQLAlchemy Engine instance with in-memory database and SpatiaLite
+        SQLAlchemy Engine instance with in-memory database
     """
     engine = create_engine(
         "sqlite:///:memory:",

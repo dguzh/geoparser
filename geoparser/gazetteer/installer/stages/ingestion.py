@@ -1,9 +1,10 @@
 from typing import Any, Dict
 
-from geoparser.gazetteer.installer.model import SourceConfig, SourceType
+from geoparser.gazetteer.installer.model import SourceConfig, SourceKind
 from geoparser.gazetteer.installer.stages.base import Stage
 from geoparser.gazetteer.installer.strategies.spatial import SpatialLoadStrategy
 from geoparser.gazetteer.installer.strategies.tabular import TabularLoadStrategy
+from geoparser.gazetteer.installer.utils.chunking import CHUNKSIZE
 
 
 class IngestionStage(Stage):
@@ -14,7 +15,7 @@ class IngestionStage(Stage):
     the appropriate strategy based on the source type (tabular vs spatial).
     """
 
-    def __init__(self, chunksize: int = 20000):
+    def __init__(self, chunksize: int = CHUNKSIZE):
         """
         Initialize the ingestion stage.
 
@@ -27,8 +28,8 @@ class IngestionStage(Stage):
         )
         self.chunksize = chunksize
         self.strategies = {
-            SourceType.TABULAR: TabularLoadStrategy(),
-            SourceType.SPATIAL: SpatialLoadStrategy(),
+            SourceKind.TABULAR: TabularLoadStrategy(),
+            SourceKind.SPATIAL: SpatialLoadStrategy(),
         }
 
     def execute(self, source: SourceConfig, context: Dict[str, Any]) -> None:
@@ -42,5 +43,5 @@ class IngestionStage(Stage):
         file_path = context["file_path"]
         table_name = context["table_name"]
 
-        strategy = self.strategies[source.type]
+        strategy = self.strategies[source.kind]
         strategy.load(source, file_path, table_name, self.chunksize)

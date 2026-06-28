@@ -166,6 +166,10 @@ class TestGazetteerIntegration:
         feature = results[0]
         # Should have geometry attribute (though value may vary by gazetteer config)
         assert hasattr(feature, "geometry")
+        # Geometry is stored as WKT and parsed into a Shapely object
+        from shapely.geometry.base import BaseGeometry
+
+        assert isinstance(feature.geometry, BaseGeometry)
 
     def test_feature_has_names(self, andorra_gazetteer):
         """Test that features have associated names."""

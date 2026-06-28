@@ -11,7 +11,7 @@ from geoparser.gazetteer.installer.model import (
     DataType,
     OriginalAttributeConfig,
     SourceConfig,
-    SourceType,
+    SourceKind,
 )
 from geoparser.gazetteer.installer.strategies.spatial import SpatialLoadStrategy
 
@@ -27,7 +27,7 @@ class TestSpatialLoadStrategyFindGeometryAttribute:
             name="test",
             url="http://example.com/data.shp",
             file="data.shp",
-            type=SourceType.SPATIAL,
+            kind=SourceKind.SPATIAL,
             attributes=AttributesConfig(
                 original=[
                     OriginalAttributeConfig(name="id", type=DataType.INTEGER),
@@ -54,7 +54,7 @@ class TestSpatialLoadStrategyFindGeometryAttribute:
             name="test",
             url="http://example.com/data.shp",
             file="data.shp",
-            type=SourceType.SPATIAL,
+            kind=SourceKind.SPATIAL,
             attributes=AttributesConfig(
                 original=[
                     OriginalAttributeConfig(name="id", type=DataType.INTEGER),
@@ -80,7 +80,7 @@ class TestSpatialLoadStrategyFindGeometryAttribute:
             name="test",
             url="http://example.com/data.csv",
             file="data.csv",
-            type=SourceType.TABULAR,
+            kind=SourceKind.TABULAR,
             separator=",",
             attributes=AttributesConfig(
                 original=[

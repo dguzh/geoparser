@@ -5,6 +5,7 @@ Provides fixtures for working with the Andorra gazetteer in tests,
 including paths to configuration files and a helper to install the gazetteer.
 """
 
+from datetime import datetime, timezone
 from pathlib import Path
 
 import pytest
@@ -37,3 +38,20 @@ def andorra_gazetteer(andorra_config_path: Path) -> None:
 
     installer = GazetteerInstaller()
     installer.install(andorra_config_path, chunksize=5000, keep_downloads=False)
+
+
+@pytest.fixture
+def installed_geonames(test_session):
+    """
+    Register an installed "geonames" gazetteer in the test database.
+
+    The Gazetteer guard rejects uninstalled gazetteers at construction, so unit
+    tests that exercise search/find need a completed installation record.
+    """
+    from geoparser.db.models import Gazetteer as GazetteerModel
+
+    gazetteer_record = GazetteerModel(
+        name="geonames", installed_at=datetime.now(timezone.utc)
+    )
+    test_session.add(gazetteer_record)
+    test_session.commit()
