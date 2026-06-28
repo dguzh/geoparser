@@ -3677,7 +3677,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 ================================================================================
 
-Package: geoparser==0.3.1
+Package: geoparser==0.4.0
 License: MIT License
 
 MIT License
