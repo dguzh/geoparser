@@ -125,9 +125,7 @@ def list_artifacts() -> t.List[str]:
     if not directory.exists():
         return []
     return sorted(
-        path.stem
-        for path in directory.glob(f"*{ARTIFACT_SUFFIX}")
-        if path.is_file()
+        path.stem for path in directory.glob(f"*{ARTIFACT_SUFFIX}") if path.is_file()
     )
 
 
@@ -199,9 +197,9 @@ class GazetteerArtifact:
 
     def _read_metadata(self) -> t.Dict[str, str]:
         try:
-            rows = self._connection().execute(
-                "SELECT key, value FROM metadata"
-            ).fetchall()
+            rows = (
+                self._connection().execute("SELECT key, value FROM metadata").fetchall()
+            )
         except sqlite3.DatabaseError as error:
             raise RuntimeError(
                 f"File {self.path} is not a valid gazetteer artifact: {error}"
@@ -231,10 +229,14 @@ class GazetteerArtifact:
         Returns:
             Feature object if found, None otherwise
         """
-        row = self._connection().execute(
-            f"SELECT {self._FEATURE_COLUMNS} FROM feature f WHERE f.identifier = ?",
-            (str(identifier),),
-        ).fetchone()
+        row = (
+            self._connection()
+            .execute(
+                f"SELECT {self._FEATURE_COLUMNS} FROM feature f WHERE f.identifier = ?",
+                (str(identifier),),
+            )
+            .fetchone()
+        )
         if row is None:
             return None
         return self._features_from_rows([row])[0]
@@ -249,10 +251,14 @@ class GazetteerArtifact:
         Returns:
             List of name strings
         """
-        rows = self._connection().execute(
-            "SELECT text FROM name WHERE feature_id = ? ORDER BY id",
-            (feature_id,),
-        ).fetchall()
+        rows = (
+            self._connection()
+            .execute(
+                "SELECT text FROM name WHERE feature_id = ? ORDER BY id",
+                (feature_id,),
+            )
+            .fetchall()
+        )
         return [row[0] for row in rows]
 
     def search_exact(self, name: str, limit: int = 10000) -> t.List[Feature]:
@@ -270,8 +276,10 @@ class GazetteerArtifact:
         Returns:
             List of matching features
         """
-        rows = self._connection().execute(
-            f"""
+        rows = (
+            self._connection()
+            .execute(
+                f"""
             SELECT {self._FEATURE_COLUMNS}
             FROM name_fts
             JOIN name n ON n.id = name_fts.rowid
@@ -280,8 +288,10 @@ class GazetteerArtifact:
             GROUP BY f.id
             LIMIT ?
             """,
-            (f'"{name}"', len(name), limit),
-        ).fetchall()
+                (f'"{name}"', len(name), limit),
+            )
+            .fetchall()
+        )
         return self._features_from_rows(rows)
 
     def _search_tiered(
@@ -294,8 +304,10 @@ class GazetteerArtifact:
         are better). It is materialized because SQLite only allows FTS
         auxiliary functions like bm25 in the immediate full-text query.
         """
-        rows = self._connection().execute(
-            f"""
+        rows = (
+            self._connection()
+            .execute(
+                f"""
             WITH matched AS MATERIALIZED ({matched_sql}),
             scored AS (
                 SELECT feature_id, min(score) AS score
@@ -315,8 +327,10 @@ class GazetteerArtifact:
             WHERE t.tier <= ?
             ORDER BY t.score ASC, f.id ASC
             """,
-            (*parameters, limit, tiers),
-        ).fetchall()
+                (*parameters, limit, tiers),
+            )
+            .fetchall()
+        )
         return self._features_from_rows(rows)
 
     def search_phrase(

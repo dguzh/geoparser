@@ -106,9 +106,7 @@ class TestDuplicateIdentifierMerge:
         """A config whose input repeats identifiers across rows."""
         data_file = tmp_path / "peaks.csv"
         data_file.write_text(
-            "p1\tNorth Summit\t800\n"
-            "p1\tSouth Summit\t1200\n"
-            "p2\tLone Hill\t300\n"
+            "p1\tNorth Summit\t800\n" "p1\tSouth Summit\t1200\n" "p2\tLone Hill\t300\n"
         )
         config_file = tmp_path / "peaks.yaml"
         config_file.write_text(

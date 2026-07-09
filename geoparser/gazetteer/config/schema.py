@@ -172,13 +172,17 @@ class MatchConfig(BaseModel):
     def coerce_yaml_on_key(cls, value: t.Any) -> t.Any:
         # YAML 1.1 parses the bare key "on" as boolean True; map it back
         if isinstance(value, dict) and True in value:
-            value = {("on" if key is True else key): item for key, item in value.items()}
+            value = {
+                ("on" if key is True else key): item for key, item in value.items()
+            }
         return value
 
     @model_validator(mode="after")
     def validate_match(self) -> "MatchConfig":
         if bool(self.on) == bool(self.spatial):
-            raise ValueError("A lookup match must define exactly one of 'on' or 'spatial'")
+            raise ValueError(
+                "A lookup match must define exactly one of 'on' or 'spatial'"
+            )
         if self.using is not None and self.spatial is None:
             raise ValueError("'using' is only valid for spatial matches")
         return self
@@ -228,7 +232,9 @@ class NameConfig(BaseModel):
     @model_validator(mode="after")
     def validate_name(self) -> "NameConfig":
         if bool(self.column) == bool(self.expression):
-            raise ValueError("A name must define exactly one of 'column' or 'expression'")
+            raise ValueError(
+                "A name must define exactly one of 'column' or 'expression'"
+            )
         if bool(self.from_) != bool(self.key):
             raise ValueError("Names from a related input require both 'from' and 'key'")
         return self
@@ -391,9 +397,7 @@ class GazetteerConfig(BaseModel):
         names = [input_config.name for input_config in value]
         duplicates = {name for name in names if names.count(name) > 1}
         if duplicates:
-            raise ValueError(
-                f"Duplicate input names: {', '.join(sorted(duplicates))}"
-            )
+            raise ValueError(f"Duplicate input names: {', '.join(sorted(duplicates))}")
         return value
 
     @field_validator("features")

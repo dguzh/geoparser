@@ -78,9 +78,7 @@ class Gazetteer:
             "partial": lambda: self._artifact.search_partial(
                 normalized_name, limit, tiers
             ),
-            "fuzzy": lambda: self._artifact.search_fuzzy(
-                normalized_name, limit, tiers
-            ),
+            "fuzzy": lambda: self._artifact.search_fuzzy(normalized_name, limit, tiers),
         }
 
         if method not in method_map:

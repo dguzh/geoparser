@@ -119,7 +119,9 @@ class TestGazetteerConfigValidation:
         data["lookups"] = {"first": dict(lookup), "second": dict(lookup)}
         data["features"][0]["lookups"] = ["first", "second"]
 
-        with pytest.raises(ValidationError, match="both\\s+expose a value named 'clash'"):
+        with pytest.raises(
+            ValidationError, match="both\\s+expose a value named 'clash'"
+        ):
             GazetteerConfig.model_validate(data)
 
 

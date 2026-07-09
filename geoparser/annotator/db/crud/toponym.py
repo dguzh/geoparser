@@ -182,9 +182,7 @@ class ToponymRepository(BaseRepository):
                 return centroid.y, centroid.x  # lat, lon
 
             # Otherwise, transform to WGS84
-            transformer = Transformer.from_crs(
-                feature.crs, "EPSG:4326", always_xy=True
-            )
+            transformer = Transformer.from_crs(feature.crs, "EPSG:4326", always_xy=True)
             lon, lat = transformer.transform(centroid.x, centroid.y)
             return lat, lon
 

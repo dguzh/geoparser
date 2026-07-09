@@ -26,9 +26,7 @@ def build_compiler(
     config = GazetteerConfig.model_validate(config_data)
     catalog = {}
     for input_config in config.inputs:
-        rows = connection.execute(
-            f'DESCRIBE "{input_config.name}"'
-        ).fetchall()
+        rows = connection.execute(f'DESCRIBE "{input_config.name}"').fetchall()
         catalog[input_config.name] = [row[0] for row in rows]
     return config, compiler_for(config, catalog)
 
@@ -72,7 +70,12 @@ def run_names(
 
 def input_declaration(name: str) -> dict:
     """A tabular input declaration; the staged table is created in the test."""
-    return {"name": name, "path": f"{name}.csv", "file": f"{name}.csv", "delimiter": ","}
+    return {
+        "name": name,
+        "path": f"{name}.csv",
+        "file": f"{name}.csv",
+        "delimiter": ",",
+    }
 
 
 @pytest.fixture
@@ -92,8 +95,7 @@ class TestBasicProjection:
             "CREATE TABLE places (id INTEGER, name VARCHAR, population INTEGER)"
         )
         connection.execute(
-            "INSERT INTO places VALUES "
-            "(1, 'Paris', 2100000), (2, 'Berlin', 3600000)"
+            "INSERT INTO places VALUES " "(1, 'Paris', 2100000), (2, 'Berlin', 3600000)"
         )
 
     def config_data(self, **feature_overrides) -> dict:
@@ -237,9 +239,7 @@ class TestRelatedInputNames:
         """A separate names table keyed by identifier is first-class."""
         connection.execute("CREATE TABLE places (id INTEGER, name VARCHAR)")
         connection.execute("INSERT INTO places VALUES (1, 'Roma')")
-        connection.execute(
-            "CREATE TABLE alt_names (place_id INTEGER, alt VARCHAR)"
-        )
+        connection.execute("CREATE TABLE alt_names (place_id INTEGER, alt VARCHAR)")
         connection.execute(
             "INSERT INTO alt_names VALUES (1, 'Rome'), (1, 'Rom'), (99, 'Elsewhere')"
         )
@@ -563,9 +563,7 @@ class TestLookups:
                 "lookups": {
                     "admin": {
                         "from": "admins",
-                        "match": {
-                            "on": {"country_code || '.' || admin_code": "code"}
-                        },
+                        "match": {"on": {"country_code || '.' || admin_code": "code"}},
                         "values": {"admin_name": "label"},
                     }
                 },
@@ -640,9 +638,7 @@ class TestLookups:
         connection.execute(
             "INSERT INTO places VALUES (1, 'Inside', 0.5, 0.5), (2, 'Outside', 5, 5)"
         )
-        connection.execute(
-            "CREATE TABLE zones (zone_name VARCHAR, geometry GEOMETRY)"
-        )
+        connection.execute("CREATE TABLE zones (zone_name VARCHAR, geometry GEOMETRY)")
         connection.execute(
             "INSERT INTO zones VALUES "
             "('Unit Square', ST_GeomFromText('POLYGON((0 0, 1 0, 1 1, 0 1, 0 0))'))"
@@ -799,7 +795,7 @@ class TestQualifyExpression:
     def test_leaves_string_literals_alone(self):
         result = qualify_expression("code || '.code'", {"code": 'src."code"'})
 
-        assert result == 'src."code" || \'.code\''
+        assert result == "src.\"code\" || '.code'"
 
     def test_leaves_function_names_alone(self):
         result = qualify_expression("upper(upper)", {"upper": 'src."upper"'})

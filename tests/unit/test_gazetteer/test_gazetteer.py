@@ -74,9 +74,7 @@ class TestGazetteerSearch:
         """Partial search matches a subset of the query tokens."""
         make_artifact()
 
-        results = Gazetteer("testgaz").search(
-            "Paris Berlin", method="partial", tiers=3
-        )
+        results = Gazetteer("testgaz").search("Paris Berlin", method="partial", tiers=3)
 
         assert {feature.identifier for feature in results} == {"1", "2", "3"}
 
