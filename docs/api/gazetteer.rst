@@ -6,8 +6,7 @@ Gazetteer
    :undoc-members:
    :show-inheritance:
 
-.. automodule:: geoparser.gazetteer.installer.installer
+.. automodule:: geoparser.gazetteer.build.builder
    :members:
    :undoc-members:
    :show-inheritance:
-

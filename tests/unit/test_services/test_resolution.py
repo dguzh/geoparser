@@ -83,27 +83,24 @@ class TestResolutionServicePredict:
         mock_sentencetransformer_resolver,
         document_factory,
         reference_factory,
-        feature_factory,
     ):
         """Test that predict creates a resolution record marking reference as processed."""
         # Arrange
+        from unittest.mock import Mock
+
         document = document_factory(text="Test")
         reference = reference_factory(start=0, end=4, document_id=document.id)
         test_session.refresh(document)
-
-        # Create feature hierarchy for referent creation
-        feature = feature_factory(location_id_value="123456")
 
         mock_sentencetransformer_resolver.predict.return_value = [
             [("geonames", "123456")]
         ]
         service = ResolutionService(mock_sentencetransformer_resolver)
 
-        # Mock feature repository to return our created feature
-        with patch(
-            "geoparser.services.resolution.FeatureRepository.get_by_gazetteer_and_identifier"
-        ) as mock_get_feature:
-            mock_get_feature.return_value = feature
+        # Mock the gazetteer lookup validating the predicted feature
+        fake_feature = Mock(identifier="123456")
+        with patch("geoparser.services.resolution.Gazetteer") as mock_gazetteer:
+            mock_gazetteer.return_value.find.return_value = fake_feature
 
             # Act
             service.predict([document])
@@ -234,10 +231,11 @@ class TestResolutionServicePredict:
         mock_sentencetransformer_resolver,
         document_factory,
         reference_factory,
-        feature_factory,
     ):
         """Test that predict handles multiple documents correctly."""
         # Arrange
+        from unittest.mock import Mock
+
         doc1 = document_factory(text="New York")
         doc2 = document_factory(text="Paris")
         ref1 = reference_factory(start=0, end=8, document_id=doc1.id)
@@ -245,20 +243,16 @@ class TestResolutionServicePredict:
         test_session.refresh(doc1)
         test_session.refresh(doc2)
 
-        # Create feature hierarchy for referent creation
-        feature = feature_factory(location_id_value="123456")
-
         mock_sentencetransformer_resolver.predict.return_value = [
             [("geonames", "123456")],
             [("geonames", "123456")],
         ]
         service = ResolutionService(mock_sentencetransformer_resolver)
 
-        # Mock feature repository to return our created feature
-        with patch(
-            "geoparser.services.resolution.FeatureRepository.get_by_gazetteer_and_identifier"
-        ) as mock_get_feature:
-            mock_get_feature.return_value = feature
+        # Mock the gazetteer lookup validating the predicted features
+        fake_feature = Mock(identifier="123456")
+        with patch("geoparser.services.resolution.Gazetteer") as mock_gazetteer:
+            mock_gazetteer.return_value.find.return_value = fake_feature
 
             # Act
             service.predict([doc1, doc2])

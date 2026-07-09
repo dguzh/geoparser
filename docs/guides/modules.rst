@@ -277,7 +277,7 @@ Resolvers typically interact with gazetteers to find candidate locations. The li
                            key=lambda c: c.data.get('population', 0) or 0
                        )
                        doc_results.append(
-                           (self.gazetteer_name, best.location_id_value)
+                           (self.gazetteer_name, best.identifier)
                        )
                    else:
                        doc_results.append(None)

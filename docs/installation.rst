@@ -20,7 +20,7 @@ Install the Irchel Geoparser using pip:
 Installing Gazetteers
 ---------------------
 
-The library requires gazetteer data to resolve toponyms to geographic locations. Gazetteers are stored in a SQLite database in your system's application data directory. You can install gazetteers using a single command that downloads the source data and sets up the database automatically.
+The library requires gazetteer data to resolve toponyms to geographic locations. Each installed gazetteer is a single, self-contained SQLite file stored in your system's application data directory. You can install gazetteers using a single command that downloads the source data and builds the gazetteer automatically.
 
 .. note::
    The gazetteer CLI command was renamed from ``download`` to ``install``.
@@ -57,7 +57,7 @@ If you want to try geoparsing quickly, start with **GeoNames Cities**, a lightwe
 
          python -m geoparser install geonames
 
-      This command downloads the GeoNames data files, processes them, and creates the necessary database tables and indices. The process may take 20-40 minutes depending on your system.
+      This command downloads the GeoNames data files, processes them, and builds the gazetteer artifact with its search indices. The process may take a while depending on your system and network speed.
 
    .. tab:: SwissNames3D
 
@@ -72,18 +72,28 @@ If you want to try geoparsing quickly, start with **GeoNames Cities**, a lightwe
 
          python -m geoparser install swissnames3d
 
-      This command downloads the SwissNames3D data, processes it, and creates the database. The process typically completes within a few minutes.
+      This command downloads the SwissNames3D data, processes it, and builds the gazetteer artifact. The process typically completes within a few minutes.
 
-Database Location
------------------
+Managing Gazetteers
+-------------------
 
-All gazetteer data and project information is stored in a centralized SQLite database located in your system's user data directory:
+You can list installed gazetteers and remove ones you no longer need:
 
-- **Windows**: ``C:\Users\<Username>\AppData\Local\geoparser\geoparser.db``
-- **macOS**: ``~/Library/Application Support/geoparser/geoparser.db``
-- **Linux**: ``~/.local/share/geoparser/geoparser.db``
+.. code-block:: bash
 
-You can remove all data by deleting this database file. Note that this will remove all gazetteers and any projects you have created.
+   python -m geoparser list
+   python -m geoparser uninstall geonames-cities
+
+Data Locations
+--------------
+
+Gazetteers and project data are stored in your system's user data directory:
+
+- **Windows**: ``C:\Users\<Username>\AppData\Local\geoparser\``
+- **macOS**: ``~/Library/Application Support/geoparser/``
+- **Linux**: ``~/.local/share/geoparser/``
+
+Each gazetteer lives in its own SQLite file under the ``gazetteers/`` subdirectory (for example ``gazetteers/geonames.db``); removing one is as simple as deleting the file or running ``python -m geoparser uninstall <name>``. Project data (documents, references, resolutions) is stored separately in ``geoparser.db``, so reinstalling a gazetteer does not affect your projects.
 
 Next Steps
 ----------

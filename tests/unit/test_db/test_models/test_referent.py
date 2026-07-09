@@ -21,20 +21,18 @@ class TestReferentModel:
         test_session: Session,
         reference_factory,
         resolver_factory,
-        feature_factory,
     ):
         """Test that a Referent can be created with valid data."""
         # Arrange
         from geoparser.db.models import Referent
 
-        # Create feature hierarchy
-        feature = feature_factory()
         reference = reference_factory()
         resolver = resolver_factory(id="test_resolver")
 
         referent = Referent(
             reference_id=reference.id,
-            feature_id=feature.id,
+            gazetteer_name="andorranames",
+            feature_identifier="3041563",
             resolver_id=resolver.id,
         )
 
@@ -47,7 +45,8 @@ class TestReferentModel:
         assert referent.id is not None
         assert isinstance(referent.id, uuid.UUID)
         assert referent.reference_id == reference.id
-        assert referent.feature_id == feature.id
+        assert referent.gazetteer_name == "andorranames"
+        assert referent.feature_identifier == "3041563"
         assert referent.resolver_id == resolver.id
 
     def test_generates_uuid_automatically(
@@ -55,19 +54,19 @@ class TestReferentModel:
         test_session: Session,
         reference_factory,
         resolver_factory,
-        feature_factory,
     ):
         """Test that Referent automatically generates a UUID for id."""
         # Arrange
         from geoparser.db.models import Referent
 
-        # Create feature hierarchy
-        feature = feature_factory()
         reference = reference_factory()
         resolver = resolver_factory(id="test")
 
         referent = Referent(
-            reference_id=reference.id, feature_id=feature.id, resolver_id=resolver.id
+            reference_id=reference.id,
+            gazetteer_name="andorranames",
+            feature_identifier="3041563",
+            resolver_id=resolver.id,
         )
 
         # Act
@@ -83,7 +82,12 @@ class TestReferentModel:
         # Arrange
         from geoparser.db.models import Referent
 
-        referent = Referent(reference_id=uuid.uuid4(), feature_id=1, resolver_id="test")
+        referent = Referent(
+            reference_id=uuid.uuid4(),
+            gazetteer_name="andorranames",
+            feature_identifier="1",
+            resolver_id="test",
+        )
 
         # Assert
         assert hasattr(referent, "reference")
@@ -93,20 +97,38 @@ class TestReferentModel:
         # Arrange
         from geoparser.db.models import Referent
 
-        referent = Referent(reference_id=uuid.uuid4(), feature_id=1, resolver_id="test")
+        referent = Referent(
+            reference_id=uuid.uuid4(),
+            gazetteer_name="andorranames",
+            feature_identifier="1",
+            resolver_id="test",
+        )
 
         # Assert
         assert hasattr(referent, "resolver")
 
-    def test_has_feature_relationship(self, test_session: Session):
-        """Test that Referent has a relationship to feature."""
-        # Arrange
+    def test_feature_property_resolves_through_gazetteer(self, test_session: Session):
+        """Test that Referent.feature looks the feature up in its gazetteer."""
+        from unittest.mock import Mock, patch
+
         from geoparser.db.models import Referent
 
-        referent = Referent(reference_id=uuid.uuid4(), feature_id=1, resolver_id="test")
+        referent = Referent(
+            reference_id=uuid.uuid4(),
+            gazetteer_name="andorranames",
+            feature_identifier="3041563",
+            resolver_id="test",
+        )
+        fake_feature = Mock()
 
-        # Assert
-        assert hasattr(referent, "feature")
+        with patch("geoparser.gazetteer.gazetteer.Gazetteer") as mock_gazetteer:
+            mock_gazetteer.return_value.find.return_value = fake_feature
+
+            feature = referent.feature
+
+        mock_gazetteer.assert_called_once_with("andorranames")
+        mock_gazetteer.return_value.find.assert_called_once_with("3041563")
+        assert feature is fake_feature
 
 
 @pytest.mark.unit
@@ -117,19 +139,20 @@ class TestReferentCreate:
         """Test that ReferentCreate can be created with required fields."""
         # Arrange
         reference_id = uuid.uuid4()
-        feature_id = 123
         resolver_id = "test_resolver"
 
         # Act
         referent_create = ReferentCreate(
             reference_id=reference_id,
-            feature_id=feature_id,
+            gazetteer_name="andorranames",
+            feature_identifier="123",
             resolver_id=resolver_id,
         )
 
         # Assert
         assert referent_create.reference_id == reference_id
-        assert referent_create.feature_id == feature_id
+        assert referent_create.gazetteer_name == "andorranames"
+        assert referent_create.feature_identifier == "123"
         assert referent_create.resolver_id == resolver_id
 
 
@@ -147,14 +170,16 @@ class TestReferentUpdate:
         referent_update = ReferentUpdate(
             id=referent_id,
             reference_id=reference_id,
-            feature_id=456,
+            gazetteer_name="geonames",
+            feature_identifier="456",
             resolver_id="new_resolver",
         )
 
         # Assert
         assert referent_update.id == referent_id
         assert referent_update.reference_id == reference_id
-        assert referent_update.feature_id == 456
+        assert referent_update.gazetteer_name == "geonames"
+        assert referent_update.feature_identifier == "456"
         assert referent_update.resolver_id == "new_resolver"
 
     def test_allows_optional_fields(self):
@@ -168,5 +193,6 @@ class TestReferentUpdate:
         # Assert
         assert referent_update.id == referent_id
         assert referent_update.reference_id is None
-        assert referent_update.feature_id is None
+        assert referent_update.gazetteer_name is None
+        assert referent_update.feature_identifier is None
         assert referent_update.resolver_id is None

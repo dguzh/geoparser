@@ -21,7 +21,7 @@ from geoparser.gazetteer.gazetteer import Gazetteer
 
 if t.TYPE_CHECKING:
     from geoparser.annotator.db.models.document import AnnotatorDocument
-    from geoparser.db.models.feature import Feature
+    from geoparser.gazetteer.feature import Feature
 
 
 class ToponymRepository(BaseRepository):
@@ -46,12 +46,6 @@ class ToponymRepository(BaseRepository):
             "level2": "BEZIRK_NAME",
             "level3": "GEMEINDE_NAME",
         },
-    }
-
-    # Coordinate reference systems for each gazetteer
-    GAZETTEER_CRS = {
-        "geonames": "EPSG:4326",  # WGS84
-        "swissnames3d": "EPSG:2056",  # LV95 Swiss coordinate system
     }
 
     # Filter attributes for each gazetteer
@@ -91,11 +85,11 @@ class ToponymRepository(BaseRepository):
         location_data = feature.data
 
         if not location_data:
-            return feature.location_id_value
+            return feature.identifier
 
         # Get attribute mappings for this gazetteer
         if gazetteer_name not in cls.GAZETTEER_ATTRIBUTE_MAP:
-            return feature.location_id_value
+            return feature.identifier
 
         attr_map = cls.GAZETTEER_ATTRIBUTE_MAP[gazetteer_name]
 
@@ -129,7 +123,7 @@ class ToponymRepository(BaseRepository):
 
         description = " ".join(description_parts).strip()
 
-        return description if description else feature.location_id_value
+        return description if description else feature.identifier
 
     @classmethod
     def validate_overlap(
@@ -163,17 +157,15 @@ class ToponymRepository(BaseRepository):
         return sorted(toponyms, key=lambda x: x.start)
 
     @classmethod
-    def _get_wgs84_coordinates(
-        cls, feature: "Feature", gazetteer_name: str
-    ) -> tuple[float, float]:
+    def _get_wgs84_coordinates(cls, feature: "Feature") -> tuple[float, float]:
         """
         Extract WGS84 (lat, lon) coordinates from a feature's geometry.
 
-        Handles coordinate transformation if needed (e.g., Swiss coordinates to WGS84).
+        Gazetteer artifacts declare the CRS of their geometries; coordinates
+        are transformed to WGS84 when the artifact uses a different CRS.
 
         Args:
             feature: Feature object with geometry
-            gazetteer_name: Name of the gazetteer to determine source CRS
 
         Returns:
             Tuple of (latitude, longitude) in WGS84, or (None, None) if unavailable
@@ -185,15 +177,14 @@ class ToponymRepository(BaseRepository):
             # Get the centroid for point representation
             centroid = feature.geometry.centroid
 
-            # Get source CRS for this gazetteer
-            source_crs = cls.GAZETTEER_CRS.get(gazetteer_name, "EPSG:4326")
-
             # If already in WGS84, return as-is
-            if source_crs == "EPSG:4326":
+            if feature.crs == "EPSG:4326":
                 return centroid.y, centroid.x  # lat, lon
 
             # Otherwise, transform to WGS84
-            transformer = Transformer.from_crs(source_crs, "EPSG:4326", always_xy=True)
+            transformer = Transformer.from_crs(
+                feature.crs, "EPSG:4326", always_xy=True
+            )
             lon, lat = transformer.transform(centroid.x, centroid.y)
             return lat, lon
 
@@ -224,11 +215,11 @@ class ToponymRepository(BaseRepository):
             description = cls._generate_location_description(candidate, gazetteer_name)
 
             # Get coordinates from geometry (with CRS transformation if needed)
-            lat, lon = cls._get_wgs84_coordinates(candidate, gazetteer_name)
+            lat, lon = cls._get_wgs84_coordinates(candidate)
 
             candidate_descriptions.append(
                 {
-                    "loc_id": candidate.location_id_value,
+                    "loc_id": candidate.identifier,
                     "description": description,
                     "attributes": candidate.data,  # Include all attributes for filtering
                     "latitude": lat,
@@ -238,7 +229,7 @@ class ToponymRepository(BaseRepository):
 
         # Handle existing annotation if it's not in the candidate list
         existing_loc_id = toponym.loc_id
-        candidate_ids = [c.location_id_value for c in candidates]
+        candidate_ids = [c.identifier for c in candidates]
         append_existing_candidate = (
             bool(existing_loc_id) and existing_loc_id not in candidate_ids
         )
@@ -252,7 +243,7 @@ class ToponymRepository(BaseRepository):
                 )
 
                 # Get coordinates from geometry (with CRS transformation if needed)
-                lat, lon = cls._get_wgs84_coordinates(existing_feature, gazetteer_name)
+                lat, lon = cls._get_wgs84_coordinates(existing_feature)
 
                 existing_annotation = {
                     "loc_id": existing_loc_id,

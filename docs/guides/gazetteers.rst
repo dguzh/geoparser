@@ -10,9 +10,11 @@ Overview
 
 The Irchel Geoparser uses gazetteers as the authoritative source of geographic information for toponym resolution. A gazetteer stores information about places, including their names, types, administrative hierarchies, and coordinates. When you mention "Paris" in a text, the gazetteer contains entries for Paris, France; Paris, Texas; Paris, Ontario; and many other places named Paris around the world. Each entry includes not just the name but also attributes like coordinates, population, feature type, and administrative hierarchy that help distinguish one Paris from another.
 
-The library's architecture separates the gazetteer system from the processing modules. Resolvers don't access gazetteers directly through SQL queries or file reads—instead, they use the ``Gazetteer`` class interface which provides standardized search methods. This abstraction allows gazetteers to have different internal schemas and still be used interchangeably by resolvers.
+The library's architecture separates the gazetteer system from the processing modules. Resolvers don't access gazetteers directly through SQL queries or file reads—instead, they use the ``Gazetteer`` class interface which provides standardized search methods.
 
-Gazetteers are stored in a centralized SQLite database. Spatial relationships (such as which administrative region contains a place) are precomputed at install time using GeoPandas, so no spatial database extension is required. This database can contain multiple gazetteers simultaneously, each with its own tables and indices. The gazetteer installer handles all the complexity of downloading source data, transforming it into the right format, creating database schemas, and building indices.
+Every installed gazetteer is a single, self-contained SQLite file (an *artifact*) with a fixed schema shared by all gazetteers: a ``feature`` table (identifier, entity type, attributes as JSON, geometry as WKB), a ``name`` table with full-text and phonetic indexes for search, and a small ``metadata`` table. Artifacts are built from declarative YAML configurations by a build pipeline that downloads the source files, stages them in a transient analytical database (DuckDB), and projects them into the canonical schema—including joins, spatial joins, and deduplication. The source files and staging data are discarded after the build; the artifact is the only thing installed, and it is never modified afterwards.
+
+Because artifacts share one schema, all gazetteers behave identically at query time regardless of how heterogeneous their source data is. Geometries are stored in a single coordinate reference system per gazetteer (EPSG:4326 by default); any reprojection happens once, at build time.
 
 Built-in Gazetteers
 -------------------
@@ -24,7 +26,7 @@ GeoNames Cities
 
 GeoNames Cities is a lightweight alternative to the full GeoNames gazetteer, designed as a quick way to start experimenting with geoparsing. It is built from GeoNames' ``cities500`` dataset (cities with a population of at least 500), supplemented by country and first- and second-level administrative names from GeoNames lookup files.
 
-Only city features include geographic data: coordinates, geometry, and the full set of place attributes. Countries, admin1 divisions, and admin2 divisions are included as searchable features, but they carry **no geographic data**.
+Only city features include geographic data: coordinates and the full set of place attributes. Countries, admin1 divisions, and admin2 divisions are included as searchable features, but they carry **no geographic data**.
 
 To install GeoNames Cities:
 
@@ -47,12 +49,12 @@ To install GeoNames:
 
    python -m geoparser install geonames
 
-The installation process can take up to 20-40 minutes depending on your system.
+The installation process can take a while depending on your system and network speed.
 
 SwissNames3D
 ~~~~~~~~~~~~
 
-SwissNames3D is a high-quality gazetteer specifically for Switzerland, provided by Swisstopo, the Swiss Federal Office of Topography. It contains detailed information about geographic features within Switzerland, including precise 3D coordinates, building addresses, and fine-grained feature classifications. The gazetteer also maintains relationships with administrative boundaries, allowing features to be associated with municipalities, districts, and cantons.
+SwissNames3D is a high-quality gazetteer specifically for Switzerland, provided by Swisstopo, the Swiss Federal Office of Topography. It contains detailed information about geographic features within Switzerland, including fine-grained feature classifications and full geometries (points, lines, and polygons). Features are associated with their administrative hierarchy—municipalities, districts, and cantons—via spatial joins computed at build time.
 
 To install SwissNames3D:
 
@@ -61,6 +63,23 @@ To install SwissNames3D:
    python -m geoparser install swissnames3d
 
 The installation process typically completes within a few minutes.
+
+Managing Installed Gazetteers
+-----------------------------
+
+Because each gazetteer is a single file, managing them is simple. List the installed gazetteers and their sizes:
+
+.. code-block:: bash
+
+   python -m geoparser list
+
+Remove a gazetteer you no longer need:
+
+.. code-block:: bash
+
+   python -m geoparser uninstall geonames-cities
+
+Artifacts are stored in your system's user data directory (for example ``~/.local/share/geoparser/gazetteers/`` on Linux); the ``GEOPARSER_GAZETTEERS_DIR`` environment variable overrides this location.
 
 Querying Gazetteers
 -------------------
@@ -78,7 +97,7 @@ Create a gazetteer instance by specifying its name:
 
    gazetteer = Gazetteer("geonames")
 
-The gazetteer name must correspond to an installed gazetteer in the database. If the gazetteer isn't installed, an error will occur when you try to query it.
+The gazetteer name must correspond to an installed gazetteer. If the gazetteer isn't installed, an error is raised immediately.
 
 Searching for Features
 ~~~~~~~~~~~~~~~~~~~~~~
@@ -154,17 +173,23 @@ The ``search()`` and ``find()`` methods return ``Feature`` objects that represen
    if features:
        feature = features[0]
        
-       # The feature's unique identifier value
-       print(f"ID: {feature.location_id_value}")
+       # The feature's stable identifier
+       print(f"ID: {feature.identifier}")
+       
+       # The feature's entity type
+       print(f"Type: {feature.type}")
        
        # The feature's attributes as a dictionary
        print(f"Data: {feature.data}")
+       
+       # The feature's searchable names
+       print(f"Names: {feature.names}")
        
        # The feature's geometry as a Shapely object
        print(f"Geometry: {feature.geometry}")
        print(f"Coordinates: ({feature.geometry.x}, {feature.geometry.y})")
 
-The ``location_id_value`` property contains the identifier that can be used to reference this feature, for example when creating referent annotations. The ``data`` property is a dictionary containing all the attributes from the gazetteer for this feature. The ``geometry`` property returns a Shapely geometry object representing the feature's spatial extent. Most gazetteers use Point geometries for locations, but this can also be polygons or other geometry types depending on the gazetteer.
+The ``identifier`` property contains the identifier that can be used to reference this feature, for example when creating referent annotations. The ``type`` property names the feature's entity type as defined by the gazetteer configuration (for example ``place`` in GeoNames, or ``city`` / ``country`` / ``admin1`` in GeoNames Cities). The ``data`` property is a dictionary containing all the attributes stored for this feature; different entity types can have entirely different attribute sets. The ``geometry`` property returns a Shapely geometry object in the gazetteer's coordinate reference system (available as ``feature.crs``). Most gazetteers use Point geometries for locations, but this can also be lines, polygons, or multi-part geometries depending on the gazetteer.
 
 The attributes available in the ``data`` dictionary depend on which gazetteer you're using. For GeoNames, common attributes include:
 
@@ -184,248 +209,258 @@ For SwissNames3D, attributes include:
 - ``KANTON_NAME``: Canton name
 - ``HOEHE``: Elevation in meters
 
-The exact attribute schema is defined in the gazetteer's configuration file and reflected in the database schema.
+The exact attributes are defined per entity type in the gazetteer's configuration file.
 
 Custom Gazetteer Configuration
 -------------------------------
 
-The library supports adding custom gazetteers through YAML configuration files. This capability allows you to integrate specialized geographic databases, regional data sources, or proprietary location data without modifying the core library code. A gazetteer configuration describes data sources, their formats, how to process and transform the data, and how features should be identified and named.
+The library supports adding custom gazetteers through YAML configuration files. This capability allows you to integrate specialized geographic databases, regional data sources, or proprietary location data without modifying the core library code.
+
+A configuration describes how source files *project* into the canonical feature model. It is purely declarative—there is no user-provided transformation code; the only embedded SQL allowed are small scalar expressions (string manipulation, arithmetic, ``CASE`` expressions) where a plain column reference is not enough.
 
 Configuration Structure
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-A gazetteer configuration file has the following top-level structure:
+A gazetteer configuration file has three top-level concepts:
 
 .. code-block:: yaml
 
-   name: my_gazetteer  # Unique identifier for the gazetteer
-   sources:            # List of data sources to process
-     - name: source1
-       # ... source configuration ...
-     - name: source2
-       # ... source configuration ...
+   name: my_gazetteer   # Unique identifier for the gazetteer
+   crs: EPSG:4326       # CRS of the artifact's geometries (optional, default EPSG:4326)
 
-Each source describes a single data file or download that will be loaded into the database. Sources can be combined through joins to create a unified view of geographic features. Not all sources need to provide features directly—some sources can serve as auxiliary data that enrich other sources through joins (such as administrative boundary data or alternate name lookups).
-
-Source Types and Downloads
-~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-Sources can be either tabular (CSV, TSV) or spatial (shapefiles, GeoPackage). For tabular sources, specify the separator character. For URLs, the installer automatically handles ZIP archives:
-
-.. code-block:: yaml
-
-   sources:
+   inputs:              # Files to download/stage (transient; discarded after the build)
      - name: places
-       url: https://example.com/data.zip  # Downloaded and extracted
-       file: places.csv                   # File within the ZIP
-       kind: tabular
-       separator: ","
+       # ... input configuration ...
 
-For local files, provide both the ``path`` (directory containing the file) and ``file`` (filename):
+   lookups:             # Named, reusable enrichments (joins against other inputs)
+     country:
+       # ... lookup configuration ...
+
+   features:            # One block per entity type; each block produces features
+     - type: place
+       # ... feature configuration ...
+
+``inputs`` declare the source files. ``lookups`` define reusable many-to-one joins that enrich feature rows with values from other inputs (like administrative names). ``features`` blocks describe how rows of an input become searchable features—their identifier, names, geometry, and attributes. Inputs that only serve as join targets simply aren't referenced by any feature block.
+
+Inputs
+~~~~~~
+
+Each input is a file to acquire and stage. Inputs are either **tabular** (delimited text; set ``delimiter``) or **spatial** (shapefile, GeoPackage, GeoJSON, and other GDAL-readable formats). Remote files are downloaded and cached; ZIP archives are extracted automatically, with ``file`` naming the target file inside the archive:
 
 .. code-block:: yaml
 
-   sources:
+   inputs:
+     - name: places
+       url: https://example.com/data.zip   # Downloaded and extracted
+       file: places.csv                    # File within the ZIP
+       delimiter: ","
+       columns:                            # For headerless files: declare the columns
+         - { name: id, type: integer }
+         - { name: name }                  # type defaults to text
+         - { name: lat, type: real }
+         - { name: lon, type: real }
+
+For local files, provide a ``path`` instead of a ``url`` (relative paths are resolved against the config file's location):
+
+.. code-block:: yaml
+
+   inputs:
      - name: local_data
-       path: /path/to/data/directory
-       file: data.csv
-       kind: tabular
-       separator: "\t"
+       path: data/places.tsv
+       file: places.tsv
+       delimiter: "\t"
+       quote: ""          # Disable quote handling for raw TSV files
+       skip_rows: 2       # Skip leading comment lines
 
-Defining Attributes
-~~~~~~~~~~~~~~~~~~~
-
-Each source must declare its attributes in two categories: original attributes that exist in the source file, and derived attributes computed from SQL expressions.
-
-Original attributes match columns in the source file. Specify their data types (text, integer, real, geometry) and optionally mark them for indexing:
+Spatial inputs need no ``delimiter`` or ``columns``—their schema comes from the file itself, and their geometry is always exposed under the column name ``geometry``. Declare the source coordinate system with ``crs`` if it differs from the gazetteer CRS:
 
 .. code-block:: yaml
 
-   attributes:
-     original:
-       - name: geonameid
-         type: integer
-         index: true         # Create database index
-       - name: name
-         type: text
-       - name: latitude
-         type: real
-       - name: longitude
-         type: real
-       - name: population
-         type: integer
+   inputs:
+     - name: municipalities
+       url: https://example.com/boundaries.zip
+       file: municipalities.shp
+       crs: EPSG:2056     # Source CRS; reprojected to the gazetteer CRS at build time
 
-Derived attributes are computed using SQL expressions. This is useful for constructing geometries from coordinates, concatenating fields, or applying transformations:
+Lookups
+~~~~~~~
+
+Lookups are named, reusable enrichments: a lookup left-joins feature rows against another input and exposes selected columns under new names. Define a lookup once and reference it from any number of feature blocks.
+
+An **attribute lookup** matches on column equality. The left side of each ``on`` pair is a column of the feature's input (or a scalar expression over its columns); the right side is a column of the lookup input:
 
 .. code-block:: yaml
 
-   attributes:
-     derived:
-       - name: geometry
-         type: geometry
-         expression: "'POINT(' || longitude || ' ' || latitude || ')'"
-         index: true
-         srid: 4326           # Spatial reference system
-       - name: full_code
-         type: text
-         expression: "country_code || '.' || admin_code"
-         index: true
-       - name: name_normalized
-         type: text
-         expression: "lower(trim(name))"
+   lookups:
+     country:
+       from: countryInfo
+       match: { on: { country_code: ISO } }
+       values: { country_name: Country }      # exposes "country_name"
 
-Creating Views with Joins
-~~~~~~~~~~~~~~~~~~~~~~~~~~
+     admin1:
+       from: admin1CodesASCII
+       match: { on: { "country_code || '.' || admin1_code": code } }   # expression key
+       values: { admin1_name: name }
 
-If you have multiple sources, you need to define a view that specifies which columns to include in the final gazetteer and how to join the sources together. The view section lists the columns to select and the join conditions:
+A **spatial lookup** matches the feature's geometry against the lookup input's geometry. The supported predicates are ``within``, ``intersects``, and ``contains``; ``using: centroid`` reduces the feature geometry to its centroid before matching (useful for lines and polygons). Coordinate systems are aligned automatically:
 
 .. code-block:: yaml
 
-   view:
-     select:
-       - column: places.geonameid    # source.column to include
-       - column: places.name
-       - column: places.latitude
-       - column: places.longitude
-       - column: admin_names.name     # From a different source
-         alias: admin_name            # Rename column in view
-       - column: places.geometry
-     join:
-       - method: left join            # Join method
-         condition:
-           type: attribute            # attribute | spatial
-           predicate: equals          # equals
-           left:
-             column: places.admin_code    # source.column reference
-           right:
-             column: admin_names.code
+   lookups:
+     in_gemeinde:
+       from: gemeinde
+       match: { spatial: within, using: centroid }
+       values: { GEMEINDE_NAME: NAME, BEZIRKSNUM: BEZIRKSNUM }
 
-Both a ``select`` item and a join operand reference a column with a single ``source.column`` string. A join ``condition`` always has the same shape: a ``type`` (``attribute`` or ``spatial``), a ``predicate``, and ``left``/``right`` operands. The joined source is inferred from the right operand, so it does not need to be repeated. An ``attribute`` condition produces a plain SQL join (currently the ``equals`` predicate), enriching your main features table with data from auxiliary tables.
-
-Spatial Joins
-~~~~~~~~~~~~~
-
-For determining spatial relationships (e.g., which administrative region contains each feature), use a ``spatial`` condition with a spatial ``predicate``. Spatial joins are precomputed at install time with GeoPandas, so no spatial database extension is needed:
+Lookups can **chain**: a later lookup can match on a value exposed by an earlier one. This expresses multi-level hierarchies (place → municipality → district → canton) without repeating join logic:
 
 .. code-block:: yaml
 
-   join:
-     - method: left join
-       condition:
-         type: spatial                # attribute | spatial
-         predicate: within            # within | intersects | contains
-         left:
-           column: places.geometry    # geometry source.column reference
-         right:
-           column: municipalities.geometry
+   lookups:
+     in_bezirk:
+       from: bezirk
+       match: { on: { BEZIRKSNUM: BEZIRKSNUM } }   # BEZIRKSNUM comes from in_gemeinde
+       values: { BEZIRK_NAME: NAME, KANTONSNUM: KANTONSNUM }
 
-This joins each place with the municipality whose boundary contains it. An operand may optionally apply a geometry ``transform`` (currently ``centroid``) before the predicate is evaluated, which is useful when matching lines or polygons to the region that contains their centroid:
+Feature Blocks
+~~~~~~~~~~~~~~
 
-.. code-block:: yaml
-
-   join:
-     - method: left join
-       condition:
-         type: spatial
-         predicate: within
-         left:
-           column: roads.geometry
-           transform: centroid
-         right:
-           column: municipalities.geometry
-
-Each geometry column must declare an ``srid``; if the two sides use different reference systems, geometries are reprojected automatically before the join. Note that spatial joins can be computationally expensive for large datasets.
-
-Defining Features
-~~~~~~~~~~~~~~~~~
-
-The final step is specifying how features are identified and named. The identifier column(s) provide unique IDs for features, while name columns define searchable names. Features are extracted from the source's own table, so every column is referenced as ``source.column`` pointing at that source:
+Each ``features`` block projects one input into features of one entity type. A gazetteer can define any number of entity types, each with its own attribute set—there is no shared schema to pad:
 
 .. code-block:: yaml
 
    features:
-     identifier:
-       - column: places.geonameid     # source.column identifier
-     names:
-       - column: places.name          # Main name
-       - column: places.asciiname     # ASCII variant
-       - column: places.alternatenames  # Multiple names in one column
-         separator: ","               # Split on commas
+     - type: place
+       from: places            # The input providing the rows
+       identifier: id          # Column (or expression) with the stable identifier
+       names:
+         - column: name
+       geometry:
+         point: { lon: lon, lat: lat }
+       lookups: [country, admin1]
+       attributes:
+         - name                # Shorthand: attribute "name" from column "name"
+         - population
+         - country_name        # Values exposed by lookups work like columns
+         - admin1_name
 
-Both identifiers and names wrap a ``column`` reference; a name additionally accepts an optional ``separator``. Name columns with separators are split into individual names during registration, allowing a single feature to be found under multiple name variants.
+**Names** define what the feature can be found by. A feature can have any number of names, from its own columns, from expressions, from multi-value columns (``split``), or from a separate one-to-many names table (``from``/``key``):
+
+.. code-block:: yaml
+
+   names:
+     - column: name
+     - expression: "CASE WHEN instr(name, '(') > 0 THEN trim(substr(name, 1, instr(name, '(') - 1)) ELSE name END"
+     - column: alternatenames
+       split: ","                        # One name per comma-separated value
+     - from: alternate_names             # A related input with one name per row
+       key: place_id                     # Column of that input holding the feature identifier
+       column: alternate_name
+
+**Geometry** is either a geometry ``column`` (for spatial inputs) or a ``point`` built from coordinate columns. A per-feature ``crs`` declares the coordinate system of the source values; geometries are reprojected to the gazetteer CRS at build time:
+
+.. code-block:: yaml
+
+   geometry: { column: geometry, crs: EPSG:2056 }
+   # or
+   geometry: { point: { lon: longitude, lat: latitude } }
+
+**Attributes** list exactly what goes into the feature's ``data`` dictionary. Each entry is a column name (string shorthand), a renamed column, or a scalar expression:
+
+.. code-block:: yaml
+
+   attributes:
+     - population
+     - { name: KANTON_NAME, column: NAME }         # Renamed
+     - { name: name_upper, expression: "upper(name)" }
+
+Handling Duplicate Identifiers
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Some datasets contain multiple rows per identifier (repeated records, or multi-part geometries split across rows). Rows sharing an identifier are always **merged into a single feature**, under an explicit, configurable policy:
+
+.. code-block:: yaml
+
+   features:
+     - type: named_area
+       from: ply
+       identifier: UUID
+       merge:
+         geometry: union        # first (default) | union: combine into a multi-part geometry
+         attributes: first      # first (default) | min | max: block-wide default
+       names:
+         - column: NAME         # Names are always collected across duplicate rows
+       attributes:
+         - OBJEKTART
+         - { name: EINWOHNERK, merge: max }   # Per-attribute override
+
+Names are always collected across all duplicate rows. Geometries either keep the first row's geometry or are unioned into a multi-part geometry. Attribute values keep the first row's value by default, with ``min``/``max`` available per attribute or as a block-wide default.
+
+Identifiers must be unique across the entire gazetteer. If two feature blocks produce the same identifier, the build fails with a clear error; disambiguate with an expression (for example ``"'city:' || id"``) or merge the blocks.
 
 Complete Example
 ~~~~~~~~~~~~~~~~
 
-Here's a complete configuration demonstrating both tabular and spatial sources combined with a spatial join:
+Here's a complete configuration combining a tabular place file, an attribute lookup, and a spatial lookup:
 
 .. code-block:: yaml
 
    name: my_gazetteer
-   sources:
-     # Main tabular source with point locations and view
-     - name: places
-       url: https://example.com/places.csv
-       file: places.csv
-       kind: tabular
-       separator: ","
-       attributes:
-         original:
-           - name: id
-             type: integer
-             index: true
-           - name: name
-             type: text
-           - name: lat
-             type: real
-           - name: lon
-             type: real
-         derived:
-           - name: geometry
-             type: geometry
-             expression: "'POINT(' || lon || ' ' || lat || ')'"
-             index: true
-             srid: 4326
-       view:
-         select:
-           - column: places.id
-           - column: places.name
-           - column: places.lat
-           - column: places.lon
-           - column: regions.region_name
-           - column: places.geometry
-         join:
-          - method: left join
-            condition:
-              type: spatial
-              predicate: within
-              left:
-                column: places.geometry
-              right:
-                column: regions.geometry
-       features:
-         identifier:
-           - column: places.id
-         names:
-           - column: places.name
-     
-     # Auxiliary spatial source with administrative boundaries
-     - name: regions
-       url: https://example.com/regions.zip
-       file: regions.shp
-       kind: spatial
-       attributes:
-         original:
-           - name: region_id
-             type: integer
-           - name: region_name
-             type: text
-           - name: geometry
-             type: geometry
-             index: true
-             srid: 4326
+   crs: EPSG:4326
 
-This example shows how tabular place data can be enriched with regional information from a spatial data source through a spatial join. The view is defined on the source that provides features (places), while the regions source serves as auxiliary data. For more comprehensive examples, refer to the built-in gazetteer configurations on GitHub: `geonames.yaml <https://github.com/dguzh/geoparser/blob/main/geoparser/gazetteer/configs/geonames.yaml>`_ and `swissnames3d.yaml <https://github.com/dguzh/geoparser/blob/main/geoparser/gazetteer/configs/swissnames3d.yaml>`_.
+   inputs:
+     - name: places
+       url: https://example.com/places.zip
+       file: places.csv
+       delimiter: ","
+       columns:
+         - { name: id, type: integer }
+         - { name: name }
+         - { name: alt_names }
+         - { name: region_code }
+         - { name: lat, type: real }
+         - { name: lon, type: real }
+
+     - name: regions
+       url: https://example.com/regions.csv
+       file: regions.csv
+       delimiter: ","
+       columns:
+         - { name: code }
+         - { name: label }
+
+     - name: protected_areas
+       url: https://example.com/areas.zip
+       file: areas.shp
+       crs: EPSG:3857
+
+   lookups:
+     region:
+       from: regions
+       match: { on: { region_code: code } }
+       values: { region_name: label }
+     protected:
+       from: protected_areas
+       match: { spatial: within }
+       values: { protected_area: AREA_NAME }
+
+   features:
+     - type: place
+       from: places
+       identifier: id
+       names:
+         - column: name
+         - column: alt_names
+           split: ","
+       geometry:
+         point: { lon: lon, lat: lat }
+       lookups: [region, protected]
+       attributes:
+         - name
+         - region_name
+         - protected_area
+
+For real-world examples, refer to the built-in gazetteer configurations on GitHub: `geonames.yaml <https://github.com/dguzh/geoparser/blob/main/geoparser/gazetteer/configs/geonames.yaml>`_, `geonames-cities.yaml <https://github.com/dguzh/geoparser/blob/main/geoparser/gazetteer/configs/geonames-cities.yaml>`_ (multiple entity types), and `swissnames3d.yaml <https://github.com/dguzh/geoparser/blob/main/geoparser/gazetteer/configs/swissnames3d.yaml>`_ (spatial lookups, duplicate-identifier merging).
 
 Installing Custom Gazetteers
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -436,7 +471,10 @@ To install a custom gazetteer, provide the path to your configuration file:
 
    python -m geoparser install path/to/my_gazetteer.yaml
 
-The installer validates the configuration, downloads or locates the specified files, creates database tables according to the attribute specifications, loads the data, applies transformations and derivations, creates indices, and registers the gazetteer so it can be queried through the standard interface.
+The build validates the configuration, downloads or locates the specified files, stages them, runs the projections, and writes the finished artifact. If anything is wrong with the configuration—an unknown column, a broken lookup reference, colliding identifiers—the build stops with a descriptive error and nothing is installed. A successful build atomically replaces any previously installed artifact of the same name.
+
+.. note::
+   Building gazetteers with geometries requires DuckDB's spatial extension, which is downloaded automatically on first use. If you build gazetteers in an offline environment, run one spatial build while online first so the extension is cached.
 
 Next Steps
 ----------
@@ -448,4 +486,3 @@ Now that you understand gazetteers, you can explore:
 - :doc:`projects` - Use projects to organize work with different gazetteers
 
 For complete API documentation of gazetteer classes, see the :doc:`../api/gazetteer` reference.
-

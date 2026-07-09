@@ -1,21 +1,26 @@
+"""
+Public gazetteer query interface.
+
+A Gazetteer wraps an installed artifact (a self-contained, read-only SQLite
+file) and exposes name search and identifier lookup over its features.
+"""
+
 from __future__ import annotations
 
 import re
-from typing import List
+from typing import List, Optional
 
-from geoparser.db.crud.feature import FeatureRepository
-from geoparser.db.crud.gazetteer import GazetteerRepository
-from geoparser.db.db import create_db_and_tables, get_session
-from geoparser.db.models.feature import Feature
+from geoparser.gazetteer.artifact import GazetteerArtifact, artifact_path
+from geoparser.gazetteer.feature import Feature
 
 
 class Gazetteer:
     """
     A gazetteer interface for querying geographic features.
 
-    This class provides access to gazetteer data stored in the local database,
-    allowing retrieval of candidate features for name matching using different
-    search strategies: exact, partial, and fuzzy matching.
+    This class provides access to an installed gazetteer artifact, allowing
+    retrieval of candidate features for name matching using different search
+    strategies: exact, phrase, partial, and fuzzy matching.
     """
 
     def __init__(self, gazetteer_name: str):
@@ -30,14 +35,16 @@ class Gazetteer:
                 uninstalled gazetteer would silently return no results, so we
                 fail here instead of letting that happen unnoticed.
         """
-        create_db_and_tables()
-
-        with get_session() as session:
-            gazetteer_record = GazetteerRepository.get_by_name(session, gazetteer_name)
-            if gazetteer_record is None or gazetteer_record.installed_at is None:
-                raise ValueError(f"Gazetteer '{gazetteer_name}' is not installed.")
-
+        path = artifact_path(gazetteer_name)
+        if not path.exists():
+            raise ValueError(f"Gazetteer '{gazetteer_name}' is not installed.")
         self.gazetteer_name = gazetteer_name
+        self._artifact = GazetteerArtifact(path)
+
+    @property
+    def crs(self) -> str:
+        """Coordinate reference system of the gazetteer's geometries."""
+        return self._artifact.crs
 
     def search(
         self, name: str, method: str = "exact", limit: int = 10000, tiers: int = 1
@@ -49,7 +56,8 @@ class Gazetteer:
             name: Name string to search for
             method: Search method to use ("exact", "phrase", "partial", "fuzzy")
             limit: Maximum number of results to return (default: 10000)
-            tiers: Number of rank tiers to include in results (default: 1, ignored for exact method)
+            tiers: Number of rank tiers to include in results (default: 1,
+                ignored for exact method)
 
         Returns:
             List of Feature objects matching the search criteria
@@ -59,30 +67,28 @@ class Gazetteer:
         """
         # Remove quotes and trim whitespace
         normalized_name = re.sub(r'"', "", name).strip()
+        if not normalized_name:
+            return []
 
-        # Map method names to repository functions
         method_map = {
-            "exact": lambda session: FeatureRepository.get_by_gazetteer_and_name_exact(
-                session, self.gazetteer_name, normalized_name, limit
+            "exact": lambda: self._artifact.search_exact(normalized_name, limit),
+            "phrase": lambda: self._artifact.search_phrase(
+                normalized_name, limit, tiers
             ),
-            "phrase": lambda session: FeatureRepository.get_by_gazetteer_and_name_phrase(
-                session, self.gazetteer_name, normalized_name, limit, tiers
+            "partial": lambda: self._artifact.search_partial(
+                normalized_name, limit, tiers
             ),
-            "partial": lambda session: FeatureRepository.get_by_gazetteer_and_name_partial(
-                session, self.gazetteer_name, normalized_name, limit, tiers
-            ),
-            "fuzzy": lambda session: FeatureRepository.get_by_gazetteer_and_name_fuzzy(
-                session, self.gazetteer_name, normalized_name, limit, tiers
+            "fuzzy": lambda: self._artifact.search_fuzzy(
+                normalized_name, limit, tiers
             ),
         }
 
         if method not in method_map:
             raise ValueError(f"Unknown search method: {method}")
 
-        with get_session() as session:
-            return method_map[method](session)
+        return method_map[method]()
 
-    def find(self, identifier: str) -> Feature | None:
+    def find(self, identifier: str) -> Optional[Feature]:
         """
         Find a feature by its identifier.
 
@@ -92,7 +98,4 @@ class Gazetteer:
         Returns:
             Feature object if found, None otherwise
         """
-        with get_session() as session:
-            return FeatureRepository.get_by_gazetteer_and_identifier(
-                session, self.gazetteer_name, identifier
-            )
+        return self._artifact.find(identifier)
