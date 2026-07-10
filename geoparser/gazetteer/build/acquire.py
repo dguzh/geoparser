@@ -13,7 +13,7 @@ from typing import Optional
 
 import requests
 
-from geoparser.gazetteer.build.progress import DownloadBar
+from geoparser.gazetteer.build.progress import item
 from geoparser.gazetteer.config import InputConfig
 
 # Network request timeout in seconds
@@ -96,8 +96,8 @@ class Acquirer:
             total_size = int(response.headers.get("content-length", 0))
 
             with open(download_path, "wb") as output_file:
-                with DownloadBar(
-                    total_size, f"Downloading {download_path.name}"
+                with item(
+                    f"Downloading {download_path.name}", total=total_size or None
                 ) as progress_bar:
                     for chunk in response.iter_content(chunk_size=DOWNLOAD_CHUNK_SIZE):
                         if chunk:
@@ -163,8 +163,8 @@ class Acquirer:
 
         with zipfile.ZipFile(archive_path, "r") as zip_ref:
             total_size = sum(info.file_size for info in zip_ref.infolist())
-            with DownloadBar(
-                total_size, f"Extracting {archive_path.name}"
+            with item(
+                f"Extracting {archive_path.name}", total=total_size or None
             ) as progress_bar:
                 for zip_info in zip_ref.infolist():
                     zip_ref.extract(zip_info, path=extraction_dir)

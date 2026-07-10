@@ -14,6 +14,7 @@ from pathlib import Path
 import duckdb
 
 from geoparser.gazetteer import artifact
+from geoparser.gazetteer.build.progress import advance, item
 from geoparser.gazetteer.config import GazetteerConfig
 
 # Number of rows copied per batch from DuckDB to SQLite
@@ -101,20 +102,24 @@ def emit(
     Returns:
         Tuple of (feature count, name count)
     """
-    feature_count = copy_rows(
-        duckdb_connection,
-        sqlite_connection,
-        "SELECT id, identifier, type, attributes, geometry "
-        "FROM _features_final ORDER BY id",
-        "INSERT INTO feature (id, identifier, type, attributes, geometry) "
-        "VALUES (?, ?, ?, ?, ?)",
-    )
-    name_count = copy_rows(
-        duckdb_connection,
-        sqlite_connection,
-        "SELECT feature_id, text FROM _names_final ORDER BY feature_id, text",
-        "INSERT INTO name (feature_id, text) VALUES (?, ?)",
-    )
+    with item("Writing features"):
+        feature_count = copy_rows(
+            duckdb_connection,
+            sqlite_connection,
+            "SELECT id, identifier, type, attributes, geometry "
+            "FROM _features_final ORDER BY id",
+            "INSERT INTO feature (id, identifier, type, attributes, geometry) "
+            "VALUES (?, ?, ?, ?, ?)",
+        )
+    advance()
+    with item("Writing names"):
+        name_count = copy_rows(
+            duckdb_connection,
+            sqlite_connection,
+            "SELECT feature_id, text FROM _names_final ORDER BY feature_id, text",
+            "INSERT INTO name (feature_id, text) VALUES (?, ?)",
+        )
+    advance()
     return feature_count, name_count
 
 
@@ -136,8 +141,10 @@ def finalize(
     artifact.register_functions(sqlite_connection)
 
     sqlite_connection.execute("BEGIN")
-    for statement in artifact.SEARCH_SCHEMA:
-        sqlite_connection.execute(statement)
+    with item("Building indexes"):
+        for statement in artifact.SEARCH_SCHEMA:
+            sqlite_connection.execute(statement)
+    advance()
 
     metadata = {
         "schema_version": artifact.SCHEMA_VERSION,
@@ -147,22 +154,30 @@ def finalize(
         "feature_count": str(feature_count),
         "name_count": str(name_count),
     }
-    sqlite_connection.executemany(
-        "INSERT INTO metadata (key, value) VALUES (?, ?)",
-        list(metadata.items()),
-    )
-    sqlite_connection.execute("COMMIT")
-
-    # Sanity check: the emitted counts must match what is actually stored
-    stored_features = sqlite_connection.execute(
-        "SELECT count(*) FROM feature"
-    ).fetchone()[0]
-    stored_names = sqlite_connection.execute("SELECT count(*) FROM name").fetchone()[0]
-    if stored_features != feature_count or stored_names != name_count:
-        raise RuntimeError(
-            f"Artifact integrity check failed: expected {feature_count} features "
-            f"and {name_count} names, found {stored_features} and {stored_names}"
+    with item("Writing metadata"):
+        sqlite_connection.executemany(
+            "INSERT INTO metadata (key, value) VALUES (?, ?)",
+            list(metadata.items()),
         )
+        sqlite_connection.execute("COMMIT")
+    advance()
 
-    sqlite_connection.execute("ANALYZE")
-    sqlite_connection.execute("VACUUM")
+    with item("Verifying integrity"):
+        # The emitted counts must match what is actually stored
+        stored_features = sqlite_connection.execute(
+            "SELECT count(*) FROM feature"
+        ).fetchone()[0]
+        stored_names = sqlite_connection.execute(
+            "SELECT count(*) FROM name"
+        ).fetchone()[0]
+        if stored_features != feature_count or stored_names != name_count:
+            raise RuntimeError(
+                f"Artifact integrity check failed: expected {feature_count} features "
+                f"and {name_count} names, found {stored_features} and {stored_names}"
+            )
+    advance()
+
+    with item("Compacting artifact"):
+        sqlite_connection.execute("ANALYZE")
+        sqlite_connection.execute("VACUUM")
+    advance()

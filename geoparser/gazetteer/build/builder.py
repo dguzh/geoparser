@@ -29,9 +29,11 @@ from geoparser.gazetteer.build.acquire import Acquirer
 from geoparser.gazetteer.build.compile import ProjectionCompiler
 from geoparser.gazetteer.build.emit import create_artifact_db, emit, finalize
 from geoparser.gazetteer.build.progress import (
+    build_display,
+    item,
     print_build_header,
     print_build_summary,
-    step,
+    stage,
 )
 from geoparser.gazetteer.build.stage import Stager, quote_literal
 from geoparser.gazetteer.config import GazetteerConfig
@@ -102,23 +104,21 @@ class GazetteerBuilder:
         build_dir.mkdir(parents=True)
 
         try:
-            file_paths = {
-                input_config.name: acquirer.acquire(input_config)
-                for input_config in config.inputs
-            }
+            with build_display():
+                file_paths = self._acquire_inputs(acquirer, config)
 
-            connection = duckdb.connect(str(build_dir / "staging.duckdb"))
-            try:
-                self._configure_staging(connection, build_dir)
-                if self._needs_spatial(config):
-                    self._load_spatial_extension(connection)
-                self._stage_inputs(connection, config, file_paths)
-                self._project(connection, config)
-                feature_count, name_count = self._emit_artifact(
-                    connection, config, build_dir, target_path
-                )
-            finally:
-                connection.close()
+                connection = duckdb.connect(str(build_dir / "staging.duckdb"))
+                try:
+                    self._configure_staging(connection, build_dir)
+                    if self._needs_spatial(config):
+                        self._load_spatial_extension(connection)
+                    self._stage_inputs(connection, config, file_paths)
+                    self._project(connection, config)
+                    feature_count, name_count = self._emit_artifact(
+                        connection, config, build_dir, target_path
+                    )
+                finally:
+                    connection.close()
         finally:
             shutil.rmtree(build_dir, ignore_errors=True)
             if not keep_downloads:
@@ -145,6 +145,13 @@ class GazetteerBuilder:
             connection: DuckDB connection used for staging and projection
             build_dir: Directory holding the transient build files
         """
+        # DuckDB prints its own progress bar straight to the terminal for
+        # long-running queries by default. It writes outside of Rich's
+        # control, which desyncs the live build display (stray bars flashing
+        # in, stage rows appearing to repeat); our own progress reporting
+        # already covers the whole build, so disable DuckDB's.
+        connection.execute("SET enable_progress_bar = false")
+
         temp_dir = build_dir / "duckdb-temp"
         temp_dir.mkdir(parents=True, exist_ok=True)
         connection.execute(
@@ -177,6 +184,17 @@ class GazetteerBuilder:
         except (ValueError, OSError, AttributeError):
             return None
 
+    def _acquire_inputs(
+        self, acquirer: Acquirer, config: GazetteerConfig
+    ) -> t.Dict[str, Path]:
+        """Resolve every input's data file, downloading and extracting as needed."""
+        file_paths: t.Dict[str, Path] = {}
+        with stage("Acquiring inputs", "Acquired inputs", len(config.inputs)) as group:
+            for input_config in config.inputs:
+                file_paths[input_config.name] = acquirer.acquire(input_config)
+                group.advance()
+        return file_paths
+
     def _needs_spatial(self, config: GazetteerConfig) -> bool:
         """Whether the build requires DuckDB's spatial extension."""
         if any(not input_config.is_tabular for input_config in config.inputs):
@@ -204,9 +222,11 @@ class GazetteerBuilder:
     ) -> None:
         """Load all input files into staging tables."""
         stager = Stager(connection)
-        for input_config in config.inputs:
-            with step(f"Staging input '{input_config.name}'"):
-                stager.stage(input_config, file_paths[input_config.name])
+        with stage("Staging inputs", "Staged inputs", len(config.inputs)) as group:
+            for input_config in config.inputs:
+                with item(f"Staging input '{input_config.name}'"):
+                    stager.stage(input_config, file_paths[input_config.name])
+                group.advance()
 
     def _project(
         self, connection: duckdb.DuckDBPyConnection, config: GazetteerConfig
@@ -225,13 +245,17 @@ class GazetteerBuilder:
         )
         connection.execute("CREATE TABLE _names (identifier VARCHAR, text VARCHAR)")
 
-        for feature in config.features:
-            with step(f"Projecting features of type '{feature.type}'"):
-                connection.execute(
-                    f"INSERT INTO _features {compiler.feature_query(feature)}"
-                )
-                for name_query in compiler.name_queries(feature):
-                    connection.execute(f"INSERT INTO _names {name_query}")
+        with stage(
+            "Projecting features", "Projected features", len(config.features)
+        ) as group:
+            for feature in config.features:
+                with item(f"Projecting features of type '{feature.type}'"):
+                    connection.execute(
+                        f"INSERT INTO _features {compiler.feature_query(feature)}"
+                    )
+                    for name_query in compiler.name_queries(feature):
+                        connection.execute(f"INSERT INTO _names {name_query}")
+                group.advance()
 
         self._check_duplicate_identifiers(connection)
 
@@ -291,9 +315,9 @@ class GazetteerBuilder:
         with _sqlite_tmpdir(sqlite_temp_dir):
             sqlite_connection = create_artifact_db(temporary_path)
             try:
-                with step("Writing artifact"):
+                with stage("Writing artifact", "Written artifact", 2):
                     feature_count, name_count = emit(connection, sqlite_connection)
-                with step("Indexing artifact"):
+                with stage("Indexing artifact", "Indexed artifact", 4):
                     finalize(sqlite_connection, config, feature_count, name_count)
             finally:
                 sqlite_connection.close()
