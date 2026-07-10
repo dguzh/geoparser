@@ -132,8 +132,8 @@ class TestDuplicateIdentifierMerge:
                     names:
                       - "name"
                     data:
-                      - attribute: "name"
-                      - attribute: "height"
+                      - "name"
+                      - "height"
                 """
             )
         )

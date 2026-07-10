@@ -36,6 +36,7 @@ from geoparser.gazetteer.build.stage import (
 from geoparser.gazetteer.config import (
     FeatureConfig,
     GazetteerConfig,
+    split_data_value,
 )
 
 # Reference to the source row order, used for deterministic "first" merge
@@ -132,12 +133,9 @@ class ProjectionCompiler:
 
         data_parts = []
         for item in feature.data:
-            value = self._resolve(
-                feature, item.attribute, f"data value '{item.output_name}'"
-            )
-            data_parts.append(
-                f"{quote_literal(item.output_name)}: {self._first(value)}"
-            )
+            expression, alias = split_data_value(item)
+            value = self._resolve(feature, expression, f"data value '{alias}'")
+            data_parts.append(f"{quote_literal(alias)}: {self._first(value)}")
         if data_parts:
             data_sql = f"CAST(to_json({{{', '.join(data_parts)}}}) AS VARCHAR)"
         else:

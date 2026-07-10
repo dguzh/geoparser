@@ -303,34 +303,30 @@ class TestFeatureConfigValidation:
 
         assert config.features[0].geometry == "ST_Point(lon, lat)"
 
-    def test_data_shorthand_expands_to_attribute(self):
-        """The string shorthand names an attribute stored under its own name."""
+    def test_bare_column_is_stored_under_its_own_name(self):
+        """A bare column reference is stored under its own name."""
         data = minimal_config()
         data["features"][0]["data"] = ["population"]
 
         config = GazetteerConfig.model_validate(data)
 
-        item = config.features[0].data[0]
-        assert item.attribute == "population"
-        assert item.output_name == "population"
+        assert config.features[0].data == ["population"]
 
     def test_data_alias_renames_the_key(self):
-        """An alias renames a differently named column or expression."""
+        """A trailing 'AS alias' renames the stored key."""
         data = minimal_config()
-        data["features"][0]["data"] = [{"attribute": "population", "alias": "pop"}]
+        data["features"][0]["data"] = ["population AS pop"]
 
         config = GazetteerConfig.model_validate(data)
 
-        item = config.features[0].data[0]
-        assert item.attribute == "population"
-        assert item.output_name == "pop"
+        assert config.features[0].data == ["population AS pop"]
 
     def test_data_expression_requires_alias(self):
         """A data expression needs an alias to name the stored key."""
         data = minimal_config()
-        data["features"][0]["data"] = [{"attribute": "upper(name)"}]
+        data["features"][0]["data"] = ["upper(name)"]
 
-        with pytest.raises(ValidationError, match="needs an 'alias'"):
+        with pytest.raises(ValidationError, match="needs an alias"):
             GazetteerConfig.model_validate(data)
 
     def test_rejects_duplicate_data_keys(self):
@@ -339,6 +335,22 @@ class TestFeatureConfigValidation:
         data["features"][0]["data"] = ["population", "population"]
 
         with pytest.raises(ValidationError, match="duplicate data keys"):
+            GazetteerConfig.model_validate(data)
+
+    def test_rejects_duplicate_data_keys_via_alias(self):
+        """Data keys must be unique even when one is renamed via an alias."""
+        data = minimal_config()
+        data["features"][0]["data"] = ["population", "population AS population"]
+
+        with pytest.raises(ValidationError, match="duplicate data keys"):
+            GazetteerConfig.model_validate(data)
+
+    def test_rejects_blank_data_value(self):
+        """A blank data entry is rejected."""
+        data = minimal_config()
+        data["features"][0]["data"] = ["   "]
+
+        with pytest.raises(ValidationError, match="non-empty string"):
             GazetteerConfig.model_validate(data)
 
 

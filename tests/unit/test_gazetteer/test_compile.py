@@ -168,9 +168,7 @@ class TestBasicProjection:
         """Data values can be scalar SQL expressions with an alias."""
         self.make_places(connection)
         config, compiler = build_compiler(
-            self.config_data(
-                data=[{"attribute": "upper(name)", "alias": "shout"}]
-            )
+            self.config_data(data=["upper(name) AS shout"])
         )
 
         features = run_features(connection, compiler, config)
@@ -451,8 +449,7 @@ class TestJoins:
                         "names": ["name"],
                         "data": [
                             "name",
-                            {"attribute": "countries.label",
-                             "alias": "country_name"},
+                            "countries.label AS country_name",
                         ],
                     }
                 ],
@@ -485,7 +482,7 @@ class TestJoins:
                         "names": ["name"],
                         "data": [
                             "name",
-                            {"attribute": "admins.label", "alias": "admin_name"},
+                            "admins.label AS admin_name",
                         ],
                     }
                 ],
@@ -522,9 +519,7 @@ class TestJoins:
                         ],
                         "identifier": "id",
                         "names": ["name"],
-                        "data": [
-                            {"attribute": "level2.label", "alias": "parent_label"}
-                        ],
+                        "data": ["level2.label AS parent_label"],
                     }
                 ],
             }
@@ -566,9 +561,7 @@ class TestJoins:
                         "identifier": "id",
                         "geometry": "ST_Point(lon, lat)",
                         "names": ["name"],
-                        "data": [
-                            {"attribute": "zones.zone_name", "alias": "zone_name"}
-                        ],
+                        "data": ["zones.zone_name"],
                     }
                 ],
             }
@@ -612,9 +605,7 @@ class TestJoins:
                         "identifier": "id",
                         "geometry": "geometry",
                         "names": ["CAST(id AS VARCHAR)"],
-                        "data": [
-                            {"attribute": "zones.zone_name", "alias": "zone_name"}
-                        ],
+                        "data": ["zones.zone_name"],
                     }
                 ],
             }
@@ -650,7 +641,7 @@ class TestJoins:
                         "names": ["name"],
                         "data": [
                             "label",
-                            {"attribute": "extra.label", "alias": "joined_label"},
+                            "extra.label AS joined_label",
                         ],
                     }
                 ],

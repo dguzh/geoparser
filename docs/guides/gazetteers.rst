@@ -308,8 +308,8 @@ Each ``features`` block projects one source into features. A gazetteer can defin
        names:
          - "name"
        data:
-         - attribute: "name"        # Stored under its own name
-         - attribute: "population"
+         - "name"        # Stored under its own name
+         - "population"
 
 Column references throughout a block (in ``identifier``, ``geometry``, ``names``, ``data`` and each join's ``ON`` condition) follow one rule: a **bare** column name is a column of the block's own source, and a column of a **joined** source is referenced by qualification (``<source>.<column>``). You never need a ``src.`` prefix—bare source columns are resolved for you, even inside join clauses.
 
@@ -330,16 +330,14 @@ Column references throughout a block (in ``identifier``, ``geometry``, ``names``
    # or
    geometry: "ST_Point(longitude, latitude)"  # Built from coordinate columns
 
-**Data** lists exactly what goes into the feature's ``data`` dictionary. Each entry names an ``attribute`` and, optionally, an ``alias`` to store it under a different key. An attribute is a bare column of the block's source, a column of a joined source (qualified as ``<source>.<column>``), or a scalar expression. Without an alias, the attribute must be a bare column and keeps its own name; qualified references and expressions always need an alias. The string shorthand is a bare column stored under its own name:
+**Data** lists exactly what goes into the feature's ``data`` dictionary. Each entry is a column or scalar expression, written exactly as it would appear in a SQL ``SELECT``, with an optional trailing ``AS <alias>`` naming the key it is stored under. A bare or qualified column reference (``name``, ``countryInfo.Country``) may omit the alias, in which case its own column name (the last component, for a qualified reference) is the key; a plain expression has no name of its own, so it always needs one:
 
 .. code-block:: yaml
 
    data:
-     - population                             # Shorthand for {attribute: population}
-     - attribute: "countryInfo.Country"
-       alias: "country_name"                  # Column of a joined source (alias required)
-     - attribute: "upper(name)"
-       alias: "name_upper"                    # Expression (alias required)
+     - "population"                          # Bare column, stored as "population"
+     - "countryInfo.Country AS country_name" # Column of a joined source, renamed
+     - "upper(name) AS name_upper"           # Expression (alias required)
 
 Joins
 ~~~~~
@@ -359,10 +357,8 @@ The joined columns are then read in ``data`` by qualification:
 .. code-block:: yaml
 
    data:
-     - attribute: "countryInfo.Country"
-       alias: "country_name"
-     - attribute: "admin1CodesASCII.name"
-       alias: "admin1_name"
+     - "countryInfo.Country AS country_name"
+     - "admin1CodesASCII.name AS admin1_name"
 
 A **spatial** join matches the feature geometry against the joined source's geometry with a spatial function (``ST_Within``, ``ST_Intersects``, ``ST_Contains``, ...). Reduce a geometry to its centroid inline with ``ST_Centroid`` where useful (lines and polygons). Give the joined table a short alias to reference it conveniently:
 
@@ -451,11 +447,9 @@ Here's a complete configuration combining a tabular place file, an attribute joi
          - "name"
          - "unnest(string_split(alt_names, ','))"
        data:
-         - attribute: "name"
-         - attribute: "regions.label"
-           alias: "region_name"
-         - attribute: "a.AREA_NAME"
-           alias: "protected_area"
+         - "name"
+         - "regions.label AS region_name"
+         - "a.AREA_NAME AS protected_area"
 
 For real-world examples, refer to the built-in gazetteer configurations on GitHub: `geonames.yaml <https://github.com/dguzh/geoparser/blob/main/geoparser/gazetteer/configs/geonames.yaml>`_, `geonames-cities.yaml <https://github.com/dguzh/geoparser/blob/main/geoparser/gazetteer/configs/geonames-cities.yaml>`_ (multiple feature blocks), and `swissnames3d.yaml <https://github.com/dguzh/geoparser/blob/main/geoparser/gazetteer/configs/swissnames3d.yaml>`_ (spatial joins, duplicate-identifier merging).
 

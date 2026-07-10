@@ -1,17 +1,17 @@
 from geoparser.gazetteer.config.schema import (
     AttributeDef,
-    DataConfig,
     DataType,
     FeatureConfig,
     GazetteerConfig,
     SourceConfig,
+    split_data_value,
 )
 
 __all__ = [
     "AttributeDef",
-    "DataConfig",
     "DataType",
     "FeatureConfig",
     "GazetteerConfig",
     "SourceConfig",
+    "split_data_value",
 ]

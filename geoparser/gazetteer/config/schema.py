@@ -12,10 +12,13 @@ feature store. It has two top-level concepts:
   ``join`` other sources to enrich its rows. A feature's ``source`` in the
   artifact is the name of the source it is built from.
 
-Values (``identifier``, ``names``, ``geometry`` and each ``data`` attribute)
-are column references or scalar SQL expressions evaluated over the block's
-source, aliased ``src``; a bare column name refers to that source, and columns
-of joined sources are referenced by qualification (``<source>.<column>``).
+Values (``identifier``, ``names``, ``geometry`` and each ``data`` entry) are
+column references or scalar SQL expressions evaluated over the block's source,
+aliased ``src``; a bare column name refers to that source, and columns of
+joined sources are referenced by qualification (``<source>.<column>``). A
+``data`` entry names the key it is stored under with a trailing ``AS <alias>``
+(as in a SQL ``SELECT``); a bare or qualified column reference may omit it, in
+which case the column's own name is the key.
 
 Joins are written as raw SQL join clauses (e.g.
 ``"LEFT JOIN countryInfo ON src.country_code = countryInfo.ISO"``); the whole
@@ -164,40 +167,49 @@ class SourceConfig(BaseModel):
         return self
 
 
-class DataConfig(BaseModel):
+# Matches a bare or dot-qualified identifier (``NAME``, ``g.NAME``), each
+# component optionally double-quoted (``"My Column".other``).
+_QUALIFIED_IDENTIFIER = re.compile(
+    r'^(?:"[^"]+"|[A-Za-z_][A-Za-z0-9_]*)'
+    r'(?:\.(?:"[^"]+"|[A-Za-z_][A-Za-z0-9_]*))*$'
+)
+
+# Matches a trailing SQL alias, as in ``SELECT <expr> AS <alias>``.
+_ALIAS_SUFFIX = re.compile(
+    r'\s+AS\s+("[^"]+"|[A-Za-z_][A-Za-z0-9_]*)\s*$', re.IGNORECASE
+)
+
+
+def split_data_value(value: str) -> t.Tuple[str, t.Optional[str]]:
     """
-    A value stored in the feature's JSON data object.
+    Split a ``data`` entry into its SQL expression and output key.
 
-    ``attribute`` is a column of the block's source (bare), a column of a joined
-    source (qualified as ``<source>.<column>``) or a scalar SQL expression;
-    ``alias`` is the key it is stored under. When ``alias`` is omitted,
-    ``attribute`` must be a bare column of the block's source and is used as the
-    key. The string shorthand ``"name"`` is equivalent to ``{attribute: name}``.
+    A trailing ``AS <alias>`` (as in a SQL ``SELECT``) names the key
+    explicitly. Otherwise the entry must be a bare or dot-qualified column
+    reference (``NAME``, ``g.NAME``), whose last component names the key; a
+    plain expression without ``AS`` has no derivable key, so its key is
+    ``None``.
+
+    Args:
+        value: Raw ``data`` entry, e.g. ``"NAME"`` or ``"g.NAME AS GEMEINDE_NAME"``
+
+    Returns:
+        Tuple of (SQL expression, output key or None)
     """
+    match = _ALIAS_SUFFIX.search(value)
+    if match:
+        alias = match.group(1)
+        if alias.startswith('"'):
+            alias = alias[1:-1]
+        return value[: match.start()].strip(), alias
 
-    attribute: str
-    alias: t.Optional[str] = None
-
-    @property
-    def output_name(self) -> str:
-        """The key the value is stored under."""
-        return self.alias or self.attribute
-
-    @model_validator(mode="before")
-    @classmethod
-    def coerce_shorthand(cls, value: t.Any) -> t.Any:
-        if isinstance(value, str):
-            return {"attribute": value}
-        return value
-
-    @model_validator(mode="after")
-    def validate_data(self) -> "DataConfig":
-        if self.alias is None and not _IDENTIFIER_PATTERN.match(self.attribute):
-            raise ValueError(
-                f"Data value '{self.attribute}' is a qualified reference or "
-                "expression, so it needs an 'alias' to name the stored key"
-            )
-        return self
+    expression = value.strip()
+    if _QUALIFIED_IDENTIFIER.match(expression):
+        last = expression.rsplit(".", 1)[-1]
+        if last.startswith('"'):
+            last = last[1:-1]
+        return expression, last
+    return expression, None
 
 
 class FeatureConfig(BaseModel):
@@ -221,7 +233,7 @@ class FeatureConfig(BaseModel):
     identifier: str
     geometry: t.Optional[str] = None
     names: t.List[str]
-    data: t.List[DataConfig] = Field(default_factory=list)
+    data: t.List[str] = Field(default_factory=list)
 
     @field_validator("names")
     @classmethod
@@ -241,9 +253,22 @@ class FeatureConfig(BaseModel):
                 raise ValueError("A join must be a non-empty SQL join clause")
         return value
 
+    @field_validator("data")
+    @classmethod
+    def validate_data(cls, value: t.List[str]) -> t.List[str]:
+        for item in value:
+            if not isinstance(item, str) or not item.strip():
+                raise ValueError("A data value must be a non-empty string")
+            if split_data_value(item)[1] is None:
+                raise ValueError(
+                    f"Data value '{item}' is a scalar expression, so it needs "
+                    "an alias to name the stored key: '<expression> AS <alias>'"
+                )
+        return value
+
     @model_validator(mode="after")
     def validate_feature(self) -> "FeatureConfig":
-        data_names = [item.output_name for item in self.data]
+        data_names = [split_data_value(item)[1] for item in self.data]
         duplicates = {name for name in data_names if data_names.count(name) > 1}
         if duplicates:
             raise ValueError(
