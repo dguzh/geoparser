@@ -12,7 +12,7 @@ The Irchel Geoparser uses gazetteers as the authoritative source of geographic i
 
 The library's architecture separates the gazetteer system from the processing modules. Resolvers don't access gazetteers directly through SQL queries or file reads—instead, they use the ``Gazetteer`` class interface which provides standardized search methods.
 
-Every installed gazetteer is a single, self-contained SQLite file (an *artifact*) with a fixed schema shared by all gazetteers: a ``feature`` table (identifier, entity type, attributes as JSON, geometry as WKB), a ``name`` table with full-text and phonetic indexes for search, and a small ``metadata`` table. Artifacts are built from declarative YAML configurations by a build pipeline that downloads the source files, stages them in a transient analytical database (DuckDB), and projects them into the canonical schema—including joins, spatial joins, and deduplication. The source files and staging data are discarded after the build; the artifact is the only thing installed, and it is never modified afterwards.
+Every installed gazetteer is a single, self-contained SQLite file (an *artifact*) with a fixed schema shared by all gazetteers: a ``feature`` table (identifier, source, data as JSON, geometry as WKB), a ``name`` table with full-text and phonetic indexes for search, and a small ``metadata`` table. Artifacts are built from declarative YAML configurations by a build pipeline that downloads the source files, stages them in a transient analytical database (DuckDB), and projects them into the canonical schema—including joins, spatial joins, and deduplication. The source files and staging data are discarded after the build; the artifact is the only thing installed, and it is never modified afterwards.
 
 Because artifacts share one schema, all gazetteers behave identically at query time regardless of how heterogeneous their source data is. Geometries are stored in a single coordinate reference system per gazetteer (EPSG:4326 by default); any reprojection happens once, at build time.
 
@@ -176,10 +176,10 @@ The ``search()`` and ``find()`` methods return ``Feature`` objects that represen
        # The feature's stable identifier
        print(f"ID: {feature.identifier}")
        
-       # The feature's entity type
-       print(f"Type: {feature.type}")
+       # The source the feature was built from
+       print(f"Source: {feature.source}")
        
-       # The feature's attributes as a dictionary
+       # The feature's data as a dictionary
        print(f"Data: {feature.data}")
        
        # The feature's searchable names
@@ -189,7 +189,7 @@ The ``search()`` and ``find()`` methods return ``Feature`` objects that represen
        print(f"Geometry: {feature.geometry}")
        print(f"Coordinates: ({feature.geometry.x}, {feature.geometry.y})")
 
-The ``identifier`` property contains the identifier that can be used to reference this feature, for example when creating referent annotations. The ``type`` property names the feature's entity type as defined by the gazetteer configuration (for example ``place`` in GeoNames, or ``city`` / ``country`` / ``admin1`` in GeoNames Cities). The ``data`` property is a dictionary containing all the attributes stored for this feature; different entity types can have entirely different attribute sets. The ``geometry`` property returns a Shapely geometry object in the gazetteer's coordinate reference system (available as ``feature.crs``). Most gazetteers use Point geometries for locations, but this can also be lines, polygons, or multi-part geometries depending on the gazetteer.
+The ``identifier`` property contains the identifier that can be used to reference this feature, for example when creating referent annotations. The ``source`` property names the gazetteer source the feature was built from (for example ``allCountries`` in GeoNames, or ``cities500`` / ``countryInfo`` in GeoNames Cities). The ``data`` property is a dictionary containing all the values stored for this feature; features from different sources can have entirely different data. The ``geometry`` property returns a Shapely geometry object in the gazetteer's coordinate reference system (available as ``feature.crs``). Most gazetteers use Point geometries for locations, but this can also be lines, polygons, or multi-part geometries depending on the gazetteer.
 
 The attributes available in the ``data`` dictionary depend on which gazetteer you're using. For GeoNames, common attributes include:
 
@@ -209,7 +209,7 @@ For SwissNames3D, attributes include:
 - ``KANTON_NAME``: Canton name
 - ``HOEHE``: Elevation in meters
 
-The exact attributes are defined per entity type in the gazetteer's configuration file.
+The exact data keys are defined per source in the gazetteer's configuration file.
 
 Custom Gazetteer Configuration
 -------------------------------
@@ -221,246 +221,243 @@ A configuration describes how source files *project* into the canonical feature 
 Configuration Structure
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-A gazetteer configuration file has three top-level concepts:
+A gazetteer configuration file has two top-level concepts:
 
 .. code-block:: yaml
 
    name: my_gazetteer   # Unique identifier for the gazetteer
    crs: EPSG:4326       # CRS of the artifact's geometries (optional, default EPSG:4326)
 
-   inputs:              # Files to download/stage (transient; discarded after the build)
+   sources:             # Files to download/stage (transient; discarded after the build)
      - name: places
-       # ... input configuration ...
+       # ... source configuration ...
 
-   lookups:             # Named, reusable enrichments (joins against other inputs)
-     country:
-       # ... lookup configuration ...
-
-   features:            # One block per entity type; each block produces features
-     - type: place
+   features:            # One block per source; each block produces features
+     - source: places
        # ... feature configuration ...
 
-``inputs`` declare the source files. ``lookups`` define reusable many-to-one joins that enrich feature rows with values from other inputs (like administrative names). ``features`` blocks describe how rows of an input become searchable features—their identifier, names, geometry, and attributes. Inputs that only serve as join targets simply aren't referenced by any feature block.
+``sources`` declare the source files and, explicitly, their attributes. ``features`` blocks describe how rows of one source become searchable features—their identifier, names, geometry and data—optionally enriched by ``joins`` against other sources. Sources that only serve as join targets simply aren't referenced by any feature block.
 
-Inputs
-~~~~~~
+Sources
+~~~~~~~
 
-Each input is a file to acquire and stage. Inputs are either **tabular** (delimited text; set ``delimiter``) or **spatial** (shapefile, GeoPackage, GeoJSON, and other GDAL-readable formats). Remote files are downloaded and cached; ZIP archives are extracted automatically, with ``file`` naming the target file inside the archive:
+Each source is a file to acquire and stage. Sources are either **tabular** (delimited text; set ``delimiter``) or **spatial** (shapefile, GeoPackage, GeoJSON, and other GDAL-readable formats). Every source declares its ``attributes`` explicitly, and every attribute declares its ``type`` (``text``, ``integer``, ``real`` or ``geometry``), so a source's schema reads the same regardless of file format. Remote files are downloaded and cached; ZIP archives are extracted automatically, with ``file`` naming the target file inside the archive:
 
 .. code-block:: yaml
 
-   inputs:
+   sources:
      - name: places
        url: https://example.com/data.zip   # Downloaded and extracted
        file: places.csv                    # File within the ZIP
        delimiter: ","
-       columns:                            # For headerless files: declare the columns
-         - { name: id, type: integer }
-         - { name: name }                  # type defaults to text
-         - { name: lat, type: real }
-         - { name: lon, type: real }
+       attributes:
+         - name: id
+           type: integer
+         - name: name
+           type: text
+         - name: lat
+           type: real
+         - name: lon
+           type: real
 
 For local files, provide a ``path`` instead of a ``url`` (relative paths are resolved against the config file's location):
 
 .. code-block:: yaml
 
-   inputs:
+   sources:
      - name: local_data
        path: data/places.tsv
        file: places.tsv
        delimiter: "\t"
        quote: ""          # Disable quote handling for raw TSV files
        skip_rows: 2       # Skip leading comment lines
+       attributes:
+         - name: id
+           type: integer
+         - name: name
+           type: text
 
-Spatial inputs need no ``delimiter`` or ``columns``—their schema comes from the file itself, and their geometry is always exposed under the column name ``geometry``. Declare the source coordinate system with ``crs`` if it differs from the gazetteer CRS:
+A **spatial** source has no ``delimiter``. It declares its attributes the same way, including exactly one attribute of type ``geometry`` (always named ``geometry``, the name its geometry is staged under). Declare the source coordinate system with ``crs`` if it differs from the gazetteer CRS:
 
 .. code-block:: yaml
 
-   inputs:
+   sources:
      - name: municipalities
        url: https://example.com/boundaries.zip
        file: municipalities.shp
        crs: EPSG:2056     # Source CRS; reprojected to the gazetteer CRS at build time
-
-Lookups
-~~~~~~~
-
-Lookups are named, reusable enrichments: a lookup left-joins feature rows against another input and exposes selected columns under new names. Define a lookup once and reference it from any number of feature blocks.
-
-An **attribute lookup** matches on column equality. The left side of each ``on`` pair is a column of the feature's input (or a scalar expression over its columns); the right side is a column of the lookup input:
-
-.. code-block:: yaml
-
-   lookups:
-     country:
-       from: countryInfo
-       match: { on: { country_code: ISO } }
-       values: { country_name: Country }      # exposes "country_name"
-
-     admin1:
-       from: admin1CodesASCII
-       match: { on: { "country_code || '.' || admin1_code": code } }   # expression key
-       values: { admin1_name: name }
-
-A **spatial lookup** matches the feature's geometry against the lookup input's geometry. The supported predicates are ``within``, ``intersects``, and ``contains``; ``using: centroid`` reduces the feature geometry to its centroid before matching (useful for lines and polygons). Coordinate systems are aligned automatically:
-
-.. code-block:: yaml
-
-   lookups:
-     in_gemeinde:
-       from: gemeinde
-       match: { spatial: within, using: centroid }
-       values: { GEMEINDE_NAME: NAME, BEZIRKSNUM: BEZIRKSNUM }
-
-Lookups can **chain**: a later lookup can match on a value exposed by an earlier one. This expresses multi-level hierarchies (place → municipality → district → canton) without repeating join logic:
-
-.. code-block:: yaml
-
-   lookups:
-     in_bezirk:
-       from: bezirk
-       match: { on: { BEZIRKSNUM: BEZIRKSNUM } }   # BEZIRKSNUM comes from in_gemeinde
-       values: { BEZIRK_NAME: NAME, KANTONSNUM: KANTONSNUM }
+       attributes:
+         - name: BFS_NUMMER
+           type: integer
+         - name: NAME
+           type: text
+         - name: geometry
+           type: geometry
 
 Feature Blocks
 ~~~~~~~~~~~~~~
 
-Each ``features`` block projects one input into features of one entity type. A gazetteer can define any number of entity types, each with its own attribute set—there is no shared schema to pad:
+Each ``features`` block projects one source into features. A gazetteer can define any number of blocks, each with its own set of data—there is no shared schema to pad. A block names the ``source`` it projects, and that name becomes the features' ``source`` in the artifact (so a source backs at most one block). A block is written in reading order: the ``source``, then the ``joins`` that enrich it, then the ``identifier``, ``geometry``, ``names`` and ``data`` derived from the joined rows:
 
 .. code-block:: yaml
 
    features:
-     - type: place
-       from: places            # The input providing the rows
-       identifier: id          # Column (or expression) with the stable identifier
+     - source: places         # The backing source; also the feature's source name
+       identifier: "id"        # Column (or expression) with the stable identifier
+       geometry: "ST_Point(lon, lat)"
        names:
-         - column: name
-       geometry:
-         point: { lon: lon, lat: lat }
-       lookups: [country, admin1]
-       attributes:
-         - name                # Shorthand: attribute "name" from column "name"
-         - population
-         - country_name        # Values exposed by lookups work like columns
-         - admin1_name
+         - "name"
+       data:
+         - attribute: "name"        # Stored under its own name
+         - attribute: "population"
 
-**Names** define what the feature can be found by. A feature can have any number of names, from its own columns, from expressions, from multi-value columns (``split``), or from a separate one-to-many names table (``from``/``key``):
+Column references throughout a block (in ``identifier``, ``geometry``, ``names``, ``data`` and each join's ``ON`` condition) follow one rule: a **bare** column name is a column of the block's own source, and a column of a **joined** source is referenced by qualification (``<source>.<column>``). You never need a ``src.`` prefix—bare source columns are resolved for you, even inside join clauses.
+
+**Names** define what the feature can be found by. Each name is simply a column or scalar SQL expression—they are interchangeable, so no label distinguishes them. To register several names from one multi-value column, use an expression that splits and unnests it (each element becomes its own name):
 
 .. code-block:: yaml
 
    names:
-     - column: name
-     - expression: "CASE WHEN instr(name, '(') > 0 THEN trim(substr(name, 1, instr(name, '(') - 1)) ELSE name END"
-     - column: alternatenames
-       split: ","                        # One name per comma-separated value
-     - from: alternate_names             # A related input with one name per row
-       key: place_id                     # Column of that input holding the feature identifier
-       column: alternate_name
+     - "name"
+     - "CASE WHEN instr(name, '(') > 0 THEN trim(substr(name, 1, instr(name, '(') - 1)) ELSE name END"
+     - "unnest(string_split(alternatenames, ','))"    # One name per comma-separated value
 
-**Geometry** is either a geometry ``column`` (for spatial inputs) or a ``point`` built from coordinate columns. A per-feature ``crs`` declares the coordinate system of the source values; geometries are reprojected to the gazetteer CRS at build time:
+**Geometry** is a single value: a geometry column (for spatial sources) or a scalar expression that builds one (for example a point from coordinate columns). Its coordinate system is the backing source's ``crs`` (or the gazetteer CRS); geometries are reprojected to the gazetteer CRS at build time:
 
 .. code-block:: yaml
 
-   geometry: { column: geometry, crs: EPSG:2056 }
+   geometry: "geometry"                       # A geometry column of a spatial source
    # or
-   geometry: { point: { lon: longitude, lat: latitude } }
+   geometry: "ST_Point(longitude, latitude)"  # Built from coordinate columns
 
-**Attributes** list exactly what goes into the feature's ``data`` dictionary. Each entry is a column name (string shorthand), a renamed column, or a scalar expression:
+**Data** lists exactly what goes into the feature's ``data`` dictionary. Each entry names an ``attribute`` and, optionally, an ``alias`` to store it under a different key. An attribute is a bare column of the block's source, a column of a joined source (qualified as ``<source>.<column>``), or a scalar expression. Without an alias, the attribute must be a bare column and keeps its own name; qualified references and expressions always need an alias. The string shorthand is a bare column stored under its own name:
 
 .. code-block:: yaml
 
-   attributes:
-     - population
-     - { name: KANTON_NAME, column: NAME }         # Renamed
-     - { name: name_upper, expression: "upper(name)" }
+   data:
+     - population                             # Shorthand for {attribute: population}
+     - attribute: "countryInfo.Country"
+       alias: "country_name"                  # Column of a joined source (alias required)
+     - attribute: "upper(name)"
+       alias: "name_upper"                    # Expression (alias required)
+
+Joins
+~~~~~
+
+A feature block can ``join`` other sources to enrich its rows. Each join is a **raw SQL join clause** appended to the block's source: the whole joined table becomes available (there is no separate value selection—pick what you need in ``data`` using qualified references). Within a join's ``ON`` condition, bare names are the block's source columns and joined columns are qualified (``<source>.<column>``). Joins are applied in order, so a later join can reference a table joined earlier.
+
+An **attribute** join equates columns (or expressions) of the two sides:
+
+.. code-block:: yaml
+
+   joins:
+     - "LEFT JOIN countryInfo ON country_code = countryInfo.ISO"
+     - "LEFT JOIN admin1CodesASCII ON country_code || '.' || admin1_code = admin1CodesASCII.code"
+
+The joined columns are then read in ``data`` by qualification:
+
+.. code-block:: yaml
+
+   data:
+     - attribute: "countryInfo.Country"
+       alias: "country_name"
+     - attribute: "admin1CodesASCII.name"
+       alias: "admin1_name"
+
+A **spatial** join matches the feature geometry against the joined source's geometry with a spatial function (``ST_Within``, ``ST_Intersects``, ``ST_Contains``, ...). Reduce a geometry to its centroid inline with ``ST_Centroid`` where useful (lines and polygons). Give the joined table a short alias to reference it conveniently:
+
+.. code-block:: yaml
+
+   joins:
+     - "LEFT JOIN gemeinde g ON ST_Within(ST_Centroid(geometry), g.geometry)"
+
+.. note::
+
+   Raw joins operate on the sources' native coordinate systems and are **not** reprojected automatically, so a spatial join is only meaningful when both sides share a CRS (transform explicitly with ``ST_Transform`` otherwise). The feature's own ``geometry`` is still reprojected to the gazetteer CRS independently.
+
+Joins can **chain**: a later join can reference a table joined earlier. This expresses multi-level hierarchies (place → municipality → district → canton):
+
+.. code-block:: yaml
+
+   joins:
+     - "LEFT JOIN gemeinde g ON ST_Within(ST_Centroid(geometry), g.geometry)"
+     - "LEFT JOIN bezirk b ON g.BEZIRKSNUM = b.BEZIRKSNUM"      # matches on the earlier join
+     - "LEFT JOIN kanton k ON b.KANTONSNUM = k.KANTONSNUM"
 
 Handling Duplicate Identifiers
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Some datasets contain multiple rows per identifier (repeated records, or multi-part geometries split across rows). Rows sharing an identifier are always **merged into a single feature**, under an explicit, configurable policy:
-
-.. code-block:: yaml
-
-   features:
-     - type: named_area
-       from: ply
-       identifier: UUID
-       merge:
-         geometry: union        # first (default) | union: combine into a multi-part geometry
-         attributes: first      # first (default) | min | max: block-wide default
-       names:
-         - column: NAME         # Names are always collected across duplicate rows
-       attributes:
-         - OBJEKTART
-         - { name: EINWOHNERK, merge: max }   # Per-attribute override
-
-Names are always collected across all duplicate rows. Geometries either keep the first row's geometry or are unioned into a multi-part geometry. Attribute values keep the first row's value by default, with ``min``/``max`` available per attribute or as a block-wide default.
+Some datasets contain multiple rows per identifier (repeated records, or multi-part geometries split across rows). Rows sharing an identifier are always **merged into a single feature**: all their names are collected, their geometries are unioned into a single (possibly multi-part) geometry, and each data value is taken from the first row of the group. This happens automatically—there is nothing to configure.
 
 Identifiers must be unique across the entire gazetteer. If two feature blocks produce the same identifier, the build fails with a clear error; disambiguate with an expression (for example ``"'city:' || id"``) or merge the blocks.
 
 Complete Example
 ~~~~~~~~~~~~~~~~
 
-Here's a complete configuration combining a tabular place file, an attribute lookup, and a spatial lookup:
+Here's a complete configuration combining a tabular place file, an attribute join, and a spatial join:
 
 .. code-block:: yaml
 
    name: my_gazetteer
    crs: EPSG:4326
 
-   inputs:
+   sources:
      - name: places
        url: https://example.com/places.zip
        file: places.csv
        delimiter: ","
-       columns:
-         - { name: id, type: integer }
-         - { name: name }
-         - { name: alt_names }
-         - { name: region_code }
-         - { name: lat, type: real }
-         - { name: lon, type: real }
+       attributes:
+         - name: id
+           type: integer
+         - name: name
+           type: text
+         - name: alt_names
+           type: text
+         - name: region_code
+           type: text
+         - name: lat
+           type: real
+         - name: lon
+           type: real
 
      - name: regions
        url: https://example.com/regions.csv
        file: regions.csv
        delimiter: ","
-       columns:
-         - { name: code }
-         - { name: label }
+       attributes:
+         - name: code
+           type: text
+         - name: label
+           type: text
 
      - name: protected_areas
        url: https://example.com/areas.zip
        file: areas.shp
        crs: EPSG:3857
-
-   lookups:
-     region:
-       from: regions
-       match: { on: { region_code: code } }
-       values: { region_name: label }
-     protected:
-       from: protected_areas
-       match: { spatial: within }
-       values: { protected_area: AREA_NAME }
+       attributes:
+         - name: AREA_NAME
+           type: text
+         - name: geometry
+           type: geometry
 
    features:
-     - type: place
-       from: places
-       identifier: id
+     - source: places
+       joins:
+         - "LEFT JOIN regions ON region_code = regions.code"
+         - "LEFT JOIN protected_areas a ON ST_Within(ST_Point(lon, lat), ST_Transform(a.geometry, 'EPSG:3857', 'EPSG:4326', always_xy := true))"
+       identifier: "id"
+       geometry: "ST_Point(lon, lat)"
        names:
-         - column: name
-         - column: alt_names
-           split: ","
-       geometry:
-         point: { lon: lon, lat: lat }
-       lookups: [region, protected]
-       attributes:
-         - name
-         - region_name
-         - protected_area
+         - "name"
+         - "unnest(string_split(alt_names, ','))"
+       data:
+         - attribute: "name"
+         - attribute: "regions.label"
+           alias: "region_name"
+         - attribute: "a.AREA_NAME"
+           alias: "protected_area"
 
-For real-world examples, refer to the built-in gazetteer configurations on GitHub: `geonames.yaml <https://github.com/dguzh/geoparser/blob/main/geoparser/gazetteer/configs/geonames.yaml>`_, `geonames-cities.yaml <https://github.com/dguzh/geoparser/blob/main/geoparser/gazetteer/configs/geonames-cities.yaml>`_ (multiple entity types), and `swissnames3d.yaml <https://github.com/dguzh/geoparser/blob/main/geoparser/gazetteer/configs/swissnames3d.yaml>`_ (spatial lookups, duplicate-identifier merging).
+For real-world examples, refer to the built-in gazetteer configurations on GitHub: `geonames.yaml <https://github.com/dguzh/geoparser/blob/main/geoparser/gazetteer/configs/geonames.yaml>`_, `geonames-cities.yaml <https://github.com/dguzh/geoparser/blob/main/geoparser/gazetteer/configs/geonames-cities.yaml>`_ (multiple feature blocks), and `swissnames3d.yaml <https://github.com/dguzh/geoparser/blob/main/geoparser/gazetteer/configs/swissnames3d.yaml>`_ (spatial joins, duplicate-identifier merging).
 
 Installing Custom Gazetteers
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -471,7 +468,7 @@ To install a custom gazetteer, provide the path to your configuration file:
 
    python -m geoparser install path/to/my_gazetteer.yaml
 
-The build validates the configuration, downloads or locates the specified files, stages them, runs the projections, and writes the finished artifact. If anything is wrong with the configuration—an unknown column, a broken lookup reference, colliding identifiers—the build stops with a descriptive error and nothing is installed. A successful build atomically replaces any previously installed artifact of the same name.
+The build validates the configuration, downloads or locates the specified files, stages them, runs the projections, and writes the finished artifact. If anything is wrong with the configuration—an unknown column, an invalid join clause, colliding identifiers—the build stops with a descriptive error and nothing is installed. A successful build atomically replaces any previously installed artifact of the same name.
 
 .. note::
    Building gazetteers with geometries requires DuckDB's spatial extension, which is downloaded automatically on first use. If you build gazetteers in an offline environment, run one spatial build while online first so the extension is cached.

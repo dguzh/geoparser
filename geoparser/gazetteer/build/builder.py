@@ -3,11 +3,11 @@ Gazetteer builder: compiles a declarative config into a SQLite artifact.
 
 The build pipeline is:
 
-1. Acquire: download/extract the input files (cached across builds)
-2. Stage: load each input into a transient DuckDB table
+1. Acquire: download/extract the source files (cached across builds)
+2. Stage: load each source into a transient DuckDB table
 3. Project: compile and run one projection per feature block, producing
-   canonical (identifier, type, attributes, geometry) and (identifier, name)
-   rows with explicit merge policies for duplicate identifiers
+   canonical (identifier, source, data, geometry) and (identifier, name)
+   rows, merging rows that share an identifier
 4. Emit: copy the projected rows into a temporary SQLite artifact
 5. Finalize: build FTS/soundex/indexes and metadata, vacuum, and atomically
    move the artifact into place
@@ -187,17 +187,19 @@ class GazetteerBuilder:
     def _acquire_inputs(
         self, acquirer: Acquirer, config: GazetteerConfig
     ) -> t.Dict[str, Path]:
-        """Resolve every input's data file, downloading and extracting as needed."""
+        """Resolve every source's data file, downloading and extracting as needed."""
         file_paths: t.Dict[str, Path] = {}
-        with stage("Acquiring inputs", "Acquired inputs", len(config.inputs)) as group:
-            for input_config in config.inputs:
-                file_paths[input_config.name] = acquirer.acquire(input_config)
+        with stage(
+            "Acquiring sources", "Acquired sources", len(config.sources)
+        ) as group:
+            for source_config in config.sources:
+                file_paths[source_config.name] = acquirer.acquire(source_config)
                 group.advance()
         return file_paths
 
     def _needs_spatial(self, config: GazetteerConfig) -> bool:
         """Whether the build requires DuckDB's spatial extension."""
-        if any(not input_config.is_tabular for input_config in config.inputs):
+        if any(not source_config.is_tabular for source_config in config.sources):
             return True
         return any(feature.geometry is not None for feature in config.features)
 
@@ -220,28 +222,31 @@ class GazetteerBuilder:
         config: GazetteerConfig,
         file_paths: t.Dict[str, Path],
     ) -> None:
-        """Load all input files into staging tables."""
+        """Load all source files into staging tables."""
         stager = Stager(connection)
-        with stage("Staging inputs", "Staged inputs", len(config.inputs)) as group:
-            for input_config in config.inputs:
-                with item(f"Staging input '{input_config.name}'"):
-                    stager.stage(input_config, file_paths[input_config.name])
+        with stage("Staging sources", "Staged sources", len(config.sources)) as group:
+            for source_config in config.sources:
+                with item(f"Staging source '{source_config.name}'"):
+                    stager.stage(source_config, file_paths[source_config.name])
                 group.advance()
 
     def _project(
         self, connection: duckdb.DuckDBPyConnection, config: GazetteerConfig
     ) -> None:
         """Run the compiled projections into the build tables."""
-        stager = Stager(connection)
+        # Every source declares its attributes, so the catalog is derived
+        # directly from the config; the staged tables carry exactly this schema.
         catalog = {
-            input_config.name: stager.columns(input_config.name)
-            for input_config in config.inputs
+            source_config.name: [
+                attribute.name for attribute in source_config.attributes
+            ]
+            for source_config in config.sources
         }
         compiler = ProjectionCompiler(config, catalog)
 
         connection.execute(
-            "CREATE TABLE _features (identifier VARCHAR, type VARCHAR, "
-            "attributes VARCHAR, geometry BLOB)"
+            "CREATE TABLE _features (identifier VARCHAR, source VARCHAR, "
+            "data VARCHAR, geometry BLOB)"
         )
         connection.execute("CREATE TABLE _names (identifier VARCHAR, text VARCHAR)")
 
@@ -249,12 +254,13 @@ class GazetteerBuilder:
             "Projecting features", "Projected features", len(config.features)
         ) as group:
             for feature in config.features:
-                with item(f"Projecting features of type '{feature.type}'"):
+                with item(f"Projecting features from '{feature.source}'"):
                     connection.execute(
                         f"INSERT INTO _features {compiler.feature_query(feature)}"
                     )
                     for name_query in compiler.name_queries(feature):
                         connection.execute(f"INSERT INTO _names {name_query}")
+                    self._merge_duplicate_geometries(connection, compiler, feature)
                 group.advance()
 
         self._check_duplicate_identifiers(connection)
@@ -278,23 +284,57 @@ class GazetteerBuilder:
                 "'features' blocks and input files"
             )
 
+    def _merge_duplicate_geometries(
+        self,
+        connection: duckdb.DuckDBPyConnection,
+        compiler: ProjectionCompiler,
+        feature,
+    ) -> None:
+        """
+        Union the geometries of identifiers that repeat within a source.
+
+        The feature query keeps only the first row's geometry (a bounded
+        aggregate); here we recompute the union for the few genuinely
+        duplicated identifiers and patch those rows. Doing this only for
+        duplicates keeps ``ST_Union_Agg``'s unmanaged memory bounded, so the
+        build stays within limits even for very large sources.
+        """
+        query = compiler.duplicate_geometry_query(feature)
+        if query is None:
+            return
+        connection.execute(f"CREATE OR REPLACE TEMP TABLE _dup_geometry AS {query}")
+        try:
+            has_duplicates = connection.execute(
+                "SELECT count(*) FROM _dup_geometry"
+            ).fetchone()[0]
+            if has_duplicates:
+                connection.execute(
+                    "UPDATE _features SET geometry = ("
+                    "SELECT geometry FROM _dup_geometry d "
+                    "WHERE d.identifier = _features.identifier"
+                    ") WHERE identifier IN (SELECT identifier FROM _dup_geometry)"
+                )
+        finally:
+            connection.execute("DROP TABLE IF EXISTS _dup_geometry")
+
     def _check_duplicate_identifiers(
         self, connection: duckdb.DuckDBPyConnection
     ) -> None:
         """Fail the build when an identifier appears in multiple feature blocks."""
         duplicates = connection.execute(
-            "SELECT identifier, string_agg(DISTINCT type, ', ') "
+            "SELECT identifier, string_agg(DISTINCT source, ', ') "
             "FROM _features GROUP BY identifier HAVING count(*) > 1 LIMIT 5"
         ).fetchall()
         if duplicates:
             examples = "; ".join(
-                f"'{identifier}' (types: {types})" for identifier, types in duplicates
+                f"'{identifier}' (sources: {sources})"
+                for identifier, sources in duplicates
             )
             raise ValueError(
                 "Identifiers must be unique across the whole gazetteer, but the "
                 f"following appear in multiple feature blocks: {examples}. "
                 "Merge the blocks or disambiguate the identifiers with an "
-                "expression (e.g. a type prefix)."
+                "expression (e.g. a source prefix)."
             )
 
     def _emit_artifact(

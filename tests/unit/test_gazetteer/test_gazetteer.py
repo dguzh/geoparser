@@ -135,7 +135,7 @@ class TestGazetteerSearch:
         feature = results[0]
         assert isinstance(feature, Feature)
         assert feature.identifier == "2"
-        assert feature.type == "city"
+        assert feature.source == "city"
         assert feature.data["population"] == 3600000
         assert feature.gazetteer_name == "testgaz"
 

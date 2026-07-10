@@ -1,5 +1,5 @@
 """
-Acquisition of gazetteer input files.
+Acquisition of gazetteer source files.
 
 Handles downloading remote files (with size-based caching), validating local
 paths, extracting ZIP archives and locating the target file within extracted
@@ -14,7 +14,7 @@ from typing import Optional
 import requests
 
 from geoparser.gazetteer.build.progress import item
-from geoparser.gazetteer.config import InputConfig
+from geoparser.gazetteer.config import SourceConfig
 
 # Network request timeout in seconds
 REQUEST_TIMEOUT = 30
@@ -25,7 +25,7 @@ DOWNLOAD_CHUNK_SIZE = 8192
 
 class Acquirer:
     """
-    Downloads and extracts gazetteer input files.
+    Downloads and extracts gazetteer source files.
 
     Remote files are cached in the downloads directory and skipped when the
     local copy matches the remote size. ZIP archives are extracted next to
@@ -42,29 +42,29 @@ class Acquirer:
         self.downloads_directory = downloads_directory
         self.downloads_directory.mkdir(parents=True, exist_ok=True)
 
-    def acquire(self, input_config: InputConfig) -> Path:
+    def acquire(self, source_config: SourceConfig) -> Path:
         """
-        Resolve the data file for an input, downloading and extracting as needed.
+        Resolve the data file for a source, downloading and extracting as needed.
 
         Args:
-            input_config: Input configuration
+            source_config: Source configuration
 
         Returns:
-            Path to the input's target file
+            Path to the source's target file
         """
-        source_path = self._resolve_source_path(input_config)
-        return self._resolve_file_path(input_config, source_path)
+        source_path = self._resolve_source_path(source_config)
+        return self._resolve_file_path(source_config, source_path)
 
     def cleanup(self) -> None:
         """Remove all downloaded files and extracted contents."""
         if self.downloads_directory.exists():
             shutil.rmtree(self.downloads_directory)
 
-    def _resolve_source_path(self, input_config: InputConfig) -> Path:
-        """Download the input's file or validate its local path."""
-        if input_config.url:
-            return self._download_file(input_config.url)
-        local_path = Path(input_config.path)
+    def _resolve_source_path(self, source_config: SourceConfig) -> Path:
+        """Download the source's file or validate its local path."""
+        if source_config.url:
+            return self._download_file(source_config.url)
+        local_path = Path(source_config.path)
         if not local_path.exists():
             raise FileNotFoundError(f"Local path does not exist: {local_path}")
         return local_path
@@ -106,14 +106,16 @@ class Acquirer:
 
         return download_path
 
-    def _resolve_file_path(self, input_config: InputConfig, source_path: Path) -> Path:
+    def _resolve_file_path(
+        self, source_config: SourceConfig, source_path: Path
+    ) -> Path:
         """
         Locate the target file from a source path.
 
         Handles directories (recursive search), ZIP archives (extraction) and
         raw files (name check).
         """
-        target_filename = input_config.file
+        target_filename = source_config.file
 
         if source_path.is_dir():
             return self._find_target_file(source_path, target_filename)
@@ -122,8 +124,8 @@ class Acquirer:
             if source_path.name == target_filename:
                 return source_path
             raise FileNotFoundError(
-                f"Input '{input_config.name}': file '{target_filename}' not found "
-                f"at {source_path}"
+                f"Source '{source_config.name}': file '{target_filename}' not "
+                f"found at {source_path}"
             )
 
         extraction_dir = source_path.parent / source_path.stem

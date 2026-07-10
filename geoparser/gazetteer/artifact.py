@@ -5,7 +5,7 @@ An artifact is produced by the build pipeline and is immutable afterwards. It
 has a fixed schema shared by every gazetteer:
 
 - ``metadata``: key/value pairs (schema version, gazetteer name, CRS, ...)
-- ``feature``: one row per feature (identifier, type, JSON attributes, WKB geometry)
+- ``feature``: one row per feature (identifier, source, JSON data, WKB geometry)
 - ``name``: searchable names, one row per (feature, name)
 - ``name_fts``: FTS5 index over names (external content on ``name``)
 - ``name_soundex``: phonetic codes for fuzzy candidate retrieval
@@ -48,8 +48,8 @@ BASE_SCHEMA = [
     CREATE TABLE feature (
         id INTEGER PRIMARY KEY,
         identifier TEXT NOT NULL,
-        type TEXT NOT NULL,
-        attributes TEXT NOT NULL,
+        source TEXT NOT NULL,
+        data TEXT NOT NULL,
         geometry BLOB
     )
     """,
@@ -148,7 +148,7 @@ class GazetteerArtifact:
     never modified after the build.
     """
 
-    _FEATURE_COLUMNS = "f.id, f.identifier, f.type, f.attributes, f.geometry"
+    _FEATURE_COLUMNS = "f.id, f.identifier, f.source, f.data, f.geometry"
 
     def __init__(self, path: t.Union[str, Path]):
         """
@@ -212,8 +212,8 @@ class GazetteerArtifact:
                 artifact=self,
                 id=row[0],
                 identifier=row[1],
-                type=row[2],
-                attributes=row[3],
+                source=row[2],
+                data=row[3],
                 geometry=row[4],
             )
             for row in rows

@@ -19,20 +19,35 @@ from geoparser.gazetteer.build.compile import (
 from geoparser.gazetteer.config import GazetteerConfig
 
 
-def build_compiler(
-    connection: duckdb.DuckDBPyConnection, config_data: dict
-) -> t.Tuple[GazetteerConfig, ProjectionCompiler]:
-    """Validate a config and build a compiler against the live catalog."""
+def build_compiler(config_data: dict) -> t.Tuple[GazetteerConfig, ProjectionCompiler]:
+    """Validate a config and build a compiler with a catalog from its sources."""
     config = GazetteerConfig.model_validate(config_data)
-    catalog = {}
-    for input_config in config.inputs:
-        rows = connection.execute(f'DESCRIBE "{input_config.name}"').fetchall()
-        catalog[input_config.name] = [row[0] for row in rows]
-    return config, compiler_for(config, catalog)
+    catalog = {
+        source.name: [a.name for a in source.attributes]
+        for source in config.sources
+    }
+    return config, ProjectionCompiler(config, catalog)
 
 
-def compiler_for(config: GazetteerConfig, catalog: dict) -> ProjectionCompiler:
-    return ProjectionCompiler(config, catalog)
+def tabular(name: str, *columns: t.Tuple[str, str]) -> dict:
+    """A tabular source declaration with (column, type) pairs."""
+    return {
+        "name": name,
+        "path": f"{name}.csv",
+        "file": f"{name}.csv",
+        "delimiter": ",",
+        "attributes": [{"name": column, "type": type_} for column, type_ in columns],
+    }
+
+
+def spatial(name: str, *columns: t.Tuple[str, str]) -> dict:
+    """A spatial source declaration; must include a ('geometry', 'geometry') pair."""
+    return {
+        "name": name,
+        "path": f"{name}.shp",
+        "file": f"{name}.shp",
+        "attributes": [{"name": column, "type": type_} for column, type_ in columns],
+    }
 
 
 def run_features(
@@ -40,16 +55,29 @@ def run_features(
     compiler: ProjectionCompiler,
     config: GazetteerConfig,
 ) -> t.Dict[str, dict]:
-    """Run all feature queries and index the rows by identifier."""
+    """
+    Run all feature queries and index the rows by identifier.
+
+    Mirrors the builder: the feature query keeps the first row's geometry, and
+    geometries of duplicated identifiers are unioned via the separate
+    duplicate-geometry query.
+    """
     results = {}
     for feature in config.features:
-        for identifier, type_, attributes, geometry in connection.execute(
+        merged_geometry = {}
+        duplicate_query = compiler.duplicate_geometry_query(feature)
+        if duplicate_query is not None:
+            for identifier, geometry in connection.execute(
+                duplicate_query
+            ).fetchall():
+                merged_geometry[identifier] = geometry
+        for identifier, source, data, geometry in connection.execute(
             compiler.feature_query(feature)
         ).fetchall():
             results[identifier] = {
-                "type": type_,
-                "attributes": json.loads(attributes),
-                "geometry": geometry,
+                "source": source,
+                "data": json.loads(data),
+                "geometry": merged_geometry.get(identifier, geometry),
             }
     return results
 
@@ -68,16 +96,6 @@ def run_names(
     return names
 
 
-def input_declaration(name: str) -> dict:
-    """A tabular input declaration; the staged table is created in the test."""
-    return {
-        "name": name,
-        "path": f"{name}.csv",
-        "file": f"{name}.csv",
-        "delimiter": ",",
-    }
-
-
 @pytest.fixture
 def connection():
     con = duckdb.connect()
@@ -88,46 +106,48 @@ def connection():
 
 @pytest.mark.unit
 class TestBasicProjection:
-    """Test projection of a single input into features and names."""
+    """Test projection of a single source into features and names."""
 
     def make_places(self, connection):
         connection.execute(
             "CREATE TABLE places (id INTEGER, name VARCHAR, population INTEGER)"
         )
         connection.execute(
-            "INSERT INTO places VALUES " "(1, 'Paris', 2100000), (2, 'Berlin', 3600000)"
+            "INSERT INTO places VALUES (1, 'Paris', 2100000), (2, 'Berlin', 3600000)"
         )
 
     def config_data(self, **feature_overrides) -> dict:
         feature = {
-            "type": "place",
-            "from": "places",
+            "source": "places",
             "identifier": "id",
-            "names": [{"column": "name"}],
-            "attributes": ["name", "population"],
+            "names": ["name"],
+            "data": ["name", "population"],
         }
         feature.update(feature_overrides)
         return {
             "name": "testgaz",
-            "inputs": [input_declaration("places")],
+            "sources": [
+                tabular("places", ("id", "integer"), ("name", "text"),
+                        ("population", "integer"))
+            ],
             "features": [feature],
         }
 
-    def test_projects_features_with_json_attributes(self, connection):
-        """Each row becomes a feature with its attributes as JSON."""
+    def test_projects_features_with_json_data(self, connection):
+        """Each row becomes a feature with its data as JSON."""
         self.make_places(connection)
-        config, compiler = build_compiler(connection, self.config_data())
+        config, compiler = build_compiler(self.config_data())
 
         features = run_features(connection, compiler, config)
 
-        assert features["1"]["type"] == "place"
-        assert features["1"]["attributes"] == {"name": "Paris", "population": 2100000}
-        assert features["2"]["attributes"] == {"name": "Berlin", "population": 3600000}
+        assert features["1"]["source"] == "places"
+        assert features["1"]["data"] == {"name": "Paris", "population": 2100000}
+        assert features["2"]["data"] == {"name": "Berlin", "population": 3600000}
 
     def test_projects_names(self, connection):
         """Name columns produce (identifier, text) rows."""
         self.make_places(connection)
-        config, compiler = build_compiler(connection, self.config_data())
+        config, compiler = build_compiler(self.config_data())
 
         names = run_names(connection, compiler, config)
 
@@ -137,33 +157,31 @@ class TestBasicProjection:
         """Names can be scalar SQL expressions."""
         self.make_places(connection)
         config, compiler = build_compiler(
-            connection,
-            self.config_data(names=[{"expression": "upper(name)"}]),
+            self.config_data(names=["upper(name)"])
         )
 
         names = run_names(connection, compiler, config)
 
         assert names == {"1": {"PARIS"}, "2": {"BERLIN"}}
 
-    def test_attribute_expression(self, connection):
-        """Attributes can be scalar SQL expressions."""
+    def test_data_expression(self, connection):
+        """Data values can be scalar SQL expressions with an alias."""
         self.make_places(connection)
         config, compiler = build_compiler(
-            connection,
             self.config_data(
-                attributes=[{"name": "shout", "expression": "upper(name)"}]
-            ),
+                data=[{"attribute": "upper(name)", "alias": "shout"}]
+            )
         )
 
         features = run_features(connection, compiler, config)
 
-        assert features["1"]["attributes"] == {"shout": "PARIS"}
+        assert features["1"]["data"] == {"shout": "PARIS"}
 
     def test_rows_with_null_identifier_are_dropped(self, connection):
         """Rows without an identifier value produce no feature."""
         self.make_places(connection)
         connection.execute("INSERT INTO places VALUES (NULL, 'Ghost', 0)")
-        config, compiler = build_compiler(connection, self.config_data())
+        config, compiler = build_compiler(self.config_data())
 
         features = run_features(connection, compiler, config)
 
@@ -173,18 +191,16 @@ class TestBasicProjection:
         """NULL or blank name values produce no name rows."""
         self.make_places(connection)
         connection.execute("INSERT INTO places VALUES (3, NULL, 0), (4, '  ', 0)")
-        config, compiler = build_compiler(connection, self.config_data())
+        config, compiler = build_compiler(self.config_data())
 
         names = run_names(connection, compiler, config)
 
         assert set(names) == {"1", "2"}
 
-    def test_unknown_attribute_column_raises_with_hint(self, connection):
-        """Unknown attribute columns fail compilation with the available columns."""
+    def test_unknown_data_column_raises_with_hint(self, connection):
+        """Unknown data columns fail compilation with the available columns."""
         self.make_places(connection)
-        config, compiler = build_compiler(
-            connection, self.config_data(attributes=["nonexistent"])
-        )
+        config, compiler = build_compiler(self.config_data(data=["nonexistent"]))
 
         with pytest.raises(CompileError, match="Available columns"):
             compiler.feature_query(config.features[0])
@@ -192,9 +208,7 @@ class TestBasicProjection:
     def test_unknown_name_column_raises(self, connection):
         """Unknown name columns fail compilation."""
         self.make_places(connection)
-        config, compiler = build_compiler(
-            connection, self.config_data(names=[{"column": "nonexistent"}])
-        )
+        config, compiler = build_compiler(self.config_data(names=["nonexistent"]))
 
         with pytest.raises(CompileError, match="unknown column 'nonexistent'"):
             compiler.name_queries(config.features[0])
@@ -202,28 +216,27 @@ class TestBasicProjection:
 
 @pytest.mark.unit
 class TestSplitNames:
-    """Test splitting multi-value name fields."""
+    """Test splitting multi-value name fields via a SQL expression."""
 
     def test_split_produces_one_name_per_value(self, connection):
-        """A comma-separated field is split into individual trimmed names."""
+        """An expression that unnests a split field yields individual names."""
         connection.execute("CREATE TABLE places (id INTEGER, alternates VARCHAR)")
         connection.execute(
             "INSERT INTO places VALUES (1, 'Wien, Vienna , Vindobona'), (2, '')"
         )
         config, compiler = build_compiler(
-            connection,
             {
                 "name": "testgaz",
-                "inputs": [input_declaration("places")],
+                "sources": [tabular("places", ("id", "integer"),
+                                    ("alternates", "text"))],
                 "features": [
                     {
-                        "type": "place",
-                        "from": "places",
+                        "source": "places",
                         "identifier": "id",
-                        "names": [{"column": "alternates", "split": ","}],
+                        "names": ["unnest(string_split(alternates, ','))"],
                     }
                 ],
-            },
+            }
         )
 
         names = run_names(connection, compiler, config)
@@ -232,77 +245,8 @@ class TestSplitNames:
 
 
 @pytest.mark.unit
-class TestRelatedInputNames:
-    """Test one-to-many names from a related input."""
-
-    def test_names_come_from_related_table(self, connection):
-        """A separate names table keyed by identifier is first-class."""
-        connection.execute("CREATE TABLE places (id INTEGER, name VARCHAR)")
-        connection.execute("INSERT INTO places VALUES (1, 'Roma')")
-        connection.execute("CREATE TABLE alt_names (place_id INTEGER, alt VARCHAR)")
-        connection.execute(
-            "INSERT INTO alt_names VALUES (1, 'Rome'), (1, 'Rom'), (99, 'Elsewhere')"
-        )
-        config, compiler = build_compiler(
-            connection,
-            {
-                "name": "testgaz",
-                "inputs": [
-                    input_declaration("places"),
-                    input_declaration("alt_names"),
-                ],
-                "features": [
-                    {
-                        "type": "place",
-                        "from": "places",
-                        "identifier": "id",
-                        "names": [
-                            {"column": "name"},
-                            {"from": "alt_names", "key": "place_id", "column": "alt"},
-                        ],
-                    }
-                ],
-            },
-        )
-
-        names = run_names(connection, compiler, config)
-
-        # Names of identifiers not produced by any feature block ("99") are
-        # emitted here but dropped later by the builder's join.
-        assert names["1"] == {"Roma", "Rome", "Rom"}
-
-    def test_unknown_related_key_raises(self, connection):
-        """The key must be a column of the related input."""
-        connection.execute("CREATE TABLE places (id INTEGER, name VARCHAR)")
-        connection.execute("CREATE TABLE alt_names (place_id INTEGER, alt VARCHAR)")
-        config, compiler = build_compiler(
-            connection,
-            {
-                "name": "testgaz",
-                "inputs": [
-                    input_declaration("places"),
-                    input_declaration("alt_names"),
-                ],
-                "features": [
-                    {
-                        "type": "place",
-                        "from": "places",
-                        "identifier": "id",
-                        "names": [
-                            {"from": "alt_names", "key": "wrong", "column": "alt"}
-                        ],
-                    }
-                ],
-            },
-        )
-
-        with pytest.raises(CompileError, match="key 'wrong'"):
-            compiler.name_queries(config.features[0])
-
-
-@pytest.mark.unit
-class TestMergePolicies:
-    """Test explicit duplicate-identifier merge policies."""
+class TestDuplicateMerge:
+    """Test merging of rows that share an identifier."""
 
     def make_duplicates(self, connection):
         connection.execute(
@@ -313,26 +257,24 @@ class TestMergePolicies:
             "(1, 'North Peak', 800), (1, 'South Peak', 1200), (2, 'Valley', 300)"
         )
 
-    def config_data(self, merge=None, attributes=None) -> dict:
+    def config_data(self, data=None) -> dict:
         feature = {
-            "type": "peak",
-            "from": "places",
+            "source": "places",
             "identifier": "id",
-            "names": [{"column": "name"}],
-            "attributes": attributes or ["name", "height"],
+            "names": ["name"],
+            "data": data or ["name", "height"],
         }
-        if merge:
-            feature["merge"] = merge
         return {
             "name": "testgaz",
-            "inputs": [input_declaration("places")],
+            "sources": [tabular("places", ("id", "integer"), ("name", "text"),
+                                ("height", "integer"))],
             "features": [feature],
         }
 
     def test_duplicate_rows_merge_into_one_feature(self, connection):
         """Rows sharing an identifier become a single feature."""
         self.make_duplicates(connection)
-        config, compiler = build_compiler(connection, self.config_data())
+        config, compiler = build_compiler(self.config_data())
 
         features = run_features(connection, compiler, config)
 
@@ -341,49 +283,21 @@ class TestMergePolicies:
     def test_names_are_collected_across_duplicates(self, connection):
         """All names of duplicate rows are kept."""
         self.make_duplicates(connection)
-        config, compiler = build_compiler(connection, self.config_data())
+        config, compiler = build_compiler(self.config_data())
 
         names = run_names(connection, compiler, config)
 
         assert names["1"] == {"North Peak", "South Peak"}
 
-    def test_attributes_default_to_first_row(self, connection):
-        """The default policy keeps the first row's attribute values."""
+    def test_data_comes_from_first_row(self, connection):
+        """Data values are taken from the first row of the group."""
         self.make_duplicates(connection)
-        config, compiler = build_compiler(connection, self.config_data())
+        config, compiler = build_compiler(self.config_data())
 
         features = run_features(connection, compiler, config)
 
-        assert features["1"]["attributes"]["name"] == "North Peak"
-        assert features["1"]["attributes"]["height"] == 800
-
-    def test_attribute_policy_min_max(self, connection):
-        """min/max policies aggregate across duplicate rows."""
-        self.make_duplicates(connection)
-        config, compiler = build_compiler(
-            connection,
-            self.config_data(
-                attributes=[
-                    {"name": "lowest", "column": "height", "merge": "min"},
-                    {"name": "highest", "column": "height", "merge": "max"},
-                ]
-            ),
-        )
-
-        features = run_features(connection, compiler, config)
-
-        assert features["1"]["attributes"] == {"lowest": 800, "highest": 1200}
-
-    def test_block_level_attribute_policy(self, connection):
-        """The block-level policy applies to attributes without their own."""
-        self.make_duplicates(connection)
-        config, compiler = build_compiler(
-            connection, self.config_data(merge={"attributes": "max"})
-        )
-
-        features = run_features(connection, compiler, config)
-
-        assert features["1"]["attributes"]["height"] == 1200
+        assert features["1"]["data"]["name"] == "North Peak"
+        assert features["1"]["data"]["height"] == 800
 
 
 @pytest.mark.unit
@@ -391,7 +305,7 @@ class TestGeometry:
     """Test geometry projection and merging."""
 
     def test_point_geometry_from_coordinates(self, connection):
-        """lon/lat columns become WKB point geometries."""
+        """A point expression over lon/lat columns becomes a WKB point."""
         connection.execute(
             "CREATE TABLE places (id INTEGER, name VARCHAR, lon DOUBLE, lat DOUBLE)"
         )
@@ -399,20 +313,19 @@ class TestGeometry:
             "INSERT INTO places VALUES (1, 'A', 1.5, 42.5), (2, 'B', NULL, NULL)"
         )
         config, compiler = build_compiler(
-            connection,
             {
                 "name": "testgaz",
-                "inputs": [input_declaration("places")],
+                "sources": [tabular("places", ("id", "integer"), ("name", "text"),
+                                    ("lon", "real"), ("lat", "real"))],
                 "features": [
                     {
-                        "type": "place",
-                        "from": "places",
+                        "source": "places",
                         "identifier": "id",
-                        "names": [{"column": "name"}],
-                        "geometry": {"point": {"lon": "lon", "lat": "lat"}},
+                        "names": ["name"],
+                        "geometry": "ST_Point(lon, lat)",
                     }
                 ],
-            },
+            }
         )
 
         features = run_features(connection, compiler, config)
@@ -421,10 +334,11 @@ class TestGeometry:
 
         point = wkb.loads(bytes(features["1"]["geometry"]))
         assert (point.x, point.y) == (1.5, 42.5)
+        # ST_Point over NULL coordinates yields no geometry
         assert features["2"]["geometry"] is None
 
     def test_geometry_union_merge(self, connection):
-        """The union policy combines geometries of duplicate rows."""
+        """Geometries of duplicate rows are combined by union."""
         connection.execute(
             "CREATE TABLE places (id INTEGER, name VARCHAR, geometry GEOMETRY)"
         )
@@ -433,23 +347,19 @@ class TestGeometry:
             "(1, 'Multi', ST_Point(0, 0)), (1, 'Multi', ST_Point(1, 1))"
         )
         config, compiler = build_compiler(
-            connection,
             {
                 "name": "testgaz",
-                "inputs": [
-                    {"name": "places", "path": "places.shp", "file": "places.shp"}
-                ],
+                "sources": [spatial("places", ("id", "integer"), ("name", "text"),
+                                    ("geometry", "geometry"))],
                 "features": [
                     {
-                        "type": "place",
-                        "from": "places",
+                        "source": "places",
                         "identifier": "id",
-                        "names": [{"column": "name"}],
-                        "geometry": {"column": "geometry"},
-                        "merge": {"geometry": "union"},
+                        "names": ["name"],
+                        "geometry": "geometry",
                     }
                 ],
-            },
+            }
         )
 
         features = run_features(connection, compiler, config)
@@ -470,23 +380,22 @@ class TestGeometry:
             "INSERT INTO places VALUES (1, 'Bern', ST_Point(2600000, 1200000))"
         )
         config, compiler = build_compiler(
-            connection,
             {
                 "name": "testgaz",
                 "crs": "EPSG:4326",
-                "inputs": [
-                    {"name": "places", "path": "places.shp", "file": "places.shp"}
+                "sources": [
+                    spatial("places", ("id", "integer"), ("name", "text"),
+                            ("geometry", "geometry")) | {"crs": "EPSG:2056"}
                 ],
                 "features": [
                     {
-                        "type": "place",
-                        "from": "places",
+                        "source": "places",
                         "identifier": "id",
-                        "names": [{"column": "name"}],
-                        "geometry": {"column": "geometry", "crs": "EPSG:2056"},
+                        "names": ["name"],
+                        "geometry": "geometry",
                     }
                 ],
-            },
+            }
         )
 
         features = run_features(connection, compiler, config)
@@ -499,8 +408,8 @@ class TestGeometry:
 
 
 @pytest.mark.unit
-class TestLookups:
-    """Test lookup joins."""
+class TestJoins:
+    """Test raw SQL joins that enrich a feature block."""
 
     def make_data(self, connection):
         connection.execute(
@@ -516,76 +425,79 @@ class TestLookups:
         connection.execute("CREATE TABLE admins (code VARCHAR, label VARCHAR)")
         connection.execute("INSERT INTO admins VALUES ('CH.BE', 'Canton of Bern')")
 
-    def test_lookup_value_becomes_attribute(self, connection):
-        """Lookup values are available as attribute columns."""
+    def places_source(self) -> dict:
+        return tabular(
+            "places", ("id", "integer"), ("name", "text"),
+            ("country_code", "text"), ("admin_code", "text")
+        )
+
+    def test_joined_column_becomes_data(self, connection):
+        """A qualified reference to a joined table becomes a data value."""
         self.make_data(connection)
         config, compiler = build_compiler(
-            connection,
             {
                 "name": "testgaz",
-                "inputs": [
-                    input_declaration("places"),
-                    input_declaration("countries"),
+                "sources": [
+                    self.places_source(),
+                    tabular("countries", ("code", "text"), ("label", "text")),
                 ],
-                "lookups": {
-                    "country": {
-                        "from": "countries",
-                        "match": {"on": {"country_code": "code"}},
-                        "values": {"country_name": "label"},
-                    }
-                },
                 "features": [
                     {
-                        "type": "place",
-                        "from": "places",
+                        "source": "places",
+                        "joins": [
+                            "LEFT JOIN countries ON country_code = countries.code"
+                        ],
                         "identifier": "id",
-                        "names": [{"column": "name"}],
-                        "lookups": ["country"],
-                        "attributes": ["name", "country_name"],
+                        "names": ["name"],
+                        "data": [
+                            "name",
+                            {"attribute": "countries.label",
+                             "alias": "country_name"},
+                        ],
                     }
                 ],
-            },
+            }
         )
 
         features = run_features(connection, compiler, config)
 
-        assert features["1"]["attributes"]["country_name"] == "Switzerland"
-        assert features["2"]["attributes"]["country_name"] is None
+        assert features["1"]["data"]["country_name"] == "Switzerland"
+        assert features["2"]["data"]["country_name"] is None
 
-    def test_lookup_with_expression_key(self, connection):
-        """The feature side of a match can be a scalar expression."""
+    def test_join_on_expression(self, connection):
+        """The join condition can be an arbitrary SQL expression."""
         self.make_data(connection)
         config, compiler = build_compiler(
-            connection,
             {
                 "name": "testgaz",
-                "inputs": [input_declaration("places"), input_declaration("admins")],
-                "lookups": {
-                    "admin": {
-                        "from": "admins",
-                        "match": {"on": {"country_code || '.' || admin_code": "code"}},
-                        "values": {"admin_name": "label"},
-                    }
-                },
+                "sources": [
+                    self.places_source(),
+                    tabular("admins", ("code", "text"), ("label", "text")),
+                ],
                 "features": [
                     {
-                        "type": "place",
-                        "from": "places",
+                        "source": "places",
+                        "joins": [
+                            "LEFT JOIN admins "
+                            "ON country_code || '.' || admin_code = admins.code"
+                        ],
                         "identifier": "id",
-                        "names": [{"column": "name"}],
-                        "lookups": ["admin"],
-                        "attributes": ["name", "admin_name"],
+                        "names": ["name"],
+                        "data": [
+                            "name",
+                            {"attribute": "admins.label", "alias": "admin_name"},
+                        ],
                     }
                 ],
-            },
+            }
         )
 
         features = run_features(connection, compiler, config)
 
-        assert features["1"]["attributes"]["admin_name"] == "Canton of Bern"
+        assert features["1"]["data"]["admin_name"] == "Canton of Bern"
 
-    def test_lookup_chains_off_earlier_lookup_value(self, connection):
-        """A lookup can match on a value produced by an earlier lookup."""
+    def test_join_chains_off_earlier_join(self, connection):
+        """A later join can reference a table joined earlier."""
         connection.execute("CREATE TABLE places (id INTEGER, name VARCHAR, a VARCHAR)")
         connection.execute("INSERT INTO places VALUES (1, 'X', 'a1')")
         connection.execute("CREATE TABLE level1 (code VARCHAR, parent VARCHAR)")
@@ -593,45 +505,37 @@ class TestLookups:
         connection.execute("CREATE TABLE level2 (code VARCHAR, label VARCHAR)")
         connection.execute("INSERT INTO level2 VALUES ('b1', 'Top level')")
         config, compiler = build_compiler(
-            connection,
             {
                 "name": "testgaz",
-                "inputs": [
-                    input_declaration("places"),
-                    input_declaration("level1"),
-                    input_declaration("level2"),
+                "sources": [
+                    tabular("places", ("id", "integer"), ("name", "text"),
+                            ("a", "text")),
+                    tabular("level1", ("code", "text"), ("parent", "text")),
+                    tabular("level2", ("code", "text"), ("label", "text")),
                 ],
-                "lookups": {
-                    "first": {
-                        "from": "level1",
-                        "match": {"on": {"a": "code"}},
-                        "values": {"parent_code": "parent"},
-                    },
-                    "second": {
-                        "from": "level2",
-                        "match": {"on": {"parent_code": "code"}},
-                        "values": {"parent_label": "label"},
-                    },
-                },
                 "features": [
                     {
-                        "type": "place",
-                        "from": "places",
+                        "source": "places",
+                        "joins": [
+                            "LEFT JOIN level1 ON a = level1.code",
+                            "LEFT JOIN level2 ON level1.parent = level2.code",
+                        ],
                         "identifier": "id",
-                        "names": [{"column": "name"}],
-                        "lookups": ["first", "second"],
-                        "attributes": ["parent_label"],
+                        "names": ["name"],
+                        "data": [
+                            {"attribute": "level2.label", "alias": "parent_label"}
+                        ],
                     }
                 ],
-            },
+            }
         )
 
         features = run_features(connection, compiler, config)
 
-        assert features["1"]["attributes"]["parent_label"] == "Top level"
+        assert features["1"]["data"]["parent_label"] == "Top level"
 
-    def test_spatial_lookup(self, connection):
-        """Spatial lookups join the feature geometry against boundaries."""
+    def test_spatial_join(self, connection):
+        """A spatial join clause matches the feature geometry against boundaries."""
         connection.execute(
             "CREATE TABLE places (id INTEGER, name VARCHAR, lon DOUBLE, lat DOUBLE)"
         )
@@ -644,141 +548,119 @@ class TestLookups:
             "('Unit Square', ST_GeomFromText('POLYGON((0 0, 1 0, 1 1, 0 1, 0 0))'))"
         )
         config, compiler = build_compiler(
-            connection,
             {
                 "name": "testgaz",
-                "inputs": [
-                    input_declaration("places"),
-                    {"name": "zones", "path": "zones.shp", "file": "zones.shp"},
+                "sources": [
+                    tabular("places", ("id", "integer"), ("name", "text"),
+                            ("lon", "real"), ("lat", "real")),
+                    spatial("zones", ("zone_name", "text"),
+                            ("geometry", "geometry")),
                 ],
-                "lookups": {
-                    "zone": {
-                        "from": "zones",
-                        "match": {"spatial": "within"},
-                        "values": {"zone_name": "zone_name"},
-                    }
-                },
                 "features": [
                     {
-                        "type": "place",
-                        "from": "places",
+                        "source": "places",
+                        "joins": [
+                            "LEFT JOIN zones "
+                            "ON ST_Within(ST_Point(lon, lat), zones.geometry)"
+                        ],
                         "identifier": "id",
-                        "names": [{"column": "name"}],
-                        "geometry": {"point": {"lon": "lon", "lat": "lat"}},
-                        "lookups": ["zone"],
-                        "attributes": ["zone_name"],
+                        "geometry": "ST_Point(lon, lat)",
+                        "names": ["name"],
+                        "data": [
+                            {"attribute": "zones.zone_name", "alias": "zone_name"}
+                        ],
                     }
                 ],
-            },
+            }
         )
 
         features = run_features(connection, compiler, config)
 
-        assert features["1"]["attributes"]["zone_name"] == "Unit Square"
-        assert features["2"]["attributes"]["zone_name"] is None
+        assert features["1"]["data"]["zone_name"] == "Unit Square"
+        assert features["2"]["data"]["zone_name"] is None
 
-    def test_lookup_value_shadows_base_column(self, connection):
-        """A lookup value with the same name replaces the input's column."""
+    def test_spatial_join_qualifies_ambiguous_geometry(self, connection):
+        """A bare geometry column in an ON condition is qualified to the source.
+
+        Both the source and the joined source expose a ``geometry`` column, so
+        an unqualified reference would be ambiguous; the compiler qualifies it
+        to ``src`` implicitly.
+        """
+        connection.execute("CREATE TABLE places (id INTEGER, geometry GEOMETRY)")
+        connection.execute("INSERT INTO places VALUES (1, ST_Point(0.5, 0.5))")
+        connection.execute("CREATE TABLE zones (zone_name VARCHAR, geometry GEOMETRY)")
+        connection.execute(
+            "INSERT INTO zones VALUES "
+            "('Unit Square', ST_GeomFromText('POLYGON((0 0, 1 0, 1 1, 0 1, 0 0))'))"
+        )
+        config, compiler = build_compiler(
+            {
+                "name": "testgaz",
+                "sources": [
+                    spatial("places", ("id", "integer"),
+                            ("geometry", "geometry")),
+                    spatial("zones", ("zone_name", "text"),
+                            ("geometry", "geometry")),
+                ],
+                "features": [
+                    {
+                        "source": "places",
+                        "joins": [
+                            "LEFT JOIN zones "
+                            "ON ST_Within(ST_Centroid(geometry), zones.geometry)"
+                        ],
+                        "identifier": "id",
+                        "geometry": "geometry",
+                        "names": ["CAST(id AS VARCHAR)"],
+                        "data": [
+                            {"attribute": "zones.zone_name", "alias": "zone_name"}
+                        ],
+                    }
+                ],
+            }
+        )
+
+        features = run_features(connection, compiler, config)
+
+        assert features["1"]["data"]["zone_name"] == "Unit Square"
+
+    def test_bare_and_qualified_references_pick_different_columns(self, connection):
+        """A bare name is the source column; a qualified name is the joined one."""
         connection.execute(
             "CREATE TABLE places (id INTEGER, name VARCHAR, label VARCHAR)"
         )
         connection.execute("INSERT INTO places VALUES (1, 'X', 'base label')")
         connection.execute("CREATE TABLE extra (place_id INTEGER, label VARCHAR)")
-        connection.execute("INSERT INTO extra VALUES (1, 'lookup label')")
+        connection.execute("INSERT INTO extra VALUES (1, 'joined label')")
         config, compiler = build_compiler(
-            connection,
             {
                 "name": "testgaz",
-                "inputs": [input_declaration("places"), input_declaration("extra")],
-                "lookups": {
-                    "enrich": {
-                        "from": "extra",
-                        "match": {"on": {"id": "place_id"}},
-                        "values": {"label": "label"},
-                    }
-                },
+                "sources": [
+                    tabular("places", ("id", "integer"), ("name", "text"),
+                            ("label", "text")),
+                    tabular("extra", ("place_id", "integer"), ("label", "text")),
+                ],
                 "features": [
                     {
-                        "type": "place",
-                        "from": "places",
+                        "source": "places",
+                        "joins": [
+                            "LEFT JOIN extra ON id = extra.place_id"
+                        ],
                         "identifier": "id",
-                        "names": [{"column": "name"}],
-                        "lookups": ["enrich"],
-                        "attributes": ["label"],
+                        "names": ["name"],
+                        "data": [
+                            "label",
+                            {"attribute": "extra.label", "alias": "joined_label"},
+                        ],
                     }
                 ],
-            },
+            }
         )
 
         features = run_features(connection, compiler, config)
 
-        assert features["1"]["attributes"]["label"] == "lookup label"
-
-    def test_unknown_lookup_value_column_raises(self, connection):
-        """Lookup values must reference columns of the lookup input."""
-        self.make_data(connection)
-        config, compiler = build_compiler(
-            connection,
-            {
-                "name": "testgaz",
-                "inputs": [
-                    input_declaration("places"),
-                    input_declaration("countries"),
-                ],
-                "lookups": {
-                    "country": {
-                        "from": "countries",
-                        "match": {"on": {"country_code": "code"}},
-                        "values": {"country_name": "nonexistent"},
-                    }
-                },
-                "features": [
-                    {
-                        "type": "place",
-                        "from": "places",
-                        "identifier": "id",
-                        "names": [{"column": "name"}],
-                        "lookups": ["country"],
-                    }
-                ],
-            },
-        )
-
-        with pytest.raises(CompileError, match="unknown column 'nonexistent'"):
-            compiler.feature_query(config.features[0])
-
-    def test_unresolvable_match_key_raises(self, connection):
-        """A match key that is neither a column nor a lookup value fails."""
-        self.make_data(connection)
-        config, compiler = build_compiler(
-            connection,
-            {
-                "name": "testgaz",
-                "inputs": [
-                    input_declaration("places"),
-                    input_declaration("countries"),
-                ],
-                "lookups": {
-                    "country": {
-                        "from": "countries",
-                        "match": {"on": {"nonexistent": "code"}},
-                        "values": {"country_name": "label"},
-                    }
-                },
-                "features": [
-                    {
-                        "type": "place",
-                        "from": "places",
-                        "identifier": "id",
-                        "names": [{"column": "name"}],
-                        "lookups": ["country"],
-                    }
-                ],
-            },
-        )
-
-        with pytest.raises(CompileError, match="matches\\s+on 'nonexistent'"):
-            compiler.feature_query(config.features[0])
+        assert features["1"]["data"]["label"] == "base label"
+        assert features["1"]["data"]["joined_label"] == "joined label"
 
 
 @pytest.mark.unit

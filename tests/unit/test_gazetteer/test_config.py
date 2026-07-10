@@ -9,32 +9,30 @@ import textwrap
 import pytest
 from pydantic import ValidationError
 
-from geoparser.gazetteer.config import (
-    AttributeMerge,
-    GazetteerConfig,
-    GeometryMerge,
-    SpatialPredicate,
-)
+from geoparser.gazetteer.config import GazetteerConfig
 
 
 def minimal_config(**overrides) -> dict:
     """Return a minimal valid configuration, optionally overridden."""
     config = {
         "name": "testgaz",
-        "inputs": [
+        "sources": [
             {
                 "name": "places",
                 "path": "data/places.csv",
                 "file": "places.csv",
                 "delimiter": ",",
+                "attributes": [
+                    {"name": "id", "type": "integer"},
+                    {"name": "name", "type": "text"},
+                ],
             }
         ],
         "features": [
             {
-                "type": "place",
-                "from": "places",
+                "source": "places",
                 "identifier": "id",
-                "names": [{"column": "name"}],
+                "names": ["name"],
             }
         ],
     }
@@ -42,17 +40,32 @@ def minimal_config(**overrides) -> dict:
     return config
 
 
+def spatial_source(**overrides) -> dict:
+    """A spatial source declaration (no delimiter, one geometry attribute)."""
+    data = {
+        "name": "shape",
+        "path": "data/shape.shp",
+        "file": "shape.shp",
+        "attributes": [
+            {"name": "OGC_FID", "type": "integer"},
+            {"name": "geometry", "type": "geometry"},
+        ],
+    }
+    data.update(overrides)
+    return data
+
+
 @pytest.mark.unit
 class TestGazetteerConfigValidation:
     """Test top-level configuration validation."""
 
     def test_minimal_config_is_valid(self):
-        """A minimal config with one input and one feature validates."""
+        """A minimal config with one source and one feature validates."""
         config = GazetteerConfig.model_validate(minimal_config())
 
         assert config.name == "testgaz"
         assert config.crs == "EPSG:4326"
-        assert len(config.inputs) == 1
+        assert len(config.sources) == 1
         assert len(config.features) == 1
 
     def test_rejects_invalid_gazetteer_name(self):
@@ -60,212 +73,197 @@ class TestGazetteerConfigValidation:
         with pytest.raises(ValidationError, match="must contain only"):
             GazetteerConfig.model_validate(minimal_config(name="bad name!"))
 
-    def test_requires_at_least_one_input(self):
-        """A gazetteer without inputs is rejected."""
-        with pytest.raises(ValidationError, match="at least one input"):
-            GazetteerConfig.model_validate(minimal_config(inputs=[]))
+    def test_requires_at_least_one_source(self):
+        """A gazetteer without sources is rejected."""
+        with pytest.raises(ValidationError, match="at least one source"):
+            GazetteerConfig.model_validate(minimal_config(sources=[]))
 
     def test_requires_at_least_one_feature(self):
         """A gazetteer without feature blocks is rejected."""
         with pytest.raises(ValidationError, match="at least one feature"):
             GazetteerConfig.model_validate(minimal_config(features=[]))
 
-    def test_rejects_duplicate_input_names(self):
-        """Two inputs with the same name are rejected."""
+    def test_rejects_duplicate_source_names(self):
+        """Two sources with the same name are rejected."""
         data = minimal_config()
-        data["inputs"].append(dict(data["inputs"][0]))
+        data["sources"].append(dict(data["sources"][0]))
 
-        with pytest.raises(ValidationError, match="Duplicate input names"):
+        with pytest.raises(ValidationError, match="Duplicate source names"):
             GazetteerConfig.model_validate(data)
 
-    def test_rejects_feature_referencing_unknown_input(self):
-        """A feature block must project from a declared input."""
+    def test_rejects_feature_referencing_unknown_source(self):
+        """A feature block must project from a declared source."""
         data = minimal_config()
-        data["features"][0]["from"] = "nowhere"
+        data["features"][0]["source"] = "nowhere"
 
-        with pytest.raises(ValidationError, match="unknown input 'nowhere'"):
+        with pytest.raises(ValidationError, match="unknown source 'nowhere'"):
             GazetteerConfig.model_validate(data)
 
-    def test_rejects_feature_referencing_unknown_lookup(self):
-        """A feature block can only use declared lookups."""
+    def test_rejects_two_feature_blocks_from_same_source(self):
+        """Each source can back at most one feature block."""
         data = minimal_config()
-        data["features"][0]["lookups"] = ["missing"]
-
-        with pytest.raises(ValidationError, match="unknown lookup 'missing'"):
-            GazetteerConfig.model_validate(data)
-
-    def test_rejects_lookup_referencing_unknown_input(self):
-        """A lookup must join against a declared input."""
-        data = minimal_config()
-        data["lookups"] = {
-            "extra": {
-                "from": "nowhere",
-                "match": {"on": {"id": "id"}},
-                "values": {"extra_name": "name"},
-            }
-        }
-
-        with pytest.raises(ValidationError, match="unknown input 'nowhere'"):
-            GazetteerConfig.model_validate(data)
-
-    def test_rejects_lookups_exposing_same_value_name(self):
-        """Two lookups on one feature must not expose the same value name."""
-        data = minimal_config()
-        lookup = {
-            "from": "places",
-            "match": {"on": {"id": "id"}},
-            "values": {"clash": "name"},
-        }
-        data["lookups"] = {"first": dict(lookup), "second": dict(lookup)}
-        data["features"][0]["lookups"] = ["first", "second"]
+        data["features"].append(dict(data["features"][0]))
 
         with pytest.raises(
-            ValidationError, match="both\\s+expose a value named 'clash'"
+            ValidationError, match="at most one feature block"
         ):
             GazetteerConfig.model_validate(data)
 
 
 @pytest.mark.unit
-class TestInputConfigValidation:
-    """Test input validation."""
+class TestSourceConfigValidation:
+    """Test source validation."""
 
     def test_requires_exactly_one_of_url_or_path(self):
-        """An input must be either remote (url) or local (path)."""
+        """A source must be either remote (url) or local (path)."""
         data = minimal_config()
-        data["inputs"][0]["url"] = "https://example.com/places.zip"
+        data["sources"][0]["url"] = "https://example.com/places.zip"
 
         with pytest.raises(ValidationError, match="exactly one of 'url' or 'path'"):
             GazetteerConfig.model_validate(data)
 
-        del data["inputs"][0]["url"]
-        del data["inputs"][0]["path"]
+        del data["sources"][0]["url"]
+        del data["sources"][0]["path"]
 
         with pytest.raises(ValidationError, match="exactly one of 'url' or 'path'"):
             GazetteerConfig.model_validate(data)
 
-    def test_rejects_tabular_options_on_spatial_input(self):
-        """Options like 'columns' require a delimiter (tabular input)."""
+    def test_requires_at_least_one_attribute(self):
+        """Every source must declare its attributes."""
         data = minimal_config()
-        data["inputs"][0].pop("delimiter")
-        data["inputs"][0]["columns"] = [{"name": "id"}]
+        data["sources"][0]["attributes"] = []
+
+        with pytest.raises(ValidationError, match="at least one attribute"):
+            GazetteerConfig.model_validate(data)
+
+    def test_rejects_duplicate_attribute_names(self):
+        """Declared attributes of a source must be unique."""
+        data = minimal_config()
+        data["sources"][0]["attributes"] = [
+            {"name": "id", "type": "integer"},
+            {"name": "id", "type": "integer"},
+        ]
+
+        with pytest.raises(ValidationError, match="duplicate attribute names"):
+            GazetteerConfig.model_validate(data)
+
+    def test_rejects_geometry_attribute_on_tabular_source(self):
+        """Tabular sources have no geometry, so they cannot declare one."""
+        data = minimal_config()
+        data["sources"][0]["attributes"].append(
+            {"name": "geometry", "type": "geometry"}
+        )
+
+        with pytest.raises(
+            ValidationError, match="tabular sources cannot declare a geometry"
+        ):
+            GazetteerConfig.model_validate(data)
+
+    def test_spatial_source_requires_exactly_one_geometry_attribute(self):
+        """A spatial source must declare exactly one geometry attribute."""
+        data = minimal_config()
+        data["sources"].append(
+            spatial_source(attributes=[{"name": "OGC_FID", "type": "integer"}])
+        )
+
+        with pytest.raises(
+            ValidationError, match="exactly one geometry attribute"
+        ):
+            GazetteerConfig.model_validate(data)
+
+    def test_spatial_geometry_attribute_must_be_named_geometry(self):
+        """The geometry attribute of a spatial source must be named 'geometry'."""
+        data = minimal_config()
+        data["sources"].append(
+            spatial_source(
+                attributes=[
+                    {"name": "OGC_FID", "type": "integer"},
+                    {"name": "geom", "type": "geometry"},
+                ]
+            )
+        )
+
+        with pytest.raises(ValidationError, match="must be named 'geometry'"):
+            GazetteerConfig.model_validate(data)
+
+    def test_rejects_tabular_options_on_spatial_source(self):
+        """Options like 'quote' require a delimiter (tabular source)."""
+        data = minimal_config()
+        data["sources"].append(spatial_source(quote=""))
 
         with pytest.raises(ValidationError, match="only valid for tabular"):
             GazetteerConfig.model_validate(data)
 
-    def test_rejects_crs_on_tabular_input(self):
-        """The input-level CRS is reserved for spatial inputs."""
+    def test_crs_is_allowed_on_any_source(self):
+        """The CRS declares a source's coordinate system and is always allowed."""
         data = minimal_config()
-        data["inputs"][0]["crs"] = "EPSG:2056"
+        data["sources"][0]["crs"] = "EPSG:2056"
 
-        with pytest.raises(ValidationError, match="only valid for spatial"):
-            GazetteerConfig.model_validate(data)
+        config = GazetteerConfig.model_validate(data)
 
-    def test_rejects_duplicate_column_names(self):
-        """Declared columns of a tabular input must be unique."""
+        assert config.sources[0].crs == "EPSG:2056"
+
+    def test_rejects_invalid_source_name(self):
+        """Source names must be valid identifiers."""
         data = minimal_config()
-        data["inputs"][0]["columns"] = [{"name": "id"}, {"name": "id"}]
-
-        with pytest.raises(ValidationError, match="duplicate column names"):
-            GazetteerConfig.model_validate(data)
-
-    def test_rejects_invalid_input_name(self):
-        """Input names must be valid identifiers."""
-        data = minimal_config()
-        data["inputs"][0]["name"] = "has space"
-        data["features"][0]["from"] = "has space"
+        data["sources"][0]["name"] = "has space"
+        data["features"][0]["source"] = "has space"
 
         with pytest.raises(ValidationError, match="must start with a letter"):
             GazetteerConfig.model_validate(data)
 
 
 @pytest.mark.unit
-class TestLookupConfigValidation:
-    """Test lookup validation."""
+class TestJoinConfigValidation:
+    """Test that joins are raw SQL join clauses."""
 
-    def base_with_lookup(self, match: dict) -> dict:
+    def test_defaults_to_no_joins(self):
+        """A feature block without joins has an empty join list."""
+        config = GazetteerConfig.model_validate(minimal_config())
+
+        assert config.features[0].joins == []
+
+    def test_accepts_raw_sql_join_clauses(self):
+        """Joins are stored verbatim as SQL join clauses."""
         data = minimal_config()
-        data["lookups"] = {
-            "extra": {
-                "from": "places",
-                "match": match,
-                "values": {"extra_name": "name"},
+        data["sources"].append(
+            {
+                "name": "extra",
+                "path": "data/extra.csv",
+                "file": "extra.csv",
+                "delimiter": ",",
+                "attributes": [
+                    {"name": "eid", "type": "integer"},
+                    {"name": "label", "type": "text"},
+                ],
             }
-        }
-        return data
-
-    def test_accepts_equality_match(self):
-        """A lookup can match on column equality."""
-        config = GazetteerConfig.model_validate(
-            self.base_with_lookup({"on": {"code": "code"}})
         )
+        data["features"][0]["joins"] = [
+            "LEFT JOIN extra ON src.id = extra.eid"
+        ]
 
-        assert config.lookups["extra"].match.on == {"code": "code"}
+        config = GazetteerConfig.model_validate(data)
 
-    def test_accepts_spatial_match(self):
-        """A lookup can match spatially."""
-        config = GazetteerConfig.model_validate(
-            self.base_with_lookup({"spatial": "within", "using": "centroid"})
-        )
+        assert config.features[0].joins == ["LEFT JOIN extra ON src.id = extra.eid"]
 
-        assert config.lookups["extra"].match.spatial == SpatialPredicate.WITHIN
-
-    def test_rejects_match_with_both_on_and_spatial(self):
-        """'on' and 'spatial' are mutually exclusive."""
-        with pytest.raises(ValidationError, match="exactly one of 'on' or 'spatial'"):
-            GazetteerConfig.model_validate(
-                self.base_with_lookup({"on": {"a": "b"}, "spatial": "within"})
-            )
-
-    def test_rejects_using_without_spatial(self):
-        """'using' only applies to spatial matches."""
-        with pytest.raises(ValidationError, match="only valid for spatial"):
-            GazetteerConfig.model_validate(
-                self.base_with_lookup({"on": {"a": "b"}, "using": "centroid"})
-            )
-
-    def test_rejects_lookup_without_values(self):
-        """A lookup must expose at least one value."""
+    def test_rejects_blank_join_clause(self):
+        """A blank join clause is rejected."""
         data = minimal_config()
-        data["lookups"] = {
-            "extra": {"from": "places", "match": {"on": {"a": "b"}}, "values": {}}
-        }
+        data["features"][0]["joins"] = ["   "]
 
-        with pytest.raises(ValidationError, match="at least one value"):
+        with pytest.raises(ValidationError, match="non-empty SQL join clause"):
             GazetteerConfig.model_validate(data)
-
-    def test_yaml_bare_on_key_is_coerced(self):
-        """YAML 1.1 parses the bare key 'on' as True; it must still work."""
-        yaml_text = textwrap.dedent(
-            """
-            name: testgaz
-            inputs:
-              - name: places
-                path: data/places.csv
-                file: places.csv
-                delimiter: ","
-            lookups:
-              extra:
-                from: places
-                match: { on: { code: code } }
-                values: { extra_name: name }
-            features:
-              - type: place
-                from: places
-                identifier: id
-                names: [{ column: name }]
-                lookups: [extra]
-            """
-        )
-        import yaml
-
-        config = GazetteerConfig.model_validate(yaml.safe_load(yaml_text))
-
-        assert config.lookups["extra"].match.on == {"code": "code"}
 
 
 @pytest.mark.unit
-class TestFeatureConfigValidation:
-    """Test feature block validation."""
+class TestNameConfigValidation:
+    """Test name validation."""
+
+    def test_name_is_a_plain_string(self):
+        """A name is a column or expression string."""
+        config = GazetteerConfig.model_validate(minimal_config())
+
+        assert config.features[0].names[0] == "name"
 
     def test_requires_at_least_one_name(self):
         """A feature must define at least one name."""
@@ -275,105 +273,73 @@ class TestFeatureConfigValidation:
         with pytest.raises(ValidationError, match="at least one name"):
             GazetteerConfig.model_validate(data)
 
-    def test_name_requires_exactly_one_of_column_or_expression(self):
-        """A name is either a column or an expression."""
+    def test_rejects_empty_name(self):
+        """A blank name string is rejected."""
         data = minimal_config()
-        data["features"][0]["names"] = [{"column": "name", "expression": "name"}]
+        data["features"][0]["names"] = ["  "]
 
-        with pytest.raises(
-            ValidationError, match="exactly one of 'column' or 'expression'"
-        ):
+        with pytest.raises(ValidationError, match="non-empty string"):
             GazetteerConfig.model_validate(data)
 
-    def test_related_name_requires_from_and_key(self):
-        """Names from a related input need both 'from' and 'key'."""
-        data = minimal_config()
-        data["features"][0]["names"] = [{"column": "name", "from": "places"}]
 
-        with pytest.raises(ValidationError, match="both 'from' and 'key'"):
-            GazetteerConfig.model_validate(data)
+@pytest.mark.unit
+class TestFeatureConfigValidation:
+    """Test feature block validation."""
 
-    def test_related_name_must_reference_known_input(self):
-        """The related input of a name must be declared."""
-        data = minimal_config()
-        data["features"][0]["names"] = [
-            {"column": "name", "from": "nowhere", "key": "id"}
-        ]
-
-        with pytest.raises(ValidationError, match="unknown\\s+input 'nowhere'"):
-            GazetteerConfig.model_validate(data)
-
-    def test_geometry_requires_exactly_one_of_column_or_point(self):
-        """A geometry is either a column or a lon/lat point."""
-        data = minimal_config()
-        data["features"][0]["geometry"] = {
-            "column": "geometry",
-            "point": {"lon": "lon", "lat": "lat"},
-        }
-
-        with pytest.raises(ValidationError, match="exactly one of 'column' or 'point'"):
-            GazetteerConfig.model_validate(data)
-
-    def test_attribute_shorthand_expands_to_column(self):
-        """The string shorthand maps an attribute name to a same-named column."""
-        data = minimal_config()
-        data["features"][0]["attributes"] = ["population"]
-
-        config = GazetteerConfig.model_validate(data)
-
-        attribute = config.features[0].attributes[0]
-        assert attribute.name == "population"
-        assert attribute.column == "population"
-
-    def test_rejects_duplicate_attribute_names(self):
-        """Attribute names must be unique within a feature."""
-        data = minimal_config()
-        data["features"][0]["attributes"] = ["population", "population"]
-
-        with pytest.raises(ValidationError, match="duplicate attribute names"):
-            GazetteerConfig.model_validate(data)
-
-    def test_rejects_attribute_with_column_and_expression(self):
-        """An attribute cannot be both a column and an expression."""
-        data = minimal_config()
-        data["features"][0]["attributes"] = [
-            {"name": "x", "column": "a", "expression": "b"}
-        ]
-
-        with pytest.raises(ValidationError, match="both 'column' and 'expression'"):
-            GazetteerConfig.model_validate(data)
-
-    def test_rejects_duplicate_lookups(self):
-        """A feature cannot list the same lookup twice."""
-        data = minimal_config()
-        data["lookups"] = {
-            "extra": {
-                "from": "places",
-                "match": {"on": {"a": "b"}},
-                "values": {"v": "name"},
-            }
-        }
-        data["features"][0]["lookups"] = ["extra", "extra"]
-
-        with pytest.raises(ValidationError, match="duplicate lookups"):
-            GazetteerConfig.model_validate(data)
-
-    def test_merge_policies_parse(self):
-        """Merge policies are parsed into their enums."""
-        data = minimal_config()
-        data["features"][0]["merge"] = {"geometry": "union", "attributes": "max"}
-
-        config = GazetteerConfig.model_validate(data)
-
-        assert config.features[0].merge.geometry == GeometryMerge.UNION
-        assert config.features[0].merge.attributes == AttributeMerge.MAX
-
-    def test_merge_defaults_to_first(self):
-        """Without an explicit policy, duplicates keep the first row's values."""
+    def test_source_is_the_backing_source(self):
+        """A feature's source in the artifact is the name of its source."""
         config = GazetteerConfig.model_validate(minimal_config())
 
-        assert config.features[0].merge.geometry == GeometryMerge.FIRST
-        assert config.features[0].merge.attributes == AttributeMerge.FIRST
+        assert config.features[0].source == "places"
+
+    def test_geometry_is_an_optional_value(self):
+        """Geometry is a single column or expression, absent by default."""
+        assert GazetteerConfig.model_validate(minimal_config()).features[0].geometry \
+            is None
+
+        data = minimal_config()
+        data["features"][0]["geometry"] = "ST_Point(lon, lat)"
+        config = GazetteerConfig.model_validate(data)
+
+        assert config.features[0].geometry == "ST_Point(lon, lat)"
+
+    def test_data_shorthand_expands_to_attribute(self):
+        """The string shorthand names an attribute stored under its own name."""
+        data = minimal_config()
+        data["features"][0]["data"] = ["population"]
+
+        config = GazetteerConfig.model_validate(data)
+
+        item = config.features[0].data[0]
+        assert item.attribute == "population"
+        assert item.output_name == "population"
+
+    def test_data_alias_renames_the_key(self):
+        """An alias renames a differently named column or expression."""
+        data = minimal_config()
+        data["features"][0]["data"] = [{"attribute": "population", "alias": "pop"}]
+
+        config = GazetteerConfig.model_validate(data)
+
+        item = config.features[0].data[0]
+        assert item.attribute == "population"
+        assert item.output_name == "pop"
+
+    def test_data_expression_requires_alias(self):
+        """A data expression needs an alias to name the stored key."""
+        data = minimal_config()
+        data["features"][0]["data"] = [{"attribute": "upper(name)"}]
+
+        with pytest.raises(ValidationError, match="needs an 'alias'"):
+            GazetteerConfig.model_validate(data)
+
+    def test_rejects_duplicate_data_keys(self):
+        """Data keys must be unique within a feature."""
+        data = minimal_config()
+        data["features"][0]["data"] = ["population", "population"]
+
+        with pytest.raises(ValidationError, match="duplicate data keys"):
+            GazetteerConfig.model_validate(data)
 
 
 @pytest.mark.unit
@@ -381,51 +347,61 @@ class TestFromYaml:
     """Test loading configs from YAML files."""
 
     def test_loads_and_resolves_relative_paths(self, tmp_path):
-        """Relative input paths resolve against the config file's directory."""
+        """Relative source paths resolve against the config file's directory."""
         config_file = tmp_path / "gaz.yaml"
         config_file.write_text(
             textwrap.dedent(
                 """
                 name: testgaz
-                inputs:
+                sources:
                   - name: places
                     path: data/places.csv
                     file: places.csv
                     delimiter: ","
+                    attributes:
+                      - name: id
+                        type: integer
+                      - name: name
+                        type: text
                 features:
-                  - type: place
-                    from: places
-                    identifier: id
-                    names: [{ column: name }]
+                  - source: places
+                    identifier: "id"
+                    names:
+                      - "name"
                 """
             )
         )
 
         config = GazetteerConfig.from_yaml(config_file)
 
-        assert config.inputs[0].path == str(tmp_path / "data" / "places.csv")
+        assert config.sources[0].path == str(tmp_path / "data" / "places.csv")
 
     def test_absolute_paths_are_kept(self, tmp_path):
-        """Absolute input paths are left untouched."""
+        """Absolute source paths are left untouched."""
         config_file = tmp_path / "gaz.yaml"
         config_file.write_text(
             textwrap.dedent(
                 """
                 name: testgaz
-                inputs:
+                sources:
                   - name: places
                     path: /data/places.csv
                     file: places.csv
                     delimiter: ","
+                    attributes:
+                      - name: id
+                        type: integer
+                      - name: name
+                        type: text
                 features:
-                  - type: place
-                    from: places
-                    identifier: id
-                    names: [{ column: name }]
+                  - source: places
+                    identifier: "id"
+                    names:
+                      - "name"
                 """
             )
         )
 
         config = GazetteerConfig.from_yaml(config_file)
 
-        assert config.inputs[0].path == "/data/places.csv"
+        assert config.sources[0].path == "/data/places.csv"

@@ -2,8 +2,8 @@
 Integration tests for the gazetteer build pipeline.
 
 Builds real artifacts from the Andorra fixture data and from small inline
-configs (covering the duplicate-identifier merge policy), and inspects the
-resulting SQLite files through the runtime layer.
+configs (covering duplicate-identifier merging), and inspects the resulting
+SQLite files through the runtime layer.
 """
 
 import sqlite3
@@ -99,11 +99,11 @@ class TestAndorraBuild:
 
 @pytest.mark.integration
 class TestDuplicateIdentifierMerge:
-    """Test the explicit merge policy for duplicate identifiers."""
+    """Test merging of rows sharing an identifier."""
 
     @pytest.fixture
     def duplicates_config(self, tmp_path):
-        """A config whose input repeats identifiers across rows."""
+        """A config whose source repeats identifiers across rows."""
         data_file = tmp_path / "peaks.csv"
         data_file.write_text(
             "p1\tNorth Summit\t800\n" "p1\tSouth Summit\t1200\n" "p2\tLone Hill\t300\n"
@@ -113,27 +113,27 @@ class TestDuplicateIdentifierMerge:
             textwrap.dedent(
                 """
                 name: peaks
-                inputs:
+                sources:
                   - name: peaks
                     path: peaks.csv
                     file: peaks.csv
                     delimiter: "\\t"
                     quote: ""
-                    columns:
-                      - { name: pid }
-                      - { name: name }
-                      - { name: height, type: integer }
-                features:
-                  - type: peak
-                    from: peaks
-                    identifier: pid
-                    merge:
-                      attributes: first
-                    names:
-                      - column: name
                     attributes:
-                      - name
-                      - { name: max_height, column: height, merge: max }
+                      - name: pid
+                        type: text
+                      - name: name
+                        type: text
+                      - name: height
+                        type: integer
+                features:
+                  - source: peaks
+                    identifier: "pid"
+                    names:
+                      - "name"
+                    data:
+                      - attribute: "name"
+                      - attribute: "height"
                 """
             )
         )
@@ -151,8 +151,9 @@ class TestDuplicateIdentifierMerge:
 
         assert merged is not None
         assert set(merged.names) == {"North Summit", "South Summit"}
-        assert merged.data["name"] == "North Summit"  # first-row policy
-        assert merged.data["max_height"] == 1200  # per-attribute max policy
+        # Data values are taken from the first row of the group
+        assert merged.data["name"] == "North Summit"
+        assert merged.data["height"] == 800
 
         # Searching either name finds the same merged feature
         by_north = gazetteer.search("North Summit", method="exact")
@@ -177,7 +178,7 @@ class TestCrossBlockIdentifierCollision:
     """Test that identifier collisions across feature blocks fail the build."""
 
     def test_build_fails_with_clear_error(self, tmp_path, monkeypatch):
-        """The same identifier in two feature blocks aborts the build."""
+        """The same identifier across two feature blocks aborts the build."""
         data_file = tmp_path / "rows.csv"
         data_file.write_text("x1\tSomething\n")
         config_file = tmp_path / "clash.yaml"
@@ -185,24 +186,36 @@ class TestCrossBlockIdentifierCollision:
             textwrap.dedent(
                 """
                 name: clash
-                inputs:
-                  - name: rows
+                sources:
+                  - name: rows_a
                     path: rows.csv
                     file: rows.csv
                     delimiter: "\\t"
                     quote: ""
-                    columns:
-                      - { name: rid }
-                      - { name: name }
+                    attributes:
+                      - name: rid
+                        type: text
+                      - name: name
+                        type: text
+                  - name: rows_b
+                    path: rows.csv
+                    file: rows.csv
+                    delimiter: "\\t"
+                    quote: ""
+                    attributes:
+                      - name: rid
+                        type: text
+                      - name: name
+                        type: text
                 features:
-                  - type: first_kind
-                    from: rows
-                    identifier: rid
-                    names: [{ column: name }]
-                  - type: second_kind
-                    from: rows
-                    identifier: rid
-                    names: [{ column: name }]
+                  - source: rows_a
+                    identifier: "rid"
+                    names:
+                      - "name"
+                  - source: rows_b
+                    identifier: "rid"
+                    names:
+                      - "name"
                 """
             )
         )

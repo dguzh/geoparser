@@ -18,20 +18,20 @@ from geoparser.gazetteer import artifact as artifact_module
 DEFAULT_FEATURES = [
     {
         "identifier": "1",
-        "type": "city",
-        "attributes": {"name": "Paris", "population": 2100000},
+        "source": "city",
+        "data": {"name": "Paris", "population": 2100000},
         "names": ["Paris", "Lutetia"],
     },
     {
         "identifier": "2",
-        "type": "city",
-        "attributes": {"name": "Berlin", "population": 3600000},
+        "source": "city",
+        "data": {"name": "Berlin", "population": 3600000},
         "names": ["Berlin"],
     },
     {
         "identifier": "3",
-        "type": "city",
-        "attributes": {"name": "Paris (Texas)", "population": 25000},
+        "source": "city",
+        "data": {"name": "Paris (Texas)", "population": 25000},
         "names": ["Paris (Texas)"],
     },
 ]
@@ -56,7 +56,7 @@ def make_artifact(tmp_path: Path, monkeypatch) -> t.Callable:
         """
         Write an artifact with the given features.
 
-        Each feature dict may define: identifier, type, attributes (dict),
+        Each feature dict may define: identifier, source, data (dict),
         geometry (WKB bytes or None) and names (list of strings).
         """
         if features is None:
@@ -68,13 +68,13 @@ def make_artifact(tmp_path: Path, monkeypatch) -> t.Callable:
             connection.execute(statement)
         for index, feature in enumerate(features, start=1):
             connection.execute(
-                "INSERT INTO feature (id, identifier, type, attributes, geometry) "
+                "INSERT INTO feature (id, identifier, source, data, geometry) "
                 "VALUES (?, ?, ?, ?, ?)",
                 (
                     index,
                     feature["identifier"],
-                    feature.get("type", "place"),
-                    json.dumps(feature.get("attributes", {})),
+                    feature.get("source", "place"),
+                    json.dumps(feature.get("data", {})),
                     feature.get("geometry"),
                 ),
             )

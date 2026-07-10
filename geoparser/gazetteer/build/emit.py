@@ -92,8 +92,8 @@ def emit(
     """
     Copy the projected features and names into the artifact.
 
-    Expects the DuckDB build tables ``_features_final`` (id, identifier, type,
-    attributes, geometry) and ``_names_final`` (feature_id, text) to exist.
+    Expects the DuckDB build tables ``_features_final`` (id, identifier, source,
+    data, geometry) and ``_names_final`` (feature_id, text) to exist.
 
     Args:
         duckdb_connection: DuckDB connection holding the build tables
@@ -106,9 +106,9 @@ def emit(
         feature_count = copy_rows(
             duckdb_connection,
             sqlite_connection,
-            "SELECT id, identifier, type, attributes, geometry "
+            "SELECT id, identifier, source, data, geometry "
             "FROM _features_final ORDER BY id",
-            "INSERT INTO feature (id, identifier, type, attributes, geometry) "
+            "INSERT INTO feature (id, identifier, source, data, geometry) "
             "VALUES (?, ?, ?, ?, ?)",
         )
     advance()

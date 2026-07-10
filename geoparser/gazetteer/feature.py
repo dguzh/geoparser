@@ -23,9 +23,10 @@ class Feature:
     """
     A geographic feature from an installed gazetteer.
 
-    Each feature has a stable identifier within its gazetteer, an entity type,
-    a set of attributes (arbitrary per entity type), an optional geometry and
-    one or more searchable names.
+    Each feature has a stable identifier within its gazetteer, a source (the
+    name of the gazetteer source it was built from), a set of data values
+    (arbitrary per source), an optional geometry and one or more searchable
+    names.
     """
 
     def __init__(
@@ -33,8 +34,8 @@ class Feature:
         artifact: "GazetteerArtifact",
         id: int,
         identifier: str,
-        type: str,
-        attributes: str,
+        source: str,
+        data: str,
         geometry: t.Optional[bytes],
     ):
         """
@@ -44,15 +45,15 @@ class Feature:
             artifact: The artifact this feature belongs to
             id: Internal feature id within the artifact
             identifier: Stable identifier within the gazetteer
-            type: Entity type (e.g. "city", "country")
-            attributes: JSON-encoded attributes object
+            source: Name of the gazetteer source this feature was built from
+            data: JSON-encoded data object
             geometry: WKB-encoded geometry, or None
         """
         self._artifact = artifact
         self.id = id
         self.identifier = identifier
-        self.type = type
-        self._attributes_json = attributes
+        self.source = source
+        self._data_json = data
         self._geometry_wkb = geometry
 
     @property
@@ -63,12 +64,12 @@ class Feature:
     @cached_property
     def data(self) -> t.Dict[str, t.Any]:
         """
-        The feature's attributes as a dictionary.
+        The feature's data as a dictionary.
 
         Returns:
-            Dictionary of attribute names to values
+            Dictionary of data keys to values
         """
-        return json.loads(self._attributes_json)
+        return json.loads(self._data_json)
 
     @cached_property
     def geometry(self) -> t.Optional[BaseGeometry]:

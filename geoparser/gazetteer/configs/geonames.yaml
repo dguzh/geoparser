@@ -1,54 +1,81 @@
 name: geonames
 crs: EPSG:4326
 
-inputs:
+sources:
   - name: allCountries
     url: https://download.geonames.org/export/dump/allCountries.zip
     file: allCountries.txt
     delimiter: "\t"
     quote: ""
-    columns:
-      - { name: geonameid, type: integer }
-      - { name: name }
-      - { name: asciiname }
-      - { name: alternatenames }
-      - { name: latitude, type: real }
-      - { name: longitude, type: real }
-      - { name: feature_class }
-      - { name: feature_code }
-      - { name: country_code }
-      - { name: cc2 }
-      - { name: admin1_code }
-      - { name: admin2_code }
-      - { name: admin3_code }
-      - { name: admin4_code }
-      - { name: population, type: integer }
-      - { name: elevation, type: integer }
-      - { name: dem, type: integer }
-      - { name: timezone }
-      - { name: modification_date }
+    attributes:
+      - name: "geonameid"
+        type: integer
+      - name: "name"
+        type: text
+      - name: "asciiname"
+        type: text
+      - name: "alternatenames"
+        type: text
+      - name: "latitude"
+        type: real
+      - name: "longitude"
+        type: real
+      - name: "feature_class"
+        type: text
+      - name: "feature_code"
+        type: text
+      - name: "country_code"
+        type: text
+      - name: "cc2"
+        type: text
+      - name: "admin1_code"
+        type: text
+      - name: "admin2_code"
+        type: text
+      - name: "admin3_code"
+        type: text
+      - name: "admin4_code"
+        type: text
+      - name: "population"
+        type: integer
+      - name: "elevation"
+        type: integer
+      - name: "dem"
+        type: integer
+      - name: "timezone"
+        type: text
+      - name: "modification_date"
+        type: text
 
   - name: admin1CodesASCII
     url: https://download.geonames.org/export/dump/admin1CodesASCII.txt
     file: admin1CodesASCII.txt
     delimiter: "\t"
     quote: ""
-    columns:
-      - { name: code }
-      - { name: name }
-      - { name: asciiname }
-      - { name: geonameid, type: integer }
+    attributes:
+      - name: "code"
+        type: text
+      - name: "name"
+        type: text
+      - name: "asciiname"
+        type: text
+      - name: "geonameid"
+        type: integer
 
   - name: admin2Codes
     url: https://download.geonames.org/export/dump/admin2Codes.txt
     file: admin2Codes.txt
     delimiter: "\t"
     quote: ""
-    columns:
-      - { name: code }
-      - { name: name }
-      - { name: asciiname }
-      - { name: geonameid, type: integer }
+    attributes:
+      - name: "code"
+        type: text
+      - name: "name"
+        type: text
+      - name: "asciiname"
+        type: text
+      - name: "geonameid"
+        type: integer
 
   - name: countryInfo
     url: https://download.geonames.org/export/dump/countryInfo.txt
@@ -56,89 +83,97 @@ inputs:
     delimiter: "\t"
     quote: ""
     skip_rows: 50
-    columns:
-      - { name: ISO }
-      - { name: ISO3 }
-      - { name: ISO_Numeric, type: integer }
-      - { name: fips }
-      - { name: Country }
-      - { name: Capital }
-      - { name: Area, type: real }
-      - { name: Population, type: integer }
-      - { name: Continent }
-      - { name: tld }
-      - { name: CurrencyCode }
-      - { name: CurrencyName }
-      - { name: Phone }
-      - { name: PostalCodeFormat }
-      - { name: PostalCodeRegex }
-      - { name: Languages }
-      - { name: geonameid, type: integer }
-      - { name: neighbours }
-      - { name: EquivalentFipsCode }
+    attributes:
+      - name: "ISO"
+        type: text
+      - name: "ISO3"
+        type: text
+      - name: "ISO_Numeric"
+        type: integer
+      - name: "fips"
+        type: text
+      - name: "Country"
+        type: text
+      - name: "Capital"
+        type: text
+      - name: "Area"
+        type: real
+      - name: "Population"
+        type: integer
+      - name: "Continent"
+        type: text
+      - name: "tld"
+        type: text
+      - name: "CurrencyCode"
+        type: text
+      - name: "CurrencyName"
+        type: text
+      - name: "Phone"
+        type: text
+      - name: "PostalCodeFormat"
+        type: text
+      - name: "PostalCodeRegex"
+        type: text
+      - name: "Languages"
+        type: text
+      - name: "geonameid"
+        type: integer
+      - name: "neighbours"
+        type: text
+      - name: "EquivalentFipsCode"
+        type: text
 
-  - name: featureCodes
+  - name: featureCodes_en
     url: https://download.geonames.org/export/dump/featureCodes_en.txt
     file: featureCodes_en.txt
     delimiter: "\t"
     quote: ""
-    columns:
-      - { name: code }
-      - { name: name }
-      - { name: description }
-
-lookups:
-  country:
-    from: countryInfo
-    match: { on: { country_code: ISO } }
-    values: { country_name: Country }
-  admin1:
-    from: admin1CodesASCII
-    match: { on: { "country_code || '.' || admin1_code": code } }
-    values: { admin1_name: name }
-  admin2:
-    from: admin2Codes
-    match:
-      on: { "country_code || '.' || admin1_code || '.' || admin2_code": code }
-    values: { admin2_name: name }
-  feature_codes:
-    from: featureCodes
-    match: { on: { "feature_class || '.' || feature_code": code } }
-    values: { feature_name: name }
+    attributes:
+      - name: "code"
+        type: text
+      - name: "name"
+        type: text
+      - name: "description"
+        type: text
 
 features:
-  - type: place
-    from: allCountries
-    identifier: geonameid
+  - source: allCountries
+    joins:
+      - "LEFT JOIN countryInfo ON country_code = countryInfo.ISO"
+      - "LEFT JOIN admin1CodesASCII ON country_code || '.' || admin1_code = admin1CodesASCII.code"
+      - "LEFT JOIN admin2Codes ON country_code || '.' || admin1_code || '.' || admin2_code = admin2Codes.code"
+      - "LEFT JOIN featureCodes_en ON feature_class || '.' || feature_code = featureCodes_en.code"
+    identifier: "geonameid"
+    geometry: "ST_Point(longitude, latitude)"
     names:
-      - column: name
-      - expression: "CASE WHEN instr(name, '(') > 0 THEN trim(substr(name, 1, instr(name, '(') - 1)) ELSE name END"
-      - column: asciiname
-      - expression: "CASE WHEN instr(asciiname, '(') > 0 THEN trim(substr(asciiname, 1, instr(asciiname, '(') - 1)) ELSE asciiname END"
-      - column: alternatenames
-        split: ","
-    geometry:
-      point: { lon: longitude, lat: latitude }
-    lookups: [country, admin1, admin2, feature_codes]
-    attributes:
-      - name
-      - asciiname
-      - latitude
-      - longitude
-      - feature_class
-      - feature_code
-      - feature_name
-      - country_code
-      - country_name
-      - cc2
-      - admin1_code
-      - admin1_name
-      - admin2_code
-      - admin2_name
-      - admin3_code
-      - admin4_code
-      - population
-      - elevation
-      - dem
-      - timezone
-      - modification_date
+      - "name"
+      - "CASE WHEN instr(name, '(') > 0 THEN trim(substr(name, 1, instr(name, '(') - 1)) ELSE name END"
+      - "asciiname"
+      - "CASE WHEN instr(asciiname, '(') > 0 THEN trim(substr(asciiname, 1, instr(asciiname, '(') - 1)) ELSE asciiname END"
+      - "unnest(string_split(alternatenames, ','))"
+    data:
+      - attribute: "name"
+      - attribute: "asciiname"
+      - attribute: "latitude"
+      - attribute: "longitude"
+      - attribute: "feature_class"
+      - attribute: "feature_code"
+      - attribute: "featureCodes_en.name"
+        alias: "feature_name"
+      - attribute: "country_code"
+      - attribute: "countryInfo.Country"
+        alias: "country_name"
+      - attribute: "cc2"
+      - attribute: "admin1_code"
+      - attribute: "admin1CodesASCII.name"
+        alias: "admin1_name"
+      - attribute: "admin2_code"
+      - attribute: "admin2Codes.name"
+        alias: "admin2_name"
+      - attribute: "admin3_code"
+      - attribute: "admin4_code"
+      - attribute: "population"
+      - attribute: "elevation"
+      - attribute: "dem"
+      - attribute: "timezone"
+      - attribute: "modification_date"

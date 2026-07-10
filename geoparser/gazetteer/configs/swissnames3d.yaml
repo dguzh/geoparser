@@ -1,197 +1,343 @@
 name: swissnames3d
 crs: EPSG:4326
 
-inputs:
-  - name: pkt
+sources:
+  - name: swissNAMES3D_PKT
     url: https://data.geo.admin.ch/ch.swisstopo.swissnames3d/swissnames3d_2024/swissnames3d_2024_2056.shp.zip
     file: swissNAMES3D_PKT.shp
     crs: EPSG:2056
-  - name: lin
+    attributes:
+      - name: "UUID"
+        type: text
+      - name: "OBJEKTART"
+        type: text
+      - name: "OBJEKTKLAS"
+        type: text
+      - name: "HOEHE"
+        type: real
+      - name: "GEBAEUDENU"
+        type: integer
+      - name: "NAME_UUID"
+        type: text
+      - name: "NAME"
+        type: text
+      - name: "STATUS"
+        type: text
+      - name: "SPRACHCODE"
+        type: text
+      - name: "NAMEN_TYP"
+        type: text
+      - name: "NAMENGRUPP"
+        type: text
+      - name: "geometry"
+        type: geometry
+
+  - name: swissNAMES3D_LIN
     url: https://data.geo.admin.ch/ch.swisstopo.swissnames3d/swissnames3d_2024/swissnames3d_2024_2056.shp.zip
     file: swissNAMES3D_LIN.shp
     crs: EPSG:2056
-  - name: ply
+    attributes:
+      - name: "UUID"
+        type: text
+      - name: "OBJEKTART"
+        type: text
+      - name: "OBJEKTKLAS"
+        type: text
+      - name: "KUNSTBAUTE"
+        type: text
+      - name: "NAME_UUID"
+        type: text
+      - name: "NAME"
+        type: text
+      - name: "STATUS"
+        type: text
+      - name: "SPRACHCODE"
+        type: text
+      - name: "NAMEN_TYP"
+        type: text
+      - name: "NAMENGRUPP"
+        type: text
+      - name: "geometry"
+        type: geometry
+
+  - name: swissNAMES3D_PLY
     url: https://data.geo.admin.ch/ch.swisstopo.swissnames3d/swissnames3d_2024/swissnames3d_2024_2056.shp.zip
     file: swissNAMES3D_PLY.shp
     crs: EPSG:2056
-  - name: gemeinde
+    attributes:
+      - name: "UUID"
+        type: text
+      - name: "OBJEKTART"
+        type: text
+      - name: "OBJEKTKLAS"
+        type: text
+      - name: "EINWOHNERK"
+        type: integer
+      - name: "NAME_UUID"
+        type: text
+      - name: "NAME"
+        type: text
+      - name: "STATUS"
+        type: text
+      - name: "SPRACHCODE"
+        type: text
+      - name: "NAMEN_TYP"
+        type: text
+      - name: "NAMENGRUPP"
+        type: text
+      - name: "ISCED"
+        type: text
+      - name: "geometry"
+        type: geometry
+
+  - name: swissBOUNDARIES3D_1_5_TLM_HOHEITSGEBIET
     url: https://data.geo.admin.ch/ch.swisstopo.swissboundaries3d/swissboundaries3d_2024-01/swissboundaries3d_2024-01_2056_5728.shp.zip
     file: swissBOUNDARIES3D_1_5_TLM_HOHEITSGEBIET.shp
     crs: EPSG:2056
-  - name: bezirk
+    attributes:
+      - name: "UUID"
+        type: text
+      - name: "OBJEKTART"
+        type: text
+      - name: "BFS_NUMMER"
+        type: integer
+      - name: "BEZIRKSNUM"
+        type: integer
+      - name: "KANTONSNUM"
+        type: integer
+      - name: "NAME"
+        type: text
+      - name: "GEM_FLAECH"
+        type: real
+      - name: "SEE_FLAECH"
+        type: real
+      - name: "ICC"
+        type: text
+      - name: "SHN"
+        type: text
+      - name: "EINWOHNERZ"
+        type: integer
+      - name: "geometry"
+        type: geometry
+
+  - name: swissBOUNDARIES3D_1_5_TLM_BEZIRKSGEBIET
     url: https://data.geo.admin.ch/ch.swisstopo.swissboundaries3d/swissboundaries3d_2024-01/swissboundaries3d_2024-01_2056_5728.shp.zip
     file: swissBOUNDARIES3D_1_5_TLM_BEZIRKSGEBIET.shp
     crs: EPSG:2056
-  - name: kanton
+    attributes:
+      - name: "UUID"
+        type: text
+      - name: "OBJEKTART"
+        type: text
+      - name: "BEZIRKSNUM"
+        type: integer
+      - name: "KANTONSNUM"
+        type: integer
+      - name: "NAME"
+        type: text
+      - name: "BEZIRKSFLA"
+        type: real
+      - name: "SEE_FLAECH"
+        type: real
+      - name: "ICC"
+        type: text
+      - name: "EINWOHNERZ"
+        type: integer
+      - name: "geometry"
+        type: geometry
+
+  - name: swissBOUNDARIES3D_1_5_TLM_KANTONSGEBIET
     url: https://data.geo.admin.ch/ch.swisstopo.swissboundaries3d/swissboundaries3d_2024-01/swissboundaries3d_2024-01_2056_5728.shp.zip
     file: swissBOUNDARIES3D_1_5_TLM_KANTONSGEBIET.shp
     crs: EPSG:2056
-
-# The administrative hierarchy is defined once and reused by all feature
-# blocks. The spatial match uses the feature geometry's centroid, which for
-# point features is the point itself.
-lookups:
-  in_gemeinde:
-    from: gemeinde
-    match: { spatial: within, using: centroid }
-    values:
-      GEMEINDE_NAME: NAME
-      GEMEINDE_BFS_NUMMER: BFS_NUMMER
-      BEZIRKSNUM: BEZIRKSNUM
-  in_bezirk:
-    from: bezirk
-    match: { on: { BEZIRKSNUM: BEZIRKSNUM } }
-    values:
-      BEZIRK_NAME: NAME
-      KANTONSNUM: KANTONSNUM
-  in_kanton:
-    from: kanton
-    match: { on: { KANTONSNUM: KANTONSNUM } }
-    values:
-      KANTON_NAME: NAME
+    attributes:
+      - name: "UUID"
+        type: text
+      - name: "OBJEKTART"
+        type: text
+      - name: "KANTONSNUM"
+        type: integer
+      - name: "NAME"
+        type: text
+      - name: "KANTONSFLA"
+        type: real
+      - name: "SEE_FLAECH"
+        type: real
+      - name: "ICC"
+        type: text
+      - name: "EINWOHNERZ"
+        type: integer
+      - name: "geometry"
+        type: geometry
 
 features:
-  - type: named_place
-    from: pkt
-    identifier: UUID
-    merge: { geometry: union, attributes: first }
+  - source: swissNAMES3D_PKT
+    joins:
+      - "LEFT JOIN swissBOUNDARIES3D_1_5_TLM_HOHEITSGEBIET g ON ST_Within(ST_Centroid(geometry), g.geometry)"
+      - "LEFT JOIN swissBOUNDARIES3D_1_5_TLM_BEZIRKSGEBIET b ON g.BEZIRKSNUM = b.BEZIRKSNUM"
+      - "LEFT JOIN swissBOUNDARIES3D_1_5_TLM_KANTONSGEBIET k ON b.KANTONSNUM = k.KANTONSNUM"
+    identifier: "UUID"
+    geometry: "geometry"
     names:
-      - column: NAME
-      - expression: "CASE WHEN instr(NAME, '(') > 0 THEN trim(substr(NAME, 1, instr(NAME, '(') - 1)) ELSE NAME END"
-      - expression: "CASE WHEN length(NAME) > 3 AND substr(NAME, -3, 1) = ' ' AND regexp_matches(substr(NAME, -2, 2), '^[A-Z][A-Z]$') THEN trim(substr(NAME, 1, length(NAME) - 3)) ELSE NAME END"
-    geometry: { column: geometry }
-    lookups: [in_gemeinde, in_bezirk, in_kanton]
-    attributes:
-      - NAME
-      - OBJEKTART
-      - OBJEKTKLAS
-      - HOEHE
-      - GEBAEUDENU
-      - NAME_UUID
-      - STATUS
-      - SPRACHCODE
-      - NAMEN_TYP
-      - NAMENGRUPP
-      - GEMEINDE_NAME
-      - GEMEINDE_BFS_NUMMER
-      - BEZIRK_NAME
-      - BEZIRKSNUM
-      - KANTON_NAME
-      - KANTONSNUM
+      - "NAME"
+      - "CASE WHEN instr(NAME, '(') > 0 THEN trim(substr(NAME, 1, instr(NAME, '(') - 1)) ELSE NAME END"
+      - "CASE WHEN length(NAME) > 3 AND substr(NAME, -3, 1) = ' ' AND regexp_matches(substr(NAME, -2, 2), '^[A-Z][A-Z]$') THEN trim(substr(NAME, 1, length(NAME) - 3)) ELSE NAME END"
+    data:
+      - attribute: "NAME"
+      - attribute: "OBJEKTART"
+      - attribute: "OBJEKTKLAS"
+      - attribute: "HOEHE"
+      - attribute: "GEBAEUDENU"
+      - attribute: "NAME_UUID"
+      - attribute: "STATUS"
+      - attribute: "SPRACHCODE"
+      - attribute: "NAMEN_TYP"
+      - attribute: "NAMENGRUPP"
+      - attribute: "g.NAME"
+        alias: "GEMEINDE_NAME"
+      - attribute: "g.BFS_NUMMER"
+        alias: "GEMEINDE_BFS_NUMMER"
+      - attribute: "b.NAME"
+        alias: "BEZIRK_NAME"
+      - attribute: "g.BEZIRKSNUM"
+        alias: "BEZIRKSNUM"
+      - attribute: "k.NAME"
+        alias: "KANTON_NAME"
+      - attribute: "b.KANTONSNUM"
+        alias: "KANTONSNUM"
 
-  - type: named_way
-    from: lin
-    identifier: UUID
-    merge: { geometry: union, attributes: first }
+  - source: swissNAMES3D_LIN
+    joins:
+      - "LEFT JOIN swissBOUNDARIES3D_1_5_TLM_HOHEITSGEBIET g ON ST_Within(ST_Centroid(geometry), g.geometry)"
+      - "LEFT JOIN swissBOUNDARIES3D_1_5_TLM_BEZIRKSGEBIET b ON g.BEZIRKSNUM = b.BEZIRKSNUM"
+      - "LEFT JOIN swissBOUNDARIES3D_1_5_TLM_KANTONSGEBIET k ON b.KANTONSNUM = k.KANTONSNUM"
+    identifier: "UUID"
+    geometry: "geometry"
     names:
-      - column: NAME
-      - expression: "CASE WHEN instr(NAME, '(') > 0 THEN trim(substr(NAME, 1, instr(NAME, '(') - 1)) ELSE NAME END"
-      - expression: "CASE WHEN length(NAME) > 3 AND substr(NAME, -3, 1) = ' ' AND regexp_matches(substr(NAME, -2, 2), '^[A-Z][A-Z]$') THEN trim(substr(NAME, 1, length(NAME) - 3)) ELSE NAME END"
-    geometry: { column: geometry }
-    lookups: [in_gemeinde, in_bezirk, in_kanton]
-    attributes:
-      - NAME
-      - OBJEKTART
-      - OBJEKTKLAS
-      - KUNSTBAUTE
-      - NAME_UUID
-      - STATUS
-      - SPRACHCODE
-      - NAMEN_TYP
-      - NAMENGRUPP
-      - GEMEINDE_NAME
-      - GEMEINDE_BFS_NUMMER
-      - BEZIRK_NAME
-      - BEZIRKSNUM
-      - KANTON_NAME
-      - KANTONSNUM
+      - "NAME"
+      - "CASE WHEN instr(NAME, '(') > 0 THEN trim(substr(NAME, 1, instr(NAME, '(') - 1)) ELSE NAME END"
+      - "CASE WHEN length(NAME) > 3 AND substr(NAME, -3, 1) = ' ' AND regexp_matches(substr(NAME, -2, 2), '^[A-Z][A-Z]$') THEN trim(substr(NAME, 1, length(NAME) - 3)) ELSE NAME END"
+    data:
+      - attribute: "NAME"
+      - attribute: "OBJEKTART"
+      - attribute: "OBJEKTKLAS"
+      - attribute: "KUNSTBAUTE"
+      - attribute: "NAME_UUID"
+      - attribute: "STATUS"
+      - attribute: "SPRACHCODE"
+      - attribute: "NAMEN_TYP"
+      - attribute: "NAMENGRUPP"
+      - attribute: "g.NAME"
+        alias: "GEMEINDE_NAME"
+      - attribute: "g.BFS_NUMMER"
+        alias: "GEMEINDE_BFS_NUMMER"
+      - attribute: "b.NAME"
+        alias: "BEZIRK_NAME"
+      - attribute: "g.BEZIRKSNUM"
+        alias: "BEZIRKSNUM"
+      - attribute: "k.NAME"
+        alias: "KANTON_NAME"
+      - attribute: "b.KANTONSNUM"
+        alias: "KANTONSNUM"
 
-  - type: named_area
-    from: ply
-    identifier: UUID
-    merge: { geometry: union, attributes: first }
+  - source: swissNAMES3D_PLY
+    joins:
+      - "LEFT JOIN swissBOUNDARIES3D_1_5_TLM_HOHEITSGEBIET g ON ST_Within(ST_Centroid(geometry), g.geometry)"
+      - "LEFT JOIN swissBOUNDARIES3D_1_5_TLM_BEZIRKSGEBIET b ON g.BEZIRKSNUM = b.BEZIRKSNUM"
+      - "LEFT JOIN swissBOUNDARIES3D_1_5_TLM_KANTONSGEBIET k ON b.KANTONSNUM = k.KANTONSNUM"
+    identifier: "UUID"
+    geometry: "geometry"
     names:
-      - column: NAME
-      - expression: "CASE WHEN instr(NAME, '(') > 0 THEN trim(substr(NAME, 1, instr(NAME, '(') - 1)) ELSE NAME END"
-      - expression: "CASE WHEN length(NAME) > 3 AND substr(NAME, -3, 1) = ' ' AND regexp_matches(substr(NAME, -2, 2), '^[A-Z][A-Z]$') THEN trim(substr(NAME, 1, length(NAME) - 3)) ELSE NAME END"
-    geometry: { column: geometry }
-    lookups: [in_gemeinde, in_bezirk, in_kanton]
-    attributes:
-      - NAME
-      - OBJEKTART
-      - OBJEKTKLAS
-      - EINWOHNERK
-      - ISCED
-      - NAME_UUID
-      - STATUS
-      - SPRACHCODE
-      - NAMEN_TYP
-      - NAMENGRUPP
-      - GEMEINDE_NAME
-      - GEMEINDE_BFS_NUMMER
-      - BEZIRK_NAME
-      - BEZIRKSNUM
-      - KANTON_NAME
-      - KANTONSNUM
+      - "NAME"
+      - "CASE WHEN instr(NAME, '(') > 0 THEN trim(substr(NAME, 1, instr(NAME, '(') - 1)) ELSE NAME END"
+      - "CASE WHEN length(NAME) > 3 AND substr(NAME, -3, 1) = ' ' AND regexp_matches(substr(NAME, -2, 2), '^[A-Z][A-Z]$') THEN trim(substr(NAME, 1, length(NAME) - 3)) ELSE NAME END"
+    data:
+      - attribute: "NAME"
+      - attribute: "OBJEKTART"
+      - attribute: "OBJEKTKLAS"
+      - attribute: "EINWOHNERK"
+      - attribute: "ISCED"
+      - attribute: "NAME_UUID"
+      - attribute: "STATUS"
+      - attribute: "SPRACHCODE"
+      - attribute: "NAMEN_TYP"
+      - attribute: "NAMENGRUPP"
+      - attribute: "g.NAME"
+        alias: "GEMEINDE_NAME"
+      - attribute: "g.BFS_NUMMER"
+        alias: "GEMEINDE_BFS_NUMMER"
+      - attribute: "b.NAME"
+        alias: "BEZIRK_NAME"
+      - attribute: "g.BEZIRKSNUM"
+        alias: "BEZIRKSNUM"
+      - attribute: "k.NAME"
+        alias: "KANTON_NAME"
+      - attribute: "b.KANTONSNUM"
+        alias: "KANTONSNUM"
 
-  - type: gemeinde
-    from: gemeinde
-    identifier: UUID
-    merge: { geometry: union, attributes: first }
+  - source: swissBOUNDARIES3D_1_5_TLM_HOHEITSGEBIET
+    joins:
+      - "LEFT JOIN swissBOUNDARIES3D_1_5_TLM_BEZIRKSGEBIET b ON BEZIRKSNUM = b.BEZIRKSNUM"
+      - "LEFT JOIN swissBOUNDARIES3D_1_5_TLM_KANTONSGEBIET k ON b.KANTONSNUM = k.KANTONSNUM"
+    identifier: "UUID"
+    geometry: "geometry"
     names:
-      - column: NAME
-      - expression: "CASE WHEN instr(NAME, '(') > 0 THEN trim(substr(NAME, 1, instr(NAME, '(') - 1)) ELSE NAME END"
-    geometry: { column: geometry }
-    lookups: [in_bezirk, in_kanton]
-    attributes:
-      - NAME
-      - OBJEKTART
-      - { name: GEMEINDE_NAME, column: NAME }
-      - { name: GEMEINDE_BFS_NUMMER, column: BFS_NUMMER }
-      - BEZIRK_NAME
-      - BEZIRKSNUM
-      - KANTON_NAME
-      - KANTONSNUM
-      - GEM_FLAECH
-      - SEE_FLAECH
-      - ICC
-      - SHN
-      - EINWOHNERZ
+      - "NAME"
+      - "CASE WHEN instr(NAME, '(') > 0 THEN trim(substr(NAME, 1, instr(NAME, '(') - 1)) ELSE NAME END"
+    data:
+      - attribute: "NAME"
+      - attribute: "OBJEKTART"
+      - attribute: "NAME"
+        alias: "GEMEINDE_NAME"
+      - attribute: "BFS_NUMMER"
+        alias: "GEMEINDE_BFS_NUMMER"
+      - attribute: "b.NAME"
+        alias: "BEZIRK_NAME"
+      - attribute: "BEZIRKSNUM"
+      - attribute: "k.NAME"
+        alias: "KANTON_NAME"
+      - attribute: "b.KANTONSNUM"
+        alias: "KANTONSNUM"
+      - attribute: "GEM_FLAECH"
+      - attribute: "SEE_FLAECH"
+      - attribute: "ICC"
+      - attribute: "SHN"
+      - attribute: "EINWOHNERZ"
 
-  - type: bezirk
-    from: bezirk
-    identifier: UUID
-    merge: { geometry: union, attributes: first }
+  - source: swissBOUNDARIES3D_1_5_TLM_BEZIRKSGEBIET
+    joins:
+      - "LEFT JOIN swissBOUNDARIES3D_1_5_TLM_KANTONSGEBIET k ON KANTONSNUM = k.KANTONSNUM"
+    identifier: "UUID"
+    geometry: "geometry"
     names:
-      - column: NAME
-      - expression: "CASE WHEN instr(NAME, '(') > 0 THEN trim(substr(NAME, 1, instr(NAME, '(') - 1)) ELSE NAME END"
-    geometry: { column: geometry }
-    lookups: [in_kanton]
-    attributes:
-      - NAME
-      - OBJEKTART
-      - { name: BEZIRK_NAME, column: NAME }
-      - BEZIRKSNUM
-      - KANTON_NAME
-      - KANTONSNUM
-      - BEZIRKSFLA
-      - SEE_FLAECH
-      - ICC
-      - EINWOHNERZ
+      - "NAME"
+      - "CASE WHEN instr(NAME, '(') > 0 THEN trim(substr(NAME, 1, instr(NAME, '(') - 1)) ELSE NAME END"
+    data:
+      - attribute: "NAME"
+      - attribute: "OBJEKTART"
+      - attribute: "NAME"
+        alias: "BEZIRK_NAME"
+      - attribute: "BEZIRKSNUM"
+      - attribute: "k.NAME"
+        alias: "KANTON_NAME"
+      - attribute: "KANTONSNUM"
+      - attribute: "BEZIRKSFLA"
+      - attribute: "SEE_FLAECH"
+      - attribute: "ICC"
+      - attribute: "EINWOHNERZ"
 
-  - type: kanton
-    from: kanton
-    identifier: UUID
-    merge: { geometry: union, attributes: first }
+  - source: swissBOUNDARIES3D_1_5_TLM_KANTONSGEBIET
+    identifier: "UUID"
+    geometry: "geometry"
     names:
-      - column: NAME
-    geometry: { column: geometry }
-    attributes:
-      - NAME
-      - OBJEKTART
-      - { name: KANTON_NAME, column: NAME }
-      - KANTONSNUM
-      - KANTONSFLA
-      - SEE_FLAECH
-      - ICC
-      - EINWOHNERZ
+      - "NAME"
+    data:
+      - attribute: "NAME"
+      - attribute: "OBJEKTART"
+      - attribute: "NAME"
+        alias: "KANTON_NAME"
+      - attribute: "KANTONSNUM"
+      - attribute: "KANTONSFLA"
+      - attribute: "SEE_FLAECH"
+      - attribute: "ICC"
+      - attribute: "EINWOHNERZ"
