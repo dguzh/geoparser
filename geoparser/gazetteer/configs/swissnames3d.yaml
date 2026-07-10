@@ -16,7 +16,7 @@ sources:
       - name: "HOEHE"
         type: real
       - name: "GEBAEUDENU"
-        type: integer
+        type: text
       - name: "NAME_UUID"
         type: text
       - name: "NAME"
@@ -72,7 +72,7 @@ sources:
       - name: "OBJEKTKLAS"
         type: text
       - name: "EINWOHNERK"
-        type: integer
+        type: text
       - name: "NAME_UUID"
         type: text
       - name: "NAME"
