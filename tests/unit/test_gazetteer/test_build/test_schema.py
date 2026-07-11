@@ -104,9 +104,7 @@ class TestGazetteerConfigValidation:
         data = minimal_config()
         data["features"].append(dict(data["features"][0]))
 
-        with pytest.raises(
-            ValidationError, match="at most one feature block"
-        ):
+        with pytest.raises(ValidationError, match="at most one feature block"):
             GazetteerConfig.model_validate(data)
 
 
@@ -166,9 +164,7 @@ class TestSourceConfigValidation:
             spatial_source(attributes=[{"name": "OGC_FID", "type": "integer"}])
         )
 
-        with pytest.raises(
-            ValidationError, match="exactly one geometry attribute"
-        ):
+        with pytest.raises(ValidationError, match="exactly one geometry attribute"):
             GazetteerConfig.model_validate(data)
 
     def test_spatial_geometry_attribute_must_be_named_geometry(self):
@@ -199,7 +195,9 @@ class TestSourceConfigValidation:
         data = minimal_config()
         data["sources"].append(spatial_source(skip_rows=1))
 
-        with pytest.raises(ValidationError, match="'skip_rows' is only valid for tabular"):
+        with pytest.raises(
+            ValidationError, match="'skip_rows' is only valid for tabular"
+        ):
             GazetteerConfig.model_validate(data)
 
     def test_crs_is_allowed_on_any_source(self):
@@ -246,9 +244,7 @@ class TestJoinConfigValidation:
                 ],
             }
         )
-        data["features"][0]["joins"] = [
-            "LEFT JOIN extra ON src.id = extra.eid"
-        ]
+        data["features"][0]["joins"] = ["LEFT JOIN extra ON src.id = extra.eid"]
 
         config = GazetteerConfig.model_validate(data)
 
@@ -302,8 +298,10 @@ class TestFeatureConfigValidation:
 
     def test_geometry_is_an_optional_value(self):
         """Geometry is a single column or expression, absent by default."""
-        assert GazetteerConfig.model_validate(minimal_config()).features[0].geometry \
+        assert (
+            GazetteerConfig.model_validate(minimal_config()).features[0].geometry
             is None
+        )
 
         data = minimal_config()
         data["features"][0]["geometry"] = "ST_Point(lon, lat)"

@@ -147,9 +147,7 @@ class TestLoadSpatial:
     """Test Loader.load() for spatial sources."""
 
     def _write_geojson(self, path: Path, features: list) -> None:
-        path.write_text(
-            json.dumps({"type": "FeatureCollection", "features": features})
-        )
+        path.write_text(json.dumps({"type": "FeatureCollection", "features": features}))
 
     def test_loads_geometry_and_casts_attributes(self, loader, tmp_path):
         """The geometry column is normalized and other attributes cast."""

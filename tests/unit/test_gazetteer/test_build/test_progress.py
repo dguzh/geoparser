@@ -151,6 +151,7 @@ class TestSample:
         """A poll() that raises is swallowed, leaving the bar untouched."""
         with Stage("Running", "Done", 1):
             with item("Working", total=100) as bar:
+
                 def _failing_poll():
                     raise RuntimeError("boom")
 

@@ -93,9 +93,7 @@ class TestCopyRows:
     def test_copies_all_rows_in_batches(self, duckdb_connection, sqlite_connection):
         """Every source row ends up in the destination table."""
         duckdb_connection.execute("CREATE TABLE src (id INTEGER, label VARCHAR)")
-        duckdb_connection.execute(
-            "INSERT INTO src VALUES (1, 'a'), (2, 'b'), (3, 'c')"
-        )
+        duckdb_connection.execute("INSERT INTO src VALUES (1, 'a'), (2, 'b'), (3, 'c')")
         sqlite_connection.execute("CREATE TABLE dest (id INTEGER, label TEXT)")
 
         with item("Copying", total=100) as bar:
@@ -108,9 +106,7 @@ class TestCopyRows:
             )
 
         assert copied == 3
-        assert sqlite_connection.execute(
-            "SELECT count(*) FROM dest"
-        ).fetchone()[0] == 3
+        assert sqlite_connection.execute("SELECT count(*) FROM dest").fetchone()[0] == 3
 
     def test_handles_a_query_with_no_rows(self, duckdb_connection, sqlite_connection):
         """An empty source query copies zero rows without error."""
@@ -152,12 +148,10 @@ class TestEmit:
 
         assert feature_count == 1
         assert name_count == 1
-        assert sqlite_connection.execute(
-            "SELECT count(*) FROM feature"
-        ).fetchone()[0] == 1
-        assert sqlite_connection.execute(
-            "SELECT count(*) FROM name"
-        ).fetchone()[0] == 1
+        assert (
+            sqlite_connection.execute("SELECT count(*) FROM feature").fetchone()[0] == 1
+        )
+        assert sqlite_connection.execute("SELECT count(*) FROM name").fetchone()[0] == 1
 
 
 @pytest.mark.unit

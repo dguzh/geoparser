@@ -5,8 +5,6 @@ Tests the artifact-level helpers and the GazetteerArtifact class directly,
 independent of the higher-level Gazetteer query interface.
 """
 
-from pathlib import Path
-
 import pytest
 
 from geoparser.gazetteer import artifact as artifact_module

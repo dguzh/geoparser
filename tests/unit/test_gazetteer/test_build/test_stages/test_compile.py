@@ -23,8 +23,7 @@ def build_compiler(config_data: dict) -> t.Tuple[GazetteerConfig, ProjectionComp
     """Validate a config and build a compiler with a catalog from its sources."""
     config = GazetteerConfig.model_validate(config_data)
     catalog = {
-        source.name: [a.name for a in source.attributes]
-        for source in config.sources
+        source.name: [a.name for a in source.attributes] for source in config.sources
     }
     return config, ProjectionCompiler(config, catalog)
 
@@ -67,9 +66,7 @@ def run_features(
         merged_geometry = {}
         duplicate_query = compiler.duplicate_geometry_query(feature)
         if duplicate_query is not None:
-            for identifier, geometry in connection.execute(
-                duplicate_query
-            ).fetchall():
+            for identifier, geometry in connection.execute(duplicate_query).fetchall():
                 merged_geometry[identifier] = geometry
         for identifier, source, data, geometry in connection.execute(
             compiler.feature_query(feature)
@@ -127,8 +124,12 @@ class TestBasicProjection:
         return {
             "name": "testgaz",
             "sources": [
-                tabular("places", ("id", "integer"), ("name", "text"),
-                        ("population", "integer"))
+                tabular(
+                    "places",
+                    ("id", "integer"),
+                    ("name", "text"),
+                    ("population", "integer"),
+                )
             ],
             "features": [feature],
         }
@@ -156,9 +157,7 @@ class TestBasicProjection:
     def test_name_expression(self, connection):
         """Names can be scalar SQL expressions."""
         self.make_places(connection)
-        config, compiler = build_compiler(
-            self.config_data(names=["upper(name)"])
-        )
+        config, compiler = build_compiler(self.config_data(names=["upper(name)"]))
 
         names = run_names(connection, compiler, config)
 
@@ -225,8 +224,9 @@ class TestSplitNames:
         config, compiler = build_compiler(
             {
                 "name": "testgaz",
-                "sources": [tabular("places", ("id", "integer"),
-                                    ("alternates", "text"))],
+                "sources": [
+                    tabular("places", ("id", "integer"), ("alternates", "text"))
+                ],
                 "features": [
                     {
                         "source": "places",
@@ -264,8 +264,11 @@ class TestDuplicateMerge:
         }
         return {
             "name": "testgaz",
-            "sources": [tabular("places", ("id", "integer"), ("name", "text"),
-                                ("height", "integer"))],
+            "sources": [
+                tabular(
+                    "places", ("id", "integer"), ("name", "text"), ("height", "integer")
+                )
+            ],
             "features": [feature],
         }
 
@@ -313,8 +316,15 @@ class TestGeometry:
         config, compiler = build_compiler(
             {
                 "name": "testgaz",
-                "sources": [tabular("places", ("id", "integer"), ("name", "text"),
-                                    ("lon", "real"), ("lat", "real"))],
+                "sources": [
+                    tabular(
+                        "places",
+                        ("id", "integer"),
+                        ("name", "text"),
+                        ("lon", "real"),
+                        ("lat", "real"),
+                    )
+                ],
                 "features": [
                     {
                         "source": "places",
@@ -347,8 +357,14 @@ class TestGeometry:
         config, compiler = build_compiler(
             {
                 "name": "testgaz",
-                "sources": [spatial("places", ("id", "integer"), ("name", "text"),
-                                    ("geometry", "geometry"))],
+                "sources": [
+                    spatial(
+                        "places",
+                        ("id", "integer"),
+                        ("name", "text"),
+                        ("geometry", "geometry"),
+                    )
+                ],
                 "features": [
                     {
                         "source": "places",
@@ -382,8 +398,13 @@ class TestGeometry:
                 "name": "testgaz",
                 "crs": "EPSG:4326",
                 "sources": [
-                    spatial("places", ("id", "integer"), ("name", "text"),
-                            ("geometry", "geometry")) | {"crs": "EPSG:2056"}
+                    spatial(
+                        "places",
+                        ("id", "integer"),
+                        ("name", "text"),
+                        ("geometry", "geometry"),
+                    )
+                    | {"crs": "EPSG:2056"}
                 ],
                 "features": [
                     {
@@ -425,8 +446,11 @@ class TestJoins:
 
     def places_source(self) -> dict:
         return tabular(
-            "places", ("id", "integer"), ("name", "text"),
-            ("country_code", "text"), ("admin_code", "text")
+            "places",
+            ("id", "integer"),
+            ("name", "text"),
+            ("country_code", "text"),
+            ("admin_code", "text"),
         )
 
     def test_joined_column_becomes_data(self, connection):
@@ -473,7 +497,9 @@ class TestJoins:
             {
                 "name": "testgaz",
                 "sources": [
-                    tabular("places", ("id", "integer"), ("name", "text"), ("code", "text")),
+                    tabular(
+                        "places", ("id", "integer"), ("name", "text"), ("code", "text")
+                    ),
                     tabular("countries", ("code", "text"), ("label", "text")),
                 ],
                 "features": [
@@ -536,8 +562,9 @@ class TestJoins:
             {
                 "name": "testgaz",
                 "sources": [
-                    tabular("places", ("id", "integer"), ("name", "text"),
-                            ("a", "text")),
+                    tabular(
+                        "places", ("id", "integer"), ("name", "text"), ("a", "text")
+                    ),
                     tabular("level1", ("code", "text"), ("parent", "text")),
                     tabular("level2", ("code", "text"), ("label", "text")),
                 ],
@@ -577,10 +604,14 @@ class TestJoins:
             {
                 "name": "testgaz",
                 "sources": [
-                    tabular("places", ("id", "integer"), ("name", "text"),
-                            ("lon", "real"), ("lat", "real")),
-                    spatial("zones", ("zone_name", "text"),
-                            ("geometry", "geometry")),
+                    tabular(
+                        "places",
+                        ("id", "integer"),
+                        ("name", "text"),
+                        ("lon", "real"),
+                        ("lat", "real"),
+                    ),
+                    spatial("zones", ("zone_name", "text"), ("geometry", "geometry")),
                 ],
                 "features": [
                     {
@@ -621,10 +652,8 @@ class TestJoins:
             {
                 "name": "testgaz",
                 "sources": [
-                    spatial("places", ("id", "integer"),
-                            ("geometry", "geometry")),
-                    spatial("zones", ("zone_name", "text"),
-                            ("geometry", "geometry")),
+                    spatial("places", ("id", "integer"), ("geometry", "geometry")),
+                    spatial("zones", ("zone_name", "text"), ("geometry", "geometry")),
                 ],
                 "features": [
                     {
@@ -658,16 +687,15 @@ class TestJoins:
             {
                 "name": "testgaz",
                 "sources": [
-                    tabular("places", ("id", "integer"), ("name", "text"),
-                            ("label", "text")),
+                    tabular(
+                        "places", ("id", "integer"), ("name", "text"), ("label", "text")
+                    ),
                     tabular("extra", ("place_id", "integer"), ("label", "text")),
                 ],
                 "features": [
                     {
                         "source": "places",
-                        "joins": [
-                            "LEFT JOIN extra ON id = extra.place_id"
-                        ],
+                        "joins": ["LEFT JOIN extra ON id = extra.place_id"],
                         "identifier": "id",
                         "names": ["name"],
                         "data": [
