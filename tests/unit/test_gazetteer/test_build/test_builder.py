@@ -69,7 +69,17 @@ class TestMemoryLimit:
         def _raise(_name):
             raise OSError("not supported")
 
-        monkeypatch.setattr(os, "sysconf", _raise)
+        # os.sysconf doesn't exist at all on Windows, so it must be added
+        # rather than merely replaced (raising=False allows both).
+        monkeypatch.setattr(os, "sysconf", _raise, raising=False)
+
+        assert GazetteerBuilder._physical_memory_bytes() is None
+
+    def test_physical_memory_bytes_returns_none_when_sysconf_is_unsupported(
+        self, monkeypatch
+    ):
+        """A platform with no sysconf() at all (e.g. Windows) is handled too."""
+        monkeypatch.delattr(os, "sysconf", raising=False)
 
         assert GazetteerBuilder._physical_memory_bytes() is None
 

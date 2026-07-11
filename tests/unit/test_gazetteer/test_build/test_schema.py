@@ -434,14 +434,17 @@ class TestFromYaml:
 
     def test_absolute_paths_are_kept(self, tmp_path):
         """Absolute source paths are left untouched."""
+        # Written with forward slashes so it parses as a plain YAML scalar and
+        # is recognized as absolute by pathlib on both POSIX and Windows.
+        absolute_path = (tmp_path / "external" / "places.csv").as_posix()
         config_file = tmp_path / "gaz.yaml"
         config_file.write_text(
             textwrap.dedent(
-                """
+                f"""
                 name: testgaz
                 sources:
                   - name: places
-                    path: /data/places.csv
+                    path: {absolute_path}
                     file: places.csv
                     delimiter: ","
                     attributes:
@@ -460,4 +463,4 @@ class TestFromYaml:
 
         config = GazetteerConfig.from_yaml(config_file)
 
-        assert config.sources[0].path == "/data/places.csv"
+        assert config.sources[0].path == absolute_path
