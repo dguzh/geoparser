@@ -12,17 +12,11 @@ from pathlib import Path
 
 import duckdb
 
-from geoparser.gazetteer.build.progress import allocate, scale_poll, track
+from geoparser.gazetteer.build.progress import advance, item, track
 from geoparser.gazetteer.config import DataType, SourceConfig
 from geoparser.gazetteer.config.schema import GEOMETRY_ATTRIBUTE
 
 GEOMETRY_COLUMN = GEOMETRY_ATTRIBUTE
-
-# Relative weight of the raw read vs. the cast/rename pass when staging a
-# spatial source: both scan the whole file/table once, so an even split is a
-# reasonable estimate.
-_SPATIAL_READ_WEIGHT = 1
-_SPATIAL_CAST_WEIGHT = 1
 
 # Mapping from config attribute types to DuckDB types
 _DUCKDB_TYPES = {
@@ -72,25 +66,25 @@ class Stager:
         """
         self.connection = connection
 
-    def stage(
-        self, source_config: SourceConfig, file_path: Path, bar: t.Any = None
-    ) -> int:
+    def stage(self, source_config: SourceConfig, file_path: Path) -> int:
         """
         Load a source file into a staging table named after the source.
+
+        Reports its own progress (see :mod:`progress`): one item per query it
+        actually runs, rather than one bar guessing how to split its time
+        between them. Each item advances the active stage once it finishes.
 
         Args:
             source_config: Source configuration
             file_path: Path to the resolved source file
-            bar: Item bar to report progress on, if any (created with
-                ``total=100``); left untouched when ``None``
 
         Returns:
             Number of staged rows
         """
         if source_config.is_tabular:
-            self._stage_tabular(source_config, file_path, bar)
+            self._stage_tabular(source_config, file_path)
         else:
-            self._stage_spatial(source_config, file_path, bar)
+            self._stage_spatial(source_config, file_path)
         table = quote_identifier(source_config.name)
         return self.connection.execute(f"SELECT count(*) FROM {table}").fetchone()[0]
 
@@ -111,9 +105,7 @@ class Stager:
         ).fetchall()
         return [row[0] for row in rows]
 
-    def _stage_tabular(
-        self, source_config: SourceConfig, file_path: Path, bar: t.Any = None
-    ) -> None:
+    def _stage_tabular(self, source_config: SourceConfig, file_path: Path) -> None:
         """Load a delimited text file via DuckDB's CSV reader."""
         options = [
             f"delim={quote_literal(source_config.delimiter)}",
@@ -139,47 +131,28 @@ class Stager:
             f"SELECT * FROM read_csv({quote_literal(str(file_path))}, "
             f"{', '.join(options)})"
         )
-        # The only real work for a tabular source, so it gets the item's
-        # whole range.
-        if bar is None:
-            self.connection.execute(create_sql)
-        else:
+        with item(f"Reading {source_config.name}", total=100) as bar:
             track(bar, self.connection.query_progress, lambda: self.connection.execute(create_sql))
+        advance()
 
-    def _stage_spatial(
-        self, source_config: SourceConfig, file_path: Path, bar: t.Any = None
-    ) -> None:
+    def _stage_spatial(self, source_config: SourceConfig, file_path: Path) -> None:
         """
         Load a spatial file via ST_Read, projected onto its declared attributes.
 
         The geometry column is normalized to ``geometry`` and the non-geometry
         attributes are cast to their declared types, so the staged table has
         exactly the schema the config declares (mirroring tabular sources).
-
-        Reading the file and casting/renaming its columns are both full scans
-        over the whole source, so with a bar to report on, they each get a
-        slice of its range (see :func:`allocate`) rather than both polling
-        the full 0-100 range, which would make the bar reset partway through.
+        Reading the file and normalizing its columns are each their own
+        query, so they're reported as two separate items in turn.
         """
-        read_range, cast_range = allocate(
-            [_SPATIAL_READ_WEIGHT, _SPATIAL_CAST_WEIGHT]
-        )
-
         raw = quote_identifier(f"__raw_{source_config.name}")
         read_sql = (
             f"CREATE OR REPLACE TABLE {raw} AS "
             f"SELECT * FROM ST_Read({quote_literal(str(file_path))})"
         )
-        if bar is None:
-            self.connection.execute(read_sql)
-        else:
-            start, end = read_range
-            track(
-                bar,
-                scale_poll(self.connection.query_progress, start, end),
-                lambda: self.connection.execute(read_sql),
-                final=end,
-            )
+        with item(f"Reading {source_config.name}", total=100) as bar:
+            track(bar, self.connection.query_progress, lambda: self.connection.execute(read_sql))
+        advance()
         # Geometry types may carry a CRS parameter, e.g. GEOMETRY('EPSG:4326')
         geometry_columns = [
             row[0]
@@ -220,14 +193,7 @@ class Stager:
             f"CREATE OR REPLACE TABLE {table} AS "
             f"SELECT {', '.join(select_parts)} FROM {raw}"
         )
-        if bar is None:
-            self.connection.execute(cast_sql)
-        else:
-            start, end = cast_range
-            track(
-                bar,
-                scale_poll(self.connection.query_progress, start, end),
-                lambda: self.connection.execute(cast_sql),
-                final=end,
-            )
+        with item(f"Normalizing {source_config.name}", total=100) as bar:
+            track(bar, self.connection.query_progress, lambda: self.connection.execute(cast_sql))
+        advance()
         self.connection.execute(f"DROP TABLE {raw}")

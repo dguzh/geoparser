@@ -13,7 +13,7 @@ from typing import Optional
 
 import requests
 
-from geoparser.gazetteer.build.progress import item
+from geoparser.gazetteer.build.progress import advance, item
 from geoparser.gazetteer.config import SourceConfig
 
 # Network request timeout in seconds
@@ -29,7 +29,10 @@ class Acquirer:
 
     Remote files are cached in the downloads directory and skipped when the
     local copy matches the remote size. ZIP archives are extracted next to
-    the archive, with extraction skipped when contents are up to date.
+    the archive, with extraction skipped when contents are up to date. Each
+    download or extraction that actually runs shows its own item bar and
+    advances the active stage (see :mod:`progress`) once it finishes; a
+    cached, unzipped local file shows neither and advances nothing.
     """
 
     def __init__(self, downloads_directory: Path):
@@ -103,6 +106,7 @@ class Acquirer:
                         if chunk:
                             output_file.write(chunk)
                             progress_bar.update(len(chunk))
+        advance()
 
         return download_path
 
@@ -171,6 +175,7 @@ class Acquirer:
                 for zip_info in zip_ref.infolist():
                     zip_ref.extract(zip_info, path=extraction_dir)
                     progress_bar.update(zip_info.file_size)
+        advance()
 
         if extraction_dir.name == target_filename:
             return extraction_dir

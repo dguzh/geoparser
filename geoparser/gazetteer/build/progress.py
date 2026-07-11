@@ -1,16 +1,32 @@
 """
 Console output helpers for the gazetteer build pipeline.
 
-Build activity is grouped by pipeline stage (acquire, stage, project, emit,
-finalize), mirroring how the old installer grouped progress by source: each
-stage owns a persistent bar that reads "<verb>ing ..." while it runs and
-"<verb>ed ..." once every item in it has completed, turning from cyan to
-green. Individual items within a stage (a download, a staged input, a
-projected feature type, ...) render as dimmed, indented bars nested under
-their stage and disappear as soon as they finish, so only the stage bars and
-the currently active item remain on screen. There are no checkmarks and no
-byte counts for downloads; progress within an item is shown as a percentage
-(or, for indeterminate work, an animated bar with no percentage).
+Build activity is grouped by pipeline stage (preparing sources, deriving
+features, building the artifact; see :mod:`builder`), mirroring how the old
+installer grouped progress by source: each stage owns a persistent bar that
+reads "<verb>ing ..." while it runs and "<verb>ed ..." once every item in it
+has completed, turning from cyan to green. Individual items within a stage (a
+download, a staged source, a query run against a feature block, ...) render
+as dimmed, indented bars nested under their stage and disappear as soon as
+they finish, so only the stage bars and the currently active item remain on
+screen. There are no checkmarks and no byte counts for downloads; progress
+within an item is shown as a percentage (or, for indeterminate work, an
+animated bar with no percentage). A determinate item that finishes
+successfully is snapped to 100% and held there briefly (see
+:data:`_COMPLETION_PAUSE_SECONDS`) before it disappears, so it visibly
+completes rather than seeming to vanish mid-step, whether it was polling
+normally or sitting at some percentage right up to the end. A failed item
+disappears immediately instead, since there is no completed state to show.
+
+Every item that appears leaves a mark on its stage: the stage advances by one
+the moment its item disappears, so the stage's own percentage always
+reflects real, finished work rather than jumping only once several items
+have quietly come and gone. A stage's ``total_items`` is a best
+estimate (the exact number of items some units of work will show, e.g. an
+acquisition's download-then-extract, is only known once it runs); the count
+grows on the fly if advances outrun it, so the displayed total never falls
+behind reality, and is snapped to match whatever actually completed once the
+stage exits.
 
 Database operations (a single DuckDB query, or a batch of SQLite statements)
 report a percentage too, using :func:`track`, which runs the operation on a
@@ -21,13 +37,14 @@ track progress for every query shape, and statement-count progress does not
 account for statements taking unequal time, but they give a useful sense of
 motion for otherwise silent, long-running steps. Their items are always
 created determinate (``total=100``) so they read "0%" immediately rather than
-ever showing an animated, indeterminate bar, even briefly. When an item
-covers several queries in sequence, :func:`scale_poll` and :func:`allocate`
-give each query its own slice of the item's 0-100 range, so the bar only
-ever climbs, never resetting to a lower number when the next query starts.
+ever showing an animated, indeterminate bar, even briefly. Each individual
+query gets its own item, shown and disposed of in turn, rather than several
+queries sharing one bar (which would either not reflect their real, separate
+progress or require guessing at how to divide the bar between them).
 """
 
 import threading
+import time
 import typing as t
 from contextlib import contextmanager
 from contextvars import ContextVar
@@ -42,6 +59,12 @@ from rich.text import Text
 # Connector that visually nests an item (child) bar under its stage.
 _CHILD_CONNECTOR = "  └─ "
 _CHILD_SPINNER_NAME = "dots"
+
+# How long a completed item lingers at 100% before disappearing. Without
+# this, an item that jumps straight from 0% (or wherever it was polling) to
+# done in the same instant it finishes never actually renders its completed
+# state, making the step look like it vanished rather than finished.
+_COMPLETION_PAUSE_SECONDS = 0.15
 
 # Status colors. A stage is "in progress" (cyan) until all of its items
 # complete, then "done" (green); item bars always use the in-progress color
@@ -94,23 +117,25 @@ class _ProgressReadoutColumn(ProgressColumn):
     """
     Render the progress readout for a task.
 
-    A stage task is shown as a "completed/total" item count; an item task is
-    shown as a percentage when it tracks a known quantity, or left blank for
-    indeterminate work (its bar animates instead). The column has a fixed
-    width so this text changing length (e.g. "9%" to "100%", or one row
-    disappearing while another remains) never shifts every other column
-    alongside it.
+    Both a stage and an item read as a plain percentage when their progress
+    is known, or left blank for indeterminate work (its bar animates
+    instead); showing the same "NN%" form for both keeps the display
+    consistent rather than mixing a raw item count into an otherwise
+    percentage-based display. The column has a fixed, narrow width so this
+    text changing length (e.g. "9%" to "100%", or one row disappearing while
+    another remains) never shifts every other column alongside it. The width
+    is sized to the widest reading ("100%"), so right-aligned text fills it
+    at that width with no slack, giving the same one-space gap on both sides
+    (to the bar on the left, to the elapsed time on the right); narrower
+    readings still lean right and open up a larger gap on the left only.
     """
 
     def __init__(self) -> None:
         super().__init__(
-            table_column=Column(width=9, justify="right", no_wrap=True)
+            table_column=Column(width=4, justify="right", no_wrap=True)
         )
 
     def render(self, task: Task) -> Text:
-        if task.fields.get("is_stage"):
-            total = int(task.total) if task.total else 0
-            return Text(f"{int(task.completed)}/{total}", style="progress.percentage")
         if task.total:
             return Text(f"{int(task.percentage)}%", style="progress.percentage")
         return Text("")
@@ -219,14 +244,17 @@ class Stage:
     Items are transient nested bars created with :func:`item`; they attach to
     whichever stage is currently active and disappear once finished. Callers
     advance the stage's own item count explicitly with :meth:`advance`, once
-    per unit of work the stage represents (regardless of whether that unit
-    displayed an item bar).
+    for every item bar that appeared and finished, so nothing disappears
+    without leaving a mark on the stage it belongs to. ``total_items`` is
+    only an initial estimate: it grows automatically if advances outrun it,
+    so the displayed total is never less than what has actually completed.
     """
 
     def __init__(self, running_label: str, done_label: str, total_items: int):
         self.running_label = running_label
         self.done_label = done_label
         self.total_items = total_items
+        self._completed = 0
         self._progress: t.Optional[Progress] = None
         self._owns_display = False
         self._task_id: t.Optional[int] = None
@@ -258,7 +286,17 @@ class Stage:
             self._progress.stop()
 
     def advance(self, count: int = 1) -> None:
-        """Mark ``count`` more items of this stage as completed."""
+        """
+        Mark ``count`` more items of this stage as completed.
+
+        Grows ``total_items`` first if this would otherwise complete more
+        items than the stage's estimate accounted for, so the bar never
+        shows more completed than total and never has to jump backwards.
+        """
+        self._completed += count
+        if self._completed > self.total_items:
+            self.total_items = self._completed
+            self._progress.update(self._task_id, total=self.total_items)
         self._progress.advance(self._task_id, count)
 
     def item(
@@ -266,7 +304,7 @@ class Stage:
     ) -> "_Item":
         """Create an item bar nested under this stage."""
         task_id = self._progress.add_task(description, total=total, is_child=True)
-        return _Item(self._progress, task_id, determinate=total is not None)
+        return _Item(self._progress, task_id, total=total)
 
 
 @contextmanager
@@ -277,7 +315,8 @@ def stage(running_label: str, done_label: str, total_items: int) -> t.Iterator[S
     Args:
         running_label: Label shown while the stage has outstanding items
         done_label: Label shown once every item has completed
-        total_items: Number of items the stage represents
+        total_items: Estimated number of items the stage represents; grows
+            automatically (see :meth:`Stage.advance`) if more complete
 
     Yields:
         The active :class:`Stage`
@@ -290,16 +329,16 @@ def stage(running_label: str, done_label: str, total_items: int) -> t.Iterator[S
 class _Item:
     """A transient, nested progress bar for one unit of work within a stage."""
 
-    def __init__(self, progress: Progress, task_id: int, determinate: bool = False):
+    def __init__(
+        self,
+        progress: Progress,
+        task_id: int,
+        total: t.Optional[float] = None,
+    ):
         self._progress = progress
         self._task_id = task_id
-        self._determinate = determinate
-
-    def __enter__(self) -> "_Item":
-        return self
-
-    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
-        self._progress.remove_task(self._task_id)
+        self._determinate = total is not None
+        self._total = total
 
     def update(self, advance: float) -> None:
         """Advance this item's progress by ``advance`` units."""
@@ -318,7 +357,28 @@ class _Item:
         if not self._determinate:
             self._progress.update(self._task_id, total=100)
             self._determinate = True
+            self._total = 100
         self._progress.update(self._task_id, completed=percent)
+
+    def close(self, success: bool = True) -> None:
+        """
+        Finish this item and remove its bar.
+
+        On success, a determinate item is first snapped to its full total
+        (in case the caller under-reported the very last step) and briefly
+        held on screen so its completed state is actually visible, rather
+        than disappearing in the same instant it reaches 100% (see
+        :data:`_COMPLETION_PAUSE_SECONDS`). A failed item disappears at once;
+        there is nothing meaningful to show.
+
+        Args:
+            success: Whether the work this item tracked finished without error
+        """
+        if success and self._determinate and self._total:
+            self._progress.update(self._task_id, completed=self._total)
+            self._progress.refresh()
+            time.sleep(_COMPLETION_PAUSE_SECONDS)
+        self._progress.remove_task(self._task_id)
 
 
 @contextmanager
@@ -341,10 +401,12 @@ def item(description: str, total: t.Optional[float] = None) -> t.Iterator[_Item]
     active_stage = _active_stage.get()
     if active_stage is not None:
         bar = active_stage.item(description, total)
+        success = False
         try:
             yield bar
+            success = True
         finally:
-            bar.__exit__(None, None, None)
+            bar.close(success=success)
         return
 
     progress = _active_progress.get()
@@ -353,10 +415,13 @@ def item(description: str, total: t.Optional[float] = None) -> t.Iterator[_Item]
         progress = _make_progress()
         progress.start()
     task_id = progress.add_task(description, total=total, is_child=True)
+    bar = _Item(progress, task_id, total=total)
+    success = False
     try:
-        yield _Item(progress, task_id, determinate=total is not None)
+        yield bar
+        success = True
     finally:
-        progress.remove_task(task_id)
+        bar.close(success=success)
         if owns_display:
             progress.stop()
 
@@ -366,7 +431,6 @@ def track(
     poll: t.Callable[[], t.Optional[float]],
     run: t.Callable[[], None],
     poll_interval: float = 0.1,
-    final: float = 100.0,
 ) -> None:
     """
     Run ``run()`` on a background thread while reporting live progress on ``bar``.
@@ -380,15 +444,13 @@ def track(
     ``total=100``) so it reads "0%" rather than flashing an animated,
     indeterminate bar for the (possibly long) stretch before the first
     reading arrives, or at all if ``poll()`` never returns one. Once ``run()``
-    finishes successfully, ``bar`` is snapped to ``final`` regardless of the
-    last polled value, since DuckDB's estimate can undershoot right up to the
-    end.
+    finishes successfully, ``bar`` is snapped to 100% regardless of the last
+    polled value, since DuckDB's estimate can undershoot right up to the end.
 
-    When several operations run in sequence under the same ``bar`` (e.g. one
-    item covering a query plus some follow-up queries), pass ``poll`` through
-    :func:`scale_poll` and pick each operation's ``final`` from
-    :func:`allocate`, so ``bar`` climbs across all of them instead of
-    resetting to a low value every time a new operation starts polling from 0.
+    A caller with several queries to run should give each its own item and
+    ``track()`` call in turn, rather than share one bar between them: that
+    way every bar's progress is real, and the display simply shows one
+    finishing before the next appears.
 
     Args:
         bar: The item bar to update; should be created with ``total=100``
@@ -397,7 +459,6 @@ def track(
         run: The work to perform; exceptions are re-raised on the calling
             thread once it returns
         poll_interval: Seconds between polls
-        final: Value ``bar`` is set to once ``run()`` finishes successfully
 
     Raises:
         Whatever exception ``run()`` raised, re-raised on the calling thread
@@ -418,67 +479,7 @@ def track(
     thread.join()
     if error:
         raise error[0]
-    bar.set_progress(final)
-
-
-def scale_poll(
-    poll: t.Callable[[], t.Optional[float]], start: float, end: float
-) -> t.Callable[[], t.Optional[float]]:
-    """
-    Rescale a 0-100 progress function onto the sub-range ``[start, end)``.
-
-    Used to let several sequential operations share one item bar without it
-    ever moving backwards: each operation gets its own slice of the bar's
-    overall range (see :func:`allocate`) and reports into that slice rather
-    than the full 0-100 range.
-
-    Args:
-        poll: Progress function returning a percentage in ``[0, 100]``, or a
-            negative number/``None`` while not yet known
-        start: Start of the sub-range
-        end: End of the sub-range
-
-    Returns:
-        A progress function whose readings fall within ``[start, end)``
-    """
-
-    def _scaled() -> t.Optional[float]:
-        value = poll()
-        if value is None or value < 0:
-            return None
-        return start + value / 100 * (end - start)
-
-    return _scaled
-
-
-def allocate(
-    weights: t.Sequence[float], start: float = 0.0, end: float = 100.0
-) -> t.List[t.Tuple[float, float]]:
-    """
-    Split ``[start, end)`` into consecutive sub-ranges proportional to ``weights``.
-
-    Args:
-        weights: Relative size of each sub-range; need not sum to anything in
-            particular
-        start: Start of the overall range
-        end: End of the overall range
-
-    Returns:
-        One ``(sub_start, sub_end)`` pair per weight, in order, exactly
-        covering ``[start, end)``
-    """
-    total = sum(weights) or 1.0
-    span = end - start
-    bounds = []
-    cursor = start
-    for weight in weights:
-        next_cursor = cursor + span * (weight / total)
-        bounds.append((cursor, next_cursor))
-        cursor = next_cursor
-    if bounds:
-        # Floating-point drift could leave the last bound short of `end`.
-        bounds[-1] = (bounds[-1][0], end)
-    return bounds
+    bar.set_progress(100)
 
 
 def _sample(bar: _Item, poll: t.Callable[[], t.Optional[float]]) -> None:

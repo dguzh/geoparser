@@ -1,16 +1,16 @@
 """
 Gazetteer builder: compiles a declarative config into a SQLite artifact.
 
-The build pipeline is:
+The build pipeline has three stages, each its own progress group:
 
-1. Acquire: download/extract the source files (cached across builds)
-2. Stage: load each source into a transient DuckDB table
-3. Project: compile and run one projection per feature block, producing
-   canonical (identifier, source, data, geometry) and (identifier, name)
-   rows, merging rows that share an identifier
-4. Emit: copy the projected rows into a temporary SQLite artifact
-5. Finalize: build FTS/soundex/indexes and metadata, vacuum, and atomically
-   move the artifact into place
+1. Preparing sources: resolve (download/extract, cached across builds) and
+   load each source's file into a transient DuckDB table
+2. Deriving features: compile and run one projection per feature block,
+   producing canonical (identifier, source, data, geometry) and
+   (identifier, name) rows, then merge rows that share an identifier
+3. Building artifact: copy the derived rows into a temporary SQLite file,
+   build its search structures and metadata, then atomically move it into
+   place
 
 The staging database and all intermediate tables are discarded after the
 build; the artifact is the only output.
@@ -29,17 +29,16 @@ from geoparser.gazetteer.build.acquire import Acquirer
 from geoparser.gazetteer.build.compile import ProjectionCompiler
 from geoparser.gazetteer.build.emit import create_artifact_db, emit, finalize
 from geoparser.gazetteer.build.progress import (
-    allocate,
+    advance,
     build_display,
     item,
     print_build_header,
     print_build_summary,
-    scale_poll,
     stage,
     track,
 )
 from geoparser.gazetteer.build.stage import Stager, quote_literal
-from geoparser.gazetteer.config import GazetteerConfig
+from geoparser.gazetteer.config import FeatureConfig, GazetteerConfig
 
 
 @contextlib.contextmanager
@@ -80,15 +79,6 @@ class GazetteerBuilder:
     # slow.
     _MIN_MEMORY_MB = 512
 
-    # Relative weight given to each part of a feature's projection when
-    # splitting one item bar's range between them (see progress.allocate):
-    # the feature query does the heavy join/aggregation, name queries are
-    # cheap selects over the same staged source, and merging duplicate
-    # geometries touches only the few rows that actually duplicate.
-    _FEATURE_QUERY_WEIGHT = 6
-    _NAME_QUERY_WEIGHT = 2
-    _MERGE_WEIGHT = 1
-
     def build(
         self, config_path: t.Union[str, Path], keep_downloads: bool = False
     ) -> Path:
@@ -117,8 +107,6 @@ class GazetteerBuilder:
 
         try:
             with build_display():
-                file_paths = self._acquire_inputs(acquirer, config)
-
                 connection = duckdb.connect(str(build_dir / "staging.duckdb"))
                 try:
                     self._configure_staging(connection, build_dir)
@@ -126,9 +114,9 @@ class GazetteerBuilder:
                         with item("Loading spatial extension", total=100) as bar:
                             self._load_spatial_extension(connection)
                             bar.set_progress(100)
-                    self._stage_inputs(connection, config, file_paths)
-                    self._project(connection, config)
-                    feature_count, name_count = self._emit_artifact(
+                    self._prepare_sources(acquirer, connection, config)
+                    self._derive_features(connection, config)
+                    feature_count, name_count = self._build_artifact(
                         connection, config, build_dir, target_path
                     )
                 finally:
@@ -165,7 +153,7 @@ class GazetteerBuilder:
         # build display (stray bars flashing in, stage rows appearing to
         # repeat); ``enable_progress_bar_print`` keeps the tracking without
         # the printing, so `connection.query_progress()` (used to drive our
-        # own item bars, see ``_project`` and ``_stage_inputs``) works while
+        # own item bars, see ``Stager`` and ``_derive_features``) works while
         # the terminal stays under our control. ``progress_bar_time = 0``
         # makes tracking start immediately rather than after DuckDB's default
         # delay for what it guesses will be a short query.
@@ -205,19 +193,6 @@ class GazetteerBuilder:
         except (ValueError, OSError, AttributeError):
             return None
 
-    def _acquire_inputs(
-        self, acquirer: Acquirer, config: GazetteerConfig
-    ) -> t.Dict[str, Path]:
-        """Resolve every source's data file, downloading and extracting as needed."""
-        file_paths: t.Dict[str, Path] = {}
-        with stage(
-            "Acquiring sources", "Acquired sources", len(config.sources)
-        ) as group:
-            for source_config in config.sources:
-                file_paths[source_config.name] = acquirer.acquire(source_config)
-                group.advance()
-        return file_paths
-
     def _needs_spatial(self, config: GazetteerConfig) -> bool:
         """Whether the build requires DuckDB's spatial extension."""
         if any(not source_config.is_tabular for source_config in config.sources):
@@ -237,29 +212,37 @@ class GazetteerBuilder:
                 f"Original error: {error}"
             ) from error
 
-    def _stage_inputs(
+    def _prepare_sources(
         self,
+        acquirer: Acquirer,
         connection: duckdb.DuckDBPyConnection,
         config: GazetteerConfig,
-        file_paths: t.Dict[str, Path],
     ) -> None:
-        """Load all source files into staging tables."""
-        stager = Stager(connection)
-        with stage("Staging sources", "Staged sources", len(config.sources)) as group:
-            for source_config in config.sources:
-                with item(f"Staging source '{source_config.name}'", total=100) as bar:
-                    # Stager reports its own progress: a spatial source runs
-                    # two full-scan queries in sequence, so it needs to slice
-                    # the bar's range between them itself (see
-                    # Stager._stage_spatial) rather than have a single track()
-                    # here poll raw, unscaled progress across both.
-                    stager.stage(source_config, file_paths[source_config.name], bar)
-                group.advance()
+        """
+        Resolve, then load, each source's data file in turn.
 
-    def _project(
+        Acquiring (see :mod:`acquire`) and staging (see :mod:`stage`) each
+        report their own items as they run their actual downloads,
+        extractions and queries, and advance the stage themselves as each
+        one finishes; how many a given source shows depends on whether it
+        needed downloading/extracting and whether it is spatial, so the
+        estimate below undercounts some sources and overcounts others, but
+        the stage's total grows on the fly to stay ahead of it either way.
+        """
+        stager = Stager(connection)
+        total_estimate = sum(
+            1 + (1 if source_config.is_tabular else 2)
+            for source_config in config.sources
+        )
+        with stage("Preparing sources", "Prepared sources", total_estimate):
+            for source_config in config.sources:
+                file_path = acquirer.acquire(source_config)
+                stager.stage(source_config, file_path)
+
+    def _derive_features(
         self, connection: duckdb.DuckDBPyConnection, config: GazetteerConfig
     ) -> None:
-        """Run the compiled projections into the build tables."""
+        """Run each feature block's projection, then merge across blocks."""
         # Every source declares its attributes, so the catalog is derived
         # directly from the config; the staged tables carry exactly this schema.
         catalog = {
@@ -276,69 +259,37 @@ class GazetteerBuilder:
         )
         connection.execute("CREATE TABLE _names (identifier VARCHAR, text VARCHAR)")
 
-        with stage(
-            "Projecting features", "Projected features", len(config.features)
-        ) as group:
+        # Each feature block shows one item for assembling its features, one
+        # per name it collects, and (only if it has a geometry) one for
+        # checking whether any identifier repeats; the stage's total grows on
+        # the fly to cover the further "merging duplicates" item that shows
+        # up only when duplicates are actually found.
+        total_estimate = 3
+        for feature in config.features:
+            total_estimate += 1 + len(compiler.name_queries(feature))
+            if compiler.duplicate_geometry_query(feature) is not None:
+                total_estimate += 1
+
+        with stage("Deriving features", "Derived features", total_estimate):
             for feature in config.features:
-                with item(
-                    f"Projecting features from '{feature.source}'", total=100
-                ) as bar:
-                    name_queries = compiler.name_queries(feature)
-                    # Give the feature query, each name query and the merge
-                    # step their own slice of the bar's range so it only ever
-                    # climbs, even though they poll query_progress() from 0
-                    # each time a new one of them starts.
-                    weights = (
-                        [self._FEATURE_QUERY_WEIGHT]
-                        + [self._NAME_QUERY_WEIGHT] * len(name_queries)
-                        + [self._MERGE_WEIGHT]
-                    )
-                    feature_range, *rest = allocate(weights)
-                    name_ranges, merge_range = rest[:-1], rest[-1]
+                self._derive_feature(connection, compiler, feature)
 
-                    start, end = feature_range
-                    track(
-                        bar,
-                        scale_poll(connection.query_progress, start, end),
-                        lambda f=feature: connection.execute(
-                            f"INSERT INTO _features {compiler.feature_query(f)}"
-                        ),
-                        final=end,
-                    )
-                    for (start, end), name_query in zip(name_ranges, name_queries):
-                        track(
-                            bar,
-                            scale_poll(connection.query_progress, start, end),
-                            lambda nq=name_query: connection.execute(
-                                f"INSERT INTO _names {nq}"
-                            ),
-                            final=end,
-                        )
-                    self._merge_duplicate_geometries(
-                        connection, compiler, feature, bar, merge_range
-                    )
-                group.advance()
-
-        # Merging rows across feature blocks (deduplication check, assigning
-        # ids, dropping orphaned names) means scanning the whole of _features
-        # and _names, which for a large gazetteer is not instantaneous; report
-        # it under its own stage rather than leaving a silent gap between the
-        # projection and writing stages.
-        with stage(
-            "Consolidating features", "Consolidated features", 3
-        ) as group:
+            # Merging rows across feature blocks (the checks and joins below)
+            # means scanning the whole of _features and _names, which for a
+            # large gazetteer is not instantaneous; each gets its own item
+            # rather than leaving a silent gap after the last feature block.
             with item("Checking identifiers", total=100) as bar:
                 track(
                     bar,
                     connection.query_progress,
                     lambda: self._check_duplicate_identifiers(connection),
                 )
-            group.advance()
+            advance()
 
             # Deterministic internal ids; names of unknown identifiers (e.g.
             # from a related names input covering more places) are dropped by
             # the join below.
-            with item("Finalizing features", total=100) as bar:
+            with item("Assigning feature ids", total=100) as bar:
                 track(
                     bar,
                     connection.query_progress,
@@ -348,9 +299,9 @@ class GazetteerBuilder:
                         "* FROM _features"
                     ),
                 )
-            group.advance()
+            advance()
 
-            with item("Finalizing names", total=100) as bar:
+            with item("Linking names", total=100) as bar:
                 track(
                     bar,
                     connection.query_progress,
@@ -360,7 +311,7 @@ class GazetteerBuilder:
                         "FROM _names n JOIN _features_final f USING (identifier)"
                     ),
                 )
-            group.advance()
+            advance()
 
         total = connection.execute("SELECT count(*) FROM _features_final").fetchone()[0]
         if total == 0:
@@ -369,13 +320,44 @@ class GazetteerBuilder:
                 "'features' blocks and input files"
             )
 
+    def _derive_feature(
+        self,
+        connection: duckdb.DuckDBPyConnection,
+        compiler: ProjectionCompiler,
+        feature: FeatureConfig,
+    ) -> None:
+        """
+        Run one feature block's queries, each reported as its own item.
+
+        Each item advances the active stage as soon as it finishes, rather
+        than only once every query for this feature block has run.
+        """
+        with item(f"Assembling features from {feature.source}", total=100) as bar:
+            track(
+                bar,
+                connection.query_progress,
+                lambda: connection.execute(
+                    f"INSERT INTO _features {compiler.feature_query(feature)}"
+                ),
+            )
+        advance()
+        for name_query in compiler.name_queries(feature):
+            with item(f"Collecting names from {feature.source}", total=100) as bar:
+                track(
+                    bar,
+                    connection.query_progress,
+                    lambda nq=name_query: connection.execute(
+                        f"INSERT INTO _names {nq}"
+                    ),
+                )
+            advance()
+        self._merge_duplicate_geometries(connection, compiler, feature)
+
     def _merge_duplicate_geometries(
         self,
         connection: duckdb.DuckDBPyConnection,
         compiler: ProjectionCompiler,
-        feature,
-        bar,
-        value_range: t.Tuple[float, float],
+        feature: FeatureConfig,
     ) -> None:
         """
         Union the geometries of identifiers that repeat within a source.
@@ -385,45 +367,39 @@ class GazetteerBuilder:
         duplicated identifiers and patch those rows. Doing this only for
         duplicates keeps ``ST_Union_Agg``'s unmanaged memory bounded, so the
         build stays within limits even for very large sources.
-
-        Detecting duplicates and (maybe) unioning their geometry are two
-        sequential queries, so ``value_range`` (this step's own slice of
-        ``bar``'s overall range) is itself split evenly between them, the
-        same way the caller splits ranges between projection steps.
         """
         query = compiler.duplicate_geometry_query(feature)
-        start, end = value_range
         if query is None:
-            bar.set_progress(end)
             return
-        detect_end = start + (end - start) / 2
-        track(
-            bar,
-            scale_poll(connection.query_progress, start, detect_end),
-            lambda: connection.execute(
-                f"CREATE OR REPLACE TEMP TABLE _dup_geometry AS {query}"
-            ),
-            final=detect_end,
-        )
+        with item(f"Checking duplicates in {feature.source}", total=100) as bar:
+            track(
+                bar,
+                connection.query_progress,
+                lambda: connection.execute(
+                    f"CREATE OR REPLACE TEMP TABLE _dup_geometry AS {query}"
+                ),
+            )
+        advance()
         try:
             has_duplicates = connection.execute(
                 "SELECT count(*) FROM _dup_geometry"
             ).fetchone()[0]
             if has_duplicates:
-                track(
-                    bar,
-                    scale_poll(connection.query_progress, detect_end, end),
-                    lambda: connection.execute(
-                        "UPDATE _features SET geometry = ("
-                        "SELECT geometry FROM _dup_geometry d "
-                        "WHERE d.identifier = _features.identifier"
-                        ") WHERE identifier IN "
-                        "(SELECT identifier FROM _dup_geometry)"
-                    ),
-                    final=end,
-                )
-            else:
-                bar.set_progress(end)
+                with item(
+                    f"Merging duplicates in {feature.source}", total=100
+                ) as bar:
+                    track(
+                        bar,
+                        connection.query_progress,
+                        lambda: connection.execute(
+                            "UPDATE _features SET geometry = ("
+                            "SELECT geometry FROM _dup_geometry d "
+                            "WHERE d.identifier = _features.identifier"
+                            ") WHERE identifier IN "
+                            "(SELECT identifier FROM _dup_geometry)"
+                        ),
+                    )
+                advance()
         finally:
             connection.execute("DROP TABLE IF EXISTS _dup_geometry")
 
@@ -447,7 +423,7 @@ class GazetteerBuilder:
                 "expression (e.g. a source prefix)."
             )
 
-    def _emit_artifact(
+    def _build_artifact(
         self,
         connection: duckdb.DuckDBPyConnection,
         config: GazetteerConfig,
@@ -465,9 +441,8 @@ class GazetteerBuilder:
         with _sqlite_tmpdir(sqlite_temp_dir):
             sqlite_connection = create_artifact_db(temporary_path)
             try:
-                with stage("Writing artifact", "Written artifact", 2):
+                with stage("Building artifact", "Built artifact", 6):
                     feature_count, name_count = emit(connection, sqlite_connection)
-                with stage("Indexing artifact", "Indexed artifact", 4):
                     finalize(sqlite_connection, config, feature_count, name_count)
             finally:
                 sqlite_connection.close()
