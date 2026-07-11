@@ -174,6 +174,72 @@ class TestDuplicateIdentifierMerge:
 
 
 @pytest.mark.integration
+class TestDuplicateGeometryMerge:
+    """Test that duplicate identifiers with geometry get unioned geometries."""
+
+    @pytest.fixture
+    def duplicate_geometry_config(self, tmp_path):
+        """A config whose source repeats an identifier with different points."""
+        data_file = tmp_path / "points.csv"
+        data_file.write_text(
+            "p1\tNorth Point\t1.0\t1.0\n"
+            "p1\tSouth Point\t2.0\t2.0\n"
+            "p2\tLone Point\t3.0\t3.0\n"
+        )
+        config_file = tmp_path / "points.yaml"
+        config_file.write_text(
+            textwrap.dedent(
+                """
+                name: points
+                sources:
+                  - name: points
+                    path: points.csv
+                    file: points.csv
+                    delimiter: "\\t"
+                    quote: ""
+                    attributes:
+                      - name: pid
+                        type: text
+                      - name: name
+                        type: text
+                      - name: lon
+                        type: real
+                      - name: lat
+                        type: real
+                features:
+                  - source: points
+                    identifier: "pid"
+                    geometry: "ST_Point(lon, lat)"
+                    names:
+                      - "name"
+                """
+            )
+        )
+        return config_file
+
+    def test_duplicate_geometries_are_unioned(
+        self, duplicate_geometry_config, tmp_path, monkeypatch
+    ):
+        """Duplicate rows' points are merged into one multi-point geometry."""
+        monkeypatch.setenv("GEOPARSER_GAZETTEERS_DIR", str(tmp_path / "gazetteers"))
+        GazetteerBuilder().build(duplicate_geometry_config)
+
+        gazetteer = Gazetteer("points")
+        merged = gazetteer.find("p1")
+
+        assert merged is not None
+        assert merged.geometry.geom_type == "MultiPoint"
+        assert {(point.x, point.y) for point in merged.geometry.geoms} == {
+            (1.0, 1.0),
+            (2.0, 2.0),
+        }
+
+        single = gazetteer.find("p2")
+        assert single.geometry.geom_type == "Point"
+        assert (single.geometry.x, single.geometry.y) == (3.0, 3.0)
+
+
+@pytest.mark.integration
 class TestCrossBlockIdentifierCollision:
     """Test that identifier collisions across feature blocks fail the build."""
 

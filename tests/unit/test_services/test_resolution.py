@@ -113,6 +113,29 @@ class TestResolutionServicePredict:
         )
         assert resolution is not None
 
+    def test_raises_when_predicted_feature_does_not_exist(
+        self,
+        test_session,
+        mock_sentencetransformer_resolver,
+        document_factory,
+        reference_factory,
+    ):
+        """A prediction pointing at a non-existent feature raises clearly."""
+        document = document_factory(text="Test")
+        reference_factory(start=0, end=4, document_id=document.id)
+        test_session.refresh(document)
+
+        mock_sentencetransformer_resolver.predict.return_value = [
+            [("geonames", "does-not-exist")]
+        ]
+        service = ResolutionService(mock_sentencetransformer_resolver)
+
+        with patch("geoparser.services.resolution.Gazetteer") as mock_gazetteer:
+            mock_gazetteer.return_value.find.return_value = None
+
+            with pytest.raises(ValueError, match="does not exist in gazetteer"):
+                service.predict([document])
+
     def test_skips_references_when_resolver_returns_none(
         self,
         test_session,

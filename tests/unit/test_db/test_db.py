@@ -84,6 +84,20 @@ class TestPatchDbFixture:
             table_name = result.scalar()
             assert table_name == "project"
 
+    def test_redirects_get_connection(self, test_session):
+        """Test that get_connection() uses test database."""
+        from geoparser.db.db import get_connection
+
+        # get_connection() should use the test database
+        with get_connection() as connection:
+            result = connection.execute(
+                text(
+                    "SELECT name FROM sqlite_master WHERE type='table' AND name='project'"
+                )
+            )
+            table_name = result.scalar()
+            assert table_name == "project"
+
 
 @pytest.mark.unit
 class TestDatabaseCompatibilityCheck:

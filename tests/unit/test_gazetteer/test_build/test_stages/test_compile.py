@@ -461,6 +461,37 @@ class TestJoins:
         assert features["1"]["data"]["country_name"] == "Switzerland"
         assert features["2"]["data"]["country_name"] is None
 
+    def test_join_using_clause_has_no_on_condition_to_qualify(self, connection):
+        """A join without an ON condition (e.g. USING) is passed through as-is."""
+        connection.execute(
+            "CREATE TABLE places (id INTEGER, name VARCHAR, code VARCHAR)"
+        )
+        connection.execute("INSERT INTO places VALUES (1, 'Bern', 'CH')")
+        connection.execute("CREATE TABLE countries (code VARCHAR, label VARCHAR)")
+        connection.execute("INSERT INTO countries VALUES ('CH', 'Switzerland')")
+        config, compiler = build_compiler(
+            {
+                "name": "testgaz",
+                "sources": [
+                    tabular("places", ("id", "integer"), ("name", "text"), ("code", "text")),
+                    tabular("countries", ("code", "text"), ("label", "text")),
+                ],
+                "features": [
+                    {
+                        "source": "places",
+                        "joins": ["JOIN countries USING (code)"],
+                        "identifier": "id",
+                        "names": ["name"],
+                        "data": ["name", "countries.label AS country_name"],
+                    }
+                ],
+            }
+        )
+
+        features = run_features(connection, compiler, config)
+
+        assert features["1"]["data"]["country_name"] == "Switzerland"
+
     def test_join_on_expression(self, connection):
         """The join condition can be an arbitrary SQL expression."""
         self.make_data(connection)

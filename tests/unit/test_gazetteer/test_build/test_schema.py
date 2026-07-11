@@ -9,7 +9,7 @@ import textwrap
 import pytest
 from pydantic import ValidationError
 
-from geoparser.gazetteer.build.schema import GazetteerConfig
+from geoparser.gazetteer.build.schema import GazetteerConfig, split_data_value
 
 
 def minimal_config(**overrides) -> dict:
@@ -194,6 +194,14 @@ class TestSourceConfigValidation:
         with pytest.raises(ValidationError, match="only valid for tabular"):
             GazetteerConfig.model_validate(data)
 
+    def test_rejects_skip_rows_on_spatial_source(self):
+        """'skip_rows' requires a delimiter (tabular source)."""
+        data = minimal_config()
+        data["sources"].append(spatial_source(skip_rows=1))
+
+        with pytest.raises(ValidationError, match="'skip_rows' is only valid for tabular"):
+            GazetteerConfig.model_validate(data)
+
     def test_crs_is_allowed_on_any_source(self):
         """The CRS declares a source's coordinate system and is always allowed."""
         data = minimal_config()
@@ -352,6 +360,44 @@ class TestFeatureConfigValidation:
 
         with pytest.raises(ValidationError, match="non-empty string"):
             GazetteerConfig.model_validate(data)
+
+
+@pytest.mark.unit
+class TestSplitDataValue:
+    """Test the split_data_value() helper."""
+
+    def test_bare_column_derives_key_from_itself(self):
+        """A bare column reference is its own key."""
+        assert split_data_value("NAME") == ("NAME", "NAME")
+
+    def test_qualified_column_derives_key_from_last_component(self):
+        """A dot-qualified column reference derives its key from the tail."""
+        assert split_data_value("g.NAME") == ("g.NAME", "NAME")
+
+    def test_quoted_qualified_column_strips_quotes_from_key(self):
+        """A quoted final component has its quotes stripped in the key."""
+        assert split_data_value('g."My Column"') == ('g."My Column"', "My Column")
+
+    def test_explicit_alias_is_used_as_key(self):
+        """A trailing 'AS alias' names the key explicitly."""
+        assert split_data_value("g.NAME AS GEMEINDE_NAME") == (
+            "g.NAME",
+            "GEMEINDE_NAME",
+        )
+
+    def test_quoted_explicit_alias_strips_quotes_from_key(self):
+        """A quoted trailing alias has its quotes stripped in the key."""
+        assert split_data_value('population AS "Population Count"') == (
+            "population",
+            "Population Count",
+        )
+
+    def test_plain_expression_has_no_derivable_key(self):
+        """A non-identifier expression without 'AS' has no derivable key."""
+        expression, key = split_data_value("upper(NAME)")
+
+        assert expression == "upper(NAME)"
+        assert key is None
 
 
 @pytest.mark.unit
