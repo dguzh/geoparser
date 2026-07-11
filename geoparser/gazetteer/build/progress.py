@@ -505,3 +505,41 @@ def advance(count: int = 1) -> None:
     active_stage = _active_stage.get()
     if active_stage is not None:
         active_stage.advance(count)
+
+
+def label_suffixes(labels: t.Sequence[str]) -> t.List[str]:
+    """
+    Number labels that repeat, so identical-looking items are told apart.
+
+    Several items in a row can legitimately share a base description (e.g.
+    one "Collecting names from X" per configured name, or one "Assembling
+    features from X" per feature block that happens to share a source). Left
+    unnumbered, a repeat looks like the previous item's bar restarted rather
+    than a new, distinct one appearing; this returns a same-length list of
+    suffixes to append to each label; ``""`` for labels that occur only once,
+    or ``" (i/N)"`` (1-based, in order of appearance) for each occurrence of
+    one that repeats.
+
+    Args:
+        labels: Base descriptions, in the order their items will be shown
+
+    Returns:
+        Suffix to append to each label at the same position
+
+    Example:
+        >>> label_suffixes(["Reading A", "Collecting names from A", "Collecting names from A"])
+        ['', ' (1/2)', ' (2/2)']
+    """
+    totals: t.Dict[str, int] = {}
+    for label in labels:
+        totals[label] = totals.get(label, 0) + 1
+    seen: t.Dict[str, int] = {}
+    suffixes = []
+    for label in labels:
+        total = totals[label]
+        if total <= 1:
+            suffixes.append("")
+            continue
+        seen[label] = seen.get(label, 0) + 1
+        suffixes.append(f" ({seen[label]}/{total})")
+    return suffixes

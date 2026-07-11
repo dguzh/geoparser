@@ -32,6 +32,7 @@ from geoparser.gazetteer.build.progress import (
     advance,
     build_display,
     item,
+    label_suffixes,
     print_build_header,
     print_build_summary,
     stage,
@@ -341,8 +342,19 @@ class GazetteerBuilder:
                 ),
             )
         advance()
-        for name_query in compiler.name_queries(feature):
-            with item(f"Collecting names from {feature.source}", total=100) as bar:
+        name_queries = compiler.name_queries(feature)
+        # A feature block commonly collects several names (a primary name,
+        # alternate names, ...), all from the same source, so this loop is
+        # the most common source of identical-looking, back-to-back items;
+        # number them whenever there is more than one, so a repeat reads as
+        # a distinct new item rather than the previous one's bar restarting.
+        name_suffixes = label_suffixes(
+            [f"Collecting names from {feature.source}"] * len(name_queries)
+        )
+        for name_query, name_suffix in zip(name_queries, name_suffixes):
+            with item(
+                f"Collecting names from {feature.source}{name_suffix}", total=100
+            ) as bar:
                 track(
                     bar,
                     connection.query_progress,
