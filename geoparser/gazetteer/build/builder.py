@@ -29,11 +29,14 @@ from geoparser.gazetteer.build.acquire import Acquirer
 from geoparser.gazetteer.build.compile import ProjectionCompiler
 from geoparser.gazetteer.build.emit import create_artifact_db, emit, finalize
 from geoparser.gazetteer.build.progress import (
+    allocate,
     build_display,
     item,
     print_build_header,
     print_build_summary,
+    scale_poll,
     stage,
+    track,
 )
 from geoparser.gazetteer.build.stage import Stager, quote_literal
 from geoparser.gazetteer.config import GazetteerConfig
@@ -77,6 +80,15 @@ class GazetteerBuilder:
     # slow.
     _MIN_MEMORY_MB = 512
 
+    # Relative weight given to each part of a feature's projection when
+    # splitting one item bar's range between them (see progress.allocate):
+    # the feature query does the heavy join/aggregation, name queries are
+    # cheap selects over the same staged source, and merging duplicate
+    # geometries touches only the few rows that actually duplicate.
+    _FEATURE_QUERY_WEIGHT = 6
+    _NAME_QUERY_WEIGHT = 2
+    _MERGE_WEIGHT = 1
+
     def build(
         self, config_path: t.Union[str, Path], keep_downloads: bool = False
     ) -> Path:
@@ -111,7 +123,9 @@ class GazetteerBuilder:
                 try:
                     self._configure_staging(connection, build_dir)
                     if self._needs_spatial(config):
-                        self._load_spatial_extension(connection)
+                        with item("Loading spatial extension", total=100) as bar:
+                            self._load_spatial_extension(connection)
+                            bar.set_progress(100)
                     self._stage_inputs(connection, config, file_paths)
                     self._project(connection, config)
                     feature_count, name_count = self._emit_artifact(
@@ -145,12 +159,19 @@ class GazetteerBuilder:
             connection: DuckDB connection used for staging and projection
             build_dir: Directory holding the transient build files
         """
-        # DuckDB prints its own progress bar straight to the terminal for
-        # long-running queries by default. It writes outside of Rich's
-        # control, which desyncs the live build display (stray bars flashing
-        # in, stage rows appearing to repeat); our own progress reporting
-        # already covers the whole build, so disable DuckDB's.
-        connection.execute("SET enable_progress_bar = false")
+        # DuckDB tracks query progress internally only while its progress bar
+        # feature is enabled. By default it also prints that progress straight
+        # to the terminal, outside Rich's control, which would desync the live
+        # build display (stray bars flashing in, stage rows appearing to
+        # repeat); ``enable_progress_bar_print`` keeps the tracking without
+        # the printing, so `connection.query_progress()` (used to drive our
+        # own item bars, see ``_project`` and ``_stage_inputs``) works while
+        # the terminal stays under our control. ``progress_bar_time = 0``
+        # makes tracking start immediately rather than after DuckDB's default
+        # delay for what it guesses will be a short query.
+        connection.execute("SET enable_progress_bar = true")
+        connection.execute("SET enable_progress_bar_print = false")
+        connection.execute("SET progress_bar_time = 0")
 
         temp_dir = build_dir / "duckdb-temp"
         temp_dir.mkdir(parents=True, exist_ok=True)
@@ -226,8 +247,13 @@ class GazetteerBuilder:
         stager = Stager(connection)
         with stage("Staging sources", "Staged sources", len(config.sources)) as group:
             for source_config in config.sources:
-                with item(f"Staging source '{source_config.name}'"):
-                    stager.stage(source_config, file_paths[source_config.name])
+                with item(f"Staging source '{source_config.name}'", total=100) as bar:
+                    # Stager reports its own progress: a spatial source runs
+                    # two full-scan queries in sequence, so it needs to slice
+                    # the bar's range between them itself (see
+                    # Stager._stage_spatial) rather than have a single track()
+                    # here poll raw, unscaled progress across both.
+                    stager.stage(source_config, file_paths[source_config.name], bar)
                 group.advance()
 
     def _project(
@@ -254,28 +280,87 @@ class GazetteerBuilder:
             "Projecting features", "Projected features", len(config.features)
         ) as group:
             for feature in config.features:
-                with item(f"Projecting features from '{feature.source}'"):
-                    connection.execute(
-                        f"INSERT INTO _features {compiler.feature_query(feature)}"
+                with item(
+                    f"Projecting features from '{feature.source}'", total=100
+                ) as bar:
+                    name_queries = compiler.name_queries(feature)
+                    # Give the feature query, each name query and the merge
+                    # step their own slice of the bar's range so it only ever
+                    # climbs, even though they poll query_progress() from 0
+                    # each time a new one of them starts.
+                    weights = (
+                        [self._FEATURE_QUERY_WEIGHT]
+                        + [self._NAME_QUERY_WEIGHT] * len(name_queries)
+                        + [self._MERGE_WEIGHT]
                     )
-                    for name_query in compiler.name_queries(feature):
-                        connection.execute(f"INSERT INTO _names {name_query}")
-                    self._merge_duplicate_geometries(connection, compiler, feature)
+                    feature_range, *rest = allocate(weights)
+                    name_ranges, merge_range = rest[:-1], rest[-1]
+
+                    start, end = feature_range
+                    track(
+                        bar,
+                        scale_poll(connection.query_progress, start, end),
+                        lambda f=feature: connection.execute(
+                            f"INSERT INTO _features {compiler.feature_query(f)}"
+                        ),
+                        final=end,
+                    )
+                    for (start, end), name_query in zip(name_ranges, name_queries):
+                        track(
+                            bar,
+                            scale_poll(connection.query_progress, start, end),
+                            lambda nq=name_query: connection.execute(
+                                f"INSERT INTO _names {nq}"
+                            ),
+                            final=end,
+                        )
+                    self._merge_duplicate_geometries(
+                        connection, compiler, feature, bar, merge_range
+                    )
                 group.advance()
 
-        self._check_duplicate_identifiers(connection)
+        # Merging rows across feature blocks (deduplication check, assigning
+        # ids, dropping orphaned names) means scanning the whole of _features
+        # and _names, which for a large gazetteer is not instantaneous; report
+        # it under its own stage rather than leaving a silent gap between the
+        # projection and writing stages.
+        with stage(
+            "Consolidating features", "Consolidated features", 3
+        ) as group:
+            with item("Checking identifiers", total=100) as bar:
+                track(
+                    bar,
+                    connection.query_progress,
+                    lambda: self._check_duplicate_identifiers(connection),
+                )
+            group.advance()
 
-        # Deterministic internal ids; names of unknown identifiers (e.g. from a
-        # related names input covering more places) are dropped by the join.
-        connection.execute(
-            "CREATE TABLE _features_final AS "
-            "SELECT row_number() OVER (ORDER BY identifier) AS id, * FROM _features"
-        )
-        connection.execute(
-            "CREATE TABLE _names_final AS "
-            "SELECT DISTINCT f.id AS feature_id, n.text "
-            "FROM _names n JOIN _features_final f USING (identifier)"
-        )
+            # Deterministic internal ids; names of unknown identifiers (e.g.
+            # from a related names input covering more places) are dropped by
+            # the join below.
+            with item("Finalizing features", total=100) as bar:
+                track(
+                    bar,
+                    connection.query_progress,
+                    lambda: connection.execute(
+                        "CREATE TABLE _features_final AS "
+                        "SELECT row_number() OVER (ORDER BY identifier) AS id, "
+                        "* FROM _features"
+                    ),
+                )
+            group.advance()
+
+            with item("Finalizing names", total=100) as bar:
+                track(
+                    bar,
+                    connection.query_progress,
+                    lambda: connection.execute(
+                        "CREATE TABLE _names_final AS "
+                        "SELECT DISTINCT f.id AS feature_id, n.text "
+                        "FROM _names n JOIN _features_final f USING (identifier)"
+                    ),
+                )
+            group.advance()
 
         total = connection.execute("SELECT count(*) FROM _features_final").fetchone()[0]
         if total == 0:
@@ -289,6 +374,8 @@ class GazetteerBuilder:
         connection: duckdb.DuckDBPyConnection,
         compiler: ProjectionCompiler,
         feature,
+        bar,
+        value_range: t.Tuple[float, float],
     ) -> None:
         """
         Union the geometries of identifiers that repeat within a source.
@@ -298,22 +385,45 @@ class GazetteerBuilder:
         duplicated identifiers and patch those rows. Doing this only for
         duplicates keeps ``ST_Union_Agg``'s unmanaged memory bounded, so the
         build stays within limits even for very large sources.
+
+        Detecting duplicates and (maybe) unioning their geometry are two
+        sequential queries, so ``value_range`` (this step's own slice of
+        ``bar``'s overall range) is itself split evenly between them, the
+        same way the caller splits ranges between projection steps.
         """
         query = compiler.duplicate_geometry_query(feature)
+        start, end = value_range
         if query is None:
+            bar.set_progress(end)
             return
-        connection.execute(f"CREATE OR REPLACE TEMP TABLE _dup_geometry AS {query}")
+        detect_end = start + (end - start) / 2
+        track(
+            bar,
+            scale_poll(connection.query_progress, start, detect_end),
+            lambda: connection.execute(
+                f"CREATE OR REPLACE TEMP TABLE _dup_geometry AS {query}"
+            ),
+            final=detect_end,
+        )
         try:
             has_duplicates = connection.execute(
                 "SELECT count(*) FROM _dup_geometry"
             ).fetchone()[0]
             if has_duplicates:
-                connection.execute(
-                    "UPDATE _features SET geometry = ("
-                    "SELECT geometry FROM _dup_geometry d "
-                    "WHERE d.identifier = _features.identifier"
-                    ") WHERE identifier IN (SELECT identifier FROM _dup_geometry)"
+                track(
+                    bar,
+                    scale_poll(connection.query_progress, detect_end, end),
+                    lambda: connection.execute(
+                        "UPDATE _features SET geometry = ("
+                        "SELECT geometry FROM _dup_geometry d "
+                        "WHERE d.identifier = _features.identifier"
+                        ") WHERE identifier IN "
+                        "(SELECT identifier FROM _dup_geometry)"
+                    ),
+                    final=end,
                 )
+            else:
+                bar.set_progress(end)
         finally:
             connection.execute("DROP TABLE IF EXISTS _dup_geometry")
 

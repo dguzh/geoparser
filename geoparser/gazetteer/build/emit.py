@@ -59,6 +59,7 @@ def copy_rows(
     sqlite_connection: sqlite3.Connection,
     select_sql: str,
     insert_sql: str,
+    bar: t.Any,
 ) -> int:
     """
     Copy rows from a DuckDB query into a SQLite table in batches.
@@ -68,10 +69,15 @@ def copy_rows(
         sqlite_connection: SQLite connection to write to
         select_sql: DuckDB query producing the rows
         insert_sql: SQLite INSERT statement with positional placeholders
+        bar: Item bar to report copy progress on, as a percentage of the
+            total row count (known up front from a cheap count query)
 
     Returns:
         Number of copied rows
     """
+    total = duckdb_connection.execute(
+        f"SELECT count(*) FROM ({select_sql})"
+    ).fetchone()[0]
     cursor = duckdb_connection.execute(select_sql)
     copied = 0
     sqlite_connection.execute("BEGIN")
@@ -81,6 +87,8 @@ def copy_rows(
             break
         sqlite_connection.executemany(insert_sql, batch)
         copied += len(batch)
+        if total:
+            bar.set_progress(min(100.0, copied / total * 100))
     sqlite_connection.execute("COMMIT")
     return copied
 
@@ -102,7 +110,7 @@ def emit(
     Returns:
         Tuple of (feature count, name count)
     """
-    with item("Writing features"):
+    with item("Writing features", total=100) as bar:
         feature_count = copy_rows(
             duckdb_connection,
             sqlite_connection,
@@ -110,14 +118,16 @@ def emit(
             "FROM _features_final ORDER BY id",
             "INSERT INTO feature (id, identifier, source, data, geometry) "
             "VALUES (?, ?, ?, ?, ?)",
+            bar,
         )
     advance()
-    with item("Writing names"):
+    with item("Writing names", total=100) as bar:
         name_count = copy_rows(
             duckdb_connection,
             sqlite_connection,
             "SELECT feature_id, text FROM _names_final ORDER BY feature_id, text",
             "INSERT INTO name (feature_id, text) VALUES (?, ?)",
+            bar,
         )
     advance()
     return feature_count, name_count
@@ -141,9 +151,11 @@ def finalize(
     artifact.register_functions(sqlite_connection)
 
     sqlite_connection.execute("BEGIN")
-    with item("Building indexes"):
-        for statement in artifact.SEARCH_SCHEMA:
+    with item("Building indexes", total=100) as bar:
+        statements = artifact.SEARCH_SCHEMA
+        for i, statement in enumerate(statements, start=1):
             sqlite_connection.execute(statement)
+            bar.set_progress(i / len(statements) * 100)
     advance()
 
     metadata = {
@@ -154,22 +166,26 @@ def finalize(
         "feature_count": str(feature_count),
         "name_count": str(name_count),
     }
-    with item("Writing metadata"):
-        sqlite_connection.executemany(
-            "INSERT INTO metadata (key, value) VALUES (?, ?)",
-            list(metadata.items()),
-        )
+    with item("Writing metadata", total=100) as bar:
+        rows = list(metadata.items())
+        for i, row in enumerate(rows, start=1):
+            sqlite_connection.execute(
+                "INSERT INTO metadata (key, value) VALUES (?, ?)", row
+            )
+            bar.set_progress(i / len(rows) * 100)
         sqlite_connection.execute("COMMIT")
     advance()
 
-    with item("Verifying integrity"):
+    with item("Verifying integrity", total=100) as bar:
         # The emitted counts must match what is actually stored
         stored_features = sqlite_connection.execute(
             "SELECT count(*) FROM feature"
         ).fetchone()[0]
+        bar.set_progress(50)
         stored_names = sqlite_connection.execute(
             "SELECT count(*) FROM name"
         ).fetchone()[0]
+        bar.set_progress(100)
         if stored_features != feature_count or stored_names != name_count:
             raise RuntimeError(
                 f"Artifact integrity check failed: expected {feature_count} features "
@@ -177,7 +193,9 @@ def finalize(
             )
     advance()
 
-    with item("Compacting artifact"):
+    with item("Compacting artifact", total=100) as bar:
         sqlite_connection.execute("ANALYZE")
+        bar.set_progress(50)
         sqlite_connection.execute("VACUUM")
+        bar.set_progress(100)
     advance()

@@ -11,8 +11,23 @@ their stage and disappear as soon as they finish, so only the stage bars and
 the currently active item remain on screen. There are no checkmarks and no
 byte counts for downloads; progress within an item is shown as a percentage
 (or, for indeterminate work, an animated bar with no percentage).
+
+Database operations (a single DuckDB query, or a batch of SQLite statements)
+report a percentage too, using :func:`track`, which runs the operation on a
+background thread while polling a caller-supplied progress function (for
+DuckDB, ``connection.query_progress()``; for known-size batches, the fraction
+of rows or statements completed so far). These are estimates: DuckDB does not
+track progress for every query shape, and statement-count progress does not
+account for statements taking unequal time, but they give a useful sense of
+motion for otherwise silent, long-running steps. Their items are always
+created determinate (``total=100``) so they read "0%" immediately rather than
+ever showing an animated, indeterminate bar, even briefly. When an item
+covers several queries in sequence, :func:`scale_poll` and :func:`allocate`
+give each query its own slice of the item's 0-100 range, so the bar only
+ever climbs, never resetting to a lower number when the next query starts.
 """
 
+import threading
 import typing as t
 from contextlib import contextmanager
 from contextvars import ContextVar
@@ -81,8 +96,16 @@ class _ProgressReadoutColumn(ProgressColumn):
 
     A stage task is shown as a "completed/total" item count; an item task is
     shown as a percentage when it tracks a known quantity, or left blank for
-    indeterminate work (its bar animates instead).
+    indeterminate work (its bar animates instead). The column has a fixed
+    width so this text changing length (e.g. "9%" to "100%", or one row
+    disappearing while another remains) never shifts every other column
+    alongside it.
     """
+
+    def __init__(self) -> None:
+        super().__init__(
+            table_column=Column(width=9, justify="right", no_wrap=True)
+        )
 
     def render(self, task: Task) -> Text:
         if task.fields.get("is_stage"):
@@ -243,7 +266,7 @@ class Stage:
     ) -> "_Item":
         """Create an item bar nested under this stage."""
         task_id = self._progress.add_task(description, total=total, is_child=True)
-        return _Item(self._progress, task_id)
+        return _Item(self._progress, task_id, determinate=total is not None)
 
 
 @contextmanager
@@ -267,9 +290,10 @@ def stage(running_label: str, done_label: str, total_items: int) -> t.Iterator[S
 class _Item:
     """A transient, nested progress bar for one unit of work within a stage."""
 
-    def __init__(self, progress: Progress, task_id: int):
+    def __init__(self, progress: Progress, task_id: int, determinate: bool = False):
         self._progress = progress
         self._task_id = task_id
+        self._determinate = determinate
 
     def __enter__(self) -> "_Item":
         return self
@@ -280,6 +304,21 @@ class _Item:
     def update(self, advance: float) -> None:
         """Advance this item's progress by ``advance`` units."""
         self._progress.update(self._task_id, advance=advance)
+
+    def set_progress(self, percent: float) -> None:
+        """
+        Set this item's progress to an absolute percentage (0-100).
+
+        Callers that intend to report a percentage should create the item
+        with ``total=100`` up front, so it reads "0%" immediately rather than
+        flashing an animated, indeterminate bar before the first call. If it
+        wasn't, this switches it from indeterminate to determinate on first
+        use, as a fallback.
+        """
+        if not self._determinate:
+            self._progress.update(self._task_id, total=100)
+            self._determinate = True
+        self._progress.update(self._task_id, completed=percent)
 
 
 @contextmanager
@@ -315,11 +354,141 @@ def item(description: str, total: t.Optional[float] = None) -> t.Iterator[_Item]
         progress.start()
     task_id = progress.add_task(description, total=total, is_child=True)
     try:
-        yield _Item(progress, task_id)
+        yield _Item(progress, task_id, determinate=total is not None)
     finally:
         progress.remove_task(task_id)
         if owns_display:
             progress.stop()
+
+
+def track(
+    bar: _Item,
+    poll: t.Callable[[], t.Optional[float]],
+    run: t.Callable[[], None],
+    poll_interval: float = 0.1,
+    final: float = 100.0,
+) -> None:
+    """
+    Run ``run()`` on a background thread while reporting live progress on ``bar``.
+
+    ``poll()`` is called periodically (from this thread, so it must be safe to
+    call concurrently with ``run()``) and should return a percentage in
+    ``[0, 100]`` once known. Until the first such reading, ``poll()`` may
+    return a negative number or ``None``; used for querying DuckDB's own query
+    progress (``connection.query_progress()``), which reports -1 for queries it
+    cannot track. ``bar`` should already be determinate (created with
+    ``total=100``) so it reads "0%" rather than flashing an animated,
+    indeterminate bar for the (possibly long) stretch before the first
+    reading arrives, or at all if ``poll()`` never returns one. Once ``run()``
+    finishes successfully, ``bar`` is snapped to ``final`` regardless of the
+    last polled value, since DuckDB's estimate can undershoot right up to the
+    end.
+
+    When several operations run in sequence under the same ``bar`` (e.g. one
+    item covering a query plus some follow-up queries), pass ``poll`` through
+    :func:`scale_poll` and pick each operation's ``final`` from
+    :func:`allocate`, so ``bar`` climbs across all of them instead of
+    resetting to a low value every time a new operation starts polling from 0.
+
+    Args:
+        bar: The item bar to update; should be created with ``total=100``
+        poll: Returns the current progress percentage, or a negative
+            number/``None`` while not yet known
+        run: The work to perform; exceptions are re-raised on the calling
+            thread once it returns
+        poll_interval: Seconds between polls
+        final: Value ``bar`` is set to once ``run()`` finishes successfully
+
+    Raises:
+        Whatever exception ``run()`` raised, re-raised on the calling thread
+    """
+    error: t.List[BaseException] = []
+
+    def _run() -> None:
+        try:
+            run()
+        except BaseException as exc:  # noqa: BLE001 - re-raised below
+            error.append(exc)
+
+    thread = threading.Thread(target=_run, daemon=True)
+    thread.start()
+    while thread.is_alive():
+        _sample(bar, poll)
+        thread.join(timeout=poll_interval)
+    thread.join()
+    if error:
+        raise error[0]
+    bar.set_progress(final)
+
+
+def scale_poll(
+    poll: t.Callable[[], t.Optional[float]], start: float, end: float
+) -> t.Callable[[], t.Optional[float]]:
+    """
+    Rescale a 0-100 progress function onto the sub-range ``[start, end)``.
+
+    Used to let several sequential operations share one item bar without it
+    ever moving backwards: each operation gets its own slice of the bar's
+    overall range (see :func:`allocate`) and reports into that slice rather
+    than the full 0-100 range.
+
+    Args:
+        poll: Progress function returning a percentage in ``[0, 100]``, or a
+            negative number/``None`` while not yet known
+        start: Start of the sub-range
+        end: End of the sub-range
+
+    Returns:
+        A progress function whose readings fall within ``[start, end)``
+    """
+
+    def _scaled() -> t.Optional[float]:
+        value = poll()
+        if value is None or value < 0:
+            return None
+        return start + value / 100 * (end - start)
+
+    return _scaled
+
+
+def allocate(
+    weights: t.Sequence[float], start: float = 0.0, end: float = 100.0
+) -> t.List[t.Tuple[float, float]]:
+    """
+    Split ``[start, end)`` into consecutive sub-ranges proportional to ``weights``.
+
+    Args:
+        weights: Relative size of each sub-range; need not sum to anything in
+            particular
+        start: Start of the overall range
+        end: End of the overall range
+
+    Returns:
+        One ``(sub_start, sub_end)`` pair per weight, in order, exactly
+        covering ``[start, end)``
+    """
+    total = sum(weights) or 1.0
+    span = end - start
+    bounds = []
+    cursor = start
+    for weight in weights:
+        next_cursor = cursor + span * (weight / total)
+        bounds.append((cursor, next_cursor))
+        cursor = next_cursor
+    if bounds:
+        # Floating-point drift could leave the last bound short of `end`.
+        bounds[-1] = (bounds[-1][0], end)
+    return bounds
+
+
+def _sample(bar: _Item, poll: t.Callable[[], t.Optional[float]]) -> None:
+    """Read one progress value and apply it to ``bar``, ignoring poll errors."""
+    try:
+        value = poll()
+    except Exception:
+        return
+    if value is not None and value >= 0:
+        bar.set_progress(value)
 
 
 def advance(count: int = 1) -> None:
