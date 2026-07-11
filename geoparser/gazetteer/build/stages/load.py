@@ -1,9 +1,9 @@
 """
-Staging of gazetteer source files into transient DuckDB tables.
+Loading of gazetteer source files into transient DuckDB tables.
 
 Tabular sources (those with a ``delimiter``) are loaded with DuckDB's CSV
 reader; everything else is loaded with the spatial extension's ``ST_Read``
-(shapefiles, GeoPackage, GeoJSON, ...). Staged spatial tables always expose
+(shapefiles, GeoPackage, GeoJSON, ...). Loaded spatial tables always expose
 their geometry column under the name ``geometry``.
 """
 
@@ -13,8 +13,7 @@ from pathlib import Path
 import duckdb
 
 from geoparser.gazetteer.build.progress import advance, item, track
-from geoparser.gazetteer.config import DataType, SourceConfig
-from geoparser.gazetteer.config.schema import GEOMETRY_ATTRIBUTE
+from geoparser.gazetteer.build.schema import GEOMETRY_ATTRIBUTE, DataType, SourceConfig
 
 GEOMETRY_COLUMN = GEOMETRY_ATTRIBUTE
 
@@ -54,21 +53,21 @@ def quote_literal(value: str) -> str:
     return f"'{escaped}'"
 
 
-class Stager:
-    """Loads input files into staging tables of a DuckDB connection."""
+class Loader:
+    """Loads source files into tables of a DuckDB connection."""
 
     def __init__(self, connection: duckdb.DuckDBPyConnection):
         """
-        Initialize the stager.
+        Initialize the loader.
 
         Args:
-            connection: DuckDB connection holding the staging tables
+            connection: DuckDB connection holding the loaded tables
         """
         self.connection = connection
 
-    def stage(self, source_config: SourceConfig, file_path: Path) -> int:
+    def load(self, source_config: SourceConfig, file_path: Path) -> int:
         """
-        Load a source file into a staging table named after the source.
+        Load a source file into a table named after the source.
 
         Reports its own progress (see :mod:`progress`): one item per query it
         actually runs, rather than one bar guessing how to split its time
@@ -79,21 +78,21 @@ class Stager:
             file_path: Path to the resolved source file
 
         Returns:
-            Number of staged rows
+            Number of loaded rows
         """
         if source_config.is_tabular:
-            self._stage_tabular(source_config, file_path)
+            self._load_tabular(source_config, file_path)
         else:
-            self._stage_spatial(source_config, file_path)
+            self._load_spatial(source_config, file_path)
         table = quote_identifier(source_config.name)
         return self.connection.execute(f"SELECT count(*) FROM {table}").fetchone()[0]
 
     def columns(self, table_name: str) -> t.List[str]:
         """
-        Return the column names of a staged table.
+        Return the column names of a loaded table.
 
         Args:
-            table_name: Name of the staging table
+            table_name: Name of the loaded table
 
         Returns:
             List of column names
@@ -105,7 +104,7 @@ class Stager:
         ).fetchall()
         return [row[0] for row in rows]
 
-    def _stage_tabular(self, source_config: SourceConfig, file_path: Path) -> None:
+    def _load_tabular(self, source_config: SourceConfig, file_path: Path) -> None:
         """Load a delimited text file via DuckDB's CSV reader."""
         options = [
             f"delim={quote_literal(source_config.delimiter)}",
@@ -135,12 +134,12 @@ class Stager:
             track(bar, self.connection.query_progress, lambda: self.connection.execute(create_sql))
         advance()
 
-    def _stage_spatial(self, source_config: SourceConfig, file_path: Path) -> None:
+    def _load_spatial(self, source_config: SourceConfig, file_path: Path) -> None:
         """
         Load a spatial file via ST_Read, projected onto its declared attributes.
 
         The geometry column is normalized to ``geometry`` and the non-geometry
-        attributes are cast to their declared types, so the staged table has
+        attributes are cast to their declared types, so the loaded table has
         exactly the schema the config declares (mirroring tabular sources).
         Reading the file and normalizing its columns are each their own
         query, so they're reported as two separate items in turn.

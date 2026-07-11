@@ -14,7 +14,7 @@ from typing import Optional
 import requests
 
 from geoparser.gazetteer.build.progress import advance, item
-from geoparser.gazetteer.config import SourceConfig
+from geoparser.gazetteer.build.schema import SourceConfig
 
 # Network request timeout in seconds
 REQUEST_TIMEOUT = 30

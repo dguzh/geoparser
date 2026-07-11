@@ -5,10 +5,10 @@ The build pipeline has three stages, each its own progress group:
 
 1. Preparing sources: resolve (download/extract, cached across builds) and
    load each source's file into a transient DuckDB table
-2. Deriving features: compile and run one projection per feature block,
+2. Compiling features: compile and run one projection per feature block,
    producing canonical (identifier, source, data, geometry) and
    (identifier, name) rows, then merge rows that share an identifier
-3. Building artifact: copy the derived rows into a temporary SQLite file,
+3. Building artifact: copy the compiled rows into a temporary SQLite file,
    build its search structures and metadata, then atomically move it into
    place
 
@@ -25,9 +25,6 @@ from pathlib import Path
 import duckdb
 
 from geoparser.gazetteer import artifact
-from geoparser.gazetteer.build.acquire import Acquirer
-from geoparser.gazetteer.build.compile import ProjectionCompiler
-from geoparser.gazetteer.build.emit import create_artifact_db, emit, finalize
 from geoparser.gazetteer.build.progress import (
     advance,
     build_display,
@@ -38,8 +35,11 @@ from geoparser.gazetteer.build.progress import (
     stage,
     track,
 )
-from geoparser.gazetteer.build.stage import Stager, quote_literal
-from geoparser.gazetteer.config import FeatureConfig, GazetteerConfig
+from geoparser.gazetteer.build.schema import FeatureConfig, GazetteerConfig
+from geoparser.gazetteer.build.stages.acquire import Acquirer
+from geoparser.gazetteer.build.stages.compile import ProjectionCompiler
+from geoparser.gazetteer.build.stages.emit import create_artifact_db, emit, finalize
+from geoparser.gazetteer.build.stages.load import Loader, quote_literal
 
 
 @contextlib.contextmanager
@@ -116,7 +116,7 @@ class GazetteerBuilder:
                             self._load_spatial_extension(connection)
                             bar.set_progress(100)
                     self._prepare_sources(acquirer, connection, config)
-                    self._derive_features(connection, config)
+                    self._compile_features(connection, config)
                     feature_count, name_count = self._build_artifact(
                         connection, config, build_dir, target_path
                     )
@@ -154,7 +154,7 @@ class GazetteerBuilder:
         # build display (stray bars flashing in, stage rows appearing to
         # repeat); ``enable_progress_bar_print`` keeps the tracking without
         # the printing, so `connection.query_progress()` (used to drive our
-        # own item bars, see ``Stager`` and ``_derive_features``) works while
+        # own item bars, see ``Loader`` and ``_compile_features``) works while
         # the terminal stays under our control. ``progress_bar_time = 0``
         # makes tracking start immediately rather than after DuckDB's default
         # delay for what it guesses will be a short query.
@@ -222,7 +222,7 @@ class GazetteerBuilder:
         """
         Resolve, then load, each source's data file in turn.
 
-        Acquiring (see :mod:`acquire`) and staging (see :mod:`stage`) each
+        Acquiring (see :mod:`stages.acquire`) and loading (see :mod:`stages.load`) each
         report their own items as they run their actual downloads,
         extractions and queries, and advance the stage themselves as each
         one finishes; how many a given source shows depends on whether it
@@ -230,7 +230,7 @@ class GazetteerBuilder:
         estimate below undercounts some sources and overcounts others, but
         the stage's total grows on the fly to stay ahead of it either way.
         """
-        stager = Stager(connection)
+        loader = Loader(connection)
         total_estimate = sum(
             1 + (1 if source_config.is_tabular else 2)
             for source_config in config.sources
@@ -238,13 +238,13 @@ class GazetteerBuilder:
         with stage("Preparing sources", "Prepared sources", total_estimate):
             for source_config in config.sources:
                 file_path = acquirer.acquire(source_config)
-                stager.stage(source_config, file_path)
+                loader.load(source_config, file_path)
 
-    def _derive_features(
+    def _compile_features(
         self, connection: duckdb.DuckDBPyConnection, config: GazetteerConfig
     ) -> None:
         """Run each feature block's projection, then merge across blocks."""
-        # Every source declares its attributes, so the catalog is derived
+        # Every source declares its attributes, so the catalog is built
         # directly from the config; the staged tables carry exactly this schema.
         catalog = {
             source_config.name: [
@@ -271,9 +271,9 @@ class GazetteerBuilder:
             if compiler.duplicate_geometry_query(feature) is not None:
                 total_estimate += 1
 
-        with stage("Deriving features", "Derived features", total_estimate):
+        with stage("Compiling features", "Compiled features", total_estimate):
             for feature in config.features:
-                self._derive_feature(connection, compiler, feature)
+                self._compile_feature(connection, compiler, feature)
 
             # Merging rows across feature blocks (the checks and joins below)
             # means scanning the whole of _features and _names, which for a
@@ -321,7 +321,7 @@ class GazetteerBuilder:
                 "'features' blocks and input files"
             )
 
-    def _derive_feature(
+    def _compile_feature(
         self,
         connection: duckdb.DuckDBPyConnection,
         compiler: ProjectionCompiler,

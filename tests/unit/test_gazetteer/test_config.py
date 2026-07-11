@@ -1,5 +1,5 @@
 """
-Unit tests for geoparser/gazetteer/config/schema.py
+Unit tests for geoparser/gazetteer/build/schema.py
 
 Tests validation of the declarative gazetteer configuration schema.
 """
@@ -9,7 +9,7 @@ import textwrap
 import pytest
 from pydantic import ValidationError
 
-from geoparser.gazetteer.config import GazetteerConfig
+from geoparser.gazetteer.build.schema import GazetteerConfig
 
 
 def minimal_config(**overrides) -> dict:

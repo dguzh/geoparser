@@ -15,7 +15,7 @@ import duckdb
 
 from geoparser.gazetteer import artifact
 from geoparser.gazetteer.build.progress import advance, item
-from geoparser.gazetteer.config import GazetteerConfig
+from geoparser.gazetteer.build.schema import GazetteerConfig
 
 # Number of rows copied per batch from DuckDB to SQLite
 BATCH_SIZE = 50000

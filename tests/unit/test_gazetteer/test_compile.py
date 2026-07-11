@@ -1,5 +1,5 @@
 """
-Unit tests for geoparser/gazetteer/build/compile.py
+Unit tests for geoparser/gazetteer/build/stages/compile.py
 
 Tests the projection compiler by executing the generated SQL against small
 in-memory DuckDB datasets and asserting on the produced rows.
@@ -11,12 +11,12 @@ import typing as t
 import duckdb
 import pytest
 
-from geoparser.gazetteer.build.compile import (
+from geoparser.gazetteer.build.schema import GazetteerConfig
+from geoparser.gazetteer.build.stages.compile import (
     CompileError,
     ProjectionCompiler,
     qualify_expression,
 )
-from geoparser.gazetteer.config import GazetteerConfig
 
 
 def build_compiler(config_data: dict) -> t.Tuple[GazetteerConfig, ProjectionCompiler]:

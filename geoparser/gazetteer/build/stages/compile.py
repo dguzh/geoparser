@@ -29,14 +29,14 @@ bounded pass (:meth:`ProjectionCompiler.duplicate_geometry_query`).
 import re
 import typing as t
 
-from geoparser.gazetteer.build.stage import (
-    quote_identifier,
-    quote_literal,
-)
-from geoparser.gazetteer.config import (
+from geoparser.gazetteer.build.schema import (
     FeatureConfig,
     GazetteerConfig,
     split_data_value,
+)
+from geoparser.gazetteer.build.stages.load import (
+    quote_identifier,
+    quote_literal,
 )
 
 # Reference to the source row order, used for deterministic "first" merge

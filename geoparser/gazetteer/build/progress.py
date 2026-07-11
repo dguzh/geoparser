@@ -1,7 +1,7 @@
 """
 Console output helpers for the gazetteer build pipeline.
 
-Build activity is grouped by pipeline stage (preparing sources, deriving
+Build activity is grouped by pipeline stage (preparing sources, compiling
 features, building the artifact; see :mod:`builder`), mirroring how the old
 installer grouped progress by source: each stage owns a persistent bar that
 reads "<verb>ing ..." while it runs and "<verb>ed ..." once every item in it
