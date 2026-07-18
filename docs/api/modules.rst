@@ -30,3 +30,8 @@ Resolvers
    :undoc-members:
    :show-inheritance:
 
+.. automodule:: geoparser.modules.resolvers.spanencoder
+   :members:
+   :undoc-members:
+   :show-inheritance:
+

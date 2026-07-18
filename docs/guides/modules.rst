@@ -108,6 +108,32 @@ The attribute map should specify which columns in your gazetteer correspond to t
 
 The SentenceTransformerResolver works best when place names have distinctive contexts that help disambiguate them. For example, "I visited the Eiffel Tower in Paris" provides strong contextual clues. Short texts with minimal context or lists of place names without surrounding text present more challenging scenarios where the resolver may struggle.
 
+SpanEncoderResolver
+~~~~~~~~~~~~~~~~~~~
+
+The ``SpanEncoderResolver`` is a mention-aware alternative to the ``SentenceTransformerResolver``. Instead of embedding the whole context window into a single vector, it encodes the document once and pools the transformer hidden states of the mention's own tokens, so every mention in a document receives its own distinct embedding. Gazetteer candidates are represented by serializing their textual attributes into a structured string (for example ``Paris | populated place | Paris > Île-de-France > France``), and the candidate's name tokens are pooled the same way, with the remaining attributes acting as context. Both sides are encoded by a single shared transformer, so mention and candidate embeddings live in the same space by construction.
+
+To use the SpanEncoderResolver:
+
+.. code-block:: python
+
+   from geoparser.modules import SpanEncoderResolver
+
+   resolver = SpanEncoderResolver()
+
+The default configuration uses the ``answerdotai/ModernBERT-base`` backbone with the ``geonames`` gazetteer. Note that the base backbone is not trained for toponym disambiguation out of the box; you should train it on annotated data (see the :doc:`training` guide) or load a fine-tuned model directory:
+
+.. code-block:: python
+
+   from geoparser.modules import SpanEncoderResolver
+
+   resolver = SpanEncoderResolver(
+       model_name="path/to/finetuned-spanencoder",
+       gazetteer_name="geonames",
+   )
+
+Like the ``SentenceTransformerResolver``, it accepts ``min_similarity``, ``max_tiers``, and ``attribute_map`` parameters and uses the same tiered candidate search. One behavioral difference: once the search ladder is exhausted, the ``SpanEncoderResolver`` assigns the best-scoring candidate seen so far even if it did not reach ``min_similarity`` (the threshold only controls how aggressively the search expands), whereas the ``SentenceTransformerResolver`` leaves such references unresolved.
+
 Creating Custom Recognizers
 ----------------------------
 

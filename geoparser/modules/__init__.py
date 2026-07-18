@@ -6,6 +6,7 @@ from types import ModuleType
 _MODULE_PATHS = {
     "SpacyRecognizer": "geoparser.modules.recognizers.spacy",
     "SentenceTransformerResolver": "geoparser.modules.resolvers.sentencetransformer",
+    "SpanEncoderResolver": "geoparser.modules.resolvers.spanencoder",
 }
 
 
