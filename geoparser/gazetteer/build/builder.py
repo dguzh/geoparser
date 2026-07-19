@@ -79,6 +79,12 @@ class GazetteerBuilder:
     # Never bound the staging engine below this, or builds become impractically
     # slow.
     _MIN_MEMORY_MB = 512
+    # Used when physical RAM cannot be detected, so the staging engine is
+    # still explicitly bounded instead of sizing itself against unknown RAM.
+    _FALLBACK_MEMORY_MB = 2048
+    # Rough per-thread working-set budget used to cap parallelism so thread
+    # count stays proportional to the memory limit on small machines.
+    _MB_PER_THREAD = 1024
 
     def build(
         self, config_path: t.Union[str, Path], keep_downloads: bool = False
@@ -134,15 +140,17 @@ class GazetteerBuilder:
         self, connection: duckdb.DuckDBPyConnection, build_dir: Path
     ) -> None:
         """
-        Bound the staging engine's memory and make it spill to disk.
+        Bound the staging engine's memory and threads, and make it spill to disk.
 
         Large gazetteers (GeoNames is ~13M rows) do not fit in memory. By
         default DuckDB sizes its memory limit to a large fraction of RAM and
         only spills relative to that limit, so on memory-constrained machines
         (or WSL, where the reported RAM is the VM's) the process can be killed
-        by the OS before it decides to spill. Capping the limit with headroom
-        and pointing the temporary directory at on-disk build storage keeps
-        peak memory bounded regardless of the machine's specs.
+        by the OS before it decides to spill. Capping the limit with headroom,
+        scaling threads to that budget, and pointing the temporary directory
+        at on-disk build storage keeps peak memory bounded regardless of the
+        machine's specs — including Windows, where physical RAM is detected
+        via the Win32 API rather than ``os.sysconf``.
 
         Args:
             connection: DuckDB connection used for staging and projection
@@ -170,15 +178,26 @@ class GazetteerBuilder:
         # Ordering is established explicitly where it matters (row ids, emit),
         # so let DuckDB avoid buffering results just to preserve input order.
         connection.execute("SET preserve_insertion_order = false")
+        # Always set an explicit memory limit and thread cap. Leaving either
+        # at DuckDB's defaults lets it size itself against reported RAM and
+        # use every core, which on Windows (where RAM detection used to fail)
+        # and on small machines can exhaust memory before spilling kicks in.
         memory_limit_mb = self._memory_limit_mb()
-        if memory_limit_mb is not None:
-            connection.execute(f"SET memory_limit = '{memory_limit_mb}MB'")
+        connection.execute(f"SET memory_limit = '{memory_limit_mb}MiB'")
+        connection.execute(f"SET threads = {self._thread_count(memory_limit_mb)}")
 
-    def _memory_limit_mb(self) -> t.Optional[int]:
-        """Return a conservative staging memory limit in MiB, or None."""
+    def _memory_limit_mb(self) -> int:
+        """
+        Return a conservative staging memory limit in MiB.
+
+        When physical RAM can be detected, the limit is a fraction of that
+        total with headroom left for the OS and the rest of the build. When
+        it cannot, a fixed fallback is used so the staging engine is still
+        explicitly bounded.
+        """
         total_bytes = self._physical_memory_bytes()
         if total_bytes is None:
-            return None
+            return self._FALLBACK_MEMORY_MB
         total_mb = total_bytes / (1024 * 1024)
         limit_mb = min(
             total_mb * self._MEMORY_FRACTION,
@@ -186,13 +205,61 @@ class GazetteerBuilder:
         )
         return int(max(limit_mb, self._MIN_MEMORY_MB))
 
+    def _thread_count(self, memory_limit_mb: int) -> int:
+        """
+        Return how many DuckDB threads to use for the given memory limit.
+
+        Caps parallelism by both CPU count and the memory budget so small
+        machines do not run one hungry worker per core.
+        """
+        cpu_count = os.cpu_count() or 1
+        by_memory = max(1, memory_limit_mb // self._MB_PER_THREAD)
+        return max(1, min(cpu_count, by_memory))
+
     @staticmethod
     def _physical_memory_bytes() -> t.Optional[int]:
         """Return the machine's physical memory in bytes, if detectable."""
-        try:
-            return os.sysconf("SC_PHYS_PAGES") * os.sysconf("SC_PAGE_SIZE")
-        except (ValueError, OSError, AttributeError):
+        for reader in (
+            GazetteerBuilder._physical_memory_bytes_sysconf,
+            GazetteerBuilder._physical_memory_bytes_windows,
+        ):
+            try:
+                value = reader()
+            except (ValueError, OSError, AttributeError):
+                continue
+            if value is not None and value > 0:
+                return value
+        return None
+
+    @staticmethod
+    def _physical_memory_bytes_sysconf() -> t.Optional[int]:
+        """Read physical memory via ``os.sysconf`` (Linux, macOS, ...)."""
+        return os.sysconf("SC_PHYS_PAGES") * os.sysconf("SC_PAGE_SIZE")
+
+    @staticmethod
+    def _physical_memory_bytes_windows() -> t.Optional[int]:
+        """Read physical memory via ``GlobalMemoryStatusEx`` (Windows)."""
+        import ctypes
+        import ctypes.wintypes
+
+        class MEMORYSTATUSEX(ctypes.Structure):
+            _fields_ = [
+                ("dwLength", ctypes.wintypes.DWORD),
+                ("dwMemoryLoad", ctypes.wintypes.DWORD),
+                ("ullTotalPhys", ctypes.c_uint64),
+                ("ullAvailPhys", ctypes.c_uint64),
+                ("ullTotalPageFile", ctypes.c_uint64),
+                ("ullAvailPageFile", ctypes.c_uint64),
+                ("ullTotalVirtual", ctypes.c_uint64),
+                ("ullAvailVirtual", ctypes.c_uint64),
+                ("ullAvailExtendedVirtual", ctypes.c_uint64),
+            ]
+
+        status = MEMORYSTATUSEX()
+        status.dwLength = ctypes.sizeof(status)
+        if not ctypes.windll.kernel32.GlobalMemoryStatusEx(ctypes.byref(status)):
             return None
+        return int(status.ullTotalPhys)
 
     def _needs_spatial(self, config: GazetteerConfig) -> bool:
         """Whether the build requires DuckDB's spatial extension."""

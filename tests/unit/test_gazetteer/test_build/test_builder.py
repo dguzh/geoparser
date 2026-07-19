@@ -45,14 +45,14 @@ class TestSqliteTmpdir:
 
 @pytest.mark.unit
 class TestMemoryLimit:
-    """Test GazetteerBuilder._memory_limit_mb() and _physical_memory_bytes()."""
+    """Test memory/thread sizing helpers on GazetteerBuilder."""
 
-    def test_returns_none_when_physical_memory_is_unknown(self, monkeypatch):
-        """No memory limit is set when the machine's RAM can't be determined."""
+    def test_returns_fallback_when_physical_memory_is_unknown(self, monkeypatch):
+        """An undetectable RAM size still yields an explicit fallback limit."""
         builder = GazetteerBuilder()
         monkeypatch.setattr(builder, "_physical_memory_bytes", lambda: None)
 
-        assert builder._memory_limit_mb() is None
+        assert builder._memory_limit_mb() == GazetteerBuilder._FALLBACK_MEMORY_MB
 
     def test_returns_a_bounded_value_when_memory_is_known(self, monkeypatch):
         """A known RAM size yields a positive, bounded MiB limit."""
@@ -61,27 +61,111 @@ class TestMemoryLimit:
             builder, "_physical_memory_bytes", lambda: 8 * 1024 * 1024 * 1024
         )
 
-        assert builder._memory_limit_mb() > 0
+        limit = builder._memory_limit_mb()
+        assert limit > 0
+        assert limit < 8 * 1024
 
-    def test_physical_memory_bytes_returns_none_on_error(self, monkeypatch):
-        """A sysconf() failure is treated as 'unknown', not a crash."""
+    def test_thread_count_is_capped_by_memory_and_cpu(self, monkeypatch):
+        """Thread count never exceeds CPU count or the memory budget."""
+        builder = GazetteerBuilder()
+        monkeypatch.setattr(os, "cpu_count", lambda: 8)
 
-        def _raise(_name):
-            raise OSError("not supported")
+        assert builder._thread_count(512) == 1
+        assert builder._thread_count(4096) == 4
+        assert builder._thread_count(32_768) == 8
 
-        # os.sysconf doesn't exist at all on Windows, so it must be added
-        # rather than merely replaced (raising=False allows both).
-        monkeypatch.setattr(os, "sysconf", _raise, raising=False)
+    def test_configure_staging_always_sets_memory_limit_and_threads(
+        self, monkeypatch, tmp_path
+    ):
+        """Staging always applies an explicit memory_limit and threads value."""
+        builder = GazetteerBuilder()
+        monkeypatch.setattr(
+            builder, "_physical_memory_bytes", lambda: 8 * 1024 * 1024 * 1024
+        )
+        monkeypatch.setattr(os, "cpu_count", lambda: 4)
+        expected_limit = builder._memory_limit_mb()
+        connection = duckdb.connect()
+        try:
+            builder._configure_staging(connection, tmp_path)
+            memory_limit = connection.execute(
+                "SELECT value FROM duckdb_settings() WHERE name = 'memory_limit'"
+            ).fetchone()[0]
+            threads = connection.execute(
+                "SELECT value FROM duckdb_settings() WHERE name = 'threads'"
+            ).fetchone()[0]
+        finally:
+            connection.close()
 
-        assert GazetteerBuilder._physical_memory_bytes() is None
+        # DuckDB may render/round the limit (e.g. ``4.5 GiB``); check we are
+        # near the explicit budget rather than on DuckDB's unbounded default.
+        actual_bytes = _setting_to_bytes(memory_limit)
+        expected_bytes = expected_limit * 1024 * 1024
+        assert actual_bytes > 0
+        assert abs(actual_bytes - expected_bytes) / expected_bytes < 0.15
+        assert int(threads) == 4
 
-    def test_physical_memory_bytes_returns_none_when_sysconf_is_unsupported(
+    def test_physical_memory_bytes_falls_back_to_windows_api(self, monkeypatch):
+        """When sysconf is unavailable, the Windows reader is used."""
+
+        def _no_sysconf():
+            raise AttributeError("no sysconf")
+
+        monkeypatch.setattr(
+            GazetteerBuilder,
+            "_physical_memory_bytes_sysconf",
+            staticmethod(_no_sysconf),
+        )
+        monkeypatch.setattr(
+            GazetteerBuilder,
+            "_physical_memory_bytes_windows",
+            staticmethod(lambda: 16 * 1024 * 1024 * 1024),
+        )
+
+        assert GazetteerBuilder._physical_memory_bytes() == 16 * 1024 * 1024 * 1024
+
+    def test_physical_memory_bytes_returns_none_when_all_readers_fail(
         self, monkeypatch
     ):
-        """A platform with no sysconf() at all (e.g. Windows) is handled too."""
-        monkeypatch.delattr(os, "sysconf", raising=False)
+        """All detection failures are treated as 'unknown', not a crash."""
+
+        def _sysconf_error():
+            raise OSError("not supported")
+
+        def _windows_error():
+            raise AttributeError("no windll")
+
+        monkeypatch.setattr(
+            GazetteerBuilder,
+            "_physical_memory_bytes_sysconf",
+            staticmethod(_sysconf_error),
+        )
+        monkeypatch.setattr(
+            GazetteerBuilder,
+            "_physical_memory_bytes_windows",
+            staticmethod(_windows_error),
+        )
 
         assert GazetteerBuilder._physical_memory_bytes() is None
+
+
+def _setting_to_bytes(value: str) -> int:
+    """Parse a DuckDB memory setting such as ``4.7GB`` or ``4915MB`` to bytes."""
+    units = {
+        "B": 1,
+        "KB": 1000,
+        "MB": 1000**2,
+        "GB": 1000**3,
+        "TB": 1000**4,
+        "KIB": 1024,
+        "MIB": 1024**2,
+        "GIB": 1024**3,
+        "TIB": 1024**4,
+    }
+    cleaned = value.strip().upper().replace(" ", "")
+    for suffix, factor in sorted(units.items(), key=lambda item: -len(item[0])):
+        if cleaned.endswith(suffix):
+            return int(float(cleaned[: -len(suffix)]) * factor)
+    raise AssertionError(f"Unrecognized DuckDB memory setting: {value!r}")
 
 
 @pytest.mark.unit
