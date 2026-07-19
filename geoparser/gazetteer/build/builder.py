@@ -42,27 +42,46 @@ from geoparser.gazetteer.build.stages.emit import create_artifact_db, emit, fina
 from geoparser.gazetteer.build.stages.load import Loader, quote_literal
 
 
+def _sqlite_temp_env_names() -> t.Tuple[str, ...]:
+    """
+    Environment variables that steer SQLite's temporary-file location.
+
+    On Unix, SQLite consults ``SQLITE_TMPDIR`` (then ``TMPDIR``, then
+    ``/tmp``). On Windows it ignores those and uses ``GetTempPath()``, which
+    reads ``TMP`` then ``TEMP``. Returning the platform-appropriate names
+    keeps large FTS/VACUUM spills on the build volume everywhere.
+    """
+    if os.name == "nt":
+        return ("TMP", "TEMP")
+    return ("SQLITE_TMPDIR",)
+
+
 @contextlib.contextmanager
 def _sqlite_tmpdir(directory: Path) -> t.Iterator[None]:
     """
     Temporarily point SQLite's temporary storage at ``directory``.
 
-    SQLite has no per-connection temp-directory setting, so its location is
-    controlled through the ``SQLITE_TMPDIR`` environment variable, which is
-    read when temporary files are created.
+    SQLite has no reliable cross-platform per-connection temp-directory
+    setting, so the location is steered through environment variables (see
+    :func:`_sqlite_temp_env_names`). The previous values are restored when
+    the context exits.
 
     Args:
         directory: Directory SQLite should use for temporary files
     """
-    previous = os.environ.get("SQLITE_TMPDIR")
-    os.environ["SQLITE_TMPDIR"] = str(directory)
+    directory_str = str(directory)
+    names = _sqlite_temp_env_names()
+    previous = {name: os.environ.get(name) for name in names}
     try:
+        for name in names:
+            os.environ[name] = directory_str
         yield
     finally:
-        if previous is None:
-            os.environ.pop("SQLITE_TMPDIR", None)
-        else:
-            os.environ["SQLITE_TMPDIR"] = previous
+        for name, value in previous.items():
+            if value is None:
+                os.environ.pop(name, None)
+            else:
+                os.environ[name] = value
 
 
 class GazetteerBuilder:
@@ -513,8 +532,9 @@ class GazetteerBuilder:
         temporary_path = build_dir / target_path.name
         # Keep SQLite's temporary files (FTS rebuild, index sorts, VACUUM) on
         # the build volume rather than the default location, which on some
-        # systems (e.g. WSL's /tmp) is a RAM-backed tmpfs and would defeat the
-        # point of spilling to disk.
+        # systems is a RAM-backed tmpfs (e.g. WSL's /tmp) or a small system
+        # drive (Windows %TEMP%) and would defeat the point of spilling to
+        # disk. See ``_sqlite_tmpdir`` for the platform-specific env vars.
         sqlite_temp_dir = build_dir / "sqlite-temp"
         sqlite_temp_dir.mkdir(parents=True, exist_ok=True)
         with _sqlite_tmpdir(sqlite_temp_dir):

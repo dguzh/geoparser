@@ -16,7 +16,11 @@ import duckdb
 import pytest
 
 from geoparser.gazetteer import artifact
-from geoparser.gazetteer.build.builder import GazetteerBuilder, _sqlite_tmpdir
+from geoparser.gazetteer.build.builder import (
+    GazetteerBuilder,
+    _sqlite_temp_env_names,
+    _sqlite_tmpdir,
+)
 from geoparser.gazetteer.build.schema import GazetteerConfig
 
 
@@ -24,8 +28,9 @@ from geoparser.gazetteer.build.schema import GazetteerConfig
 class TestSqliteTmpdir:
     """Test the _sqlite_tmpdir() context manager."""
 
-    def test_sets_and_restores_previous_value(self, monkeypatch, tmp_path):
-        """A pre-existing SQLITE_TMPDIR is restored after the context exits."""
+    def test_unix_sets_and_restores_sqlite_tmpdir(self, monkeypatch, tmp_path):
+        """On Unix, SQLITE_TMPDIR is set for the block and restored after."""
+        monkeypatch.setattr(os, "name", "posix")
         monkeypatch.setenv("SQLITE_TMPDIR", "/original/tmpdir")
 
         with _sqlite_tmpdir(tmp_path):
@@ -33,14 +38,53 @@ class TestSqliteTmpdir:
 
         assert os.environ["SQLITE_TMPDIR"] == "/original/tmpdir"
 
-    def test_removes_var_when_none_was_set_before(self, monkeypatch, tmp_path):
-        """SQLITE_TMPDIR is removed again if it wasn't set beforehand."""
+    def test_unix_removes_var_when_none_was_set_before(self, monkeypatch, tmp_path):
+        """On Unix, SQLITE_TMPDIR is removed again if it wasn't set beforehand."""
+        monkeypatch.setattr(os, "name", "posix")
         monkeypatch.delenv("SQLITE_TMPDIR", raising=False)
 
         with _sqlite_tmpdir(tmp_path):
             assert os.environ["SQLITE_TMPDIR"] == str(tmp_path)
 
         assert "SQLITE_TMPDIR" not in os.environ
+
+    def test_windows_sets_and_restores_tmp_and_temp(self, monkeypatch, tmp_path):
+        """On Windows, TMP and TEMP are set (GetTempPath) and restored after."""
+        monkeypatch.setattr(os, "name", "nt")
+        monkeypatch.setenv("TMP", "C:\\original\\tmp")
+        monkeypatch.setenv("TEMP", "C:\\original\\temp")
+        monkeypatch.delenv("SQLITE_TMPDIR", raising=False)
+
+        with _sqlite_tmpdir(tmp_path):
+            assert os.environ["TMP"] == str(tmp_path)
+            assert os.environ["TEMP"] == str(tmp_path)
+            assert "SQLITE_TMPDIR" not in os.environ
+
+        assert os.environ["TMP"] == "C:\\original\\tmp"
+        assert os.environ["TEMP"] == "C:\\original\\temp"
+
+    def test_windows_removes_tmp_vars_when_none_were_set_before(
+        self, monkeypatch, tmp_path
+    ):
+        """On Windows, TMP/TEMP are removed again if they weren't set beforehand."""
+        monkeypatch.setattr(os, "name", "nt")
+        monkeypatch.delenv("TMP", raising=False)
+        monkeypatch.delenv("TEMP", raising=False)
+
+        with _sqlite_tmpdir(tmp_path):
+            assert os.environ["TMP"] == str(tmp_path)
+            assert os.environ["TEMP"] == str(tmp_path)
+
+        assert "TMP" not in os.environ
+        assert "TEMP" not in os.environ
+
+    def test_env_names_match_platform(self, monkeypatch):
+        """Unix steers SQLITE_TMPDIR; Windows steers TMP/TEMP."""
+        monkeypatch.setattr(os, "name", "posix")
+        assert _sqlite_temp_env_names() == ("SQLITE_TMPDIR",)
+
+        monkeypatch.setattr(os, "name", "nt")
+        assert _sqlite_temp_env_names() == ("TMP", "TEMP")
 
 
 @pytest.mark.unit
