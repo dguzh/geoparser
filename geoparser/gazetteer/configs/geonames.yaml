@@ -140,10 +140,10 @@ sources:
 features:
   - source: allCountries
     joins:
-      - "LEFT JOIN countryInfo ON country_code = countryInfo.ISO"
-      - "LEFT JOIN admin1CodesASCII ON country_code || '.' || admin1_code = admin1CodesASCII.code"
-      - "LEFT JOIN admin2Codes ON country_code || '.' || admin1_code || '.' || admin2_code = admin2Codes.code"
-      - "LEFT JOIN featureCodes_en ON feature_class || '.' || feature_code = featureCodes_en.code"
+      - "LEFT JOIN countryInfo c ON country_code = c.ISO"
+      - "LEFT JOIN admin1CodesASCII a1 ON country_code || '.' || admin1_code = a1.code"
+      - "LEFT JOIN admin2Codes a2 ON country_code || '.' || admin1_code || '.' || admin2_code = a2.code"
+      - "LEFT JOIN featureCodes_en f ON feature_class || '.' || feature_code = f.code"
     identifier: "geonameid"
     geometry: "ST_Point(longitude, latitude)"
     names:
@@ -159,14 +159,14 @@ features:
       - "longitude"
       - "feature_class"
       - "feature_code"
-      - "featureCodes_en.name AS feature_name"
+      - "f.name AS feature_name"
       - "country_code"
-      - "countryInfo.Country AS country_name"
+      - "c.Country AS country_name"
       - "cc2"
       - "admin1_code"
-      - "admin1CodesASCII.name AS admin1_name"
+      - "a1.name AS admin1_name"
       - "admin2_code"
-      - "admin2Codes.name AS admin2_name"
+      - "a2.name AS admin2_name"
       - "admin3_code"
       - "admin4_code"
       - "population"

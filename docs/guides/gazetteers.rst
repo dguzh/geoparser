@@ -330,37 +330,37 @@ Column references throughout a block (in ``identifier``, ``geometry``, ``names``
    # or
    geometry: "ST_Point(longitude, latitude)"  # Built from coordinate columns
 
-**Data** lists exactly what goes into the feature's ``data`` dictionary. Each entry is a column or scalar expression, written exactly as it would appear in a SQL ``SELECT``, with an optional trailing ``AS <alias>`` naming the key it is stored under. A bare or qualified column reference (``name``, ``countryInfo.Country``) may omit the alias, in which case its own column name (the last component, for a qualified reference) is the key; a plain expression has no name of its own, so it always needs one:
+**Data** lists exactly what goes into the feature's ``data`` dictionary. Each entry is a column or scalar expression, written exactly as it would appear in a SQL ``SELECT``, with an optional trailing ``AS <alias>`` naming the key it is stored under. A bare or qualified column reference (``name``, ``c.Country``) may omit the alias, in which case its own column name (the last component, for a qualified reference) is the key; a plain expression has no name of its own, so it always needs one:
 
 .. code-block:: yaml
 
    data:
-     - "population"                          # Bare column, stored as "population"
-     - "countryInfo.Country AS country_name" # Column of a joined source, renamed
-     - "upper(name) AS name_upper"           # Expression (alias required)
+     - "population"                 # Bare column, stored as "population"
+     - "c.Country AS country_name"  # Column of a joined source, renamed
+     - "upper(name) AS name_upper"  # Expression (alias required)
 
 Joins
 ~~~~~
 
-A feature block can ``join`` other sources to enrich its rows. Each join is a **raw SQL join clause** appended to the block's source: the whole joined table becomes available (there is no separate value selection—pick what you need in ``data`` using qualified references). Within a join's ``ON`` condition, bare names are the block's source columns and joined columns are qualified (``<source>.<column>``). Joins are applied in order, so a later join can reference a table joined earlier.
+A feature block can ``join`` other sources to enrich its rows. Each join is a **raw SQL join clause** appended to the block's source: the whole joined table becomes available (there is no separate value selection—pick what you need in ``data`` using qualified references). Within a join's ``ON`` condition, bare names are the block's source columns and joined columns are qualified (``<alias>.<column>``). Give each joined table a short alias to reference it conveniently. Joins are applied in order, so a later join can reference a table joined earlier.
 
 An **attribute** join equates columns (or expressions) of the two sides:
 
 .. code-block:: yaml
 
    joins:
-     - "LEFT JOIN countryInfo ON country_code = countryInfo.ISO"
-     - "LEFT JOIN admin1CodesASCII ON country_code || '.' || admin1_code = admin1CodesASCII.code"
+     - "LEFT JOIN countryInfo c ON country_code = c.ISO"
+     - "LEFT JOIN admin1CodesASCII a1 ON country_code || '.' || admin1_code = a1.code"
 
 The joined columns are then read in ``data`` by qualification:
 
 .. code-block:: yaml
 
    data:
-     - "countryInfo.Country AS country_name"
-     - "admin1CodesASCII.name AS admin1_name"
+     - "c.Country AS country_name"
+     - "a1.name AS admin1_name"
 
-A **spatial** join matches the feature geometry against the joined source's geometry with a spatial function (``ST_Within``, ``ST_Intersects``, ``ST_Contains``, ...). Reduce a geometry to its centroid inline with ``ST_Centroid`` where useful (lines and polygons). Give the joined table a short alias to reference it conveniently:
+A **spatial** join matches the feature geometry against the joined source's geometry with a spatial function (``ST_Within``, ``ST_Intersects``, ``ST_Contains``, ...). Reduce a geometry to its centroid inline with ``ST_Centroid`` where useful (lines and polygons):
 
 .. code-block:: yaml
 
@@ -439,7 +439,7 @@ Here's a complete configuration combining a tabular place file, an attribute joi
    features:
      - source: places
        joins:
-         - "LEFT JOIN regions ON region_code = regions.code"
+         - "LEFT JOIN regions r ON region_code = r.code"
          - "LEFT JOIN protected_areas a ON ST_Within(ST_Point(lon, lat), ST_Transform(a.geometry, 'EPSG:3857', 'EPSG:4326', always_xy := true))"
        identifier: "id"
        geometry: "ST_Point(lon, lat)"
@@ -448,7 +448,7 @@ Here's a complete configuration combining a tabular place file, an attribute joi
          - "unnest(string_split(alt_names, ','))"
        data:
          - "name"
-         - "regions.label AS region_name"
+         - "r.label AS region_name"
          - "a.AREA_NAME AS protected_area"
 
 For real-world examples, refer to the built-in gazetteer configurations on GitHub: `geonames.yaml <https://github.com/dguzh/geoparser/blob/main/geoparser/gazetteer/configs/geonames.yaml>`_, `geonames-cities.yaml <https://github.com/dguzh/geoparser/blob/main/geoparser/gazetteer/configs/geonames-cities.yaml>`_ (multiple feature blocks), and `swissnames3d.yaml <https://github.com/dguzh/geoparser/blob/main/geoparser/gazetteer/configs/swissnames3d.yaml>`_ (spatial joins, duplicate-identifier merging).

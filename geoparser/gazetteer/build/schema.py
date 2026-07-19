@@ -15,13 +15,13 @@ feature store. It has two top-level concepts:
 Values (``identifier``, ``names``, ``geometry`` and each ``data`` entry) are
 column references or scalar SQL expressions evaluated over the block's source,
 aliased ``src``; a bare column name refers to that source, and columns of
-joined sources are referenced by qualification (``<source>.<column>``). A
+joined sources are referenced by qualification (``<alias>.<column>``). A
 ``data`` entry names the key it is stored under with a trailing ``AS <alias>``
 (as in a SQL ``SELECT``); a bare or qualified column reference may omit it, in
 which case the column's own name is the key.
 
 Joins are written as raw SQL join clauses (e.g.
-``"LEFT JOIN countryInfo ON src.country_code = countryInfo.ISO"``); the whole
+``"LEFT JOIN countryInfo c ON src.country_code = c.ISO"``); the whole
 joined table is available, and the values to keep are selected in ``data``.
 """
 
