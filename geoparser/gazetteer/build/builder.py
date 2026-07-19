@@ -255,17 +255,35 @@ class GazetteerBuilder:
         """
         Return how many DuckDB threads to use for the given memory limit.
 
-        Caps parallelism by both CPU count and the memory budget so small
-        machines do not run one hungry worker per core.
+        Caps parallelism by both the CPUs available to this process (honoring
+        cpuset / affinity limits from Docker and similar) and the memory
+        budget so small machines do not run one hungry worker per core.
         """
-        cpu_count = os.cpu_count() or 1
+        cpu_count = self._available_cpus()
         by_memory = max(1, memory_limit_mb // self._MB_PER_THREAD)
         return max(1, min(cpu_count, by_memory))
 
     @staticmethod
+    def _available_cpus() -> int:
+        """Return CPUs usable by this process (affinity-aware when possible)."""
+        try:
+            return len(os.sched_getaffinity(0))
+        except (AttributeError, OSError):
+            return os.cpu_count() or 1
+
+    @staticmethod
     def _physical_memory_bytes() -> t.Optional[int]:
-        """Return the machine's physical memory in bytes, if detectable."""
+        """
+        Return usable physical memory in bytes, if detectable.
+
+        Prefers a cgroup memory limit when one is set (Docker, systemd
+        scopes, ...), since ``os.sysconf`` reports host RAM and would
+        otherwise let the staging engine size itself above the container
+        budget and get OOM-killed.
+        """
+        candidates: t.List[int] = []
         for reader in (
+            GazetteerBuilder._physical_memory_bytes_cgroup,
             GazetteerBuilder._physical_memory_bytes_sysconf,
             GazetteerBuilder._physical_memory_bytes_windows,
         ):
@@ -274,8 +292,37 @@ class GazetteerBuilder:
             except (ValueError, OSError, AttributeError):
                 continue
             if value is not None and value > 0:
-                return value
-        return None
+                candidates.append(value)
+        if not candidates:
+            return None
+        return min(candidates)
+
+    @staticmethod
+    def _physical_memory_bytes_cgroup() -> t.Optional[int]:
+        """Read this process's cgroup v2 ``memory.max`` limit, if finite."""
+        with open("/proc/self/cgroup", encoding="utf-8") as handle:
+            lines = handle.read().splitlines()
+        relative = None
+        for line in lines:
+            # Unified hierarchy: ``0::/docker/<id>`` (or similar).
+            if line.startswith("0::"):
+                relative = line[3:]
+                break
+        if relative is None:
+            return None
+        # Walk from the process cgroup up to the root; Docker often sets
+        # ``memory.max`` on the container cgroup while parents stay ``max``.
+        directory = Path("/sys/fs/cgroup") / relative.lstrip("/")
+        root = Path("/sys/fs/cgroup")
+        while True:
+            limit_path = directory / "memory.max"
+            if limit_path.is_file():
+                text = limit_path.read_text(encoding="utf-8").strip()
+                if text != "max":
+                    return int(text)
+            if directory == root or directory.parent == directory:
+                return None
+            directory = directory.parent
 
     @staticmethod
     def _physical_memory_bytes_sysconf() -> t.Optional[int]:
