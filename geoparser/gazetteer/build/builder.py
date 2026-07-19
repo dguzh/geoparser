@@ -56,6 +56,15 @@ def _sqlite_temp_env_names() -> t.Tuple[str, ...]:
     return ("SQLITE_TMPDIR",)
 
 
+def _format_bytes(nbytes: int) -> str:
+    """Format a byte count for error messages (decimal GB/MB)."""
+    if nbytes >= 1_000_000_000:
+        return f"{nbytes / 1_000_000_000:.1f} GB"
+    if nbytes >= 1_000_000:
+        return f"{nbytes / 1_000_000:.1f} MB"
+    return f"{nbytes} bytes"
+
+
 @contextlib.contextmanager
 def _sqlite_tmpdir(directory: Path) -> t.Iterator[None]:
     """
@@ -123,6 +132,7 @@ class GazetteerBuilder:
 
         target_path = artifact.artifact_path(config.name)
         target_path.parent.mkdir(parents=True, exist_ok=True)
+        self._check_disk_space(config, target_path.parent)
 
         downloads_dir = target_path.parent / ".downloads" / config.name
         acquirer = Acquirer(downloads_dir)
@@ -154,6 +164,23 @@ class GazetteerBuilder:
 
         print_build_summary(feature_count, name_count)
         return target_path
+
+    def _check_disk_space(self, config: GazetteerConfig, directory: Path) -> None:
+        """
+        Fail early when the gazetteers volume lacks the configured free space.
+
+        Skipped when ``config.disk`` is unset (unmeasured custom configs).
+        """
+        if config.disk is None:
+            return
+        free = shutil.disk_usage(directory).free
+        if free >= config.disk:
+            return
+        raise OSError(
+            f"Not enough free disk space to install gazetteer '{config.name}': "
+            f"need {_format_bytes(config.disk)}, have {_format_bytes(free)} free "
+            f"on {directory}"
+        )
 
     def _configure_staging(
         self, connection: duckdb.DuckDBPyConnection, build_dir: Path

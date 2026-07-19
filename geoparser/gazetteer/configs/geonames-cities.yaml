@@ -1,5 +1,6 @@
 name: geonames-cities
 crs: EPSG:4326
+disk: 800000000 # 0.8 GB
 
 sources:
   - name: cities500

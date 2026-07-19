@@ -35,7 +35,7 @@ If you want to try geoparsing quickly, start with **GeoNames Cities**, a lightwe
 
       - **Website**: `geonames.org <https://www.geonames.org/>`_
       - **Coverage**: Global cities (population ≥ 500)
-      - **Required Disk Space**: Approximately **700 MB**
+      - **Required Disk Space**: **0.8 GB** during install (installed artifact ≈ **0.3 GB**)
       - **Installation Command**:
 
       .. code-block:: bash
@@ -50,7 +50,7 @@ If you want to try geoparsing quickly, start with **GeoNames Cities**, a lightwe
 
       - **Website**: `geonames.org <https://www.geonames.org/>`_
       - **Coverage**: Global
-      - **Required Disk Space**: Approximately **13 GB**
+      - **Required Disk Space**: **30.7 GB** during install (installed artifact ≈ **10.2 GB**)
       - **Installation Command**:
 
       .. code-block:: bash
@@ -65,7 +65,7 @@ If you want to try geoparsing quickly, start with **GeoNames Cities**, a lightwe
 
       - **Website**: `Swisstopo SwissNames3D <https://www.swisstopo.admin.ch/en/landscape-model-swissnames3d>`_
       - **Coverage**: Switzerland
-      - **Required Disk Space**: Approximately **1.2 GB**
+      - **Required Disk Space**: **3.5 GB** during install (installed artifact ≈ **0.7 GB**)
       - **Installation Command**:
 
       .. code-block:: bash

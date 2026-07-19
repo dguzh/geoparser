@@ -9,6 +9,7 @@ public build() entry point alone.
 """
 
 import os
+import shutil
 import textwrap
 from unittest.mock import MagicMock
 
@@ -210,6 +211,97 @@ def _setting_to_bytes(value: str) -> int:
         if cleaned.endswith(suffix):
             return int(float(cleaned[: -len(suffix)]) * factor)
     raise AssertionError(f"Unrecognized DuckDB memory setting: {value!r}")
+
+
+@pytest.mark.unit
+class TestDiskPreflight:
+    """Test GazetteerBuilder._check_disk_space()."""
+
+    def test_skips_when_disk_is_unset(self, tmp_path):
+        """Configs without a measured disk budget are not preflight-checked."""
+        config = GazetteerConfig.model_validate(
+            {
+                "name": "custom",
+                "sources": [
+                    {
+                        "name": "rows",
+                        "path": "unused.csv",
+                        "file": "unused.csv",
+                        "delimiter": "\t",
+                        "attributes": [
+                            {"name": "id", "type": "text"},
+                            {"name": "name", "type": "text"},
+                        ],
+                    }
+                ],
+                "features": [{"source": "rows", "identifier": "id", "names": ["name"]}],
+            }
+        )
+
+        GazetteerBuilder()._check_disk_space(config, tmp_path)
+
+    def test_passes_when_free_space_meets_budget(self, monkeypatch, tmp_path):
+        """Install proceeds when free space is at least config.disk."""
+        config = GazetteerConfig.model_validate(
+            {
+                "name": "custom",
+                "disk": 1_000_000_000,
+                "sources": [
+                    {
+                        "name": "rows",
+                        "path": "unused.csv",
+                        "file": "unused.csv",
+                        "delimiter": "\t",
+                        "attributes": [
+                            {"name": "id", "type": "text"},
+                            {"name": "name", "type": "text"},
+                        ],
+                    }
+                ],
+                "features": [{"source": "rows", "identifier": "id", "names": ["name"]}],
+            }
+        )
+        monkeypatch.setattr(
+            shutil,
+            "disk_usage",
+            lambda _path: type(
+                "U", (), {"free": 2_000_000_000, "total": 0, "used": 0}
+            )(),
+        )
+
+        GazetteerBuilder()._check_disk_space(config, tmp_path)
+
+    def test_raises_when_free_space_is_insufficient(self, monkeypatch, tmp_path):
+        """Install fails early with a clear OSError when free space is low."""
+        config = GazetteerConfig.model_validate(
+            {
+                "name": "geonames",
+                "disk": 30_700_000_000,
+                "sources": [
+                    {
+                        "name": "rows",
+                        "path": "unused.csv",
+                        "file": "unused.csv",
+                        "delimiter": "\t",
+                        "attributes": [
+                            {"name": "id", "type": "text"},
+                            {"name": "name", "type": "text"},
+                        ],
+                    }
+                ],
+                "features": [{"source": "rows", "identifier": "id", "names": ["name"]}],
+            }
+        )
+        monkeypatch.setattr(
+            shutil,
+            "disk_usage",
+            lambda _path: type(
+                "U", (), {"free": 1_000_000_000, "total": 0, "used": 0}
+            )(),
+        )
+
+        with pytest.raises(OSError, match="Not enough free disk space.*geonames"):
+            GazetteerBuilder()._check_disk_space(config, tmp_path)
 
 
 @pytest.mark.unit

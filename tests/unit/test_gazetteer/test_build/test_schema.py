@@ -73,6 +73,23 @@ class TestGazetteerConfigValidation:
         with pytest.raises(ValidationError, match="must contain only"):
             GazetteerConfig.model_validate(minimal_config(name="bad name!"))
 
+    def test_accepts_positive_disk(self):
+        """A positive disk budget (bytes of free space) is kept as-is."""
+        config = GazetteerConfig.model_validate(minimal_config(disk=800_000_000))
+
+        assert config.disk == 800_000_000
+
+    def test_disk_defaults_to_none(self):
+        """Custom configs may omit disk; preflight is then skipped."""
+        assert GazetteerConfig.model_validate(minimal_config()).disk is None
+
+    def test_rejects_non_positive_disk(self):
+        """disk must be a positive byte count when set."""
+        with pytest.raises(ValidationError, match="disk"):
+            GazetteerConfig.model_validate(minimal_config(disk=0))
+        with pytest.raises(ValidationError, match="disk"):
+            GazetteerConfig.model_validate(minimal_config(disk=-1))
+
     def test_requires_at_least_one_source(self):
         """A gazetteer without sources is rejected."""
         with pytest.raises(ValidationError, match="at least one source"):
@@ -464,3 +481,17 @@ class TestFromYaml:
         config = GazetteerConfig.from_yaml(config_file)
 
         assert config.sources[0].path == absolute_path
+
+    def test_builtin_configs_declare_measured_disk(self):
+        """Each shipped gazetteer config carries a measured disk budget."""
+        from importlib.resources import files
+
+        configs_dir = files("geoparser.gazetteer") / "configs"
+        expected = {
+            "geonames.yaml": 30_700_000_000,
+            "geonames-cities.yaml": 800_000_000,
+            "swissnames3d.yaml": 3_500_000_000,
+        }
+        for name, disk in expected.items():
+            config = GazetteerConfig.from_yaml(configs_dir / name)
+            assert config.disk == disk, name

@@ -1,5 +1,6 @@
 name: swissnames3d
 crs: EPSG:4326
+disk: 3500000000 # 3.5 GB
 
 sources:
   - name: swissNAMES3D_PKT

@@ -1,5 +1,6 @@
 name: geonames
 crs: EPSG:4326
+disk: 30700000000 # 30.7 GB
 
 sources:
   - name: allCountries

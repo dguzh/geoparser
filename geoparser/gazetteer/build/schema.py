@@ -283,6 +283,10 @@ class GazetteerConfig(BaseModel):
 
     name: str
     crs: str = DEFAULT_CRS
+    # Minimum free bytes needed on the gazetteers volume during install
+    # (peak working set). Measured from a real install and rounded up by
+    # authors; omitted for custom configs that have not been measured.
+    disk: t.Optional[int] = None
     sources: t.List[SourceConfig]
     features: t.List[FeatureConfig]
 
@@ -294,6 +298,13 @@ class GazetteerConfig(BaseModel):
                 f"Gazetteer name '{value}' must contain only letters, digits, "
                 "underscores and hyphens"
             )
+        return value
+
+    @field_validator("disk")
+    @classmethod
+    def validate_disk(cls, value: t.Optional[int]) -> t.Optional[int]:
+        if value is not None and value <= 0:
+            raise ValueError("disk must be a positive number of bytes")
         return value
 
     @field_validator("sources")
