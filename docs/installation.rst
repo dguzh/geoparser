@@ -25,6 +25,9 @@ The library requires gazetteer data to resolve toponyms to geographic locations.
 .. note::
    The gazetteer CLI command was renamed from ``download`` to ``install``.
 
+.. tip::
+   Building a gazetteer can be memory-intensive. We recommend using a machine with at least **4 GB of RAM** and closing other heavy applications so enough memory stays available during the install. Lighter machines may still succeed for smaller gazetteers, but larger builds are more reliable with this headroom.
+
 If you want to try geoparsing quickly, start with **GeoNames Cities**, a lightweight subset that installs in a few minutes. For real geoparsing work, use the full **GeoNames** gazetteer instead: it covers far more than cities alone, including towns, natural features, landmarks, and fine-grained place names that the cities subset omits entirely.
 
 .. tabs::
