@@ -19,6 +19,7 @@ import pytest
 from geoparser.gazetteer import artifact
 from geoparser.gazetteer.build.builder import (
     GazetteerBuilder,
+    _format_bytes,
     _sqlite_temp_env_names,
     _sqlite_tmpdir,
 )
@@ -223,6 +224,122 @@ class TestMemoryLimit:
         )
 
         assert GazetteerBuilder._physical_memory_bytes() == 4 * 1024 * 1024 * 1024
+
+    def test_available_cpus_falls_back_when_affinity_unsupported(self, monkeypatch):
+        """Without sched_getaffinity, cpu_count() is used."""
+
+        def _no_affinity(_pid):
+            raise AttributeError("unsupported")
+
+        monkeypatch.setattr(os, "sched_getaffinity", _no_affinity, raising=False)
+        monkeypatch.setattr(os, "cpu_count", lambda: 6)
+
+        assert GazetteerBuilder._available_cpus() == 6
+
+    def test_cgroup_reader_returns_none_without_unified_hierarchy(
+        self, tmp_path, monkeypatch
+    ):
+        """Legacy cgroup lines without ``0::`` yield no limit."""
+        cgroup = tmp_path / "cgroup"
+        cgroup.write_text("1:cpu:/\n")
+        real_open = open
+
+        def _open(path, *args, **kwargs):
+            if str(path) == "/proc/self/cgroup":
+                return real_open(cgroup, *args, **kwargs)
+            return real_open(path, *args, **kwargs)
+
+        monkeypatch.setattr("builtins.open", _open)
+
+        assert GazetteerBuilder._physical_memory_bytes_cgroup() is None
+
+    def test_cgroup_reader_returns_finite_memory_max(self, tmp_path, monkeypatch):
+        """A finite memory.max on the process cgroup is returned."""
+        from pathlib import Path as PathType
+
+        cgroup = tmp_path / "cgroup"
+        cgroup.write_text("0::/docker/abc\n")
+        cg_root = tmp_path / "cgroupfs"
+        limit_dir = cg_root / "docker" / "abc"
+        limit_dir.mkdir(parents=True)
+        (limit_dir / "memory.max").write_text("2147483648\n")
+
+        real_open = open
+
+        def _open(path, *args, **kwargs):
+            if str(path) == "/proc/self/cgroup":
+                return real_open(cgroup, *args, **kwargs)
+            return real_open(path, *args, **kwargs)
+
+        monkeypatch.setattr("builtins.open", _open)
+
+        real_path = PathType
+
+        def _path(*args, **kwargs):
+            if args and args[0] == "/sys/fs/cgroup":
+                return real_path(cg_root, *args[1:], **kwargs)
+            return real_path(*args, **kwargs)
+
+        monkeypatch.setattr("geoparser.gazetteer.build.builder.Path", _path)
+
+        assert GazetteerBuilder._physical_memory_bytes_cgroup() == 2147483648
+
+    def test_windows_memory_reader_returns_total_phys(self, monkeypatch):
+        """GlobalMemoryStatusEx success yields ullTotalPhys."""
+        import ctypes
+        import ctypes.wintypes  # noqa: F401 — required attribute on Linux
+        import types
+
+        class FakeKernel:
+            @staticmethod
+            def GlobalMemoryStatusEx(ref):
+                ref._obj.ullTotalPhys = 8 * 1024 * 1024 * 1024
+                return 1
+
+        monkeypatch.setattr(
+            ctypes,
+            "windll",
+            types.SimpleNamespace(kernel32=FakeKernel),
+            raising=False,
+        )
+
+        assert (
+            GazetteerBuilder._physical_memory_bytes_windows() == 8 * 1024 * 1024 * 1024
+        )
+
+    def test_windows_memory_reader_returns_none_on_api_failure(self, monkeypatch):
+        """A failed GlobalMemoryStatusEx call is treated as unknown RAM."""
+        import ctypes
+        import ctypes.wintypes  # noqa: F401 — required attribute on Linux
+        import types
+
+        class FakeKernel:
+            @staticmethod
+            def GlobalMemoryStatusEx(_ref):
+                return 0
+
+        monkeypatch.setattr(
+            ctypes,
+            "windll",
+            types.SimpleNamespace(kernel32=FakeKernel),
+            raising=False,
+        )
+
+        assert GazetteerBuilder._physical_memory_bytes_windows() is None
+
+
+@pytest.mark.unit
+class TestFormatBytes:
+    """Test human-readable byte formatting for disk errors."""
+
+    def test_formats_gigabytes(self):
+        assert _format_bytes(1_500_000_000) == "1.5 GB"
+
+    def test_formats_megabytes(self):
+        assert _format_bytes(2_500_000) == "2.5 MB"
+
+    def test_formats_small_values_as_bytes(self):
+        assert _format_bytes(512) == "512 bytes"
 
 
 def _setting_to_bytes(value: str) -> int:
