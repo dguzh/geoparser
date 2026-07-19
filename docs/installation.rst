@@ -36,13 +36,14 @@ If you want to try geoparsing quickly, start with **GeoNames Cities**, a lightwe
       - **Website**: `geonames.org <https://www.geonames.org/>`_
       - **Coverage**: Global cities (population ≥ 500)
       - **Required Disk Space**: **0.8 GB** during install (installed artifact ≈ **0.3 GB**)
+      - **Typical Install Time**: about **1 minute** (varies with hardware and network)
       - **Installation Command**:
 
       .. code-block:: bash
 
          python -m geoparser install geonames-cities
 
-      Installation typically completes within a few minutes. Many place types (towns, rivers, mountains, and so on) are not included at all. Use this gazetteer to experiment with the library; switch to full GeoNames for serious geoparsing.
+      Many place types (towns, rivers, mountains, and so on) are not included at all. Use this gazetteer to experiment with the library; switch to full GeoNames for serious geoparsing.
 
    .. tab:: GeoNames
 
@@ -51,13 +52,14 @@ If you want to try geoparsing quickly, start with **GeoNames Cities**, a lightwe
       - **Website**: `geonames.org <https://www.geonames.org/>`_
       - **Coverage**: Global
       - **Required Disk Space**: **30.7 GB** during install (installed artifact ≈ **10.2 GB**)
+      - **Typical Install Time**: about **10–15 minutes** (varies with hardware and network)
       - **Installation Command**:
 
       .. code-block:: bash
 
          python -m geoparser install geonames
 
-      This command downloads the GeoNames data files, processes them, and builds the gazetteer artifact with its search indices. The process may take a while depending on your system and network speed.
+      This command downloads the GeoNames data files, processes them, and builds the gazetteer artifact with its search indices.
 
    .. tab:: SwissNames3D
 
@@ -66,13 +68,14 @@ If you want to try geoparsing quickly, start with **GeoNames Cities**, a lightwe
       - **Website**: `Swisstopo SwissNames3D <https://www.swisstopo.admin.ch/en/landscape-model-swissnames3d>`_
       - **Coverage**: Switzerland
       - **Required Disk Space**: **3.5 GB** during install (installed artifact ≈ **0.7 GB**)
+      - **Typical Install Time**: about **1–2 minutes** (varies with hardware and network)
       - **Installation Command**:
 
       .. code-block:: bash
 
          python -m geoparser install swissnames3d
 
-      This command downloads the SwissNames3D data, processes it, and builds the gazetteer artifact. The process typically completes within a few minutes.
+      This command downloads the SwissNames3D data, processes it, and builds the gazetteer artifact.
 
 Managing Gazetteers
 -------------------
