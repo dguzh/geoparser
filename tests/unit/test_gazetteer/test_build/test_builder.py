@@ -113,7 +113,9 @@ class TestMemoryLimit:
     def test_thread_count_is_capped_by_memory_and_cpu(self, monkeypatch):
         """Thread count never exceeds CPU count or the memory budget."""
         builder = GazetteerBuilder()
-        monkeypatch.setattr(os, "cpu_count", lambda: 8)
+        monkeypatch.setattr(
+            GazetteerBuilder, "_available_cpus", staticmethod(lambda: 8)
+        )
 
         assert builder._thread_count(512) == 1
         assert builder._thread_count(4096) == 4
@@ -127,7 +129,9 @@ class TestMemoryLimit:
         monkeypatch.setattr(
             builder, "_physical_memory_bytes", lambda: 8 * 1024 * 1024 * 1024
         )
-        monkeypatch.setattr(os, "cpu_count", lambda: 4)
+        monkeypatch.setattr(
+            GazetteerBuilder, "_available_cpus", staticmethod(lambda: 4)
+        )
         expected_limit = builder._memory_limit_mb()
         connection = duckdb.connect()
         try:
@@ -173,12 +177,20 @@ class TestMemoryLimit:
     ):
         """All detection failures are treated as 'unknown', not a crash."""
 
+        def _cgroup_none():
+            return None
+
         def _sysconf_error():
             raise OSError("not supported")
 
         def _windows_error():
             raise AttributeError("no windll")
 
+        monkeypatch.setattr(
+            GazetteerBuilder,
+            "_physical_memory_bytes_cgroup",
+            staticmethod(_cgroup_none),
+        )
         monkeypatch.setattr(
             GazetteerBuilder,
             "_physical_memory_bytes_sysconf",
@@ -191,6 +203,26 @@ class TestMemoryLimit:
         )
 
         assert GazetteerBuilder._physical_memory_bytes() is None
+
+    def test_physical_memory_bytes_prefers_lower_cgroup_limit(self, monkeypatch):
+        """A finite cgroup limit wins over larger host RAM from sysconf."""
+        monkeypatch.setattr(
+            GazetteerBuilder,
+            "_physical_memory_bytes_cgroup",
+            staticmethod(lambda: 4 * 1024 * 1024 * 1024),
+        )
+        monkeypatch.setattr(
+            GazetteerBuilder,
+            "_physical_memory_bytes_sysconf",
+            staticmethod(lambda: 16 * 1024 * 1024 * 1024),
+        )
+        monkeypatch.setattr(
+            GazetteerBuilder,
+            "_physical_memory_bytes_windows",
+            staticmethod(lambda: None),
+        )
+
+        assert GazetteerBuilder._physical_memory_bytes() == 4 * 1024 * 1024 * 1024
 
 
 def _setting_to_bytes(value: str) -> int:
