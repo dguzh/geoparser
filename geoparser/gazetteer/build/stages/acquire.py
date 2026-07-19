@@ -170,7 +170,7 @@ class Acquirer:
         with zipfile.ZipFile(archive_path, "r") as zip_ref:
             total_size = sum(info.file_size for info in zip_ref.infolist())
             with item(
-                f"Extracting {archive_path.name}", total=total_size or None
+                f"Unpacking {archive_path.name}", total=total_size or None
             ) as progress_bar:
                 for zip_info in zip_ref.infolist():
                     zip_ref.extract(zip_info, path=extraction_dir)

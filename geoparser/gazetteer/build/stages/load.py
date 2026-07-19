@@ -130,7 +130,7 @@ class Loader:
             f"SELECT * FROM read_csv({quote_literal(str(file_path))}, "
             f"{', '.join(options)})"
         )
-        with item(f"Reading {source_config.name}", total=100) as bar:
+        with item(f"Loading {source_config.name}", total=100) as bar:
             track(bar, self.connection.query_progress, lambda: self.connection.execute(create_sql))
         advance()
 
@@ -141,7 +141,7 @@ class Loader:
         The geometry column is normalized to ``geometry`` and the non-geometry
         attributes are cast to their declared types, so the loaded table has
         exactly the schema the config declares (mirroring tabular sources).
-        Reading the file and normalizing its columns are each their own
+        Loading the file and normalizing its columns are each their own
         query, so they're reported as two separate items in turn.
         """
         raw = quote_identifier(f"__raw_{source_config.name}")
@@ -149,7 +149,7 @@ class Loader:
             f"CREATE OR REPLACE TABLE {raw} AS "
             f"SELECT * FROM ST_Read({quote_literal(str(file_path))})"
         )
-        with item(f"Reading {source_config.name}", total=100) as bar:
+        with item(f"Loading {source_config.name}", total=100) as bar:
             track(bar, self.connection.query_progress, lambda: self.connection.execute(read_sql))
         advance()
         # Geometry types may carry a CRS parameter, e.g. GEOMETRY('EPSG:4326')

@@ -527,7 +527,7 @@ def label_suffixes(labels: t.Sequence[str]) -> t.List[str]:
         Suffix to append to each label at the same position
 
     Example:
-        >>> label_suffixes(["Reading A", "Collecting names from A", "Collecting names from A"])
+        >>> label_suffixes(["Loading A", "Collecting names from A", "Collecting names from A"])
         ['', ' (1/2)', ' (2/2)']
     """
     totals: t.Dict[str, int] = {}

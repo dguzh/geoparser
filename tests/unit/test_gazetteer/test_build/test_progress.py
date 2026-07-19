@@ -186,11 +186,11 @@ class TestLabelSuffixes:
 
     def test_unique_labels_get_no_suffix(self):
         """Labels that occur once are returned unsuffixed."""
-        assert label_suffixes(["Reading A", "Reading B"]) == ["", ""]
+        assert label_suffixes(["Loading A", "Loading B"]) == ["", ""]
 
     def test_repeated_labels_are_numbered_in_order(self):
         """Repeated labels are numbered in order of appearance."""
-        labels = ["Reading A", "Collecting names from A", "Collecting names from A"]
+        labels = ["Loading A", "Collecting names from A", "Collecting names from A"]
 
         assert label_suffixes(labels) == ["", " (1/2)", " (2/2)"]
 
