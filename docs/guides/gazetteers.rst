@@ -3,7 +3,7 @@
 Gazetteers
 ==========
 
-This guide explains how to query gazetteer data, understand feature attributes, and configure custom gazetteers for specialized geographic databases.
+This guide explains what a gazetteer is in this library, which ones ship with it, and how to query them. To build a gazetteer from your own data, see :doc:`custom-gazetteers`.
 
 Overview
 --------
@@ -63,6 +63,21 @@ To install SwissNames3D:
    python -m geoparser install swissnames3d
 
 The installation process typically completes within a few minutes.
+
+Pleiades
+~~~~~~~~
+
+Pleiades is a community-built gazetteer of the ancient world, covering the Greek and Roman Mediterranean and its neighbouring regions. It contains some 42,000 places — settlements, regions, rivers, roads, mountains, and peoples — with their names in Latin, ancient Greek, and modern languages, and in the original scripts where attested. Because ancient places have no modern administrative hierarchy, each located place is instead assigned the Roman province its coordinates fall in, computed at build time from a separate boundaries dataset. Places attested in texts but never located are included without geometry, and remain searchable by name.
+
+To install Pleiades:
+
+.. code-block:: bash
+
+   python -m geoparser install pleiades
+
+The installation completes in well under a minute, and the artifact is around 25 MB.
+
+This gazetteer is also the worked example of :doc:`custom-gazetteers`, which builds it up step by step from its published source files.
 
 Managing Installed Gazetteers
 -----------------------------
@@ -209,269 +224,35 @@ For SwissNames3D, attributes include:
 - ``KANTON_NAME``: Canton name
 - ``HOEHE``: Elevation in meters
 
+For Pleiades, attributes include:
+
+- ``title``: The main name of the place
+- ``place_types``: Its types from the Pleiades vocabulary (e.g. "settlement, urban area")
+- ``province``: The Roman province the place falls in
+- ``latitude`` and ``longitude``: Coordinates in decimal degrees
+- ``location_precision``: How precisely the place is located ("precise" or "rough")
+- ``description``: The editors' description of the place
+- ``uri``: Link to the place's record on pleiades.stoa.org
+
 The exact data keys are defined per source in the gazetteer's configuration file.
 
-Custom Gazetteer Configuration
--------------------------------
+Custom Gazetteers
+-----------------
 
-The library supports adding custom gazetteers through YAML configuration files. This capability allows you to integrate specialized geographic databases, regional data sources, or proprietary location data without modifying the core library code.
-
-A configuration describes how source files *project* into the canonical feature model. It is purely declarative—there is no user-provided transformation code; the only embedded SQL allowed are small scalar expressions (string manipulation, arithmetic, ``CASE`` expressions) where a plain column reference is not enough.
-
-Configuration Structure
-~~~~~~~~~~~~~~~~~~~~~~~
-
-A gazetteer configuration file has two top-level concepts:
-
-.. code-block:: yaml
-
-   name: my_gazetteer   # Unique identifier for the gazetteer
-   crs: EPSG:4326       # CRS of the artifact's geometries (optional, default EPSG:4326)
-
-   sources:             # Files to download/stage (transient; discarded after the build)
-     - name: places
-       # ... source configuration ...
-
-   features:            # One block per source; each block produces features
-     - source: places
-       # ... feature configuration ...
-
-``sources`` declare the source files and, explicitly, their attributes. ``features`` blocks describe how rows of one source become searchable features—their identifier, names, geometry and data—optionally enriched by ``joins`` against other sources. Sources that only serve as join targets simply aren't referenced by any feature block.
-
-Sources
-~~~~~~~
-
-Each source is a file to acquire and stage. Sources are either **tabular** (delimited text; set ``delimiter``) or **spatial** (shapefile, GeoPackage, GeoJSON, and other GDAL-readable formats). Every source declares its ``attributes`` explicitly, and every attribute declares its ``type`` (``text``, ``integer``, ``real`` or ``geometry``), so a source's schema reads the same regardless of file format. Remote files are downloaded and cached; ZIP archives are extracted automatically, with ``file`` naming the target file inside the archive:
-
-.. code-block:: yaml
-
-   sources:
-     - name: places
-       url: https://example.com/data.zip   # Downloaded and extracted
-       file: places.csv                    # File within the ZIP
-       delimiter: ","
-       attributes:
-         - name: id
-           type: integer
-         - name: name
-           type: text
-         - name: lat
-           type: real
-         - name: lon
-           type: real
-
-For local files, provide a ``path`` instead of a ``url`` (relative paths are resolved against the config file's location):
-
-.. code-block:: yaml
-
-   sources:
-     - name: local_data
-       path: data/places.tsv
-       file: places.tsv
-       delimiter: "\t"
-       quote: ""          # Disable quote handling for raw TSV files
-       skip_rows: 2       # Skip leading comment lines
-       attributes:
-         - name: id
-           type: integer
-         - name: name
-           type: text
-
-A **spatial** source has no ``delimiter``. It declares its attributes the same way, including exactly one attribute of type ``geometry`` (always named ``geometry``, the name its geometry is staged under). Declare the source coordinate system with ``crs`` if it differs from the gazetteer CRS:
-
-.. code-block:: yaml
-
-   sources:
-     - name: municipalities
-       url: https://example.com/boundaries.zip
-       file: municipalities.shp
-       crs: EPSG:2056     # Source CRS; reprojected to the gazetteer CRS at build time
-       attributes:
-         - name: BFS_NUMMER
-           type: integer
-         - name: NAME
-           type: text
-         - name: geometry
-           type: geometry
-
-Feature Blocks
-~~~~~~~~~~~~~~
-
-Each ``features`` block projects one source into features. A gazetteer can define any number of blocks, each with its own set of data—there is no shared schema to pad. A block names the ``source`` it projects, and that name becomes the features' ``source`` in the artifact (so a source backs at most one block). A block is written in reading order: the ``source``, then the ``joins`` that enrich it, then the ``identifier``, ``geometry``, ``names`` and ``data`` derived from the joined rows:
-
-.. code-block:: yaml
-
-   features:
-     - source: places         # The backing source; also the feature's source name
-       identifier: "id"        # Column (or expression) with the stable identifier
-       geometry: "ST_Point(lon, lat)"
-       names:
-         - "name"
-       data:
-         - "name"        # Stored under its own name
-         - "population"
-
-Column references throughout a block (in ``identifier``, ``geometry``, ``names``, ``data`` and each join's ``ON`` condition) follow one rule: a **bare** column name is a column of the block's own source, and a column of a **joined** source is referenced by qualification (``<source>.<column>``). You never need a ``src.`` prefix—bare source columns are resolved for you, even inside join clauses.
-
-**Names** define what the feature can be found by. Each name is simply a column or scalar SQL expression—they are interchangeable, so no label distinguishes them. To register several names from one multi-value column, use an expression that splits and unnests it (each element becomes its own name):
-
-.. code-block:: yaml
-
-   names:
-     - "name"
-     - "CASE WHEN instr(name, '(') > 0 THEN trim(substr(name, 1, instr(name, '(') - 1)) ELSE name END"
-     - "unnest(string_split(alternatenames, ','))"    # One name per comma-separated value
-
-**Geometry** is a single value: a geometry column (for spatial sources) or a scalar expression that builds one (for example a point from coordinate columns). Its coordinate system is the backing source's ``crs`` (or the gazetteer CRS); geometries are reprojected to the gazetteer CRS at build time:
-
-.. code-block:: yaml
-
-   geometry: "geometry"                       # A geometry column of a spatial source
-   # or
-   geometry: "ST_Point(longitude, latitude)"  # Built from coordinate columns
-
-**Data** lists exactly what goes into the feature's ``data`` dictionary. Each entry is a column or scalar expression, written exactly as it would appear in a SQL ``SELECT``, with an optional trailing ``AS <alias>`` naming the key it is stored under. A bare or qualified column reference (``name``, ``c.Country``) may omit the alias, in which case its own column name (the last component, for a qualified reference) is the key; a plain expression has no name of its own, so it always needs one:
-
-.. code-block:: yaml
-
-   data:
-     - "population"                 # Bare column, stored as "population"
-     - "c.Country AS country_name"  # Column of a joined source, renamed
-     - "upper(name) AS name_upper"  # Expression (alias required)
-
-Joins
-~~~~~
-
-A feature block can ``join`` other sources to enrich its rows. Each join is a **raw SQL join clause** appended to the block's source: the whole joined table becomes available (there is no separate value selection—pick what you need in ``data`` using qualified references). Within a join's ``ON`` condition, bare names are the block's source columns and joined columns are qualified (``<alias>.<column>``). Give each joined table a short alias to reference it conveniently. Joins are applied in order, so a later join can reference a table joined earlier.
-
-An **attribute** join equates columns (or expressions) of the two sides:
-
-.. code-block:: yaml
-
-   joins:
-     - "LEFT JOIN countryInfo c ON country_code = c.ISO"
-     - "LEFT JOIN admin1CodesASCII a1 ON country_code || '.' || admin1_code = a1.code"
-
-The joined columns are then read in ``data`` by qualification:
-
-.. code-block:: yaml
-
-   data:
-     - "c.Country AS country_name"
-     - "a1.name AS admin1_name"
-
-A **spatial** join matches the feature geometry against the joined source's geometry with a spatial function (``ST_Within``, ``ST_Intersects``, ``ST_Contains``, ...). Reduce a geometry to its centroid inline with ``ST_Centroid`` where useful (lines and polygons):
-
-.. code-block:: yaml
-
-   joins:
-     - "LEFT JOIN gemeinde g ON ST_Within(ST_Centroid(geometry), g.geometry)"
-
-.. note::
-
-   Raw joins operate on the sources' native coordinate systems and are **not** reprojected automatically, so a spatial join is only meaningful when both sides share a CRS (transform explicitly with ``ST_Transform`` otherwise). The feature's own ``geometry`` is still reprojected to the gazetteer CRS independently.
-
-Joins can **chain**: a later join can reference a table joined earlier. This expresses multi-level hierarchies (place → municipality → district → canton):
-
-.. code-block:: yaml
-
-   joins:
-     - "LEFT JOIN gemeinde g ON ST_Within(ST_Centroid(geometry), g.geometry)"
-     - "LEFT JOIN bezirk b ON g.BEZIRKSNUM = b.BEZIRKSNUM"      # matches on the earlier join
-     - "LEFT JOIN kanton k ON b.KANTONSNUM = k.KANTONSNUM"
-
-Handling Duplicate Identifiers
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-Some datasets contain multiple rows per identifier (repeated records, or multi-part geometries split across rows). Rows sharing an identifier are always **merged into a single feature**: all their names are collected, their geometries are unioned into a single (possibly multi-part) geometry, and each data value is taken from the first row of the group. This happens automatically—there is nothing to configure.
-
-Identifiers must be unique across the entire gazetteer. If two feature blocks produce the same identifier, the build fails with a clear error; disambiguate with an expression (for example ``"'city:' || id"``) or merge the blocks.
-
-Complete Example
-~~~~~~~~~~~~~~~~
-
-Here's a complete configuration combining a tabular place file, an attribute join, and a spatial join:
-
-.. code-block:: yaml
-
-   name: my_gazetteer
-   crs: EPSG:4326
-
-   sources:
-     - name: places
-       url: https://example.com/places.zip
-       file: places.csv
-       delimiter: ","
-       attributes:
-         - name: id
-           type: integer
-         - name: name
-           type: text
-         - name: alt_names
-           type: text
-         - name: region_code
-           type: text
-         - name: lat
-           type: real
-         - name: lon
-           type: real
-
-     - name: regions
-       url: https://example.com/regions.csv
-       file: regions.csv
-       delimiter: ","
-       attributes:
-         - name: code
-           type: text
-         - name: label
-           type: text
-
-     - name: protected_areas
-       url: https://example.com/areas.zip
-       file: areas.shp
-       crs: EPSG:3857
-       attributes:
-         - name: AREA_NAME
-           type: text
-         - name: geometry
-           type: geometry
-
-   features:
-     - source: places
-       joins:
-         - "LEFT JOIN regions r ON region_code = r.code"
-         - "LEFT JOIN protected_areas a ON ST_Within(ST_Point(lon, lat), ST_Transform(a.geometry, 'EPSG:3857', 'EPSG:4326', always_xy := true))"
-       identifier: "id"
-       geometry: "ST_Point(lon, lat)"
-       names:
-         - "name"
-         - "unnest(string_split(alt_names, ','))"
-       data:
-         - "name"
-         - "r.label AS region_name"
-         - "a.AREA_NAME AS protected_area"
-
-For real-world examples, refer to the built-in gazetteer configurations on GitHub: `geonames.yaml <https://github.com/dguzh/geoparser/blob/main/geoparser/gazetteer/configs/geonames.yaml>`_, `geonames-cities.yaml <https://github.com/dguzh/geoparser/blob/main/geoparser/gazetteer/configs/geonames-cities.yaml>`_ (multiple feature blocks), and `swissnames3d.yaml <https://github.com/dguzh/geoparser/blob/main/geoparser/gazetteer/configs/swissnames3d.yaml>`_ (spatial joins, duplicate-identifier merging).
-
-Installing Custom Gazetteers
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-To install a custom gazetteer, provide the path to your configuration file:
+Nothing about the gazetteer system is specific to the datasets above. Any placename data you can describe in a YAML configuration file — a national register, an excavation catalogue, a historical map index, your own field notes — becomes a gazetteer that behaves exactly like a built-in one, with no code to write.
 
 .. code-block:: bash
 
    python -m geoparser install path/to/my_gazetteer.yaml
 
-The build validates the configuration, downloads or locates the specified files, stages them, runs the projections, and writes the finished artifact. If anything is wrong with the configuration—an unknown column, an invalid join clause, colliding identifiers—the build stops with a descriptive error and nothing is installed. A successful build atomically replaces any previously installed artifact of the same name.
-
-.. note::
-   Building gazetteers with geometries requires DuckDB's spatial extension, which is downloaded automatically on first use. If you build gazetteers in an offline environment, run one spatial build while online first so the extension is cached.
+:doc:`custom-gazetteers` walks through the whole process on a real dataset, one concern at a time, and documents every configuration key, the choices each one implies, and the problems that come up most often.
 
 Next Steps
 ----------
 
 Now that you understand gazetteers, you can explore:
 
+- :doc:`custom-gazetteers` - Build a gazetteer from your own data
 - :doc:`modules` - Learn how resolvers use gazetteers for disambiguation
 - :doc:`training` - Train resolvers on specific gazetteers for better performance
 - :doc:`projects` - Use projects to organize work with different gazetteers

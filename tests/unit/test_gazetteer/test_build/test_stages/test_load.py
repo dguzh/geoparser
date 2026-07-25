@@ -141,6 +141,31 @@ class TestLoadTabular:
         ).fetchall()
         assert rows[0][0] == 'O"Brien'
 
+    def test_loads_quoted_fields_spanning_several_lines(self, loader, tmp_path):
+        """
+        A quoted field containing newlines is loaded.
+
+        DuckDB's parallel CSV scanner rejects such files while null padding is
+        on, so this exercises the fallback to its single-threaded scanner.
+        """
+        data_file = tmp_path / "places.csv"
+        data_file.write_text('1,"Paris,\nthe capital"\n2,Berlin\n')
+        source = make_tabular_source()
+
+        row_count = loader.load(source, data_file)
+
+        assert row_count == 2
+        assert loader.connection.execute(
+            "SELECT name FROM places WHERE id = 1"
+        ).fetchone() == ("Paris,\nthe capital",)
+
+    def test_unrelated_csv_errors_are_not_retried(self, loader, tmp_path):
+        """Errors other than the padding conflict propagate to the caller."""
+        source = make_tabular_source()
+
+        with pytest.raises(duckdb.Error):
+            loader.load(source, tmp_path / "missing.csv")
+
 
 @pytest.mark.unit
 class TestLoadSpatial:

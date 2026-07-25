@@ -24,6 +24,10 @@ _DUCKDB_TYPES = {
     DataType.REAL: "DOUBLE",
 }
 
+# Substrings identifying the DuckDB error raised when its parallel CSV scanner
+# is asked to combine null padding with quoted newlines (see ``_load_tabular``).
+_PARALLEL_NULL_PADDING_HINTS = ("parallel", "null_padding")
+
 
 def quote_identifier(name: str) -> str:
     """
@@ -105,7 +109,15 @@ class Loader:
         return [row[0] for row in rows]
 
     def _load_tabular(self, source_config: SourceConfig, file_path: Path) -> None:
-        """Load a delimited text file via DuckDB's CSV reader."""
+        """
+        Load a delimited text file via DuckDB's CSV reader.
+
+        Rows shorter than the declared schema are padded with NULLs, which
+        tolerates the ragged exports many gazetteers ship. DuckDB's parallel
+        scanner refuses that padding for files whose quoted fields wrap across
+        lines (common in CSVs with prose columns), so such files are re-read
+        with the single-threaded scanner rather than rejected.
+        """
         options = [
             f"delim={quote_literal(source_config.delimiter)}",
             f"skip={source_config.skip_rows}",
@@ -124,15 +136,36 @@ class Loader:
         )
         options.append(f"columns={{{column_spec}}}")
 
+        def load() -> None:
+            try:
+                self.connection.execute(
+                    self._read_csv_sql(source_config, file_path, options)
+                )
+            except duckdb.Error as error:
+                message = str(error).lower()
+                if not all(hint in message for hint in _PARALLEL_NULL_PADDING_HINTS):
+                    raise
+                self.connection.execute(
+                    self._read_csv_sql(
+                        source_config, file_path, options + ["parallel=false"]
+                    )
+                )
+
+        with item(f"Loading {source_config.name}", total=100) as bar:
+            track(bar, self.connection.query_progress, load)
+        advance()
+
+    @staticmethod
+    def _read_csv_sql(
+        source_config: SourceConfig, file_path: Path, options: t.List[str]
+    ) -> str:
+        """Build the statement staging a delimited file into its table."""
         table = quote_identifier(source_config.name)
-        create_sql = (
+        return (
             f"CREATE OR REPLACE TABLE {table} AS "
             f"SELECT * FROM read_csv({quote_literal(str(file_path))}, "
             f"{', '.join(options)})"
         )
-        with item(f"Loading {source_config.name}", total=100) as bar:
-            track(bar, self.connection.query_progress, lambda: self.connection.execute(create_sql))
-        advance()
 
     def _load_spatial(self, source_config: SourceConfig, file_path: Path) -> None:
         """

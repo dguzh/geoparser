@@ -23,7 +23,10 @@ holds unmanaged (unspillable) memory proportional to the number of groups, which
 is prohibitive for large sources of mostly-unique identifiers. The feature query
 therefore keeps the *first* row's geometry (a bounded aggregate), and geometries
 are unioned only for the few genuinely duplicated identifiers in a separate,
-bounded pass (:meth:`ProjectionCompiler.duplicate_geometry_query`).
+bounded pass (:meth:`ProjectionCompiler.duplicate_geometry_query`). That pass
+runs over the block's source without its joins, so a block's ``identifier`` and
+``geometry`` must read from that source alone; references to a joined source are
+rejected up front (:meth:`ProjectionCompiler._resolve_own`).
 """
 
 import re
@@ -50,6 +53,37 @@ _BARE_IDENTIFIER = re.compile(r"^[a-zA-Z_][a-zA-Z0-9_]*$")
 _EXPRESSION_TOKEN = re.compile(
     r"'(?:[^']|'')*'|\"[^\"]*\"|[A-Za-z_][A-Za-z0-9_]*"
 )
+
+# Alias the block's own source is available under inside compiled queries.
+SOURCE_ALIAS = "src"
+
+
+def qualifiers(expression: str) -> t.Set[str]:
+    """
+    Collect the table qualifiers a scalar SQL expression reads columns from.
+
+    Only qualifiers of column references are reported: string literals are
+    skipped, and so are function calls, whose name is followed by an opening
+    parenthesis rather than a dot.
+
+    Args:
+        expression: Scalar SQL expression
+
+    Returns:
+        Set of qualifier names, unquoted
+    """
+    found = set()
+    for match in _EXPRESSION_TOKEN.finditer(expression):
+        token = match.group(0)
+        if token.startswith("'"):
+            continue
+        if not expression[match.end() :].lstrip().startswith("."):
+            continue
+        # Skip the qualified part of an already-qualified reference
+        if expression[: match.start()].rstrip().endswith("."):
+            continue
+        found.add(token[1:-1] if token.startswith('"') else token)
+    return found
 
 
 def qualify_expression(expression: str, replacements: t.Mapping[str, str]) -> str:
@@ -129,7 +163,7 @@ class ProjectionCompiler:
             DuckDB SQL string
         """
         from_clause = self._from_clause(feature)
-        identifier = self._resolve(feature, feature.identifier, "identifier")
+        identifier = self._feature_identifier(feature)
 
         data_parts = []
         for item in feature.data:
@@ -170,7 +204,7 @@ class ProjectionCompiler:
             List of DuckDB SQL strings
         """
         from_clause = self._from_clause(feature)
-        identifier = self._resolve(feature, feature.identifier, "identifier")
+        identifier = self._feature_identifier(feature)
 
         queries = []
         for name in feature.names:
@@ -213,7 +247,7 @@ class ProjectionCompiler:
         """
         if feature.geometry is None:
             return None
-        identifier = self._resolve(feature, feature.identifier, "identifier")
+        identifier = self._feature_identifier(feature)
         geometry = self._feature_geometry(feature)
         source = quote_identifier(feature.source)
         return (
@@ -280,9 +314,13 @@ class ProjectionCompiler:
             f"ELSE arg_min(ST_AsWKB({geometry}), {ROW_ORDER_REFERENCE}) END"
         )
 
+    def _feature_identifier(self, feature: FeatureConfig) -> str:
+        """Resolve the identifier expression over the block's own source."""
+        return self._resolve_own(feature, feature.identifier, "identifier")
+
     def _feature_geometry(self, feature: FeatureConfig) -> str:
         """Resolve the feature geometry expression in the gazetteer CRS."""
-        geometry = self._resolve(feature, feature.geometry, "geometry")
+        geometry = self._resolve_own(feature, feature.geometry, "geometry")
         native_crs = self._source_crs(feature.source)
         if native_crs != self.config.crs:
             geometry = (
@@ -299,6 +337,26 @@ class ProjectionCompiler:
     def _first(self, value: str) -> str:
         """Wrap a data value in the first-row aggregate."""
         return f"arg_min({value}, {ROW_ORDER_REFERENCE})"
+
+    def _resolve_own(self, feature: FeatureConfig, value: str, context: str) -> str:
+        """
+        Resolve a reference that must read only the block's own source.
+
+        A feature's identifier and geometry are also evaluated over the source
+        by itself (see :meth:`duplicate_geometry_query`), where no joined table
+        exists, so a qualified reference to one would fail with an opaque SQL
+        error further down. Rejecting it here says what is actually wrong.
+        """
+        joined = qualifiers(value) - {SOURCE_ALIAS}
+        if joined:
+            names = ", ".join("'" + name + "'" for name in sorted(joined))
+            raise CompileError(
+                f"Feature '{feature.source}': {context} reads from {names}, but "
+                f"it must be derived from the block's own source "
+                f"'{feature.source}' alone. Move the joined value to 'data', or "
+                f"build the feature from the other source instead."
+            )
+        return self._resolve(feature, value, context)
 
     def _resolve(self, feature: FeatureConfig, value: str, context: str) -> str:
         """

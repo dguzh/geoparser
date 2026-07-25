@@ -84,27 +84,37 @@ The ``min_similarity`` threshold controls how confident the resolver must be bef
 
 The ``max_tiers`` parameter controls how aggressively the resolver searches for candidates. The resolver uses an iterative strategy starting with exact string matching and progressively relaxing to phrase matching, partial matching, and fuzzy matching. For each search method, it ranks results by relevance and groups them into tiers. The ``max_tiers`` parameter determines how many of these tiers to include—higher values mean the resolver expands its search to include more potential candidates, which can help resolve difficult toponyms but increases processing time.
 
-For gazetteers other than GeoNames and SwissNames3D, you need to provide a custom ``attribute_map`` that tells the resolver which attributes to use when generating location descriptions:
+Before comparing a candidate place against the text, the resolver describes it in words — "Paris (city) in Île-de-France, France" — and it needs to know which of the gazetteer's attributes to build that description from. The built-in gazetteers already carry this mapping. For a gazetteer of your own, pass it as an ``attribute_map``:
 
 .. code-block:: python
 
    from geoparser.modules import SentenceTransformerResolver
 
-   # Custom gazetteer with different attribute names
-   custom_map = {
-       "name": "place_name",
-       "type": "category",
-       "level1": "country",
-       "level2": "region",
-       "level3": "district"
-   }
-
    resolver = SentenceTransformerResolver(
-       gazetteer_name="custom_gazetteer",
-       attribute_map=custom_map
+       gazetteer_name="my_gazetteer",
+       attribute_map={
+           "name": "place_name",
+           "type": "category",
+           "level1": "country",
+           "level2": "region",
+           "level3": "district",
+       },
    )
 
-The attribute map should specify which columns in your gazetteer correspond to the name, type, and hierarchical administrative levels. The resolver uses these attributes to generate textual descriptions like "Paris (city) in Île-de-France, France".
+The values are keys of your gazetteer's ``data`` dictionary. ``name`` and ``type`` are both required; the administrative levels are optional, with ``level1`` the outermost enclosing place and ``level3`` the innermost. Supply only as many as your data supports — Pleiades, for instance, has no modern administrative hierarchy, so it maps ``level1`` to the Roman province and stops there:
+
+.. code-block:: python
+
+   resolver = SentenceTransformerResolver(
+       gazetteer_name="pleiades",
+       attribute_map={
+           "name": "title",
+           "type": "place_types",
+           "level1": "province",
+       },
+   )
+
+This describes a candidate as "Pompeii (settlement, urban area) in Italia". Which attributes you have available is a decision you make when configuring the gazetteer; see :doc:`custom-gazetteers`.
 
 The SentenceTransformerResolver works best when place names have distinctive contexts that help disambiguate them. For example, "I visited the Eiffel Tower in Paris" provides strong contextual clues. Short texts with minimal context or lists of place names without surrounding text present more challenging scenarios where the resolver may struggle.
 

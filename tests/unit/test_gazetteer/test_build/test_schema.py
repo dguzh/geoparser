@@ -491,7 +491,12 @@ class TestFromYaml:
             "geonames.yaml": 30_700_000_000,
             "geonames-cities.yaml": 800_000_000,
             "swissnames3d.yaml": 3_500_000_000,
+            "pleiades.yaml": 600_000_000,
         }
+        shipped = {
+            entry.name for entry in configs_dir.iterdir() if entry.name.endswith(".yaml")
+        }
+        assert shipped == set(expected)
         for name, disk in expected.items():
             config = GazetteerConfig.from_yaml(configs_dir / name)
             assert config.disk == disk, name

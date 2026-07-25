@@ -1,0 +1,846 @@
+.. _custom-gazetteers:
+
+Custom Gazetteers
+=================
+
+The built-in gazetteers cover the modern world (GeoNames), one country in detail (SwissNames3D), and one historical period (Pleiades), but no fixed set of gazetteers can cover every research question. If you work on a region, a period, or a domain that is not represented — a national placename register, an excavation catalogue, a historical map index, your own field data — you can turn that data into a gazetteer of your own, and everything else in the library then treats it exactly like a built-in one.
+
+You do this by writing a YAML configuration file that describes your source files and how their rows map onto places. There is no plugin to write and no code to run: you declare where the files are, what columns they have, and which of those columns are the identifier, the names, the geometry, and the attributes of a place. The build pipeline does the rest.
+
+This guide walks through that process end to end on a real dataset, then documents every configuration key in full and lists the problems you are most likely to run into. If you are looking for how to *query* a gazetteer once it exists, see :doc:`gazetteers`.
+
+What You Are Building
+---------------------
+
+Before writing any configuration, it helps to know exactly what the build produces, because that is what your configuration has to describe.
+
+The Canonical Feature Model
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Every gazetteer, however heterogeneous its sources, is projected into a single model. A gazetteer is a set of **features**, and each feature has exactly five things:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 15 85
+
+   * - Field
+     - Meaning
+   * - ``identifier``
+     - A string that identifies the place within this gazetteer and never changes. It is what gets stored in annotations, so it must be stable across rebuilds and unique across the whole gazetteer.
+   * - ``names``
+     - Every string the place should be findable by: its main name, historical spellings, transliterations, names in other languages, abbreviations. Names are not ranked or labelled — they are a set of search keys.
+   * - ``geometry``
+     - One geometry (point, line, polygon, or a multi-part combination), in the gazetteer's coordinate reference system. It may be absent: a place that is known by name but not located is still a perfectly valid feature.
+   * - ``data``
+     - A free-form dictionary of attributes: type, hierarchy, population, dates, links, descriptions — whatever your source offers and your work needs. There is no fixed schema, and different sources within one gazetteer may store entirely different keys.
+   * - ``source``
+     - Which of the configuration's sources the feature came from. Set automatically; useful for telling apart features of different kinds in one gazetteer.
+
+The finished gazetteer is a single self-contained SQLite file (an *artifact*) holding those features plus the full-text and phonetic indexes used for searching. Nothing else is installed, and the artifact is never modified after the build.
+
+Writing a configuration is therefore an exercise in answering five questions about your data: what is one place, what identifies it, what is it called, where is it, and what else do I want to know about it.
+
+How the Build Runs
+~~~~~~~~~~~~~~~~~~
+
+Understanding the three stages the build reports makes its error messages much easier to place:
+
+1. **Preparing sources.** Each source file is downloaded or located on disk, extracted if it is a ZIP archive, and loaded into a table in a temporary analytical database (DuckDB). Errors here are about files and columns: a missing file, a column count that does not match, a value that will not convert to its declared type.
+2. **Compiling features.** For each ``features`` block, the declared identifier, names, geometry, and data are compiled into SQL over the block's source and its joins, and run. Errors here are about your expressions: an unknown column name, an invalid join clause, an identifier that collides with another block's.
+3. **Building artifact.** The projected rows are written to a temporary SQLite file, indexed, verified, compacted, and only then moved into place. A failed build leaves any previously installed artifact untouched.
+
+Source files and staging tables are discarded afterwards. Because the sources are re-read from scratch on every build, iterating on a configuration is safe: run it again and the previous artifact is replaced atomically.
+
+Worked Example: Ancient Places from Pleiades
+--------------------------------------------
+
+The rest of this section builds a working gazetteer of the ancient world from scratch, one concern at a time. Every intermediate step is a valid configuration that installs and can be queried, so you can follow along and check your results as you go.
+
+We will use two datasets that between them exercise nearly everything a configuration can do:
+
+- `Pleiades <https://pleiades.stoa.org/>`_, a community-built gazetteer of the ancient Mediterranean world, published as a ZIP archive of CSV exports from a relational database. It gives us places, their names in several scripts, and a controlled vocabulary of place types — spread over separate files that have to be joined back together.
+- A `map of Roman provinces <https://urbesetorbis.com/>`_ at the empire's greatest extent, published as a single GeoJSON file in Web Mercator. It gives us polygons to locate places in, and a second kind of place to put in the gazetteer.
+
+The finished configuration is shipped with the library as the built-in ``pleiades`` gazetteer, so you can compare your file against `pleiades.yaml <https://github.com/dguzh/geoparser/blob/main/geoparser/gazetteer/configs/pleiades.yaml>`_ at any point.
+
+.. note::
+
+   Every step below uses ``name: pleiades``, so each build replaces the previous step's artifact — which is what you want while iterating. If you already have the built-in ``pleiades`` gazetteer installed and want to keep it, change the ``name`` in your file and adjust the commands accordingly.
+
+Step 1: Read the Data First
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Do not start with the YAML file. Start by downloading the data and looking at it, because every decision in the configuration follows from what is actually in the files.
+
+.. code-block:: bash
+
+   curl -O https://atlantides.org/downloads/pleiades/gis/pleiades_gis_data.zip
+   unzip -l pleiades_gis_data.zip
+
+The archive is about 35 MB and expands to roughly 130 MB under ``data/gis/``: seventeen CSV exports plus a README describing them. Four of those exports are relevant to us, and a fifth file comes from the second dataset:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 28 12 60
+
+   * - File
+     - Rows
+     - What it contributes
+   * - ``places.csv``
+     - 42,242
+     - One row per place: title, description, a representative coordinate pair, a bounding box, and the Pleiades id
+   * - ``names.csv``
+     - 43,708
+     - One row per *name*, keyed to a place: the attested form in its original script plus up to three romanizations
+   * - ``places_place_types.csv``
+     - 52,511
+     - Which place-type keys apply to which place — more rows than places, because a place can have several types
+   * - ``place_types.csv``
+     - 233
+     - The place-type vocabulary: key, human-readable term, definition
+   * - ``empire2.geojson``
+     - 44
+     - (Separate download) One MultiPolygon per Roman province
+
+Look at the actual bytes of each file you intend to use, not just its documentation:
+
+.. code-block:: bash
+
+   head -2 data/gis/places.csv
+
+.. code-block:: text
+
+   created,description,details,provenance,title,uri,id,representative_latitude,representative_longitude,bounding_box_wkt,location_precision
+   2021-11-14T03:44:08Z,"An ancient region covering a large part of southwestern Europe, ...",<p>The Barrington Atlas Directory notes: FRA</p>,Barrington Atlas: BAtlas 1 D1 Gallia,Gallia,https://pleiades.stoa.org/places/993,993,46.360953305773286,1.6706144893053327,"POLYGON ((9.6708805 31.937048, ...))",rough
+
+Five things in those two lines already determine parts of the configuration:
+
+- There is a **header row**, which the loader does not skip on its own (``skip_rows: 1``).
+- Fields are **comma-separated** and **quoted**, and some quoted fields contain commas and even line breaks — so quoting must stay enabled (the default).
+- ``id`` is a stable numeric identifier, and it is the same number that appears in the ``uri``. That is our ``identifier``.
+- ``title`` is the display name, and ``representative_latitude``/``representative_longitude`` are our coordinates.
+- Coordinates are plain decimal degrees, so the source is in EPSG:4326 like the gazetteer, and no reprojection is needed.
+
+Two answers are not in this file at all: the alternate names live in ``names.csv`` and the place types in ``places_place_types.csv``. That is normal for data exported from a relational database, and joining those files back together is the bulk of the work below.
+
+It is also worth asking what *counts* as a place here. Pleiades includes regions, rivers, roads, and ethnic groups alongside settlements, and about 7,500 of its places have no coordinates at all because they are attested in texts but have never been located. We will keep all of them: an unlocated place is still worth finding by name.
+
+Step 2: Get One Source to Build
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Resist the temptation to write the whole configuration at once. Start with a single source, an identifier, and one name, confirm that it builds, and add one thing at a time. Debugging a small configuration that just broke is far easier than debugging a large one that has never worked.
+
+Save this as ``pleiades.yaml``:
+
+.. code-block:: yaml
+
+   name: pleiades
+
+   sources:
+     - name: places
+       url: https://atlantides.org/downloads/pleiades/gis/pleiades_gis_data.zip
+       file: places.csv
+       delimiter: ","
+       skip_rows: 1 # header row
+       attributes:
+         - name: "created"
+           type: text
+         - name: "description"
+           type: text
+         - name: "details"
+           type: text
+         - name: "provenance"
+           type: text
+         - name: "title"
+           type: text
+         - name: "uri"
+           type: text
+         - name: "id"
+           type: integer
+         - name: "representative_latitude"
+           type: real
+         - name: "representative_longitude"
+           type: real
+         - name: "bounding_box_wkt"
+           type: text
+         - name: "location_precision"
+           type: text
+
+   features:
+     - source: places
+       identifier: "id"
+       names:
+         - "title"
+
+Three things about the source declaration deserve attention, because they are where first attempts usually go wrong:
+
+- ``url`` points at the **archive**, and ``file`` names the file to take **out of** it. The archive is downloaded and unpacked automatically; you do not unpack it yourself, and you do not need to know where inside the archive the file sits. Later steps add more sources from the same archive, and it is downloaded only once per build.
+- Every column of a delimited file must be declared, **in file order**, whether or not you use it. Declaring fewer columns than the file has does not drop the extras — it makes the file unparseable. ``created``, ``details``, and ``provenance`` are declared here purely to account for their position.
+- Each column declares a ``type`` (``text``, ``integer``, ``real``, or ``geometry``). Choose ``text`` when unsure: an ``integer`` column that turns out to contain a non-numeric value anywhere in the file will abort the build.
+
+.. tip::
+
+   Downloads are not kept between builds, so every step below would fetch the 35 MB archive again. Since you already have it from step 1, point the sources at your local copy while you iterate — ``path: pleiades_gis_data.zip`` instead of the ``url:`` line, resolved relative to the configuration file — and switch back to ``url`` when you are done. Everything else works identically.
+
+Install it:
+
+.. code-block:: bash
+
+   python -m geoparser install pleiades.yaml
+
+.. code-block:: text
+
+   ─────────────────────────────────── pleiades ───────────────────────────────────
+
+   Prepared sources                          ━━━━━━━━━━━━━━━━━━━━━━━━━ 100% 0:00:08
+   Compiled features                         ━━━━━━━━━━━━━━━━━━━━━━━━━ 100% 0:00:01
+   Built artifact                            ━━━━━━━━━━━━━━━━━━━━━━━━━ 100% 0:00:01
+
+   Summary
+
+   Features  42,242
+   Names     42,242
+
+That is a real, queryable gazetteer:
+
+.. code-block:: python
+
+   from geoparser import Gazetteer
+
+   gazetteer = Gazetteer("pleiades")
+   feature = gazetteer.find("433032")
+
+   print(feature.names)     # ['Pompeii']
+   print(feature.data)      # {}
+   print(feature.geometry)  # None
+
+42,242 features and exactly one name each, which matches the row count of ``places.csv``. Getting the counts you expect at this stage is the single most useful check in the whole process: if the feature count is wrong now, the problem is in the source declaration, not in anything you add later.
+
+Step 3: Decide What Goes into ``data``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+``data`` is the feature's attribute dictionary, and you control it entirely. Each entry is written the way it would appear in a SQL ``SELECT`` list: a column name stores that column under its own name, and an optional trailing ``AS <alias>`` renames it.
+
+.. code-block:: yaml
+
+   features:
+     - source: places
+       identifier: "id"
+       names:
+         - "title"
+       data:
+         - "title"
+         - "location_precision"
+         - "description"
+         - "uri"
+
+.. code-block:: python
+
+   {
+     "title": "Pompeii",
+     "location_precision": "precise",
+     "description": "An ancient city of Campania destroyed by the volcanic eruption of Mt. Vesuvius in A.D. 79, ...",
+     "uri": "https://pleiades.stoa.org/places/433032"
+   }
+
+What to include is a judgement call, guided by who reads it. Attributes exist to help a human or a resolver tell two places with the same name apart, and to point back at the source record. Type, hierarchy, and dates do that; internal revision timestamps and provenance notes generally do not, and they make the artifact bigger for nothing. ``description`` is worth its size here because Pleiades' descriptions are genuinely informative, and ``uri`` is worth including in almost any gazetteer, because it lets anyone using your data get back to the original record.
+
+Step 4: Add Geometry
+~~~~~~~~~~~~~~~~~~~~
+
+A feature's geometry is a single value: either a geometry column of a spatial source, or an expression that constructs one. Here we build a point from the two coordinate columns:
+
+.. code-block:: yaml
+
+   features:
+     - source: places
+       identifier: "id"
+       geometry: "ST_Point(representative_longitude, representative_latitude)"
+       names:
+         - "title"
+       data:
+         - "title"
+         - "representative_latitude AS latitude"
+         - "representative_longitude AS longitude"
+         - "location_precision"
+         - "description"
+         - "uri"
+
+.. warning::
+
+   ``ST_Point`` takes **longitude first**, then latitude. Swapping them is the most common mistake in a gazetteer configuration, and it fails silently: the build succeeds, and the places end up mirrored across the globe. Check one place you know before moving on — Pompeii should be at roughly 14.49 E, 40.75 N, not 40.75 E, 14.49 N.
+
+The build now reports the same 42,242 features, of which 34,678 have a geometry. The remaining 7,564 are the unlocated places, whose coordinate columns are empty; their geometry is simply ``NULL`` and they remain fully searchable. Storing the raw coordinates in ``data`` as well is redundant with the geometry, but convenient for anything that reads attributes rather than geometry.
+
+.. code-block:: python
+
+   gazetteer = Gazetteer("pleiades")
+   feature = gazetteer.find("433032")
+
+   print(feature.geometry)  # POINT (14.485429 40.74941)
+   print(feature.crs)       # EPSG:4326
+
+Step 5: Add Names from a Second File
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+A gazetteer is only as good as its names, and so far each place has exactly one. The real names are in ``names.csv``, one row per name, each pointing at a place through ``place_id``:
+
+.. code-block:: text
+
+   place_id  title      language_tag  attested_form  romanized_form_1
+   433032    Pompeii    la                           Pompeii
+   433032    Pompeia    grc           Πομπηία        Pompeia
+   433032    Pompei     it            Pompei         Pompei
+   433032    Pompei     la            Pompei         Pompei
+   433032    Colonia …  la            Colonia …      Colonia …
+
+To reach them, the feature block *joins* that file. A join is written as a raw SQL join clause, appended to the block's source; the whole joined table becomes available, and you pick what you need from it afterwards. Declare ``names`` as a second source (again with all nineteen of its columns — abbreviated here), then join it:
+
+.. code-block:: yaml
+
+   sources:
+     - name: places
+       # ... as before ...
+
+     - name: names
+       url: https://atlantides.org/downloads/pleiades/gis/pleiades_gis_data.zip
+       file: names.csv
+       delimiter: ","
+       skip_rows: 1
+       attributes:
+         - name: "created"
+           type: text
+         # ... remaining columns in file order ...
+         - name: "place_id"
+           type: integer
+         - name: "attested_form"
+           type: text
+         - name: "romanized_form_1"
+           type: text
+         - name: "romanized_form_2"
+           type: text
+         - name: "romanized_form_3"
+           type: text
+         # ...
+
+   features:
+     - source: places
+       joins:
+         - "LEFT JOIN names n ON id = n.place_id"
+       identifier: "id"
+       geometry: "ST_Point(representative_longitude, representative_latitude)"
+       names:
+         - "title"
+         - "n.romanized_form_1"
+         - "n.romanized_form_2"
+         - "n.romanized_form_3"
+         - "n.attested_form"
+       data:
+         - "title"
+         # ... as before ...
+
+Two conventions make join clauses short. Give every joined table a **short alias** (``n`` here) and refer to its columns through it (``n.attested_form``). Columns of the block's *own* source are written **bare** (``id``, ``title``), everywhere in the block including inside the join condition — you never write a prefix for them. Use ``LEFT JOIN`` rather than ``JOIN`` unless you deliberately want to drop places that have no match: an inner join here would silently discard the 15,301 places that have no row in ``names.csv``.
+
+The name count rises from 42,242 to 77,923, and Pompeii now carries its Latin, Greek, and Italian names:
+
+.. code-block:: python
+
+   print(gazetteer.find("433032").names)
+   # ['Colonia Cornelia Veneria Pompeianorum', 'Pompei', 'Pompeia', 'Pompeii', 'Πομπηία']
+
+.. warning::
+
+   **A one-to-many join multiplies rows, and that changes what ``data`` means.** After this join, Pompeii is five rows rather than one. Names are collected across all of them, which is exactly what we want. Data values are not: each one is taken from the *first* row of the group, and among rows that a join fanned out, "first" is arbitrary. Reading ``n.language_tag`` into ``data`` would therefore store one unpredictable language per place. Use a one-to-many join to gather **names**; get **attributes** from the place's own columns or by aggregating explicitly, as in the next step.
+
+Step 6: Clean Up the Names
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Names are rarely usable exactly as stored, because source data mixes names with editorial notation. A quick look through Pleiades titles shows three patterns:
+
+.. code-block:: text
+
+   Visurgis (river)                     qualifier in parentheses (4,295 titles)
+   Sigoulones?                          uncertain identification (1,373 titles)
+   Bisutun/Bagistana/Vastan?/Baptana    alternative readings, slash-separated (2,226 titles)
+   [Kangavar]/Concobar                  reconstructed form in brackets (152 titles)
+
+No text mentioning the Weser will call it "Visurgis (river)", so a feature whose only name carries a qualifier is effectively unfindable. Each ``names`` entry may be any scalar SQL expression, which is how you fix this. Build the expression up in pieces rather than all at once — strip the notation, then split what remains on the slashes, and let ``unnest`` turn the resulting list into one name per element:
+
+.. code-block:: yaml
+
+   names:
+     - "title"
+     - >-
+       unnest(string_split(regexp_replace(title,
+       '\s*\([^)]*\)|\?|\[|\]', '', 'g'), '/'))
+     - "n.romanized_form_1"
+     # ...
+
+That single entry produces, for the four titles above, ``Visurgis``; ``Sigoulones``; ``Bisutun``, ``Bagistana``, ``Vastan``, ``Baptana``; and ``Kangavar``, ``Concobar``. The raw ``title`` is kept as a name too, so nothing is lost if the notation happens to be part of the real name. Duplicates and empty results are dropped automatically, so expressions like this are safe to be generous with.
+
+.. tip::
+
+   The ``>-`` is YAML's folded block scalar: it joins the following lines into one string. Long expressions become far easier to read that way, and — unlike a quoted string — backslashes need no doubling, so regular expressions can be written exactly as SQL sees them.
+
+The name count rises to 79,578. Whether an expression like this is worth writing depends on your data; the way to find out is to sort your name column and read a few hundred values, which takes ten minutes and tells you more than any amount of guessing.
+
+Step 7: Aggregate a Many-to-Many Relation
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Place types are the single most useful attribute for telling same-named places apart, and in Pleiades they sit behind two more files: ``places_place_types.csv`` maps places onto type keys, and ``place_types.csv`` translates those keys into readable terms. A place may have several types.
+
+The obvious approach is to join both files and read the term:
+
+.. code-block:: yaml
+
+   # Don't do this
+   joins:
+     - "LEFT JOIN names n ON id = n.place_id"
+     - "LEFT JOIN places_place_types x ON id = x.place_id"
+     - "LEFT JOIN place_types t ON x.place_type = t.key"
+   data:
+     - "t.term AS place_type"
+
+This builds, and it is wrong in the way the previous step warned about. Pompeii is both a ``settlement`` and an ``urban area``; the join fans it out and ``data`` keeps one of the two, unpredictably. It also demonstrates a **chained join** — the second clause joins to a table the first one brought in — which is the right pattern when the relation is many-to-*one* (a code and its label), just not here.
+
+What we want is all of a place's types in one value. Because ``data`` entries are arbitrary scalar expressions, a subquery can aggregate the relation without fanning out any rows:
+
+.. code-block:: yaml
+
+   data:
+     - "title"
+     - >-
+       (SELECT string_agg(DISTINCT label, ', ' ORDER BY label)
+       FROM (SELECT trim(regexp_replace(coalesce(t.term, x.place_type),
+       '\s*[,(].*$', '')) AS label
+       FROM places_place_types x
+       LEFT JOIN place_types t ON x.place_type = t.key
+       WHERE x.place_id = id))
+       AS place_types
+     # ... as before ...
+
+The subquery reads the bridge table for one place (``WHERE x.place_id = id``, where ``id`` is the current place's own column), looks each key up in the vocabulary, and joins the results into a single string. Note what the inner expression has to cope with, both of which you find only by looking at the data:
+
+- Vocabulary terms carry synonyms and remarks — ``fort, tower (deprecated)``, ``abbey (monastery)``, ``station (road or coastal)`` — so everything from the first comma or parenthesis onwards is cut, leaving ``fort``, ``abbey``, ``station``.
+- 1,904 rows of the bridge table reference keys that are missing from the vocabulary file entirely, so ``coalesce`` falls back to the raw key rather than storing nothing.
+
+``ORDER BY`` is not cosmetic: without it the aggregation order is unspecified, and rebuilding the same configuration would produce different strings for multi-type places. Pompeii now gets ``"settlement, urban area"``, stably.
+
+The two new sources are declared like any other, and note that neither is named in any ``features`` block. A source that only supports a join or an expression still has to be declared, and simply never backs features of its own:
+
+.. code-block:: yaml
+
+     - name: places_place_types
+       url: https://atlantides.org/downloads/pleiades/gis/pleiades_gis_data.zip
+       file: places_place_types.csv
+       delimiter: ","
+       skip_rows: 1
+       attributes:
+         - name: "place_id"
+           type: integer
+         - name: "place_type"
+           type: text
+
+     - name: place_types
+       url: https://atlantides.org/downloads/pleiades/gis/pleiades_gis_data.zip
+       file: place_types.csv
+       delimiter: ","
+       skip_rows: 1
+       attributes:
+         - name: "key"
+           type: text
+         - name: "term"
+           type: text
+         - name: "definition"
+           type: text
+         - name: "same_as"
+           type: text
+         - name: "uri"
+           type: text
+
+Step 8: Join a Spatial Source
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Pleiades has no administrative hierarchy — no "in Italy, in Campania" to disambiguate with. We can compute one instead: given polygons of the Roman provinces, a place's province is whichever polygon contains its point. This is a **spatial join**, and it is the main reason to bring a second dataset in.
+
+A **spatial source** is any file the build can read geometry from — Shapefile, GeoPackage, GeoJSON, and other GDAL-supported formats. It is distinguished from a tabular source by having no ``delimiter``, and it declares exactly one attribute of type ``geometry``, always named ``geometry``:
+
+.. code-block:: yaml
+
+     - name: provinces
+       url: https://urbesetorbis.com/downloads/empire2.geojson
+       file: empire2.geojson
+       crs: EPSG:3857
+       attributes:
+         - name: "fid"
+           type: integer
+         - name: "Title"
+           type: text
+         - name: "Government"
+           type: text
+         - name: "StartYear"
+           type: integer
+         - name: "geometry"
+           type: geometry
+
+Two differences from a tabular source matter. There is no ``skip_rows`` and no header question, since the format carries its own field names — which you can list with ``ogrinfo``, or by opening the file. And unlike a delimited file, a spatial source selects its fields **by name**, so it may declare a subset of them, in any order: this file also carries a ``color`` field, which is simply left out.
+
+The ``crs`` declaration is the important part. This file is in Web Mercator (EPSG:3857), not the degrees the gazetteer uses, and stating that lets the build reproject correctly. Now the join:
+
+.. code-block:: yaml
+
+   joins:
+     - "LEFT JOIN names n ON id = n.place_id"
+     - >-
+       LEFT JOIN provinces p
+       ON ST_Within(ST_Point(representative_longitude, representative_latitude),
+       ST_Transform(p.geometry, 'EPSG:3857', 'EPSG:4326', always_xy := true))
+   data:
+     # ...
+     - "p.Title AS province"
+     - "p.Government AS province_government"
+
+A spatial join reads exactly like an attribute join, except that the condition is a spatial predicate — ``ST_Within``, ``ST_Intersects``, ``ST_Contains``, and so on — instead of an equality. For lines and polygons, reduce one side to a representative point with ``ST_Centroid`` if the predicate needs it.
+
+.. warning::
+
+   **Joins are not reprojected for you.** A feature's own ``geometry`` is transformed into the gazetteer's CRS automatically, using the source's declared ``crs``; join conditions are raw SQL and are evaluated on the sources' native coordinates. Comparing degrees against metres does not raise an error — ``ST_Within`` just never matches, and every place ends up with no province. Dropping the ``ST_Transform`` from the clause above takes the number of places with a province from 26,887 to 0, with a completely successful build. Whenever a spatial join produces suspiciously few matches, check the coordinate systems on both sides first.
+
+With the transform in place, 26,887 of the 34,678 located places fall inside a province; the rest are outside the empire, or in it at a different date. Because ``provinces`` is a many-to-one relation, reading two of its columns into ``data`` is safe here.
+
+Step 9: Add a Second Kind of Place
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The provinces are places in their own right — ancient texts name them constantly — so they should be findable too. A configuration may have as many ``features`` blocks as it has sources, each with its own identifier scheme, geometry, names, and set of attributes. Add a second block over the source we just declared:
+
+.. code-block:: yaml
+
+   features:
+     - source: places
+       # ... the block from step 8 ...
+
+     - source: provinces
+       identifier: "'province:' || fid"
+       geometry: "geometry"
+       names:
+         - "Title"
+         - "unnest(string_split(Title, ' et '))"
+       data:
+         - "Title AS title"
+         - "'Roman province' AS place_types"
+         - "Government AS government"
+         - "StartYear AS start_year"
+
+Four things are worth pointing out in those ten lines:
+
+- **Identifiers must be unique across the whole gazetteer, not just within a block.** The provinces' own ``fid`` values are 1 to 44, which would collide with Pleiades place ids; the expression prefixes them, giving ``province:1`` and so on. If two blocks ever do produce the same identifier, the build fails and names the collision rather than silently merging two places.
+- ``geometry: "geometry"`` takes the polygon straight from the spatial source. It is reprojected from the declared EPSG:3857 to the gazetteer's EPSG:4326 automatically — this is the part that *is* handled for you.
+- Several provinces are administrative pairings, so ``unnest(string_split(Title, ' et '))`` makes ``Creta`` and ``Cyrenaica`` findable alongside ``Creta et Cyrenaica``.
+- ``'Roman province' AS place_types`` stores a constant. The two blocks store different attributes, as they should — but they deliberately agree on ``title`` and ``place_types``, so that anything reading the gazetteer finds those keys on every feature.
+
+Step 10: Use the Finished Gazetteer
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The complete configuration is `pleiades.yaml <https://github.com/dguzh/geoparser/blob/main/geoparser/gazetteer/configs/pleiades.yaml>`_. Installed, it takes well under a minute and 0.6 GB of working disk space, and produces an artifact of about 25 MB with 42,286 features and 79,634 names:
+
+.. code-block:: bash
+
+   python -m geoparser install pleiades.yaml
+   python -m geoparser list
+
+Check it from the outside before trusting it. Look up places you know, from both blocks, and confirm the names, attributes, and coordinates are what you expect:
+
+.. code-block:: python
+
+   from geoparser import Gazetteer
+
+   gazetteer = Gazetteer("pleiades")
+
+   for feature in gazetteer.search("Sicilia", method="exact"):
+       print(feature.source, feature.identifier, feature.data["title"],
+             "|", feature.data["place_types"], "|", feature.geometry.geom_type)
+
+.. code-block:: text
+
+   places    462492      Sicilia (island)          | island         | Point
+   places    981549      Sicilia (Roman province)  | province       | Point
+   provinces province:1  Sicilia                   | Roman province | MultiPolygon
+
+Then point a resolver at it. A resolver describes each candidate place in words before comparing it against the text, so it needs to know which of *your* attribute keys carry the name, the type, and the enclosing places. That mapping is the ``attribute_map``:
+
+.. code-block:: python
+
+   from geoparser import Geoparser
+   from geoparser.modules import SentenceTransformerResolver, SpacyRecognizer
+
+   resolver = SentenceTransformerResolver(
+       gazetteer_name="pleiades",
+       attribute_map={
+           "name": "title",
+           "type": "place_types",
+           "level1": "province",
+       },
+   )
+   geoparser = Geoparser(recognizer=SpacyRecognizer(), resolver=resolver)
+
+``name`` and ``type`` must both be present; add as many of ``level1`` to ``level3`` as your data supports, where ``level1`` is the outermost enclosing place and ``level3`` the innermost. Pleiades has only one such level, the province. With the map above, a candidate is described as ``Pompeii (settlement, urban area) in Italia``, which is what gets compared against the surrounding text. The built-in ``pleiades`` gazetteer already ships with this mapping, so the ``attribute_map`` argument is only needed for gazetteers of your own.
+
+Step 11: Expect to Retune the Modules
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+A finished gazetteer is not the end of the work, because the default recognizer and resolver were not chosen with your data in mind. Two mismatches show up immediately with a gazetteer as far from the defaults as this one:
+
+- **The recognizer may not find your placenames.** The default spaCy model was trained on contemporary news text, and in *"Pliny describes the eruption that buried Pompeii and Herculaneum in Campania"* it labels ``Campania`` as a place but misses ``Pompeii`` and ``Herculaneum`` entirely. What the gazetteer contains is irrelevant if nothing is recognized to look up. Try a larger spaCy model, a model trained on your domain, or supply the spans yourself with a manual recognizer.
+- **The resolver's threshold may be tuned for other data.** The default embedding model is fine-tuned on GeoNames-style descriptions, so descriptions like ``Campania (region) in Italia`` sit lower on its similarity scale than the default ``min_similarity`` of 0.6 expects: the correct candidate scores 0.55 and is rejected, after which the resolver widens its search and settles on a worse one. Lowering the threshold to 0.45 resolves ``Campania`` correctly.
+
+Neither is a fault in the configuration, and neither is visible from the build output — which is why it is worth resolving a handful of names you know the answer to, and inspecting the candidates and their scores when one comes out wrong. :doc:`modules` covers the parameters, and :doc:`training` covers fine-tuning a resolver on your own gazetteer, which is the real fix when the vocabulary is this far from the default model's.
+
+At this point you have followed every mechanism the configuration format offers: tabular and spatial sources, archives and plain files, attribute joins, chained joins, one-to-many joins, spatial joins with reprojection, derived names, aggregated attributes, multiple feature blocks, and namespaced identifiers. The reference below fills in the details, and the last section covers what tends to go wrong.
+
+Configuration Reference
+-----------------------
+
+A configuration has two top-level lists. ``sources`` declares the files to read and what is in them. ``features`` declares how the rows of a source become places. Sources are transient — they are staged for the build and discarded — so the ``features`` blocks are what actually shapes the gazetteer.
+
+Top-Level Keys
+~~~~~~~~~~~~~~
+
+.. list-table::
+   :header-rows: 1
+   :widths: 12 88
+
+   * - Key
+     - Meaning
+   * - ``name``
+     - The gazetteer's name, used to install, query, and uninstall it. Letters, digits, underscores, and hyphens. Installing a configuration replaces any artifact of the same name.
+   * - ``crs``
+     - Coordinate reference system all geometries are stored in. Defaults to ``EPSG:4326``. Sources in other systems are reprojected into it at build time.
+   * - ``disk``
+     - Optional. Free bytes required on the gazetteers volume, checked before the build starts. The built-in configurations declare a measured value; for your own, leave it out until you know what a build costs.
+   * - ``sources``
+     - List of source declarations. At least one.
+   * - ``features``
+     - List of feature blocks. At least one.
+
+Sources
+~~~~~~~
+
+A source is one file to read. It is **tabular** if it declares a ``delimiter``, and **spatial** otherwise.
+
+.. list-table::
+   :header-rows: 1
+   :widths: 14 86
+
+   * - Key
+     - Meaning
+   * - ``name``
+     - Identifies the source within the configuration, and is the name used to join it. Must be a valid SQL identifier: letters, digits, and underscores, not starting with a digit.
+   * - ``url``
+     - Where to download the file from. Exactly one of ``url`` or ``path`` is required. Several sources may name the same URL, in which case it is downloaded once per build; the downloads are discarded when the build finishes.
+   * - ``path``
+     - A local file or directory instead of a download. Relative paths resolve against the configuration file's own directory, so a configuration and its data can be moved together.
+   * - ``file``
+     - The file to actually read. When ``url`` or ``path`` points at a ZIP archive or a directory, it is searched recursively for a file of this name; otherwise it must match the file's own name.
+   * - ``delimiter``
+     - Field separator of a delimited text file (``","``, ``"\t"``, ``"|"``). Its presence is what makes a source tabular.
+   * - ``quote``
+     - Quote character for tabular sources, ``"`` by default. Set it to ``""`` to disable quote handling entirely, which is what raw tab-separated exports need — GeoNames files contain unbalanced quote characters inside ordinary values.
+   * - ``skip_rows``
+     - Leading lines of a tabular file to discard: ``1`` for a header row, more for licence preambles. Nothing is skipped by default, and a header row that is not skipped becomes a feature.
+   * - ``crs``
+     - Coordinate reference system of this source's geometry or coordinates, when it differs from the gazetteer's ``crs``. Only affects a feature's own ``geometry``; see the note on joins below.
+   * - ``attributes``
+     - The source's columns, each with a ``name`` and a ``type``.
+
+Attribute types are ``text``, ``integer``, ``real``, and ``geometry``. Two rules differ between the two kinds of source:
+
+- A **tabular** source must declare **every** column, in file order, and may not declare a ``geometry`` attribute. The declaration is the file's schema, so a mismatch in count makes the file unparseable rather than dropping columns.
+- A **spatial** source may declare any **subset** of the file's fields, in any order, and must declare exactly **one** attribute of type ``geometry``, named ``geometry``.
+
+Several sources may point at the same ``url`` with different ``file`` values, which is how a multi-file archive is used; it is downloaded once.
+
+Feature Blocks
+~~~~~~~~~~~~~~
+
+Each block turns the rows of one source into features. A source backs at most one block, and the block's ``source`` name is what appears as ``feature.source`` in the artifact.
+
+.. list-table::
+   :header-rows: 1
+   :widths: 14 86
+
+   * - Key
+     - Meaning
+   * - ``source``
+     - The source whose rows this block projects.
+   * - ``joins``
+     - Optional list of raw SQL join clauses that widen those rows with columns from other sources.
+   * - ``identifier``
+     - The feature's stable identifier. Must read only the block's own source. Rows where it evaluates to ``NULL`` are skipped.
+   * - ``geometry``
+     - Optional. The feature's geometry, as a geometry column or an expression building one. Must read only the block's own source.
+   * - ``names``
+     - One or more names, each a column or expression. At least one is required.
+   * - ``data``
+     - Optional attributes, each written as it would appear in a SQL ``SELECT`` list.
+
+Blocks are written in reading order — source, joins, then everything derived from them.
+
+Values and Expressions
+~~~~~~~~~~~~~~~~~~~~~~
+
+``identifier``, ``geometry``, every ``names`` entry, and every ``data`` entry is either a column reference or a scalar SQL expression, and one rule covers all of them: **a bare name is a column of the block's own source; a column of a joined source is written ``<alias>.<column>``.** The same rule applies inside join conditions, so nothing in a block ever needs a prefix for its own columns.
+
+Expressions are evaluated by DuckDB, so its `scalar function library <https://duckdb.org/docs/stable/sql/functions/overview>`_ is available: string manipulation, ``CASE``, arithmetic, regular expressions, ``ST_`` spatial constructors, and subqueries over any declared source. Some patterns that come up repeatedly:
+
+.. code-block:: yaml
+
+   # Names
+   - "name"                                              # a column
+   - "unnest(string_split(alternatenames, ','))"         # one name per value of a multi-value column
+   - "regexp_replace(name, '\\s*\\(.*\\)', '')"          # strip a parenthesised qualifier
+   - "n.attested_form"                                   # a column of a joined source
+
+   # Geometry
+   - "geometry"                                          # a spatial source's geometry column
+   - "ST_Point(longitude, latitude)"                     # built from coordinate columns (longitude first)
+   - "ST_GeomFromText(geometry_wkt)"                     # parsed from a WKT text column
+
+   # Data
+   - "population"                                        # stored under its own name
+   - "c.Country AS country_name"                         # a joined column, renamed
+   - "upper(name) AS name_upper"                         # an expression (alias required)
+   - "'Roman province' AS place_types"                   # a constant
+
+A ``data`` entry that is a plain column reference may omit the alias, in which case the column's own name is the key; anything else has no name of its own and must be given one. Two entries may not store the same key.
+
+A name expression may return a list, in which case each element becomes its own name — that is what ``unnest`` is for. Names that come out ``NULL``, empty, or whitespace are dropped, and duplicates are collapsed, so name expressions can be written generously.
+
+Joins
+~~~~~
+
+A join is a raw SQL join clause appended to the block's source. The whole joined table becomes available; there is no separate list of columns to import, you simply reference what you need in ``data``.
+
+.. code-block:: yaml
+
+   joins:
+     # Attribute join: match on equal values
+     - "LEFT JOIN countryInfo c ON country_code = c.ISO"
+     # Match on an expression
+     - "LEFT JOIN admin1CodesASCII a1 ON country_code || '.' || admin1_code = a1.code"
+     # Chained join: reference a table joined earlier
+     - "LEFT JOIN admin2Codes a2 ON a1.code || '.' || admin2_code = a2.code"
+     # Spatial join
+     - "LEFT JOIN municipalities g ON ST_Within(ST_Centroid(geometry), g.geometry)"
+
+Joins are applied in order, so a later clause may reference any table an earlier one brought in; that is how multi-level hierarchies (place → municipality → district → canton) are expressed. Prefer ``LEFT JOIN``: an inner join drops the rows that have no match, which quietly removes places from your gazetteer.
+
+Two properties of joins cause most of the surprises:
+
+- **Cardinality changes what ``data`` means.** A many-to-one join is safe. A one-to-many join multiplies the rows of a place, and while ``names`` are collected across all of them, each ``data`` value is taken from the first row of the group — arbitrary among rows produced by a fan-out. Gather names with a one-to-many join; aggregate attributes with a subquery instead.
+- **Coordinates are not converted.** Join conditions run on the sources' native coordinate systems, so a spatial join between sources in different systems needs an explicit ``ST_Transform`` and produces no matches without one. A feature's own ``geometry`` is reprojected independently, from its source's declared ``crs``.
+
+Duplicate Identifiers
+~~~~~~~~~~~~~~~~~~~~~
+
+Within one block, rows that share an identifier are **merged into a single feature**: all their names are collected, their geometries are unioned into one possibly multi-part geometry, and each data value is taken from the first row. This is automatic, and it is how datasets that spread a place over several records — multi-part geometries, one row per name — end up as one place.
+
+.. code-block:: text
+
+   p1  North Summit  800     →  one feature "p1", names {North Summit, South Summit},
+   p1  South Summit  1200       height 800, geometry MultiPoint of both rows
+   p2  Lone Hill     300      →  one feature "p2"
+
+Across blocks it is an error instead: identifiers must be unique in the whole gazetteer, and a collision fails the build with the offending identifier and the blocks it came from. Namespace them with an expression (``"'province:' || fid"``) or merge the blocks.
+
+What the Format Does Not Do
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Knowing the limits saves time looking for keys that do not exist:
+
+- **There is no row filter.** A block has no ``where``. To exclude rows, make the ``identifier`` evaluate to ``NULL`` for them, since rows without an identifier are skipped: ``identifier: "CASE WHEN feature_class <> 'X' THEN id END"``. To filter *joined* rows, add the condition to the join instead: ``"LEFT JOIN names n ON id = n.place_id AND n.association_certainty = 'certain'"``.
+- **``identifier`` and ``geometry`` must come from the block's own source.** Only ``names`` and ``data`` can read joined columns. A qualified reference in either is rejected at the start of the build with an explicit message.
+- **One block per source.** To project one file into two kinds of feature, declare it twice under different source names.
+- **No user code.** Transformations are limited to SQL expressions evaluated during the build. Anything that needs real preprocessing has to happen before the build, on a file you then reference with ``path``.
+- **Names are unordered and unlabelled.** There is no notion of a preferred name or a name's language in the search index. Store that in ``data`` if you need it.
+
+Installing and Iterating
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. code-block:: bash
+
+   python -m geoparser install path/to/my_gazetteer.yaml
+   python -m geoparser list
+   python -m geoparser uninstall my_gazetteer
+
+The build validates the configuration, acquires the files, runs the projections, and writes the artifact. If anything is wrong, it stops with a message and nothing is installed; a successful build atomically replaces any previous artifact of the same name, so iterating on a configuration is safe.
+
+Downloaded files are discarded once the build finishes, which means every rebuild fetches them again. While you are still changing a configuration, download the files once by hand and point the sources at them with ``path`` instead of ``url``; each iteration then costs only the processing time.
+
+.. note::
+
+   Building a gazetteer with geometries needs DuckDB's spatial extension, which is fetched automatically the first time. To build offline, run one spatial build while connected first so the extension is cached.
+
+Troubleshooting
+---------------
+
+The failures below are the ones that actually come up, roughly in the order you meet them.
+
+**The build reports a CSV sniffing error, or complains that the number of columns does not match.**
+A tabular source must declare every column in the file, in order. Count the fields in the first data line and compare. The message mentions the number of columns you declared, which is the useful part of it.
+
+**A column will not convert to its declared type.**
+The message names the line and the offending value (``Could not convert string "notanumber" to 'BIGINT'``). Some rows of that column are not numeric — a footnote, a range, a placeholder for missing data. Declare it as ``text``; you can always convert inside an expression where it matters.
+
+**Every place is a duplicate of the header row, or the first place looks like column names.**
+``skip_rows`` is missing. Set it to the number of leading lines that are not data.
+
+**Values are shifted by one column, or a value contains an unexpected quote character.**
+The quoting convention does not match. Raw tab-separated exports frequently contain lone ``"`` characters inside values, which the default quote handling misreads; set ``quote: ""`` to disable it.
+
+**A file inside an archive is not found.**
+``file`` must be the file's own name, not its path within the archive — the archive is searched recursively. Check the exact spelling with ``unzip -l``.
+
+**Feature ``x`` : name references unknown column ``y``.**
+A bare name has to be a column of the block's own source. The message lists the available columns, so this is usually a typo or a column that belongs to a joined source and needs its alias.
+
+**Binder Error: Referenced table "n" not found.**
+An alias is used in ``names`` or ``data`` that no join clause introduces — a missing join, or a mismatch between the alias in the clause and the alias in the reference.
+
+**Feature ``x`` : geometry reads from ``y``.**
+``identifier`` and ``geometry`` may only read the block's own source. Either put the joined value in ``data``, or build the features from the other source instead.
+
+**Identifiers must be unique across the whole gazetteer.**
+Two blocks produced the same identifier. Prefix one of them (``"'province:' || fid"``), or merge the blocks if they really describe the same places.
+
+**The build produced no features.**
+Every row's identifier evaluated to ``NULL``, or a source loaded no rows. Check ``skip_rows`` and the identifier expression, and confirm the file has data.
+
+**The build succeeds, but a joined attribute is ``NULL`` everywhere.**
+The join condition never matches. Compare a few values from both sides directly: keys often differ in case, padding, or a prefix (GeoNames admin codes need the country code prepended, for instance). For a *spatial* join, check the coordinate systems first — mismatched systems produce zero matches and no error.
+
+**The build succeeds, but a joined attribute is unpredictable.**
+The join is one-to-many, so ``data`` keeps one arbitrary row's value. Aggregate with a subquery instead, as in step 7 of the walkthrough.
+
+**Places are in the wrong hemisphere, or in the sea off Africa.**
+The coordinate arguments are swapped: ``ST_Point`` takes longitude first. Coordinates near (0, 0) usually mean empty values being read as zeros rather than ``NULL``.
+
+**Searching a name that is definitely in the source finds nothing.**
+Check what was actually stored: ``Gazetteer("...").find(identifier).names``. The name may still carry editorial notation from the source, may live in a file that is not joined yet, or may be in a column not listed under ``names``.
+
+**The resolver raises an error about the gazetteer not being configured.**
+Custom gazetteers need an ``attribute_map`` telling the resolver which of your ``data`` keys hold the name, type, and enclosing places. See step 10.
+
+**The gazetteer is right, but resolution is poor.**
+Check the recognizer first — a name that is never recognized is never looked up. Then check whether the correct candidate is being found but rejected, by scoring it yourself against the text; if it is, the default ``min_similarity`` is too strict for your data. See step 11.
+
+**The install fails with a disk space error.**
+Either free up the space the ``disk`` declaration asks for, or — if you are writing your own configuration and the figure is a guess — remove ``disk`` and let the build run without the preflight check.
+
+Next Steps
+----------
+
+- :doc:`gazetteers` — querying gazetteers and working with features
+- :doc:`modules` — how resolvers use gazetteer attributes
+- :doc:`training` — fine-tuning a resolver for your gazetteer
+
+The built-in configurations are worth reading as further examples: `geonames.yaml <https://github.com/dguzh/geoparser/blob/main/geoparser/gazetteer/configs/geonames.yaml>`_ (a large tabular dataset with four lookup joins), `geonames-cities.yaml <https://github.com/dguzh/geoparser/blob/main/geoparser/gazetteer/configs/geonames-cities.yaml>`_ (four feature blocks over overlapping sources), `swissnames3d.yaml <https://github.com/dguzh/geoparser/blob/main/geoparser/gazetteer/configs/swissnames3d.yaml>`_ (six spatial sources, chained spatial joins, multi-part geometry merging), and `pleiades.yaml <https://github.com/dguzh/geoparser/blob/main/geoparser/gazetteer/configs/pleiades.yaml>`_ (the configuration built above).

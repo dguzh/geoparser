@@ -15,6 +15,7 @@ from geoparser.gazetteer.build.schema import GazetteerConfig
 from geoparser.gazetteer.build.stages.compile import (
     CompileError,
     ProjectionCompiler,
+    qualifiers,
     qualify_expression,
 )
 
@@ -209,6 +210,68 @@ class TestBasicProjection:
 
         with pytest.raises(CompileError, match="unknown column 'nonexistent'"):
             compiler.name_queries(config.features[0])
+
+
+@pytest.mark.unit
+class TestOwnSourceReferences:
+    """Test that identifier and geometry may only read the block's own source."""
+
+    def config_data(self, **feature_overrides) -> dict:
+        feature = {
+            "source": "places",
+            "joins": ["LEFT JOIN regions r ON region_code = r.code"],
+            "identifier": "id",
+            "names": ["name"],
+        }
+        feature.update(feature_overrides)
+        return {
+            "name": "testgaz",
+            "sources": [
+                tabular(
+                    "places",
+                    ("id", "integer"),
+                    ("name", "text"),
+                    ("region_code", "text"),
+                    ("lon", "real"),
+                    ("lat", "real"),
+                ),
+                spatial("regions", ("code", "text"), ("geometry", "geometry")),
+            ],
+            "features": [feature],
+        }
+
+    def test_geometry_from_joined_source_is_rejected(self):
+        """A geometry read from a joined source names the offending source."""
+        config, compiler = build_compiler(self.config_data(geometry="r.geometry"))
+
+        with pytest.raises(CompileError, match="geometry reads from 'r'"):
+            compiler.feature_query(config.features[0])
+
+    def test_identifier_from_joined_source_is_rejected(self):
+        """An identifier read from a joined source is rejected too."""
+        config, compiler = build_compiler(self.config_data(identifier="r.code"))
+
+        with pytest.raises(CompileError, match="identifier reads from 'r'"):
+            compiler.feature_query(config.features[0])
+
+    def test_expression_over_own_columns_is_accepted(self):
+        """Expressions over the block's own columns compile as before."""
+        config, compiler = build_compiler(
+            self.config_data(
+                identifier="'place:' || id", geometry="ST_Point(lon, lat)"
+            )
+        )
+
+        query = compiler.feature_query(config.features[0])
+
+        assert 'src."id"' in query
+        assert 'src."lon"' in query
+
+    def test_joined_source_in_data_is_accepted(self):
+        """The restriction applies to identifier and geometry only."""
+        config, compiler = build_compiler(self.config_data(data=["r.code AS region"]))
+
+        assert "r.code" in compiler.feature_query(config.features[0])
 
 
 @pytest.mark.unit
@@ -743,3 +806,23 @@ class TestQualifyExpression:
         result = qualify_expression("something_else", {"code": 'src."code"'})
 
         assert result == "something_else"
+
+
+@pytest.mark.unit
+class TestQualifiers:
+    """Test detection of the tables an expression reads columns from."""
+
+    def test_finds_qualified_references(self):
+        assert qualifiers("a.code || b.name") == {"a", "b"}
+
+    def test_ignores_bare_and_final_components(self):
+        assert qualifiers("code || upper(name)") == set()
+
+    def test_ignores_string_literals(self):
+        assert qualifiers("code || 'a.b'") == set()
+
+    def test_ignores_decimal_numbers(self):
+        assert qualifiers("ST_Point(lon + 0.5, lat)") == set()
+
+    def test_unquotes_quoted_qualifiers(self):
+        assert qualifiers('"my source"."my column"') == {"my source"}

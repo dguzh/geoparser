@@ -1,0 +1,202 @@
+name: pleiades
+crs: EPSG:4326
+disk: 600000000 # 0.6 GB
+
+sources:
+  # The Pleiades GIS dump is a set of CSV exports of one relational database,
+  # so several sources point at the same archive and pick a different file out
+  # of it. The archive is downloaded once and reused.
+  - name: places
+    url: https://atlantides.org/downloads/pleiades/gis/pleiades_gis_data.zip
+    file: places.csv
+    delimiter: ","
+    skip_rows: 1 # header row
+    attributes:
+      - name: "created"
+        type: text
+      - name: "description"
+        type: text
+      - name: "details"
+        type: text
+      - name: "provenance"
+        type: text
+      - name: "title"
+        type: text
+      - name: "uri"
+        type: text
+      - name: "id"
+        type: integer
+      - name: "representative_latitude"
+        type: real
+      - name: "representative_longitude"
+        type: real
+      - name: "bounding_box_wkt"
+        type: text
+      - name: "location_precision"
+        type: text
+
+  # One row per name, in the original script and in up to three
+  # romanizations, keyed to the place it belongs to.
+  - name: names
+    url: https://atlantides.org/downloads/pleiades/gis/pleiades_gis_data.zip
+    file: names.csv
+    delimiter: ","
+    skip_rows: 1
+    attributes:
+      - name: "created"
+        type: text
+      - name: "description"
+        type: text
+      - name: "details"
+        type: text
+      - name: "provenance"
+        type: text
+      - name: "title"
+        type: text
+      - name: "uri"
+        type: text
+      - name: "id"
+        type: text
+      - name: "place_id"
+        type: integer
+      - name: "name_type"
+        type: text
+      - name: "language_tag"
+        type: text
+      - name: "attested_form"
+        type: text
+      - name: "romanized_form_1"
+        type: text
+      - name: "romanized_form_2"
+        type: text
+      - name: "romanized_form_3"
+        type: text
+      - name: "association_certainty"
+        type: text
+      - name: "transcription_accuracy"
+        type: text
+      - name: "transcription_completeness"
+        type: text
+      - name: "year_after_which"
+        type: integer
+      - name: "year_before_which"
+        type: integer
+
+  # A place can carry several place types, so they live in a bridge table
+  # mapping place ids onto keys of the place-type vocabulary below.
+  - name: places_place_types
+    url: https://atlantides.org/downloads/pleiades/gis/pleiades_gis_data.zip
+    file: places_place_types.csv
+    delimiter: ","
+    skip_rows: 1
+    attributes:
+      - name: "place_id"
+        type: integer
+      - name: "place_type"
+        type: text
+
+  - name: place_types
+    url: https://atlantides.org/downloads/pleiades/gis/pleiades_gis_data.zip
+    file: place_types.csv
+    delimiter: ","
+    skip_rows: 1
+    attributes:
+      - name: "key"
+        type: text
+      - name: "term"
+        type: text
+      - name: "definition"
+        type: text
+      - name: "same_as"
+        type: text
+      - name: "uri"
+        type: text
+
+  # Provinces of the Roman empire at its greatest extent, as a GeoJSON file in
+  # Web Mercator. Spatial sources may declare a subset of the file's fields.
+  - name: provinces
+    url: https://urbesetorbis.com/downloads/empire2.geojson
+    file: empire2.geojson
+    crs: EPSG:3857
+    attributes:
+      - name: "fid"
+        type: integer
+      - name: "Title"
+        type: text
+      - name: "Government"
+        type: text
+      - name: "StartYear"
+        type: integer
+      - name: "geometry"
+        type: geometry
+
+features:
+  - source: places
+    joins:
+      # One row per name, so this fans out into several rows per place. That is
+      # what makes the alternate names below reachable; data values must not be
+      # read from this side, because "the first row" is arbitrary among them.
+      - "LEFT JOIN names n ON id = n.place_id"
+      # Both sides of a spatial join must share a coordinate system, and the
+      # province polygons are in Web Mercator, so they are transformed here.
+      - >-
+        LEFT JOIN provinces p
+        ON ST_Within(ST_Point(representative_longitude, representative_latitude),
+        ST_Transform(p.geometry, 'EPSG:3857', 'EPSG:4326', always_xy := true))
+    identifier: "id"
+    # Places that are known only by name have no coordinates; their geometry
+    # ends up NULL and they stay searchable.
+    geometry: "ST_Point(representative_longitude, representative_latitude)"
+    names:
+      - "title"
+      # Titles carry editorial notation: a parenthesised or bracketed qualifier
+      # ("Visurgis (river)"), a question mark for an uncertain identification
+      # ("Sigoulones?"), and slashes between alternative readings
+      # ("Bisutun/Bagistana/Vastan?/Baptana"). Strip the notation, then split on
+      # the slashes so that each reading becomes a name of its own.
+      - >-
+        unnest(string_split(regexp_replace(title,
+        '\s*\([^)]*\)|\?|\[|\]', '', 'g'), '/'))
+      - "n.romanized_form_1"
+      - "n.romanized_form_2"
+      - "n.romanized_form_3"
+      # Ancient names as attested, in their original script
+      - "n.attested_form"
+    data:
+      - "title"
+      # Reaching the place types through a join would fan out the rows and leave
+      # one arbitrary type per place, so they are aggregated in a subquery
+      # instead. Vocabulary terms list synonyms and parenthesised remarks
+      # ("fort, tower (deprecated)"), of which only the first is kept; keys
+      # missing from the vocabulary fall back to the key itself.
+      - >-
+        (SELECT string_agg(DISTINCT label, ', ' ORDER BY label)
+        FROM (SELECT trim(regexp_replace(coalesce(t.term, x.place_type),
+        '\s*[,(].*$', '')) AS label
+        FROM places_place_types x
+        LEFT JOIN place_types t ON x.place_type = t.key
+        WHERE x.place_id = id))
+        AS place_types
+      - "p.Title AS province"
+      - "p.Government AS province_government"
+      - "representative_latitude AS latitude"
+      - "representative_longitude AS longitude"
+      - "location_precision"
+      - "description"
+      - "uri"
+
+  - source: provinces
+    # Pleiades place ids are plain numbers, so province ids are prefixed to keep
+    # identifiers unique across the whole gazetteer.
+    identifier: "'province:' || fid"
+    geometry: "geometry"
+    names:
+      - "Title"
+      # Several provinces are administrative pairings ("Creta et Cyrenaica"),
+      # whose halves are used as names in their own right.
+      - "unnest(string_split(Title, ' et '))"
+    data:
+      - "Title AS title"
+      - "'Roman province' AS place_types"
+      - "Government AS government"
+      - "StartYear AS start_year"
