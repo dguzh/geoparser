@@ -228,7 +228,10 @@ class TestResolutionServiceIntegration:
 
         referents = ReferentRepository.get_by_reference(test_session, reference.id)
         assert len(referents) == 1
-        assert referents[0].feature_id is not None
+        assert referents[0].gazetteer_name == "andorranames"
+        assert referents[0].feature_identifier == "3041563"
+        assert referents[0].feature is not None
+        assert referents[0].feature.identifier == "3041563"
 
     def test_transactions_are_committed(
         self,

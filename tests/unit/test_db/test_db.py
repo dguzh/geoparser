@@ -84,6 +84,20 @@ class TestPatchDbFixture:
             table_name = result.scalar()
             assert table_name == "project"
 
+    def test_redirects_get_connection(self, test_session):
+        """Test that get_connection() uses test database."""
+        from geoparser.db.db import get_connection
+
+        # get_connection() should use the test database
+        with get_connection() as connection:
+            result = connection.execute(
+                text(
+                    "SELECT name FROM sqlite_master WHERE type='table' AND name='project'"
+                )
+            )
+            table_name = result.scalar()
+            assert table_name == "project"
+
 
 @pytest.mark.unit
 class TestDatabaseCompatibilityCheck:
@@ -99,8 +113,8 @@ class TestDatabaseCompatibilityCheck:
             connect_args={"check_same_thread": False},
         )
 
-    def test_raises_for_legacy_database(self):
-        """A database with `name` but no `name_soundex` is rejected clearly."""
+    def test_raises_for_legacy_gazetteer_tables(self):
+        """A database holding old gazetteer tables is rejected clearly."""
         from unittest.mock import patch
 
         import geoparser.db.db as db
@@ -108,7 +122,27 @@ class TestDatabaseCompatibilityCheck:
         legacy_engine = self._make_engine()
         with legacy_engine.connect() as connection:
             connection.execute(
-                text("CREATE TABLE name (id INTEGER PRIMARY KEY, text TEXT)")
+                text("CREATE TABLE gazetteer (id INTEGER PRIMARY KEY, name TEXT)")
+            )
+            connection.commit()
+
+        with patch.object(db, "engine", legacy_engine):
+            with pytest.raises(RuntimeError):
+                db.create_db_and_tables()
+
+    def test_raises_for_legacy_referent_layout(self):
+        """A referent table without feature_identifier is rejected clearly."""
+        from unittest.mock import patch
+
+        import geoparser.db.db as db
+
+        legacy_engine = self._make_engine()
+        with legacy_engine.connect() as connection:
+            connection.execute(
+                text(
+                    "CREATE TABLE referent "
+                    "(id INTEGER PRIMARY KEY, feature_id INTEGER)"
+                )
             )
             connection.commit()
 
@@ -130,17 +164,17 @@ class TestDatabaseCompatibilityCheck:
             result = connection.execute(
                 text(
                     "SELECT 1 FROM sqlite_master "
-                    "WHERE type='table' AND name='name_soundex'"
+                    "WHERE type='table' AND name='referent'"
                 )
             )
             assert result.first() is not None
 
     def test_allows_current_database(self):
-        """A current database (name + name_soundex present) is accepted."""
+        """A current database layout is accepted."""
         import geoparser.db.db as db
 
         # The autouse patch_db fixture points db.engine at the test engine,
-        # which already has both `name` and `name_soundex` from create_all().
+        # which already has the current tables from create_all().
         db.create_db_and_tables()
 
 
@@ -148,15 +182,10 @@ class TestDatabaseCompatibilityCheck:
 class TestSetSqlitePragma:
     """Test the _set_sqlite_pragma event listener."""
 
-    def test_registers_soundex_function(self, test_session):
-        """Test that the soundex function is registered on connections."""
-        result = test_session.exec(text("SELECT soundex('Andorra')"))
-        assert result.scalar() == "A536"
-
-    def test_registers_levenshtein_function(self, test_session):
-        """Test that the levenshtein function is registered on connections."""
-        result = test_session.exec(text("SELECT levenshtein('Paris', 'Paris')"))
-        assert result.scalar() == 0
+    def test_enables_foreign_keys_on_connect(self, test_session):
+        """Test that foreign key enforcement is switched on for connections."""
+        result = test_session.exec(text("PRAGMA foreign_keys"))
+        assert result.scalar() == 1
 
     def test_skips_non_sqlite_connections(self):
         """Test that non-SQLite connections are left unmodified."""
@@ -171,64 +200,3 @@ class TestSetSqlitePragma:
 
         # Assert
         connection.cursor.assert_not_called()
-        connection.create_function.assert_not_called()
-
-
-@pytest.mark.unit
-class TestOptimizedWrites:
-    """Test the optimized_writes context manager and its PRAGMAs."""
-
-    def test_enables_and_resets_flag(self):
-        """Test that the flag is enabled within the context and reset after."""
-        import geoparser.db.db as db
-
-        assert db._optimized_writes_enabled is False
-        with db.optimized_writes():
-            assert db._optimized_writes_enabled is True
-        assert db._optimized_writes_enabled is False
-
-    def test_resets_flag_on_error(self):
-        """Test that the flag is reset even when the context raises."""
-        import geoparser.db.db as db
-
-        with pytest.raises(ValueError):
-            with db.optimized_writes():
-                raise ValueError("boom")
-        assert db._optimized_writes_enabled is False
-
-    def test_applies_pragmas_when_enabled(self):
-        """Test that throughput PRAGMAs are applied to connections when enabled."""
-        import sqlite3
-
-        from geoparser.db.db import _set_sqlite_pragma, optimized_writes
-
-        connection = sqlite3.connect(":memory:")
-        try:
-            with optimized_writes():
-                _set_sqlite_pragma(connection, None)
-
-            cursor = connection.cursor()
-            assert cursor.execute("PRAGMA synchronous").fetchone()[0] == 0
-            assert cursor.execute("PRAGMA journal_mode").fetchone()[0] == "memory"
-            assert cursor.execute("PRAGMA temp_store").fetchone()[0] == 2
-            assert cursor.execute("PRAGMA cache_size").fetchone()[0] == -1048576
-            cursor.close()
-        finally:
-            connection.close()
-
-    def test_skips_pragmas_when_disabled(self):
-        """Test that throughput PRAGMAs are not applied outside the context."""
-        import sqlite3
-
-        from geoparser.db.db import _set_sqlite_pragma
-
-        connection = sqlite3.connect(":memory:")
-        try:
-            _set_sqlite_pragma(connection, None)
-
-            cursor = connection.cursor()
-            # Default synchronous is FULL (2), not OFF (0)
-            assert cursor.execute("PRAGMA synchronous").fetchone()[0] == 2
-            cursor.close()
-        finally:
-            connection.close()

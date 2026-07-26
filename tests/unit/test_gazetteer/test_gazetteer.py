@@ -1,13 +1,12 @@
 """
 Unit tests for geoparser/gazetteer/gazetteer.py
 
-Tests the Gazetteer class with mocked FeatureRepository.
+Tests the Gazetteer query interface against small hand-crafted artifacts.
 """
-
-from unittest.mock import ANY, Mock, patch
 
 import pytest
 
+from geoparser.gazetteer.feature import Feature
 from geoparser.gazetteer.gazetteer import Gazetteer
 
 
@@ -15,251 +14,161 @@ from geoparser.gazetteer.gazetteer import Gazetteer
 class TestGazetteerInitialization:
     """Test Gazetteer initialization."""
 
-    def test_creates_with_gazetteer_name(self):
-        """Test that Gazetteer can be created with a gazetteer name."""
-        # Arrange & Act
-        gazetteer = Gazetteer("geonames")
+    def test_creates_with_gazetteer_name(self, make_artifact):
+        """Test that Gazetteer can be created for an installed artifact."""
+        make_artifact(name="testgaz")
 
-        # Assert
-        assert gazetteer.gazetteer_name == "geonames"
+        gazetteer = Gazetteer("testgaz")
 
-    def test_raises_when_gazetteer_not_installed(self):
+        assert gazetteer.gazetteer_name == "testgaz"
+
+    def test_raises_when_gazetteer_not_installed(self, make_artifact):
         """Test that constructing an uninstalled gazetteer raises ValueError."""
         with pytest.raises(ValueError, match="not installed"):
             Gazetteer("not-installed-gazetteer")
 
-    def test_raises_on_fresh_database_without_tables(self):
-        """A brand-new database should get a clear not-installed error, not SQL errors."""
-        from unittest.mock import patch
+    def test_raises_on_incompatible_schema_version(self, make_artifact):
+        """An artifact with an old schema version asks for a reinstall."""
+        make_artifact(name="oldgaz", schema_version="0")
 
-        from sqlalchemy.pool import StaticPool
-        from sqlmodel import create_engine
+        with pytest.raises(RuntimeError, match="reinstall"):
+            Gazetteer("oldgaz")
 
-        import geoparser.db.db as db
+    def test_exposes_artifact_crs(self, make_artifact):
+        """The gazetteer exposes the artifact's CRS."""
+        make_artifact(name="testgaz", crs="EPSG:4326")
 
-        fresh_engine = create_engine(
-            "sqlite:///:memory:",
-            poolclass=StaticPool,
-            connect_args={"check_same_thread": False},
-        )
-
-        with patch.object(db, "engine", fresh_engine):
-            with pytest.raises(ValueError, match="not installed"):
-                Gazetteer("geonames")
+        assert Gazetteer("testgaz").crs == "EPSG:4326"
 
 
 @pytest.mark.unit
 class TestGazetteerSearch:
     """Test Gazetteer search method."""
 
-    @patch("geoparser.gazetteer.gazetteer.FeatureRepository")
-    def test_search_with_exact_method(self, mock_feature_repo):
-        """Test that search calls exact method correctly."""
-        # Arrange
-        mock_feature_repo.get_by_gazetteer_and_name_exact.return_value = []
+    def test_search_exact_matches_full_name_only(self, make_artifact):
+        """Exact search matches complete names, not substrings."""
+        make_artifact()
 
-        gazetteer = Gazetteer("geonames")
+        results = Gazetteer("testgaz").search("Paris", method="exact")
 
-        # Act
-        gazetteer.search("Paris", method="exact")
+        assert {feature.identifier for feature in results} == {"1"}
 
-        # Assert
-        mock_feature_repo.get_by_gazetteer_and_name_exact.assert_called_once_with(
-            ANY, "geonames", "Paris", 10000
+    def test_search_exact_is_case_insensitive(self, make_artifact):
+        """Exact search is case-insensitive."""
+        make_artifact()
+
+        results = Gazetteer("testgaz").search("paris", method="exact")
+
+        assert {feature.identifier for feature in results} == {"1"}
+
+    def test_search_phrase_matches_names_containing_query(self, make_artifact):
+        """Phrase search finds names containing the query as a phrase."""
+        make_artifact()
+
+        results = Gazetteer("testgaz").search("Paris", method="phrase", tiers=2)
+
+        assert {feature.identifier for feature in results} == {"1", "3"}
+
+    def test_search_partial_matches_some_tokens(self, make_artifact):
+        """Partial search matches a subset of the query tokens."""
+        make_artifact()
+
+        results = Gazetteer("testgaz").search("Paris Berlin", method="partial", tiers=3)
+
+        assert {feature.identifier for feature in results} == {"1", "2", "3"}
+
+    def test_search_fuzzy_matches_misspelled_name(self, make_artifact):
+        """Fuzzy search finds names that sound like the query."""
+        make_artifact()
+
+        results = Gazetteer("testgaz").search("Barlin", method="fuzzy")
+
+        assert {feature.identifier for feature in results} == {"2"}
+
+    def test_search_normalizes_quotes_and_whitespace(self, make_artifact):
+        """Quotes are removed and whitespace stripped before searching."""
+        make_artifact()
+
+        results = Gazetteer("testgaz").search('  "Paris"  ', method="exact")
+
+        assert {feature.identifier for feature in results} == {"1"}
+
+    def test_search_respects_limit(self, make_artifact):
+        """The limit caps the number of results."""
+        make_artifact(
+            features=[
+                {"identifier": str(index), "names": ["Springfield"]}
+                for index in range(1, 6)
+            ]
         )
 
-    @patch("geoparser.gazetteer.gazetteer.FeatureRepository")
-    def test_search_with_phrase_method(self, mock_feature_repo):
-        """Test that search calls phrase method correctly."""
-        # Arrange
-        mock_feature_repo.get_by_gazetteer_and_name_phrase.return_value = []
+        results = Gazetteer("testgaz").search("Springfield", method="exact", limit=3)
 
-        gazetteer = Gazetteer("geonames")
+        assert len(results) == 3
 
-        # Act
-        gazetteer.search("Paris", method="phrase", tiers=2)
+    def test_search_tiers_expand_results(self, make_artifact):
+        """More tiers include worse-ranked matches."""
+        make_artifact()
+        gazetteer = Gazetteer("testgaz")
 
-        # Assert
-        mock_feature_repo.get_by_gazetteer_and_name_phrase.assert_called_once_with(
-            ANY, "geonames", "Paris", 10000, 2
-        )
+        one_tier = gazetteer.search("Paris", method="phrase", tiers=1)
+        two_tiers = gazetteer.search("Paris", method="phrase", tiers=2)
 
-    @patch("geoparser.gazetteer.gazetteer.FeatureRepository")
-    def test_search_with_partial_method(self, mock_feature_repo):
-        """Test that search calls partial method correctly."""
-        # Arrange
-        mock_feature_repo.get_by_gazetteer_and_name_partial.return_value = []
+        assert {feature.identifier for feature in one_tier} == {"1"}
+        assert {feature.identifier for feature in two_tiers} == {"1", "3"}
 
-        gazetteer = Gazetteer("geonames")
+    def test_search_raises_error_for_unknown_method(self, make_artifact):
+        """Unknown search methods raise ValueError."""
+        make_artifact()
 
-        # Act
-        gazetteer.search("Paris", method="partial")
-
-        # Assert
-        mock_feature_repo.get_by_gazetteer_and_name_partial.assert_called_once_with(
-            ANY, "geonames", "Paris", 10000, 1
-        )
-
-    @patch("geoparser.gazetteer.gazetteer.FeatureRepository")
-    def test_search_with_fuzzy_method(self, mock_feature_repo):
-        """Test that search calls fuzzy method correctly."""
-        # Arrange
-        mock_feature_repo.get_by_gazetteer_and_name_fuzzy.return_value = []
-
-        gazetteer = Gazetteer("geonames")
-
-        # Act
-        gazetteer.search("Paris", method="fuzzy")
-
-        # Assert
-        mock_feature_repo.get_by_gazetteer_and_name_fuzzy.assert_called_once_with(
-            ANY, "geonames", "Paris", 10000, 1
-        )
-
-    @patch("geoparser.gazetteer.gazetteer.FeatureRepository")
-    def test_search_normalizes_quotes_from_name(self, mock_feature_repo):
-        """Test that search removes quotes from name before searching."""
-        # Arrange
-        mock_feature_repo.get_by_gazetteer_and_name_exact.return_value = []
-
-        gazetteer = Gazetteer("geonames")
-
-        # Act
-        gazetteer.search('"Paris"', method="exact")
-
-        # Assert
-        # Should call with quotes removed
-        mock_feature_repo.get_by_gazetteer_and_name_exact.assert_called_once_with(
-            ANY, "geonames", "Paris", 10000
-        )
-
-    @patch("geoparser.gazetteer.gazetteer.FeatureRepository")
-    def test_search_strips_whitespace_from_name(self, mock_feature_repo):
-        """Test that search strips whitespace from name."""
-        # Arrange
-        mock_feature_repo.get_by_gazetteer_and_name_exact.return_value = []
-
-        gazetteer = Gazetteer("geonames")
-
-        # Act
-        gazetteer.search("  Paris  ", method="exact")
-
-        # Assert
-        # Should call with whitespace stripped
-        mock_feature_repo.get_by_gazetteer_and_name_exact.assert_called_once_with(
-            ANY, "geonames", "Paris", 10000
-        )
-
-    @patch("geoparser.gazetteer.gazetteer.FeatureRepository")
-    def test_search_respects_custom_limit(self, mock_feature_repo):
-        """Test that search respects custom limit parameter."""
-        # Arrange
-        mock_feature_repo.get_by_gazetteer_and_name_exact.return_value = []
-
-        gazetteer = Gazetteer("geonames")
-
-        # Act
-        gazetteer.search("Paris", method="exact", limit=50)
-
-        # Assert
-        mock_feature_repo.get_by_gazetteer_and_name_exact.assert_called_once_with(
-            ANY, "geonames", "Paris", 50
-        )
-
-    @patch("geoparser.gazetteer.gazetteer.FeatureRepository")
-    def test_search_respects_custom_tiers(self, mock_feature_repo):
-        """Test that search respects custom tiers parameter for tiered methods."""
-        # Arrange
-        mock_feature_repo.get_by_gazetteer_and_name_phrase.return_value = []
-
-        gazetteer = Gazetteer("geonames")
-
-        # Act
-        gazetteer.search("Paris", method="phrase", tiers=3)
-
-        # Assert
-        mock_feature_repo.get_by_gazetteer_and_name_phrase.assert_called_once_with(
-            ANY, "geonames", "Paris", 10000, 3
-        )
-
-    def test_search_raises_error_for_unknown_method(self):
-        """Test that search raises ValueError for unknown method."""
-        # Arrange
-        gazetteer = Gazetteer("geonames")
-
-        # Act & Assert
         with pytest.raises(ValueError, match="Unknown search method: invalid"):
-            gazetteer.search("Paris", method="invalid")
+            Gazetteer("testgaz").search("Paris", method="invalid")
 
-    @patch("geoparser.gazetteer.gazetteer.FeatureRepository")
-    def test_search_returns_features(self, mock_feature_repo):
-        """Test that search returns the features from repository."""
-        # Arrange
+    def test_search_returns_feature_objects(self, make_artifact):
+        """Search results are Feature objects with attribute access."""
+        make_artifact()
 
-        mock_feature1 = Mock()
-        mock_feature2 = Mock()
-        mock_feature_repo.get_by_gazetteer_and_name_exact.return_value = [
-            mock_feature1,
-            mock_feature2,
-        ]
+        results = Gazetteer("testgaz").search("Berlin", method="exact")
 
-        gazetteer = Gazetteer("geonames")
+        assert len(results) == 1
+        feature = results[0]
+        assert isinstance(feature, Feature)
+        assert feature.identifier == "2"
+        assert feature.source == "city"
+        assert feature.data["population"] == 3600000
+        assert feature.gazetteer_name == "testgaz"
 
-        # Act
-        results = gazetteer.search("Paris", method="exact")
+    def test_search_returns_empty_list_when_nothing_matches(self, make_artifact):
+        """A query matching nothing returns an empty list."""
+        make_artifact()
 
-        # Assert
-        assert len(results) == 2
-        assert results[0] == mock_feature1
-        assert results[1] == mock_feature2
+        assert Gazetteer("testgaz").search("Atlantis", method="exact") == []
+
+    def test_empty_query_returns_empty_list(self, make_artifact):
+        """Empty or whitespace-only queries return no results."""
+        make_artifact()
+        gazetteer = Gazetteer("testgaz")
+
+        assert gazetteer.search("", method="exact") == []
+        assert gazetteer.search('  ""  ', method="phrase") == []
 
 
 @pytest.mark.unit
 class TestGazetteerFind:
     """Test Gazetteer find method."""
 
-    @patch("geoparser.gazetteer.gazetteer.FeatureRepository")
-    def test_find_calls_repository_method(self, mock_feature_repo):
-        """Test that find calls get_by_gazetteer_and_identifier."""
-        # Arrange
-        mock_feature_repo.get_by_gazetteer_and_identifier.return_value = None
+    def test_find_returns_feature_by_identifier(self, make_artifact):
+        """Find returns the feature with the given identifier."""
+        make_artifact()
 
-        gazetteer = Gazetteer("geonames")
+        feature = Gazetteer("testgaz").find("1")
 
-        # Act
-        gazetteer.find("123456")
+        assert feature is not None
+        assert feature.identifier == "1"
+        assert feature.data["name"] == "Paris"
 
-        # Assert
-        mock_feature_repo.get_by_gazetteer_and_identifier.assert_called_once_with(
-            ANY, "geonames", "123456"
-        )
+    def test_find_returns_none_when_not_found(self, make_artifact):
+        """Find returns None for unknown identifiers."""
+        make_artifact()
 
-    @patch("geoparser.gazetteer.gazetteer.FeatureRepository")
-    def test_find_returns_feature_when_found(self, mock_feature_repo):
-        """Test that find returns feature when found."""
-        # Arrange
-
-        mock_feature = Mock()
-        mock_feature_repo.get_by_gazetteer_and_identifier.return_value = mock_feature
-
-        gazetteer = Gazetteer("geonames")
-
-        # Act
-        result = gazetteer.find("123456")
-
-        # Assert
-        assert result == mock_feature
-
-    @patch("geoparser.gazetteer.gazetteer.FeatureRepository")
-    def test_find_returns_none_when_not_found(self, mock_feature_repo):
-        """Test that find returns None when feature not found."""
-        # Arrange
-        mock_feature_repo.get_by_gazetteer_and_identifier.return_value = None
-
-        gazetteer = Gazetteer("geonames")
-
-        # Act
-        result = gazetteer.find("999999")
-
-        # Assert
-        assert result is None
+        assert Gazetteer("testgaz").find("999999") is None
