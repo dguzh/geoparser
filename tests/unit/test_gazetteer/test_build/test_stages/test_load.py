@@ -19,6 +19,17 @@ from geoparser.gazetteer.build.stages.load import (
 )
 
 
+def write_delimited(path: Path, text: str) -> None:
+    """
+    Write a delimited-text fixture exactly as given.
+
+    Newlines are written verbatim instead of being translated to the
+    platform's line ending, so that a newline inside a quoted field stays one
+    character on Windows too.
+    """
+    path.write_text(text, newline="\n")
+
+
 def make_tabular_source(**overrides) -> SourceConfig:
     data = {
         "name": "places",
@@ -138,7 +149,7 @@ class TestLoadTabular:
     def test_loads_rows_with_declared_types(self, loader, tmp_path):
         """A tabular file is loaded into a table matching its declared schema."""
         data_file = tmp_path / "places.csv"
-        data_file.write_text("1,Paris\n2,Berlin\n")
+        write_delimited(data_file, "1,Paris\n2,Berlin\n")
         source = make_tabular_source()
 
         row_count = loader.load(source, data_file)
@@ -149,7 +160,7 @@ class TestLoadTabular:
     def test_respects_skip_rows(self, loader, tmp_path):
         """skip_rows drops leading rows (e.g. a header) before parsing."""
         data_file = tmp_path / "places.csv"
-        data_file.write_text("header,ignored\n1,Paris\n2,Berlin\n")
+        write_delimited(data_file, "header,ignored\n1,Paris\n2,Berlin\n")
         source = make_tabular_source(skip_rows=1)
 
         row_count = loader.load(source, data_file)
@@ -159,7 +170,7 @@ class TestLoadTabular:
     def test_respects_custom_delimiter_and_no_quote(self, loader, tmp_path):
         """A tab delimiter with quoting disabled is honored."""
         data_file = tmp_path / "places.tsv"
-        data_file.write_text('1\tO"Brien\n2\tBerlin\n')
+        write_delimited(data_file, '1\tO"Brien\n2\tBerlin\n')
         source = make_tabular_source(delimiter="\t", quote="")
 
         loader.load(source, data_file)
@@ -172,7 +183,7 @@ class TestLoadTabular:
     def test_loads_quoted_fields_spanning_several_lines(self, loader, tmp_path):
         """A quoted field containing newlines is one value, not two rows."""
         data_file = tmp_path / "places.csv"
-        data_file.write_text('1,"Paris,\nthe capital"\n2,Berlin\n')
+        write_delimited(data_file, '1,"Paris,\nthe capital"\n2,Berlin\n')
         source = make_tabular_source()
 
         row_count = loader.load(source, data_file)
@@ -193,7 +204,7 @@ class TestLoadTabular:
         the file itself, so the load falls back instead of failing.
         """
         data_file = tmp_path / "places.csv"
-        data_file.write_text('1,"Paris,\nthe capital"\n2,Berlin\n')
+        write_delimited(data_file, '1,"Paris,\nthe capital"\n2,Berlin\n')
         proxy = _RefusesParallelPaddingConnection(connection)
         loader = Loader(proxy)
 
@@ -312,7 +323,7 @@ class TestLoadSpatial:
     def test_raises_when_no_geometry_column_found(self, loader, tmp_path):
         """A source file with no detectable geometry column is rejected."""
         data_file = tmp_path / "plain.csv"
-        data_file.write_text("id,name\n1,Alpha\n2,Beta\n")
+        write_delimited(data_file, "id,name\n1,Alpha\n2,Beta\n")
         source = make_spatial_source(
             file="plain.csv",
             attributes=[
@@ -354,7 +365,7 @@ class TestColumns:
     def test_returns_column_names_in_order(self, loader, tmp_path):
         """columns() lists a loaded table's columns in declaration order."""
         data_file = tmp_path / "places.csv"
-        data_file.write_text("1,Paris\n")
+        write_delimited(data_file, "1,Paris\n")
         loader.load(make_tabular_source(), data_file)
 
         assert loader.columns("places") == ["id", "name"]
