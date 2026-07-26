@@ -1,65 +1,103 @@
-# Developer Documentation
+# Contributing
 
-## Local development
+Thanks for contributing to Irchel Geoparser. For product usage, see the [documentation](https://docs.geoparser.app). This file covers local development and the checks that run in CI.
 
-This project uses [`poetry`](https://python-poetry.org/docs/) to manage dependencies. For installing poetry, visit the official [docs](https://python-poetry.org/docs/#installation).
+## Setup
 
-For local development, you can install the package in virtual environment via `poetry`:
+This project uses [Poetry](https://python-poetry.org/docs/) for dependency management. Install Poetry, then from the repository root:
 
 ```bash
 poetry install
-poetry shell
 ```
 
-We recommend you install the package in a virtual environment.
+That creates a virtual environment and installs runtime and development dependencies (including spaCy models used in tests).
 
-## Building
-
-To build the package with `poetry`, use the `poetry build` command:
+Run tools through Poetry:
 
 ```bash
-poetry build
+poetry run <command>
 ```
 
-This build the package in `sdist` and `wheel` format in the `dist` directory.
+To activate the environment in your current shell instead:
 
-## Developer Guidelines
+```bash
+eval $(poetry env activate)
+```
 
-### Code formatting
+Supported Python versions are `>=3.10,<3.15`. Keep changes compatible across that range.
 
-`geoparser` code is formatted with `black` to ensure consistent formatting and to keep diffs as small as possible. Formatting is checked via a GitHub action on every push. Before submitting a pull request, please make sure that your code passes the formatting check.
+## Code style
 
-These resources can provide a good start:
+Formatting and import hygiene are checked in CI on every push and pull request; the jobs fail if the code is not clean. Before opening a PR, run:
 
-- [Official black documentation](https://black.readthedocs.io/en/stable/getting_started.html)
-- [Formatting in VS Code](https://code.visualstudio.com/docs/python/formatting)
+```bash
+poetry run black .
+poetry run isort .
+poetry run autoflake --remove-all-unused-imports --in-place --recursive --exclude=__init__.py geoparser tests
+```
 
-### Import order
+- **black** formats the code (`required-version` is pinned in `pyproject.toml`)
+- **isort** sorts imports (`profile = "black"`)
+- **autoflake** removes unused imports (`__init__.py` is excluded)
 
-Imports in `geoparser` are sorted with `isort` to ensure a consistent import order across all files. Import order is check via a GitHub action on every push. Before submitting a pull request, please make sure your code passes the import order check.
+## Tests
 
-These resources can provide a good start:
+Tests live under `tests/` and are organized as:
 
-- [Official isort documentation](https://pycqa.github.io/isort/index.html)
+- `tests/unit/` — fast, isolated tests (usually mocked)
+- `tests/integration/` — exercises real components together (models, DB, gazetteers)
+- `tests/e2e/` — full pipeline tests
 
-Additionally, the code is checked for unused imports. Please make sure there are no such cases.
+Markers `unit`, `integration`, and `e2e` are defined in `tests/pytest.ini`.
 
-### Tests
-
-This project uses `pytest` for unit testing. You can run the tests as follows:
+Run the full suite:
 
 ```bash
 poetry run pytest
 ```
 
-This also creates a directory `htmlcov`, where you can check current test coverage. Simply open the `htmlcov/index.html` file in your browser. There you can see the test coverage per file and any statements that you may have missed in your tests.
+Coverage is collected for `geoparser` (HTML report in `htmlcov/`; open `htmlcov/index.html`). `geoparser/annotator/` is omitted from coverage. Pull requests expect near-complete coverage of the measured package, so new functionality should ship with tests.
 
-Before submitting a pull request, make sure all tests pass and that they have been updated for any changes. When introducing new functionality, make sure to also add tests so that is covered from the beginning.
+Useful subsets:
 
-### Python Version
+```bash
+poetry run pytest tests/unit
+poetry run pytest tests/integration/test_geoparser_integration.py
+```
 
-As of now, the project supports Python versions `>=3.11,<3.13` please keep your changes compatible. You can now use modern Python 3.11+ features like the union type syntax (`age: int | None = None`) instead of the typing library notation (`age: typing.Optional[int] = None`), though both are still acceptable.
+## Documentation
+
+User-facing docs are Sphinx sources in `docs/` and are published via Read the Docs. After `poetry install`, build them locally with:
+
+```bash
+cd docs
+poetry run sphinx-build -b html . _build/html
+```
+
+Open `docs/_build/html/index.html` in a browser. When you change public APIs or behavior, update the corresponding guides or API pages under `docs/`.
+
+## CLI
+
+The package CLI is available as:
+
+```bash
+poetry run python -m geoparser --help
+```
+
+Common commands include gazetteer `install` / `list` / `uninstall` and launching the annotator.
+
+## Pull requests
+
+If you want to contribute code, feel free to open a pull request. Issues are also welcome for questions, support, bug reports, or discussing an idea before you start.
+
+A few practical tips that make reviews easier:
+
+- Run black, isort, autoflake, and pytest locally before submitting
+- Add or update tests when behavior changes
+- Update docs when user-facing behavior changes
+
+Packaging and publishing (build, TestPyPI, PyPI) are handled by GitHub Actions on `staging` / `main` and on tags.
 
 ## Licensing
 
-See the [LICENSE](./LICENSE) file for the project's licensing.
+This project is MIT-licensed; see [LICENSE](./LICENSE). Third-party dependency licenses are listed in [THIRD_PARTY_LICENSES](./THIRD_PARTY_LICENSES).
