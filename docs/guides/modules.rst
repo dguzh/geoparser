@@ -84,27 +84,39 @@ The ``min_similarity`` threshold controls how confident the resolver must be bef
 
 The ``max_tiers`` parameter controls how aggressively the resolver searches for candidates. The resolver uses an iterative strategy starting with exact string matching and progressively relaxing to phrase matching, partial matching, and fuzzy matching. For each search method, it ranks results by relevance and groups them into tiers. The ``max_tiers`` parameter determines how many of these tiers to include—higher values mean the resolver expands its search to include more potential candidates, which can help resolve difficult toponyms but increases processing time.
 
-For gazetteers other than GeoNames and SwissNames3D, you need to provide a custom ``attribute_map`` that tells the resolver which attributes to use when generating location descriptions:
+The ``attribute_map`` parameter tells the resolver how to read the gazetteer's attributes. Before comparing a candidate place against the text, this resolver describes the candidate in words — "Paris (city) in Île-de-France, France" — and since every gazetteer names its attributes differently, it needs to be told which ones that sentence is built from. The built-in gazetteers already carry this mapping, so it only has to be passed for a gazetteer of your own:
 
 .. code-block:: python
 
    from geoparser.modules import SentenceTransformerResolver
 
-   # Custom gazetteer with different attribute names
-   custom_map = {
-       "name": "place_name",
-       "type": "category",
-       "level1": "country",
-       "level2": "region",
-       "level3": "district"
-   }
-
    resolver = SentenceTransformerResolver(
-       gazetteer_name="custom_gazetteer",
-       attribute_map=custom_map
+       gazetteer_name="my_gazetteer",
+       attribute_map={
+           "name": "place_name",
+           "type": "category",
+           "level1": "country",
+           "level2": "region",
+           "level3": "district",
+       },
    )
 
-The attribute map should specify which columns in your gazetteer correspond to the name, type, and hierarchical administrative levels. The resolver uses these attributes to generate textual descriptions like "Paris (city) in Île-de-France, France".
+The values are keys of your gazetteer's ``data`` dictionary, and which keys exist is decided when the gazetteer is configured (see :ref:`custom-gazetteers`). ``name`` and ``type`` are both required. The administrative levels are optional, with ``level1`` the outermost enclosing place and ``level3`` the innermost; supply only as many as your data supports. A gazetteer of ancient places, for example, may have nothing above the Roman province a place falls in:
+
+.. code-block:: python
+
+   resolver = SentenceTransformerResolver(
+       gazetteer_name="pleiades",
+       attribute_map={
+           "name": "title",
+           "type": "place_types",
+           "level1": "province",
+       },
+   )
+
+That map describes a candidate as "Pompeii (settlement, urban area) in Italia". Keys that are missing from a feature's ``data`` are left out of its description rather than failing, so a mapping may name an attribute that only some of your features carry.
+
+Bear in mind that the pre-trained models are fine-tuned on GeoNames-style descriptions. Against a gazetteer whose vocabulary is very different, expect to lower ``min_similarity`` and, for the best results, to fine-tune a resolver of your own on data annotated with that gazetteer's features — see :doc:`training`.
 
 The SentenceTransformerResolver works best when place names have distinctive contexts that help disambiguate them. For example, "I visited the Eiffel Tower in Paris" provides strong contextual clues. Short texts with minimal context or lists of place names without surrounding text present more challenging scenarios where the resolver may struggle.
 
@@ -277,7 +289,7 @@ Resolvers typically interact with gazetteers to find candidate locations. The li
                            key=lambda c: c.data.get('population', 0) or 0
                        )
                        doc_results.append(
-                           (self.gazetteer_name, best.location_id_value)
+                           (self.gazetteer_name, best.identifier)
                        )
                    else:
                        doc_results.append(None)

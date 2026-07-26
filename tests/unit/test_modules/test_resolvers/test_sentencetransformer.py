@@ -556,7 +556,7 @@ class TestSentenceTransformerResolverPredict:
         mock_gazetteer_instance = mock_gazetteer.return_value
         mock_candidate = Mock()
         mock_candidate.id = 1
-        mock_candidate.location_id_value = "123"
+        mock_candidate.identifier = "123"
         mock_candidate.data = {
             "name": "Paris",
             "feature_name": "city",
@@ -603,7 +603,7 @@ class TestSentenceTransformerResolverPredict:
         mock_gazetteer_instance = mock_gazetteer.return_value
         mock_candidate = Mock()
         mock_candidate.id = 1
-        mock_candidate.location_id_value = "123"
+        mock_candidate.identifier = "123"
         mock_candidate.data = {
             "name": "Paris",
             "feature_name": "city",
@@ -646,7 +646,7 @@ class TestSentenceTransformerResolverPredict:
         mock_gazetteer_instance = mock_gazetteer.return_value
         mock_candidate = Mock()
         mock_candidate.id = 1
-        mock_candidate.location_id_value = "123"
+        mock_candidate.identifier = "123"
         mock_candidate.data = {
             "name": "Paris",
             "feature_name": "city",
@@ -713,7 +713,7 @@ class TestSentenceTransformerResolverPredict:
         mock_gazetteer_instance = mock_gazetteer.return_value
         mock_candidate = Mock()
         mock_candidate.id = 1
-        mock_candidate.location_id_value = "123"
+        mock_candidate.identifier = "123"
         mock_candidate.data = {
             "name": "Paris",
             "feature_name": "city",
@@ -1101,10 +1101,10 @@ class TestSentenceTransformerResolverPrepareTrainingData:
         # Mock gazetteer search to return candidates
         mock_gazetteer_instance = mock_gazetteer_class.return_value
         mock_candidate1 = Mock()
-        mock_candidate1.location_id_value = "123"
+        mock_candidate1.identifier = "123"
         mock_candidate1.data = {"name": "Paris", "feature_name": "city"}
         mock_candidate2 = Mock()
-        mock_candidate2.location_id_value = "456"
+        mock_candidate2.identifier = "456"
         mock_candidate2.data = {"name": "Paris", "feature_name": "region"}
         mock_gazetteer_instance.search.return_value = [mock_candidate1, mock_candidate2]
 
@@ -1149,10 +1149,10 @@ class TestSentenceTransformerResolverPrepareTrainingData:
         # Mock gazetteer search to return multiple candidates
         mock_gazetteer_instance = mock_gazetteer_class.return_value
         mock_candidate1 = Mock()
-        mock_candidate1.location_id_value = "123"
+        mock_candidate1.identifier = "123"
         mock_candidate1.data = {"name": "Paris", "feature_name": "city"}
         mock_candidate2 = Mock()
-        mock_candidate2.location_id_value = "456"
+        mock_candidate2.identifier = "456"
         mock_candidate2.data = {"name": "Paris", "feature_name": "region"}
         mock_gazetteer_instance.search.return_value = [mock_candidate1, mock_candidate2]
 
@@ -1194,7 +1194,7 @@ class TestSentenceTransformerResolverPrepareTrainingData:
         # Mock gazetteer search
         mock_gazetteer_instance = mock_gazetteer_class.return_value
         mock_candidate = Mock()
-        mock_candidate.location_id_value = "123"
+        mock_candidate.identifier = "123"
         mock_candidate.data = {"name": "City", "feature_name": "city"}
         mock_gazetteer_instance.search.return_value = [mock_candidate]
 
@@ -1232,7 +1232,7 @@ class TestSentenceTransformerResolverPrepareTrainingData:
         # Mock gazetteer search
         mock_gazetteer_instance = mock_gazetteer_class.return_value
         mock_candidate = Mock()
-        mock_candidate.location_id_value = "123"
+        mock_candidate.identifier = "123"
         mock_candidate.data = {"name": "City", "feature_name": "city"}
         mock_gazetteer_instance.search.return_value = [mock_candidate]
 
@@ -1270,7 +1270,7 @@ class TestSentenceTransformerResolverPrepareTrainingData:
         # Mock gazetteer search
         mock_gazetteer_instance = mock_gazetteer_class.return_value
         mock_candidate = Mock()
-        mock_candidate.location_id_value = "123"
+        mock_candidate.identifier = "123"
         mock_candidate.data = {"name": "City", "feature_name": "city"}
         mock_gazetteer_instance.search.return_value = [mock_candidate]
 
@@ -1312,7 +1312,7 @@ class TestSentenceTransformerResolverPrepareTrainingData:
         # Mock gazetteer search
         mock_gazetteer_instance = mock_gazetteer_class.return_value
         mock_candidate = Mock()
-        mock_candidate.location_id_value = "123"
+        mock_candidate.identifier = "123"
         mock_candidate.data = {"name": "Paris", "feature_name": "city"}
         mock_gazetteer_instance.search.return_value = [mock_candidate]
 
@@ -1355,7 +1355,7 @@ class TestSentenceTransformerResolverPrepareTrainingData:
         # Mock gazetteer search
         mock_gazetteer_instance = mock_gazetteer_class.return_value
         mock_candidate = Mock()
-        mock_candidate.location_id_value = "123"
+        mock_candidate.identifier = "123"
         mock_candidate.data = {"name": "City", "feature_name": "city"}
         mock_gazetteer_instance.search.return_value = [mock_candidate]
 

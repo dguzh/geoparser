@@ -5,13 +5,13 @@ from typing import List, Tuple
 from sqlmodel import Session
 
 from geoparser.db.crud import (
-    FeatureRepository,
     ReferentRepository,
     ResolutionRepository,
     ResolverRepository,
 )
 from geoparser.db.db import get_session
 from geoparser.db.models import ReferentCreate, ResolutionCreate, ResolverCreate
+from geoparser.gazetteer.gazetteer import Gazetteer
 
 if t.TYPE_CHECKING:
     from geoparser.db.models import Document, Reference
@@ -141,8 +141,8 @@ class ResolutionService:
                     doc_references.append((ref.start, ref.end))
                     doc_referents.append(
                         (
-                            ref.location.source.gazetteer.name,
-                            ref.location.location_id_value,
+                            ref.location.gazetteer_name,
+                            ref.location.identifier,
                         )
                     )
 
@@ -205,15 +205,24 @@ class ResolutionService:
             gazetteer_name: Name of the gazetteer
             identifier: Identifier value in the gazetteer
             resolver_id: ID of the resolver
+
+        Raises:
+            ValueError: If the feature does not exist in the gazetteer
         """
-        # Look up the feature by gazetteer and identifier
-        feature = FeatureRepository.get_by_gazetteer_and_identifier(
-            session, gazetteer_name, identifier
-        )
+        # Validate that the feature exists in the installed gazetteer
+        feature = Gazetteer(gazetteer_name).find(identifier)
+        if feature is None:
+            raise ValueError(
+                f"Feature '{identifier}' does not exist in gazetteer "
+                f"'{gazetteer_name}'"
+            )
 
         # Create the referent with resolver ID directly
         referent_create = ReferentCreate(
-            reference_id=reference_id, feature_id=feature.id, resolver_id=resolver_id
+            reference_id=reference_id,
+            gazetteer_name=gazetteer_name,
+            feature_identifier=feature.identifier,
+            resolver_id=resolver_id,
         )
         ReferentRepository.create(session, referent_create)
 

@@ -253,8 +253,8 @@ class TestProjectIntegration:
         assert len(documents[0].toponyms) == 1
         assert documents[0].toponyms[0].text == "Paris"
         assert documents[0].toponyms[0].location is not None
-        assert documents[0].toponyms[0].location.source.gazetteer.name == "andorranames"
-        assert documents[0].toponyms[0].location.location_id_value == "3041563"
+        assert documents[0].toponyms[0].location.gazetteer_name == "andorranames"
+        assert documents[0].toponyms[0].location.identifier == "3041563"
 
         # Cleanup
         project.delete()

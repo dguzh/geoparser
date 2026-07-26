@@ -1,0 +1,166 @@
+name: pleiades
+crs: EPSG:4326 # default
+disk: 600000000 # 0.6 GB, measured
+
+sources:
+  - name: places
+    url: https://atlantides.org/downloads/pleiades/gis/pleiades_gis_data.zip
+    file: places.csv
+    delimiter: ","
+    quote: '"' # default
+    skip_rows: 1 # header row; default is 0
+    crs: EPSG:4326 # default (the gazetteer's crs)
+    attributes:
+      - name: "created"
+        type: text
+      - name: "description"
+        type: text
+      - name: "details"
+        type: text
+      - name: "provenance"
+        type: text
+      - name: "title"
+        type: text
+      - name: "uri"
+        type: text
+      - name: "id"
+        type: integer
+      - name: "representative_latitude"
+        type: real
+      - name: "representative_longitude"
+        type: real
+      - name: "bounding_box_wkt"
+        type: text
+      - name: "location_precision"
+        type: text
+
+  - name: names
+    url: https://atlantides.org/downloads/pleiades/gis/pleiades_gis_data.zip
+    file: names.csv
+    delimiter: ","
+    quote: '"' # default
+    skip_rows: 1
+    crs: EPSG:4326 # default
+    attributes:
+      - name: "created"
+        type: text
+      - name: "description"
+        type: text
+      - name: "details"
+        type: text
+      - name: "provenance"
+        type: text
+      - name: "title"
+        type: text
+      - name: "uri"
+        type: text
+      - name: "id"
+        type: text
+      - name: "place_id"
+        type: integer
+      - name: "name_type"
+        type: text
+      - name: "language_tag"
+        type: text
+      - name: "attested_form"
+        type: text
+      - name: "romanized_form_1"
+        type: text
+      - name: "romanized_form_2"
+        type: text
+      - name: "romanized_form_3"
+        type: text
+      - name: "association_certainty"
+        type: text
+      - name: "transcription_accuracy"
+        type: text
+      - name: "transcription_completeness"
+        type: text
+      - name: "year_after_which"
+        type: integer
+      - name: "year_before_which"
+        type: integer
+
+  - name: places_place_types
+    url: https://atlantides.org/downloads/pleiades/gis/pleiades_gis_data.zip
+    file: places_place_types.csv
+    delimiter: ","
+    quote: '"' # default
+    skip_rows: 1
+    crs: EPSG:4326 # default
+    attributes:
+      - name: "place_id"
+        type: integer
+      - name: "place_type"
+        type: text
+
+  - name: place_types
+    url: https://atlantides.org/downloads/pleiades/gis/pleiades_gis_data.zip
+    file: place_types.csv
+    delimiter: ","
+    quote: '"' # default
+    skip_rows: 1
+    crs: EPSG:4326 # default
+    attributes:
+      - name: "key"
+        type: text
+      - name: "term"
+        type: text
+      - name: "definition"
+        type: text
+      - name: "same_as"
+        type: text
+      - name: "uri"
+        type: text
+
+  - name: provinces
+    url: https://urbesetorbis.com/downloads/empire2.geojson
+    file: empire2.geojson
+    crs: EPSG:3857 # Web Mercator, unlike the rest
+    attributes:
+      - name: "fid"
+        type: integer
+      - name: "Title"
+        type: text
+      - name: "Government"
+        type: text
+      - name: "StartYear"
+        type: integer
+      - name: "geometry"
+        type: geometry
+
+features:
+  - source: places
+    joins:
+      - "LEFT JOIN names n ON id = n.place_id"
+      - >-
+        LEFT JOIN provinces p
+        ON ST_Within(ST_Point(representative_longitude, representative_latitude),
+        p.geometry)
+    identifier: "id"
+    geometry: "ST_Point(representative_longitude, representative_latitude)"
+    names:
+      - "title"
+      - >-
+        unnest(string_split(regexp_replace(title,
+        '\s*\([^)]*\)|\?|\[|\]', '', 'g'), '/'))
+      - "n.romanized_form_1"
+      - "n.romanized_form_2"
+      - "n.romanized_form_3"
+      - "n.attested_form"
+    data:
+      - "title"
+      - >-
+        (SELECT string_agg(DISTINCT coalesce(t.term, x.place_type), ', '
+        ORDER BY coalesce(t.term, x.place_type))
+        FROM places_place_types x
+        LEFT JOIN place_types t ON x.place_type = t.key
+        WHERE x.place_id = id)
+        AS place_types
+      - "p.Title AS province"
+      - "p.Government AS province_government"
+      - "representative_latitude AS latitude"
+      - "representative_longitude AS longitude"
+      - "location_precision"
+      - "description"
+      - "uri"
