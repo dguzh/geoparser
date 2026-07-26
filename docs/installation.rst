@@ -28,25 +28,9 @@ The library requires gazetteer data to resolve toponyms to geographic locations.
 .. tip::
    Building a gazetteer can be memory-intensive. We recommend using a machine with at least **4 GB of RAM** and closing other heavy applications so enough memory stays available during the install. Lighter machines may still succeed for smaller gazetteers, but larger builds are more reliable with this headroom.
 
-If you want to try geoparsing quickly, start with **GeoNames Cities**, a lightweight subset that installs in a few minutes. For real geoparsing work, use the full **GeoNames** gazetteer instead: it covers far more than cities alone, including towns, natural features, landmarks, and fine-grained place names that the cities subset omits entirely. **SwissNames3D** covers one country in depth. If none of them fits your work, you can build a gazetteer from your own data; the :ref:`custom-gazetteers` section of the gazetteers guide walks through it end to end.
+The full **GeoNames** gazetteer is the recommended starting point: it covers towns, natural features, landmarks, and fine-grained place names worldwide, not just cities. **GeoNames Cities** is a lightweight subset that installs in a few minutes and is useful for experimenting, but it omits most place types. **SwissNames3D** covers one country in depth. If none of them fits your work, you can build a gazetteer from your own data; the :ref:`custom-gazetteers` section of the gazetteers guide walks through it end to end.
 
 .. tabs::
-
-   .. tab:: GeoNames Cities
-
-      **GeoNames Cities** is a lightweight GeoNames subset intended for getting started quickly. It includes cities with a population of at least 500. Countries and first- and second-level administrative divisions are also included so that names like "France" or "Bavaria" can be resolved, but those features have **no geographic data**—no coordinates, geometry, or other spatial attributes.
-
-      - **Website**: `geonames.org <https://www.geonames.org/>`_
-      - **Coverage**: Global cities (population ≥ 500)
-      - **Required Disk Space**: **0.8 GB** during install (installed artifact ≈ **0.3 GB**)
-      - **Typical Install Time**: about **1 minute** (varies with hardware and network)
-      - **Installation Command**:
-
-      .. code-block:: bash
-
-         python -m geoparser install geonames-cities
-
-      Many place types (towns, rivers, mountains, and so on) are not included at all. Use this gazetteer to experiment with the library; switch to full GeoNames for serious geoparsing.
 
    .. tab:: GeoNames
 
@@ -63,6 +47,22 @@ If you want to try geoparsing quickly, start with **GeoNames Cities**, a lightwe
          python -m geoparser install geonames
 
       This command downloads the GeoNames data files, processes them, and builds the gazetteer artifact with its search indices.
+
+   .. tab:: GeoNames Cities
+
+      **GeoNames Cities** is a lightweight GeoNames subset intended for experimenting quickly. It includes cities with a population of at least 500. Countries and first- and second-level administrative divisions are also included so that names like "France" or "Bavaria" can be resolved, but those features have **no geographic data**—no coordinates, geometry, or other spatial attributes.
+
+      - **Website**: `geonames.org <https://www.geonames.org/>`_
+      - **Coverage**: Global cities (population ≥ 500)
+      - **Required Disk Space**: **0.8 GB** during install (installed artifact ≈ **0.3 GB**)
+      - **Typical Install Time**: about **1 minute** (varies with hardware and network)
+      - **Installation Command**:
+
+      .. code-block:: bash
+
+         python -m geoparser install geonames-cities
+
+      Many place types (towns, rivers, mountains, and so on) are not included at all. Use this gazetteer only to experiment with the library; switch to full GeoNames for serious geoparsing.
 
    .. tab:: SwissNames3D
 

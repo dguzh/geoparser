@@ -21,23 +21,6 @@ Built-in Gazetteers
 
 The library includes several built-in gazetteers that cover different geographic scopes and use cases.
 
-GeoNames Cities
-~~~~~~~~~~~~~~~
-
-GeoNames Cities is a lightweight alternative to the full GeoNames gazetteer, designed as a quick way to start experimenting with geoparsing. It is built from GeoNames' ``cities500`` dataset (cities with a population of at least 500), supplemented by country and first- and second-level administrative names from GeoNames lookup files.
-
-Only city features include geographic data: coordinates and the full set of place attributes. Countries, admin1 divisions, and admin2 divisions are included as searchable features, but they carry **no geographic data**.
-
-To install GeoNames Cities:
-
-.. code-block:: bash
-
-   python -m geoparser install geonames-cities
-
-Installation typically completes within a few minutes.
-
-This gazetteer omits the vast majority of GeoNames coverage: small towns, neighborhoods, natural features, landmarks, and other place types are not included at all. For real geoparsing beyond a quick trial, install the full GeoNames gazetteer instead.
-
 GeoNames
 ~~~~~~~~
 
@@ -50,6 +33,23 @@ To install GeoNames:
    python -m geoparser install geonames
 
 The installation process can take a while depending on your system and network speed.
+
+GeoNames Cities
+~~~~~~~~~~~~~~~
+
+GeoNames Cities is a lightweight alternative to the full GeoNames gazetteer, designed as a quick way to experiment with geoparsing. It is built from GeoNames' ``cities500`` dataset (cities with a population of at least 500), supplemented by country and first- and second-level administrative names from GeoNames lookup files.
+
+Only city features include geographic data: coordinates and the full set of place attributes. Countries, admin1 divisions, and admin2 divisions are included as searchable features, but they carry **no geographic data**.
+
+To install GeoNames Cities:
+
+.. code-block:: bash
+
+   python -m geoparser install geonames-cities
+
+Installation typically completes within a few minutes.
+
+This gazetteer omits the vast majority of GeoNames coverage: small towns, neighborhoods, natural features, landmarks, and other place types are not included at all. For real geoparsing beyond a quick trial, install the full GeoNames gazetteer instead.
 
 SwissNames3D
 ~~~~~~~~~~~~
