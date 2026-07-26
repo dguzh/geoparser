@@ -1,11 +1,11 @@
 # Irchel Geoparser
 
-[![CI](https://img.shields.io/github/actions/workflow/status/dguzh/geoparser/ci.yml?branch=main&logo=github&label=CI)](https://github.com/dguzh/geoparser/actions?query=event%3Apush+branch%3Amain+workflow%3ACI)
-[![Tests](https://img.shields.io/github/actions/workflow/status/dguzh/geoparser/test.yml?branch=main&logo=github&label=tests)](https://github.com/dguzh/geoparser/actions/workflows/test.yml?query=branch%3Amain+)
+[![CI](https://img.shields.io/github/actions/workflow/status/dguzh/geoparser/test.yml?branch=main&logo=github&label=CI)](https://github.com/dguzh/geoparser/actions/workflows/test.yml?query=branch%3Amain+)
 [![Coverage](https://coverage-badge.samuelcolvin.workers.dev/dguzh/geoparser.svg)](https://coverage-badge.samuelcolvin.workers.dev/redirect/dguzh/geoparser)
-[![PyPI](https://img.shields.io/pypi/v/geoparser?&label=pypi%20package)](https://pypi.org/project/geoparser)
-[![Python](https://img.shields.io/pypi/pyversions/geoparser)](https://pypi.org/project/geoparser)
-[![License](https://img.shields.io/github/license/dguzh/geoparser)](https://github.com/dguzh/geoparser/blob/main/LICENSE)
+[![PyPI](https://img.shields.io/pypi/v/geoparser.svg)](https://pypi.org/project/geoparser)
+[![Downloads](https://static.pepy.tech/badge/geoparser)](https://pepy.tech/projects/geoparser)
+[![Python](https://img.shields.io/pypi/pyversions/geoparser.svg)](https://pypi.org/project/geoparser)
+[![License](https://img.shields.io/github/license/dguzh/geoparser.svg)](https://github.com/dguzh/geoparser/blob/main/LICENSE)
 
 A Python library for extracting place names from text and linking them to geographic locations.
 
