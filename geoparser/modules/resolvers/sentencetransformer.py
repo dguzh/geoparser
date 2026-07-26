@@ -6,8 +6,10 @@ import spacy
 import torch
 from datasets import Dataset
 from sentence_transformers import SentenceTransformer, SentenceTransformerTrainer
-from sentence_transformers.losses import ContrastiveLoss
-from sentence_transformers.training_args import SentenceTransformerTrainingArguments
+from sentence_transformers.sentence_transformer.losses import ContrastiveLoss
+from sentence_transformers.sentence_transformer.training_args import (
+    SentenceTransformerTrainingArguments,
+)
 from transformers import AutoTokenizer, logging
 
 from geoparser.gazetteer.gazetteer import Gazetteer
