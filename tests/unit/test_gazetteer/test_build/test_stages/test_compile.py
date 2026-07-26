@@ -15,6 +15,7 @@ from geoparser.gazetteer.build.schema import GazetteerConfig
 from geoparser.gazetteer.build.stages.compile import (
     CompileError,
     ProjectionCompiler,
+    bare_references,
     qualifiers,
     qualify_expression,
 )
@@ -867,3 +868,25 @@ class TestQualifiers:
 
     def test_unquotes_quoted_qualifiers(self):
         assert qualifiers('"my source"."my column"') == {"my source"}
+
+    def test_ignores_inner_components_of_chained_references(self):
+        assert qualifiers("db.schema.table") == {"db"}
+
+
+@pytest.mark.unit
+class TestBareReferences:
+    """Test detection of the unqualified columns an expression reads."""
+
+    def test_finds_bare_columns(self):
+        assert bare_references("lon || lat") == {"lon", "lat"}
+
+    def test_ignores_function_names_and_literals(self):
+        assert bare_references("upper(name) || 'a'") == {"name"}
+
+    def test_ignores_quoted_identifiers(self):
+        assert bare_references('"quoted"') == set()
+
+    def test_ignores_the_column_of_a_qualified_reference(self):
+        # The alias is reported because nothing distinguishes it from a column
+        # name, which is how qualify_expression reads such an expression too.
+        assert bare_references("n.romanized_form_1") == {"n"}

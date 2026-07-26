@@ -92,6 +92,34 @@ class _FakeMultiGeometryConnection:
         return getattr(self._real, name)
 
 
+class _RefusesParallelPaddingConnection:
+    """
+    Wraps a real DuckDB connection, failing the first CSV read.
+
+    It raises what DuckDB raises when its parallel scanner is asked to combine
+    null padding with quoted newlines. That only happens for files large enough
+    to be split across threads, so reproducing it here keeps the retry path
+    testable without a multi-megabyte fixture.
+    """
+
+    def __init__(self, real: duckdb.DuckDBPyConnection):
+        self._real = real
+        self.statements = []
+
+    def execute(self, sql, *args, **kwargs):
+        self.statements.append(sql)
+        if "read_csv" in sql and "parallel=false" not in sql:
+            raise duckdb.InvalidInputException(
+                "Invalid Input Error: CSV Error on Line: 1. "
+                "The parallel scanner does not support null_padding in "
+                "conjunction with quoted new lines."
+            )
+        return self._real.execute(sql, *args, **kwargs)
+
+    def __getattr__(self, name):
+        return getattr(self._real, name)
+
+
 @pytest.mark.unit
 class TestQuoting:
     """Test quote_identifier() and quote_literal()."""
@@ -142,12 +170,7 @@ class TestLoadTabular:
         assert rows[0][0] == 'O"Brien'
 
     def test_loads_quoted_fields_spanning_several_lines(self, loader, tmp_path):
-        """
-        A quoted field containing newlines is loaded.
-
-        DuckDB's parallel CSV scanner rejects such files while null padding is
-        on, so this exercises the fallback to its single-threaded scanner.
-        """
+        """A quoted field containing newlines is one value, not two rows."""
         data_file = tmp_path / "places.csv"
         data_file.write_text('1,"Paris,\nthe capital"\n2,Berlin\n')
         source = make_tabular_source()
@@ -158,6 +181,28 @@ class TestLoadTabular:
         assert loader.connection.execute(
             "SELECT name FROM places WHERE id = 1"
         ).fetchone() == ("Paris,\nthe capital",)
+
+    def test_retries_single_threaded_on_the_padding_conflict(
+        self, connection, tmp_path
+    ):
+        """
+        A file DuckDB's parallel scanner refuses is re-read single-threaded.
+
+        Its parallel scanner rejects null padding combined with quoted
+        newlines, which is a property of how the file is read rather than of
+        the file itself, so the load falls back instead of failing.
+        """
+        data_file = tmp_path / "places.csv"
+        data_file.write_text('1,"Paris,\nthe capital"\n2,Berlin\n')
+        proxy = _RefusesParallelPaddingConnection(connection)
+        loader = Loader(proxy)
+
+        row_count = loader.load(make_tabular_source(), data_file)
+
+        assert row_count == 2
+        reads = [sql for sql in proxy.statements if "read_csv" in sql]
+        assert len(reads) == 2
+        assert "parallel=false" in reads[1]
 
     def test_unrelated_csv_errors_are_not_retried(self, loader, tmp_path):
         """Errors other than the padding conflict propagate to the caller."""
