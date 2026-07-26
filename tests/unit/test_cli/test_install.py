@@ -1,7 +1,7 @@
 """
 Unit tests for geoparser/cli/install.py
 
-Tests the install CLI functionality.
+Tests the install, list and uninstall CLI functionality.
 """
 
 from pathlib import Path
@@ -81,10 +81,10 @@ class TestGetBuiltinGazetteers:
 class TestInstallCli:
     """Test install_cli() function."""
 
-    @patch("geoparser.cli.install.GazetteerInstaller")
+    @patch("geoparser.cli.install.GazetteerBuilder")
     @patch("geoparser.cli.install.Path")
-    def test_installs_from_existing_file_path(self, mock_path_class, mock_installer):
-        """Test that gazetteer is installed when config file exists."""
+    def test_installs_from_existing_file_path(self, mock_path_class, mock_builder):
+        """Test that gazetteer is built when config file exists."""
         # Arrange
         from geoparser.cli.install import install_cli
 
@@ -92,20 +92,20 @@ class TestInstallCli:
         mock_path.exists.return_value = True
         mock_path_class.return_value = mock_path
 
-        mock_installer_instance = Mock()
-        mock_installer.return_value = mock_installer_instance
+        mock_builder_instance = Mock()
+        mock_builder.return_value = mock_builder_instance
 
         # Act
         install_cli("path/to/config.yaml")
 
         # Assert
-        mock_installer_instance.install.assert_called_once_with(mock_path)
+        mock_builder_instance.build.assert_called_once_with(mock_path)
 
-    @patch("geoparser.cli.install.GazetteerInstaller")
+    @patch("geoparser.cli.install.GazetteerBuilder")
     @patch("geoparser.cli.install._get_builtin_gazetteers")
     @patch("geoparser.cli.install.Path")
     def test_uses_builtin_gazetteer_when_name_matches(
-        self, mock_path_class, mock_get_builtin, mock_installer
+        self, mock_path_class, mock_get_builtin, mock_builder
     ):
         """Test that built-in gazetteer is used when name matches."""
         # Arrange
@@ -118,14 +118,14 @@ class TestInstallCli:
         builtin_path = Path("/builtin/geonames.yaml")
         mock_get_builtin.return_value = {"geonames": builtin_path}
 
-        mock_installer_instance = Mock()
-        mock_installer.return_value = mock_installer_instance
+        mock_builder_instance = Mock()
+        mock_builder.return_value = mock_builder_instance
 
         # Act
         install_cli("geonames")
 
         # Assert
-        mock_installer_instance.install.assert_called_once_with(builtin_path)
+        mock_builder_instance.build.assert_called_once_with(builtin_path)
 
     @patch("geoparser.cli.install._get_builtin_gazetteers")
     @patch("geoparser.cli.install.Path")
@@ -173,13 +173,13 @@ class TestInstallCli:
         assert "swissnames3d" in error_message
         assert "Available built-in gazetteer configs" in error_message
 
-    @patch("geoparser.cli.install.GazetteerInstaller")
+    @patch("geoparser.cli.install.GazetteerBuilder")
     @patch("geoparser.cli.install._get_builtin_gazetteers")
     @patch("geoparser.cli.install.Path")
-    def test_creates_installer_instance(
-        self, mock_path_class, mock_get_builtin, mock_installer
+    def test_creates_builder_instance(
+        self, mock_path_class, mock_get_builtin, mock_builder
     ):
-        """Test that GazetteerInstaller is instantiated."""
+        """Test that GazetteerBuilder is instantiated."""
         # Arrange
         from geoparser.cli.install import install_cli
 
@@ -187,11 +187,73 @@ class TestInstallCli:
         mock_path.exists.return_value = True
         mock_path_class.return_value = mock_path
 
-        mock_installer_instance = Mock()
-        mock_installer.return_value = mock_installer_instance
+        mock_builder_instance = Mock()
+        mock_builder.return_value = mock_builder_instance
 
         # Act
         install_cli("path/to/config.yaml")
 
         # Assert
-        mock_installer.assert_called_once()
+        mock_builder.assert_called_once()
+
+
+@pytest.mark.unit
+class TestListCli:
+    """Test list_cli() function."""
+
+    @patch("geoparser.cli.install.list_artifacts")
+    def test_reports_when_no_gazetteers_installed(self, mock_list, capsys):
+        """Test that an empty install base is reported."""
+        from geoparser.cli.install import list_cli
+
+        mock_list.return_value = []
+
+        list_cli()
+
+        assert "No gazetteers installed" in capsys.readouterr().out
+
+    @patch("geoparser.cli.install.artifact_path")
+    @patch("geoparser.cli.install.list_artifacts")
+    def test_lists_installed_gazetteers_with_size(
+        self, mock_list, mock_artifact_path, capsys
+    ):
+        """Test that installed gazetteers are listed with their size."""
+        from geoparser.cli.install import list_cli
+
+        mock_list.return_value = ["andorranames"]
+        mock_artifact_path.return_value.stat.return_value.st_size = 2 * 1024 * 1024
+
+        list_cli()
+
+        output = capsys.readouterr().out
+        assert "andorranames" in output
+        assert "2.0 MB" in output
+
+
+@pytest.mark.unit
+class TestUninstallCli:
+    """Test uninstall_cli() function."""
+
+    @patch("geoparser.cli.install.uninstall")
+    def test_removes_installed_gazetteer(self, mock_uninstall, capsys):
+        """Test that an installed gazetteer is removed."""
+        from geoparser.cli.install import uninstall_cli
+
+        mock_uninstall.return_value = True
+
+        uninstall_cli("andorranames")
+
+        mock_uninstall.assert_called_once_with("andorranames")
+        assert "Removed gazetteer 'andorranames'" in capsys.readouterr().out
+
+    @patch("geoparser.cli.install.uninstall")
+    def test_exits_with_error_when_not_installed(self, mock_uninstall):
+        """Test that uninstalling a missing gazetteer exits with an error."""
+        import typer
+
+        from geoparser.cli.install import uninstall_cli
+
+        mock_uninstall.return_value = False
+
+        with pytest.raises(typer.Exit):
+            uninstall_cli("missing")

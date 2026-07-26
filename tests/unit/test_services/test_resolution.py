@@ -83,27 +83,24 @@ class TestResolutionServicePredict:
         mock_sentencetransformer_resolver,
         document_factory,
         reference_factory,
-        feature_factory,
     ):
         """Test that predict creates a resolution record marking reference as processed."""
         # Arrange
+        from unittest.mock import Mock
+
         document = document_factory(text="Test")
         reference = reference_factory(start=0, end=4, document_id=document.id)
         test_session.refresh(document)
-
-        # Create feature hierarchy for referent creation
-        feature = feature_factory(location_id_value="123456")
 
         mock_sentencetransformer_resolver.predict.return_value = [
             [("geonames", "123456")]
         ]
         service = ResolutionService(mock_sentencetransformer_resolver)
 
-        # Mock feature repository to return our created feature
-        with patch(
-            "geoparser.services.resolution.FeatureRepository.get_by_gazetteer_and_identifier"
-        ) as mock_get_feature:
-            mock_get_feature.return_value = feature
+        # Mock the gazetteer lookup validating the predicted feature
+        fake_feature = Mock(identifier="123456")
+        with patch("geoparser.services.resolution.Gazetteer") as mock_gazetteer:
+            mock_gazetteer.return_value.find.return_value = fake_feature
 
             # Act
             service.predict([document])
@@ -115,6 +112,29 @@ class TestResolutionServicePredict:
             test_session, reference.id, mock_sentencetransformer_resolver.id
         )
         assert resolution is not None
+
+    def test_raises_when_predicted_feature_does_not_exist(
+        self,
+        test_session,
+        mock_sentencetransformer_resolver,
+        document_factory,
+        reference_factory,
+    ):
+        """A prediction pointing at a non-existent feature raises clearly."""
+        document = document_factory(text="Test")
+        reference_factory(start=0, end=4, document_id=document.id)
+        test_session.refresh(document)
+
+        mock_sentencetransformer_resolver.predict.return_value = [
+            [("geonames", "does-not-exist")]
+        ]
+        service = ResolutionService(mock_sentencetransformer_resolver)
+
+        with patch("geoparser.services.resolution.Gazetteer") as mock_gazetteer:
+            mock_gazetteer.return_value.find.return_value = None
+
+            with pytest.raises(ValueError, match="does not exist in gazetteer"):
+                service.predict([document])
 
     def test_skips_references_when_resolver_returns_none(
         self,
@@ -234,10 +254,11 @@ class TestResolutionServicePredict:
         mock_sentencetransformer_resolver,
         document_factory,
         reference_factory,
-        feature_factory,
     ):
         """Test that predict handles multiple documents correctly."""
         # Arrange
+        from unittest.mock import Mock
+
         doc1 = document_factory(text="New York")
         doc2 = document_factory(text="Paris")
         ref1 = reference_factory(start=0, end=8, document_id=doc1.id)
@@ -245,20 +266,16 @@ class TestResolutionServicePredict:
         test_session.refresh(doc1)
         test_session.refresh(doc2)
 
-        # Create feature hierarchy for referent creation
-        feature = feature_factory(location_id_value="123456")
-
         mock_sentencetransformer_resolver.predict.return_value = [
             [("geonames", "123456")],
             [("geonames", "123456")],
         ]
         service = ResolutionService(mock_sentencetransformer_resolver)
 
-        # Mock feature repository to return our created feature
-        with patch(
-            "geoparser.services.resolution.FeatureRepository.get_by_gazetteer_and_identifier"
-        ) as mock_get_feature:
-            mock_get_feature.return_value = feature
+        # Mock the gazetteer lookup validating the predicted features
+        fake_feature = Mock(identifier="123456")
+        with patch("geoparser.services.resolution.Gazetteer") as mock_gazetteer:
+            mock_gazetteer.return_value.find.return_value = fake_feature
 
             # Act
             service.predict([doc1, doc2])

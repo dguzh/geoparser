@@ -20,29 +20,17 @@ Install the Irchel Geoparser using pip:
 Installing Gazetteers
 ---------------------
 
-The library requires gazetteer data to resolve toponyms to geographic locations. Gazetteers are stored in a SQLite database in your system's application data directory. You can install gazetteers using a single command that downloads the source data and sets up the database automatically.
+The library requires gazetteer data to resolve toponyms to geographic locations. Each installed gazetteer is a single, self-contained SQLite file stored in your system's application data directory. You can install gazetteers using a single command that downloads the source data and builds the gazetteer automatically.
 
 .. note::
    The gazetteer CLI command was renamed from ``download`` to ``install``.
 
-If you want to try geoparsing quickly, start with **GeoNames Cities**, a lightweight subset that installs in a few minutes. For real geoparsing work, use the full **GeoNames** gazetteer instead: it covers far more than cities alone, including towns, natural features, landmarks, and fine-grained place names that the cities subset omits entirely.
+.. tip::
+   Building a gazetteer can be memory-intensive. We recommend using a machine with at least **4 GB of RAM** and closing other heavy applications so enough memory stays available during the install. Lighter machines may still succeed for smaller gazetteers, but larger builds are more reliable with this headroom.
+
+The full **GeoNames** gazetteer is the recommended starting point: it covers towns, natural features, landmarks, and fine-grained place names worldwide, not just cities. **GeoNames Cities** is a lightweight subset that installs in a few minutes and is useful for experimenting, but it omits most place types. **SwissNames3D** covers one country in depth. If none of them fits your work, you can build a gazetteer from your own data; the :ref:`custom-gazetteers` section of the gazetteers guide walks through it end to end.
 
 .. tabs::
-
-   .. tab:: GeoNames Cities
-
-      **GeoNames Cities** is a lightweight GeoNames subset intended for getting started quickly. It includes cities with a population of at least 500. Countries and first- and second-level administrative divisions are also included so that names like "France" or "Bavaria" can be resolved, but those features have **no geographic data**—no coordinates, geometry, or other spatial attributes.
-
-      - **Website**: `geonames.org <https://www.geonames.org/>`_
-      - **Coverage**: Global cities (population ≥ 500)
-      - **Required Disk Space**: Approximately **700 MB**
-      - **Installation Command**:
-
-      .. code-block:: bash
-
-         python -m geoparser install geonames-cities
-
-      Installation typically completes within a few minutes. Many place types (towns, rivers, mountains, and so on) are not included at all. Use this gazetteer to experiment with the library; switch to full GeoNames for serious geoparsing.
 
    .. tab:: GeoNames
 
@@ -50,14 +38,31 @@ If you want to try geoparsing quickly, start with **GeoNames Cities**, a lightwe
 
       - **Website**: `geonames.org <https://www.geonames.org/>`_
       - **Coverage**: Global
-      - **Required Disk Space**: Approximately **13 GB**
+      - **Required Disk Space**: **30.7 GB** during install (installed artifact ≈ **10.2 GB**)
+      - **Typical Install Time**: about **10–15 minutes** (varies with hardware and network)
       - **Installation Command**:
 
       .. code-block:: bash
 
          python -m geoparser install geonames
 
-      This command downloads the GeoNames data files, processes them, and creates the necessary database tables and indices. The process may take 20-40 minutes depending on your system.
+      This command downloads the GeoNames data files, processes them, and builds the gazetteer artifact with its search indices.
+
+   .. tab:: GeoNames Cities
+
+      **GeoNames Cities** is a lightweight GeoNames subset intended for experimenting quickly. It includes cities with a population of at least 500. Countries and first- and second-level administrative divisions are also included so that names like "France" or "Bavaria" can be resolved, but those features have **no geographic data**—no coordinates, geometry, or other spatial attributes.
+
+      - **Website**: `geonames.org <https://www.geonames.org/>`_
+      - **Coverage**: Global cities (population ≥ 500)
+      - **Required Disk Space**: **0.8 GB** during install (installed artifact ≈ **0.3 GB**)
+      - **Typical Install Time**: about **1 minute** (varies with hardware and network)
+      - **Installation Command**:
+
+      .. code-block:: bash
+
+         python -m geoparser install geonames-cities
+
+      Many place types (towns, rivers, mountains, and so on) are not included at all. Use this gazetteer only to experiment with the library; switch to full GeoNames for serious geoparsing.
 
    .. tab:: SwissNames3D
 
@@ -65,25 +70,36 @@ If you want to try geoparsing quickly, start with **GeoNames Cities**, a lightwe
 
       - **Website**: `Swisstopo SwissNames3D <https://www.swisstopo.admin.ch/en/landscape-model-swissnames3d>`_
       - **Coverage**: Switzerland
-      - **Required Disk Space**: Approximately **1.2 GB**
+      - **Required Disk Space**: **3.5 GB** during install (installed artifact ≈ **0.7 GB**)
+      - **Typical Install Time**: about **1–2 minutes** (varies with hardware and network)
       - **Installation Command**:
 
       .. code-block:: bash
 
          python -m geoparser install swissnames3d
 
-      This command downloads the SwissNames3D data, processes it, and creates the database. The process typically completes within a few minutes.
+      This command downloads the SwissNames3D data, processes it, and builds the gazetteer artifact.
 
-Database Location
------------------
+Managing Gazetteers
+-------------------
 
-All gazetteer data and project information is stored in a centralized SQLite database located in your system's user data directory:
+You can list installed gazetteers and remove ones you no longer need:
 
-- **Windows**: ``C:\Users\<Username>\AppData\Local\geoparser\geoparser.db``
-- **macOS**: ``~/Library/Application Support/geoparser/geoparser.db``
-- **Linux**: ``~/.local/share/geoparser/geoparser.db``
+.. code-block:: bash
 
-You can remove all data by deleting this database file. Note that this will remove all gazetteers and any projects you have created.
+   python -m geoparser list
+   python -m geoparser uninstall geonames-cities
+
+Data Locations
+--------------
+
+Gazetteers and project data are stored in your system's user data directory:
+
+- **Windows**: ``C:\Users\<Username>\AppData\Local\geoparser\``
+- **macOS**: ``~/Library/Application Support/geoparser/``
+- **Linux**: ``~/.local/share/geoparser/``
+
+Each gazetteer lives in its own SQLite file under the ``gazetteers/`` subdirectory (for example ``gazetteers/geonames.db``); removing one is as simple as deleting the file or running ``python -m geoparser uninstall <name>``. Project data (documents, references, resolutions) is stored separately in ``geoparser.db``, so reinstalling a gazetteer does not affect your projects.
 
 Next Steps
 ----------

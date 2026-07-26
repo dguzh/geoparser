@@ -68,23 +68,37 @@ Reference
 Feature
 -------
 
-.. autoclass:: geoparser.db.models.Feature
+.. autoclass:: geoparser.gazetteer.feature.Feature
    :members:
    :show-inheritance:
-   :exclude-members: id, source_id, source, names, location_id_value, data, geometry, model_config, model_post_init
+   :exclude-members: id, names, identifier, type, data, geometry, crs, gazetteer_name
 
-   The Feature model represents a geographic entity from a gazetteer.
+   The Feature class represents a geographic entity from an installed gazetteer.
 
    **Properties:**
 
-   .. py:attribute:: data
-      :type: Optional[Dict[str, Any]]
+   .. py:attribute:: identifier
+      :type: str
       :no-index:
 
-      Returns the complete gazetteer row data for this feature as a dictionary. The available
-      attributes depend on which gazetteer the feature comes from. For GeoNames, common
-      attributes include name, latitude, longitude, country_name, feature_name, population,
-      and administrative divisions. For SwissNames3D, attributes include NAME, OBJEKTART,
+      The feature's stable identifier within its gazetteer (for example the geonameid
+      for GeoNames features).
+
+   .. py:attribute:: source
+      :type: str
+      :no-index:
+
+      The name of the gazetteer source the feature was built from
+      (for example ``allCountries``, ``cities500``, or ``swissNAMES3D_PKT``).
+
+   .. py:attribute:: data
+      :type: Dict[str, Any]
+      :no-index:
+
+      Returns the feature's data as a dictionary. The available keys depend
+      on which gazetteer (and source) the feature comes from. For GeoNames, common
+      keys include name, latitude, longitude, country_name, feature_name, population,
+      and administrative divisions. For SwissNames3D, keys include NAME, OBJEKTART,
       GEMEINDE_NAME, KANTON_NAME, and elevation. This property is cached for performance.
 
    .. py:attribute:: geometry
@@ -92,5 +106,12 @@ Feature
       :no-index:
 
       Returns the geographic geometry (point, line, or polygon) associated with this feature
-      as a Shapely geometry object. This property is cached for performance.
+      as a Shapely geometry object, in the gazetteer's coordinate reference system
+      (``crs``). This property is cached for performance.
+
+   .. py:attribute:: names
+      :type: List[str]
+      :no-index:
+
+      All searchable names of this feature. This property is cached for performance.
 

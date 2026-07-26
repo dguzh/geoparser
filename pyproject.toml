@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "geoparser"
-version = "0.4.0"
+version = "0.5.0"
 description = "A customizable geoparsing library for unstructured text"
 authors = ["Diego Gomes <diego.gomes@uzh.ch>"]
 readme = "README.md"
@@ -14,30 +14,28 @@ include = [
 ]
 
 [tool.poetry.dependencies]
-python = ">=3.10,<3.14"
+python = ">=3.10,<3.15"
 accelerate = "^1.11.0"
 appdirs = "^1.4.4"
-datasets = "^4.3.0"
+datasets = "^5.0.0"
+duckdb = "^1.5.4"
 fastapi = "^0.121.0"
-geopandas = "^1.1.1"
 markupsafe = "^3.0.3"
-pandas = "^2.3.3"
 pydantic = "^2.12.3"
-pyogrio = "^0.11.1"
 pyproj = "^3.7.1"
 python-multipart = "^0.0.20"
 pyyaml = "^6.0.3"
 rapidfuzz = "^3.14.5"
 requests = "^2.32.5"
-rich = "^13.9.4"
+rich = "^15.0.0"
 sentence-transformers = "^5.1.2"
 shapely = "^2.1.2"
-spacy = "^3.8.7"
+spacy = "^3.8.7,!=3.8.14" # 3.8.14 has cp314 wheels on GitHub but not on PyPI (explosion/spaCy#13949)
 sqlalchemy = "^2.0.44"
-sqlmodel = "^0.0.27"
+sqlmodel = "^0.0.39"
 torch = "^2.9.0"
-transformers = "^4.57.1"
-typer = "^0.20.0"
+transformers = "^5.0.0"
+typer = "^0.27.0"
 uvicorn = "^0.38.0"
 werkzeug = "^3.1.3"
 

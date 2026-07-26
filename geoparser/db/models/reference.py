@@ -7,10 +7,10 @@ from sqlmodel import Field, Relationship, SQLModel
 
 if t.TYPE_CHECKING:
     from geoparser.db.models.document import Document
-    from geoparser.db.models.feature import Feature
     from geoparser.db.models.recognizer import Recognizer
     from geoparser.db.models.referent import Referent
     from geoparser.db.models.resolution import Resolution
+    from geoparser.gazetteer.feature import Feature
 
 
 class ReferenceBase(SQLModel):

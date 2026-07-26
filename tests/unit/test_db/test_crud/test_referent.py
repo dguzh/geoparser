@@ -20,26 +20,29 @@ class TestReferentRepositoryGetByReference:
         test_session: Session,
         reference_factory,
         resolver_factory,
-        feature_factory,
     ):
         """Test that get_by_reference returns all referents for a reference."""
         # Arrange
         reference = reference_factory()
-        resolver1 = resolver_factory(id="res1")
-        resolver2 = resolver_factory(id="res2")
-        feature1 = feature_factory()
-        feature2 = feature_factory()
+        resolver_factory(id="res1")
+        resolver_factory(id="res2")
 
         ref1 = ReferentRepository.create(
             test_session,
             ReferentCreate(
-                reference_id=reference.id, feature_id=feature1.id, resolver_id="res1"
+                reference_id=reference.id,
+                gazetteer_name="andorranames",
+                feature_identifier="3041563",
+                resolver_id="res1",
             ),
         )
         ref2 = ReferentRepository.create(
             test_session,
             ReferentCreate(
-                reference_id=reference.id, feature_id=feature2.id, resolver_id="res2"
+                reference_id=reference.id,
+                gazetteer_name="andorranames",
+                feature_identifier="3039154",
+                resolver_id="res2",
             ),
         )
 
@@ -70,26 +73,29 @@ class TestReferentRepositoryGetByReference:
         test_session: Session,
         reference_factory,
         resolver_factory,
-        feature_factory,
     ):
         """Test that get_by_reference only returns referents from specified reference."""
         # Arrange
         ref1 = reference_factory()
         ref2 = reference_factory()
-        resolver = resolver_factory(id="test_res")
-        feature1 = feature_factory()
-        feature2 = feature_factory()
+        resolver_factory(id="test_res")
 
         referent1 = ReferentRepository.create(
             test_session,
             ReferentCreate(
-                reference_id=ref1.id, feature_id=feature1.id, resolver_id="test_res"
+                reference_id=ref1.id,
+                gazetteer_name="andorranames",
+                feature_identifier="3041563",
+                resolver_id="test_res",
             ),
         )
-        referent2 = ReferentRepository.create(
+        ReferentRepository.create(
             test_session,
             ReferentCreate(
-                reference_id=ref2.id, feature_id=feature2.id, resolver_id="test_res"
+                reference_id=ref2.id,
+                gazetteer_name="andorranames",
+                feature_identifier="3039154",
+                resolver_id="test_res",
             ),
         )
 
