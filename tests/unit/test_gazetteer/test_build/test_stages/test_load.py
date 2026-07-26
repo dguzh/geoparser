@@ -194,6 +194,54 @@ class TestLoadSpatial:
         assert row_count == 1
         assert set(loader.columns("shape")) == {"id", "geometry"}
 
+    def test_reprojects_geometry_into_the_gazetteer_crs(self, connection, tmp_path):
+        """A source in another CRS is staged in the gazetteer's."""
+        data_file = tmp_path / "shape.geojson"
+        self._write_geojson(
+            data_file,
+            [
+                {
+                    "type": "Feature",
+                    # LV95 coordinates of Bern
+                    "geometry": {
+                        "type": "Point",
+                        "coordinates": [2600000.0, 1200000.0],
+                    },
+                    "properties": {"id": 1},
+                }
+            ],
+        )
+        loader = Loader(connection, "EPSG:4326")
+
+        loader.load(make_spatial_source(crs="EPSG:2056"), data_file)
+
+        longitude, latitude = connection.execute(
+            "SELECT ST_X(geometry), ST_Y(geometry) FROM shape"
+        ).fetchone()
+        assert longitude == pytest.approx(7.44, abs=0.05)
+        assert latitude == pytest.approx(46.95, abs=0.05)
+
+    def test_leaves_geometry_alone_when_the_crs_matches(self, connection, tmp_path):
+        """A source already in the gazetteer's CRS is staged unchanged."""
+        data_file = tmp_path / "shape.geojson"
+        self._write_geojson(
+            data_file,
+            [
+                {
+                    "type": "Feature",
+                    "geometry": {"type": "Point", "coordinates": [7.44, 46.95]},
+                    "properties": {"id": 1},
+                }
+            ],
+        )
+        loader = Loader(connection, "EPSG:4326")
+
+        loader.load(make_spatial_source(crs="EPSG:4326"), data_file)
+
+        assert connection.execute(
+            "SELECT ST_X(geometry), ST_Y(geometry) FROM shape"
+        ).fetchone() == pytest.approx((7.44, 46.95))
+
     def test_renames_non_standard_geometry_column(self, loader, tmp_path):
         """A geometry column not named 'geometry' is renamed to match."""
         data_file = tmp_path / "shape.geojson"

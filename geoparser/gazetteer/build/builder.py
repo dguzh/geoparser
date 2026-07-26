@@ -390,7 +390,7 @@ class GazetteerBuilder:
         estimate below undercounts some sources and overcounts others, but
         the stage's total grows on the fly to stay ahead of it either way.
         """
-        loader = Loader(connection)
+        loader = Loader(connection, config.crs)
         total_estimate = sum(
             1 + (1 if source_config.is_tabular else 2)
             for source_config in config.sources

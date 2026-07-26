@@ -101,20 +101,11 @@ Before comparing a candidate place against the text, the resolver describes it i
        },
    )
 
-The values are keys of your gazetteer's ``data`` dictionary. ``name`` and ``type`` are both required; the administrative levels are optional, with ``level1`` the outermost enclosing place and ``level3`` the innermost. Supply only as many as your data supports — Pleiades, for instance, has no modern administrative hierarchy, so it maps ``level1`` to the Roman province and stops there:
+The values are keys of your gazetteer's ``data`` dictionary. ``name`` and ``type`` are both required; the administrative levels are optional, with ``level1`` the outermost enclosing place and ``level3`` the innermost. Supply only as many as your data supports — a gazetteer of ancient places, for instance, may have nothing above the Roman province a place falls in, in which case ``level1`` is the only level to map.
 
-.. code-block:: python
+Which attributes you have available at all is a decision you make when configuring the gazetteer; see :ref:`custom-gazetteers`.
 
-   resolver = SentenceTransformerResolver(
-       gazetteer_name="pleiades",
-       attribute_map={
-           "name": "title",
-           "type": "place_types",
-           "level1": "province",
-       },
-   )
-
-This describes a candidate as "Pompeii (settlement, urban area) in Italia". Which attributes you have available is a decision you make when configuring the gazetteer; see :doc:`custom-gazetteers`.
+Bear in mind that the default model is fine-tuned on GeoNames-style descriptions. Against a gazetteer whose vocabulary is very different, expect to lower ``min_similarity`` and, for the best results, to fine-tune a resolver of your own on data annotated with that gazetteer's features — see :doc:`training`.
 
 The SentenceTransformerResolver works best when place names have distinctive contexts that help disambiguate them. For example, "I visited the Eiffel Tower in Paris" provides strong contextual clues. Short texts with minimal context or lists of place names without surrounding text present more challenging scenarios where the resolver may struggle.
 

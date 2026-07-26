@@ -4,7 +4,10 @@ Loading of gazetteer source files into transient DuckDB tables.
 Tabular sources (those with a ``delimiter``) are loaded with DuckDB's CSV
 reader; everything else is loaded with the spatial extension's ``ST_Read``
 (shapefiles, GeoPackage, GeoJSON, ...). Loaded spatial tables always expose
-their geometry column under the name ``geometry``.
+their geometry column under the name ``geometry``, re-projected from the
+source's declared ``crs`` into the gazetteer's. Every staged geometry column
+is therefore in one coordinate system, which is what lets expressions and
+spatial joins mix sources without transforming anything by hand.
 """
 
 import typing as t
@@ -13,7 +16,12 @@ from pathlib import Path
 import duckdb
 
 from geoparser.gazetteer.build.progress import advance, item, track
-from geoparser.gazetteer.build.schema import GEOMETRY_ATTRIBUTE, DataType, SourceConfig
+from geoparser.gazetteer.build.schema import (
+    DEFAULT_CRS,
+    GEOMETRY_ATTRIBUTE,
+    DataType,
+    SourceConfig,
+)
 
 GEOMETRY_COLUMN = GEOMETRY_ATTRIBUTE
 
@@ -60,14 +68,18 @@ def quote_literal(value: str) -> str:
 class Loader:
     """Loads source files into tables of a DuckDB connection."""
 
-    def __init__(self, connection: duckdb.DuckDBPyConnection):
+    def __init__(
+        self, connection: duckdb.DuckDBPyConnection, crs: str = DEFAULT_CRS
+    ):
         """
         Initialize the loader.
 
         Args:
             connection: DuckDB connection holding the loaded tables
+            crs: Coordinate reference system to stage geometries in
         """
         self.connection = connection
+        self.crs = crs
 
     def load(self, source_config: SourceConfig, file_path: Path) -> int:
         """
@@ -171,11 +183,12 @@ class Loader:
         """
         Load a spatial file via ST_Read, projected onto its declared attributes.
 
-        The geometry column is normalized to ``geometry`` and the non-geometry
-        attributes are cast to their declared types, so the loaded table has
-        exactly the schema the config declares (mirroring tabular sources).
-        Loading the file and normalizing its columns are each their own
-        query, so they're reported as two separate items in turn.
+        The geometry column is normalized to ``geometry``, re-projected into
+        the gazetteer's coordinate system, and the non-geometry attributes are
+        cast to their declared types, so the loaded table has exactly the
+        schema the config declares (mirroring tabular sources). Loading the
+        file and normalizing its columns are each their own query, so they're
+        reported as two separate items in turn.
         """
         raw = quote_identifier(f"__raw_{source_config.name}")
         read_sql = (
@@ -215,7 +228,7 @@ class Loader:
         for attribute in source_config.attributes:
             column = quote_identifier(attribute.name)
             if attribute.type == DataType.GEOMETRY:
-                select_parts.append(column)
+                select_parts.append(f"{self._reprojection(source_config)} AS {column}")
             else:
                 select_parts.append(
                     f"CAST({column} AS {_DUCKDB_TYPES[attribute.type]}) AS {column}"
@@ -229,3 +242,20 @@ class Loader:
             track(bar, self.connection.query_progress, lambda: self.connection.execute(cast_sql))
         advance()
         self.connection.execute(f"DROP TABLE {raw}")
+
+    def _reprojection(self, source_config: SourceConfig) -> str:
+        """
+        Build the expression staging a source's geometry in the gazetteer CRS.
+
+        Doing this once per row, at load time, is both cheaper and less
+        error-prone than transforming at every place the column is read: from
+        here on, every staged geometry shares one coordinate system.
+        """
+        column = quote_identifier(GEOMETRY_COLUMN)
+        native_crs = source_config.crs or self.crs
+        if native_crs == self.crs:
+            return column
+        return (
+            f"ST_Transform({column}, {quote_literal(native_crs)}, "
+            f"{quote_literal(self.crs)}, always_xy := true)"
+        )

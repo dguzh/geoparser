@@ -18,6 +18,12 @@ passed through, with its bare identifiers qualified to ``src``. The same rule is
 applied inside each join's ``ON`` condition, so join clauses can reference the
 block's source columns bare (without a ``src.`` prefix) too.
 
+Geometry columns are staged in the gazetteer's coordinate system (see
+:mod:`stages.load`), so expressions and spatial joins can mix sources freely and
+never have to transform anything. The one geometry that is not yet in that
+system is one built from a tabular source's plain coordinate columns, which is
+transformed here from the CRS its source declares.
+
 Geometry of rows sharing an identifier must be unioned, but ``ST_Union_Agg``
 holds unmanaged (unspillable) memory proportional to the number of groups, which
 is prohibitive for large sources of mostly-unique identifiers. The feature query
@@ -33,6 +39,7 @@ import re
 import typing as t
 
 from geoparser.gazetteer.build.schema import (
+    GEOMETRY_ATTRIBUTE,
     FeatureConfig,
     GazetteerConfig,
     split_data_value,
@@ -83,6 +90,33 @@ def qualifiers(expression: str) -> t.Set[str]:
         if expression[: match.start()].rstrip().endswith("."):
             continue
         found.add(token[1:-1] if token.startswith('"') else token)
+    return found
+
+
+def bare_references(expression: str) -> t.Set[str]:
+    """
+    Collect the unqualified column references of a scalar SQL expression.
+
+    Mirrors what :func:`qualify_expression` treats as a bare column: string
+    literals, quoted identifiers, qualified references and function names are
+    not reported.
+
+    Args:
+        expression: Scalar SQL expression
+
+    Returns:
+        Set of bare column names
+    """
+    found = set()
+    for match in _EXPRESSION_TOKEN.finditer(expression):
+        token = match.group(0)
+        if token.startswith("'") or token.startswith('"'):
+            continue
+        if expression[: match.start()].rstrip().endswith("."):
+            continue
+        if expression[match.end() :].lstrip().startswith("("):
+            continue
+        found.add(token)
     return found
 
 
@@ -319,8 +353,17 @@ class ProjectionCompiler:
         return self._resolve_own(feature, feature.identifier, "identifier")
 
     def _feature_geometry(self, feature: FeatureConfig) -> str:
-        """Resolve the feature geometry expression in the gazetteer CRS."""
+        """
+        Resolve the feature geometry expression in the gazetteer CRS.
+
+        A staged geometry column is already in that CRS (see
+        :meth:`Loader._reprojection`), so only a geometry built from plain
+        coordinate columns still has to be transformed, from the CRS its
+        source declares.
+        """
         geometry = self._resolve_own(feature, feature.geometry, "geometry")
+        if self._reads_geometry_column(feature):
+            return geometry
         native_crs = self._source_crs(feature.source)
         if native_crs != self.config.crs:
             geometry = (
@@ -328,6 +371,12 @@ class ProjectionCompiler:
                 f"{quote_literal(self.config.crs)}, always_xy := true)"
             )
         return geometry
+
+    def _reads_geometry_column(self, feature: FeatureConfig) -> bool:
+        """Whether the block's geometry is read from its source's geometry."""
+        if self._sources[feature.source].is_tabular:
+            return False
+        return GEOMETRY_ATTRIBUTE in bare_references(feature.geometry)
 
     def _source_crs(self, source_name: str) -> str:
         """Return the CRS of a source, defaulting to the gazetteer CRS."""

@@ -61,7 +61,6 @@ The Irchel Geoparser is released under the `MIT License <https://github.com/dguz
    guides/modules
    guides/training
    guides/gazetteers
-   guides/custom-gazetteers
 
 .. toctree::
    :maxdepth: 1

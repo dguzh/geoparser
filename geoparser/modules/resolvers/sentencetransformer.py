@@ -54,13 +54,6 @@ class SentenceTransformerResolver(Resolver):
             "level2": "BEZIRK_NAME",
             "level3": "GEMEINDE_NAME",
         },
-        # Ancient places have no administrative hierarchy beyond the Roman
-        # province their location falls in, so only one level is mapped.
-        "pleiades": {
-            "name": "title",
-            "type": "place_types",
-            "level1": "province",
-        },
     }
 
     def __init__(

@@ -28,7 +28,7 @@ The library requires gazetteer data to resolve toponyms to geographic locations.
 .. tip::
    Building a gazetteer can be memory-intensive. We recommend using a machine with at least **4 GB of RAM** and closing other heavy applications so enough memory stays available during the install. Lighter machines may still succeed for smaller gazetteers, but larger builds are more reliable with this headroom.
 
-If you want to try geoparsing quickly, start with **GeoNames Cities**, a lightweight subset that installs in a few minutes. For real geoparsing work, use the full **GeoNames** gazetteer instead: it covers far more than cities alone, including towns, natural features, landmarks, and fine-grained place names that the cities subset omits entirely. **SwissNames3D** and **Pleiades** cover one country and one historical period in depth, and if none of the four fits your work, you can build a gazetteer from your own data — see :doc:`guides/custom-gazetteers`.
+If you want to try geoparsing quickly, start with **GeoNames Cities**, a lightweight subset that installs in a few minutes. For real geoparsing work, use the full **GeoNames** gazetteer instead: it covers far more than cities alone, including towns, natural features, landmarks, and fine-grained place names that the cities subset omits entirely. **SwissNames3D** covers one country in depth. If none of them fits your work, you can build a gazetteer from your own data; the :ref:`custom-gazetteers` section of the gazetteers guide walks through it end to end.
 
 .. tabs::
 
@@ -79,22 +79,6 @@ If you want to try geoparsing quickly, start with **GeoNames Cities**, a lightwe
          python -m geoparser install swissnames3d
 
       This command downloads the SwissNames3D data, processes it, and builds the gazetteer artifact.
-
-   .. tab:: Pleiades
-
-      **Pleiades** is a community-built gazetteer of the ancient world, covering the Greek and Roman Mediterranean and its neighbouring regions.
-
-      - **Website**: `pleiades.stoa.org <https://pleiades.stoa.org/>`_
-      - **Coverage**: The ancient Mediterranean world and its surroundings
-      - **Required Disk Space**: **0.6 GB** during install (installed artifact ≈ **25 MB**)
-      - **Typical Install Time**: under **1 minute** (varies with hardware and network)
-      - **Installation Command**:
-
-      .. code-block:: bash
-
-         python -m geoparser install pleiades
-
-      Ancient names are included in Latin, ancient Greek, and modern languages, and in the original scripts where attested. Places falling within the Roman empire also carry the province they are located in, computed from a separate boundaries dataset at build time.
 
 Managing Gazetteers
 -------------------

@@ -5,6 +5,7 @@ Tests validation of the declarative gazetteer configuration schema.
 """
 
 import textwrap
+from pathlib import Path
 
 import pytest
 from pydantic import ValidationError
@@ -491,12 +492,28 @@ class TestFromYaml:
             "geonames.yaml": 30_700_000_000,
             "geonames-cities.yaml": 800_000_000,
             "swissnames3d.yaml": 3_500_000_000,
-            "pleiades.yaml": 600_000_000,
         }
         shipped = {
-            entry.name for entry in configs_dir.iterdir() if entry.name.endswith(".yaml")
+            entry.name
+            for entry in configs_dir.iterdir()
+            if entry.name.endswith(".yaml")
         }
         assert shipped == set(expected)
         for name, disk in expected.items():
             config = GazetteerConfig.from_yaml(configs_dir / name)
             assert config.disk == disk, name
+
+    def test_documented_example_config_is_valid(self):
+        """The config the gazetteers guide walks through still validates."""
+        example = Path(__file__).parents[4] / "docs" / "examples" / "pleiades.yaml"
+
+        config = GazetteerConfig.from_yaml(example)
+
+        assert config.name == "pleiades"
+        assert {source.name for source in config.sources} == {
+            "places",
+            "names",
+            "places_place_types",
+            "place_types",
+            "provinces",
+        }

@@ -89,7 +89,9 @@ class SourceConfig(BaseModel):
     quote: t.Optional[str] = None
     skip_rows: int = 0
 
-    # Coordinate reference system of the source's geometry/coordinates
+    # Coordinate reference system of the source's geometry/coordinates.
+    # Geometries are re-projected into the gazetteer's CRS during the build,
+    # so configs never transform coordinates themselves.
     crs: t.Optional[str] = None
 
     attributes: t.List[AttributeDef]

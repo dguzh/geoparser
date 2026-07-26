@@ -257,9 +257,7 @@ class TestOwnSourceReferences:
     def test_expression_over_own_columns_is_accepted(self):
         """Expressions over the block's own columns compile as before."""
         config, compiler = build_compiler(
-            self.config_data(
-                identifier="'place:' || id", geometry="ST_Point(lon, lat)"
-            )
+            self.config_data(identifier="'place:' || id", geometry="ST_Point(lon, lat)")
         )
 
         query = compiler.feature_query(config.features[0])
@@ -447,14 +445,18 @@ class TestGeometry:
         assert union.geom_type == "MultiPoint"
         assert len(union.geoms) == 2
 
-    def test_geometry_is_reprojected_to_gazetteer_crs(self, connection):
-        """Geometries in a different CRS are transformed at build time."""
+    def test_staged_geometry_column_is_not_transformed_again(self, connection):
+        """
+        A geometry column is passed through whatever CRS its source declares.
+
+        Spatial sources are re-projected as they are staged (see the loader),
+        so transforming here as well would move the geometry twice.
+        """
         connection.execute(
             "CREATE TABLE places (id INTEGER, name VARCHAR, geometry GEOMETRY)"
         )
-        # LV95 coordinates of Bern
         connection.execute(
-            "INSERT INTO places VALUES (1, 'Bern', ST_Point(2600000, 1200000))"
+            "INSERT INTO places VALUES (1, 'Bern', ST_Point(7.44, 46.95))"
         )
         config, compiler = build_compiler(
             {
@@ -475,6 +477,45 @@ class TestGeometry:
                         "identifier": "id",
                         "names": ["name"],
                         "geometry": "geometry",
+                    }
+                ],
+            }
+        )
+
+        features = run_features(connection, compiler, config)
+
+        from shapely import wkb
+
+        point = wkb.loads(bytes(features["1"]["geometry"]))
+        assert (point.x, point.y) == pytest.approx((7.44, 46.95))
+
+    def test_constructed_geometry_is_reprojected_to_gazetteer_crs(self, connection):
+        """A geometry built from coordinate columns is transformed here."""
+        connection.execute(
+            "CREATE TABLE places (id INTEGER, name VARCHAR, e DOUBLE, n DOUBLE)"
+        )
+        # LV95 coordinates of Bern
+        connection.execute("INSERT INTO places VALUES (1, 'Bern', 2600000, 1200000)")
+        config, compiler = build_compiler(
+            {
+                "name": "testgaz",
+                "crs": "EPSG:4326",
+                "sources": [
+                    tabular(
+                        "places",
+                        ("id", "integer"),
+                        ("name", "text"),
+                        ("e", "real"),
+                        ("n", "real"),
+                    )
+                    | {"crs": "EPSG:2056"}
+                ],
+                "features": [
+                    {
+                        "source": "places",
+                        "identifier": "id",
+                        "names": ["name"],
+                        "geometry": "ST_Point(e, n)",
                     }
                 ],
             }
