@@ -4,6 +4,7 @@ Unit tests for geoparser/geoparser/geoparser.py
 Tests the Geoparser class with mocked dependencies.
 """
 
+import uuid
 from unittest.mock import Mock, patch
 
 import pytest
@@ -235,26 +236,27 @@ class TestGeoparserParse:
         mock_project_instance.run_resolver.assert_called_once_with(mock_resolver)
 
     @patch("geoparser.geoparser.geoparser.Project")
-    def test_retrieves_documents_with_default_tag(self, mock_project_class):
-        """Test that parse retrieves documents using the default 'latest' tag."""
+    def test_retrieves_documents_by_created_ids(self, mock_project_class):
+        """Test that parse retrieves the documents it created, in input order."""
         # Arrange
         mock_recognizer = Mock()
         mock_recognizer.id = "test_rec_id"
         mock_resolver = Mock()
         mock_resolver.id = "test_res_id"
 
+        document_ids = [uuid.uuid4(), uuid.uuid4()]
         mock_project_instance = Mock()
+        mock_project_instance.create_documents.return_value = document_ids
         mock_project_instance.get_documents.return_value = []
         mock_project_class.return_value = mock_project_instance
 
         geoparser = Geoparser(mock_recognizer, mock_resolver)
 
         # Act
-        geoparser.parse("Test text")
+        geoparser.parse(["Text 1", "Text 2"])
 
         # Assert
-        # get_documents is called with default tag parameter
-        mock_project_instance.get_documents.assert_called_once_with()
+        mock_project_instance.get_documents.assert_called_once_with(ids=document_ids)
 
     @patch("geoparser.geoparser.geoparser.Project")
     def test_deletes_project_after_parsing_by_default(self, mock_project_class):

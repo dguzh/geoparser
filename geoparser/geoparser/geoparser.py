@@ -154,7 +154,8 @@ class Geoparser:
 
         Returns:
             List of Document objects with processed references and referents
-            from the configured recognizer and resolver.
+            from the configured recognizer and resolver, in the same order as
+            the texts that were passed in.
         """
         # Create a new project for this parse operation
         project_name = uuid.uuid4().hex[:8]
@@ -162,7 +163,7 @@ class Geoparser:
 
         try:
             # Create documents in the project
-            project.create_documents(texts)
+            document_ids = project.create_documents(texts)
 
             # Run the recognizer on all documents (if provided)
             if self.recognizer is not None:
@@ -172,8 +173,9 @@ class Geoparser:
             if self.resolver is not None:
                 project.run_resolver(self.resolver)
 
-            # Get all documents with results from our specific recognizer and resolver
-            documents = project.get_documents()
+            # Get the documents back in input order, with results from our
+            # specific recognizer and resolver
+            documents = project.get_documents(ids=document_ids)
 
             # If save is True, inform the user about the project name
             if save:
