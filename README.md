@@ -52,6 +52,10 @@ Full documentation is available at **[docs.geoparser.app](https://docs.geoparser
 - [User Guides](https://docs.geoparser.app/en/latest/guides/projects.html)
 - [API Reference](https://docs.geoparser.app/en/latest/api/geoparser.html)
 
+## Roadmap
+
+Larger changes we intend to make — splitting the gazetteer and the default modules into standalone packages, and rethinking how documents and results are passed in and out — are described in [ROADMAP.md](ROADMAP.md).
+
 ## Contributing
 
 Questions, bug reports, and ideas are always welcome via [issues](https://github.com/dguzh/geoparser/issues). Pull requests are appreciated too — see [CONTRIBUTING.md](CONTRIBUTING.md) for local setup and development guidelines.

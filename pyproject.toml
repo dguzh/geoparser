@@ -11,6 +11,7 @@ include = [
     "LICENSE",
     "THIRD_PARTY_LICENSES",
     "README.md",
+    "ROADMAP.md",
 ]
 
 [tool.poetry.dependencies]
