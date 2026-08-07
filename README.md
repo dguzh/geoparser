@@ -26,9 +26,13 @@ pip install geoparser
 
 ```python
 from geoparser import Geoparser
+from geoparser.modules import SentenceTransformerResolver, SpacyRecognizer
 
-# Initialize with default settings
-gp = Geoparser()
+# Build a pipeline from a recognizer and a resolver
+gp = Geoparser(
+    recognizer=SpacyRecognizer(),
+    resolver=SentenceTransformerResolver(gazetteer_name="geonames"),
+)
 
 # Parse text
 text = "Paris is the capital of France."

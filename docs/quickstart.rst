@@ -8,16 +8,20 @@ This guide provides a quick introduction to using the Irchel Geoparser for basic
 Basic Usage
 -----------
 
-The simplest way to use the library is through the ``Geoparser`` class, which provides a stateless interface for quick geoparsing tasks. The default settings are optimized for English texts, prioritizing speed over accuracy. See the :ref:`customizing-geoparser` section below for other options.
+The simplest way to use the library is through the ``Geoparser`` class, which provides a stateless interface for quick geoparsing tasks. A geoparser is built from two modules that you provide explicitly: a recognizer that finds place names, and a resolver that links them to a gazetteer. The modules used below are optimized for English texts, prioritizing speed over accuracy. See the :ref:`customizing-geoparser` section for other options.
 
-Here's a minimal working example:
+Here's a minimal working example, which assumes the ``geonames`` gazetteer has been installed as described in the :doc:`installation` guide:
 
 .. code-block:: python
 
    from geoparser import Geoparser
+   from geoparser.modules import SentenceTransformerResolver, SpacyRecognizer
 
-   # Initialize the geoparser with default settings
-   geoparser = Geoparser()
+   # Initialize the geoparser with a recognizer and a resolver
+   geoparser = Geoparser(
+       recognizer=SpacyRecognizer(),
+       resolver=SentenceTransformerResolver(gazetteer_name="geonames"),
+   )
 
    # Parse a text
    text = "The Eiffel Tower in Paris attracts millions of visitors each year."
@@ -61,8 +65,12 @@ The ``parse()`` method accepts both a single text string and a list of texts. Pr
 .. code-block:: python
 
    from geoparser import Geoparser
+   from geoparser.modules import SentenceTransformerResolver, SpacyRecognizer
 
-   geoparser = Geoparser()
+   geoparser = Geoparser(
+       recognizer=SpacyRecognizer(),
+       resolver=SentenceTransformerResolver(gazetteer_name="geonames"),
+   )
 
    texts = [
        "London is the capital of the United Kingdom.",
@@ -82,7 +90,7 @@ The ``parse()`` method accepts both a single text string and a list of texts. Pr
 Understanding the Results
 --------------------------
 
-The ``parse()`` method returns a list of ``Document`` objects, each representing one of the input texts. Each document has a ``toponyms`` property that provides access to the identified place names (references) within that document.
+The ``parse()`` method returns a list of ``Document`` objects in the same order as the input texts, so results can be related back to whatever the texts came from. Each document has a ``toponyms`` property that provides access to the identified place names (references) within that document.
 
 Each toponym (``Reference`` object) has several important properties:
 
@@ -104,8 +112,12 @@ Not all identified place names can be successfully linked to geographic location
 .. code-block:: python
 
    from geoparser import Geoparser
+   from geoparser.modules import SentenceTransformerResolver, SpacyRecognizer
 
-   geoparser = Geoparser()
+   geoparser = Geoparser(
+       recognizer=SpacyRecognizer(),
+       resolver=SentenceTransformerResolver(gazetteer_name="geonames"),
+   )
    documents = geoparser.parse("They traveled from Atlantis to Wonderland.")
 
    for doc in documents:
@@ -121,7 +133,7 @@ Not all identified place names can be successfully linked to geographic location
 Customizing the Geoparser
 --------------------------
 
-The default ``Geoparser()`` uses a spaCy model for recognition and a SentenceTransformer model for resolution. You can customize these components by providing your own module instances:
+The examples above use ``SpacyRecognizer`` and ``SentenceTransformerResolver`` with their default settings. Both modules take parameters of their own, so a geoparser can be tailored to the language, domain, and gazetteer you work with:
 
 .. code-block:: python
 
@@ -148,8 +160,12 @@ By default, the ``parse()`` method creates a temporary project internally and de
 .. code-block:: python
 
    from geoparser import Geoparser
+   from geoparser.modules import SentenceTransformerResolver, SpacyRecognizer
 
-   geoparser = Geoparser()
+   geoparser = Geoparser(
+       recognizer=SpacyRecognizer(),
+       resolver=SentenceTransformerResolver(gazetteer_name="geonames"),
+   )
    documents = geoparser.parse("Berlin is the capital of Germany.", save=True)
    # Results saved under project name: a1b2c3d4
 

@@ -48,7 +48,31 @@ After creating a project, you can add documents to it using the ``create_documen
    ]
    project.create_documents(texts)
 
-Documents added to a project are stored in the database with unique identifiers. You can add more documents to the same project at any time, and they will accumulate in the project's collection.
+You can add more documents to the same project at any time, and they will accumulate in the project's collection.
+
+Each document is stored under a unique identifier, and ``create_documents()`` returns those identifiers in the order the texts were given. If the texts come from an existing collection of yours — a database of articles, a set of files, or anything else — store the returned IDs with those records so that parsed results can later be matched to the originals:
+
+.. code-block:: python
+
+   articles = load_articles()  # your own records, whatever shape they have
+
+   document_ids = project.create_documents([article["body"] for article in articles])
+
+   for article, document_id in zip(articles, document_ids):
+       article["document_id"] = document_id
+
+Passing those IDs to ``get_documents()`` retrieves exactly those documents, in the order you asked for them:
+
+.. code-block:: python
+
+   # Results for one specific article
+   documents = project.get_documents(ids=article["document_id"])
+
+   # Or for a subset of your material, in your own order
+   recent = [article["document_id"] for article in articles if article["year"] >= 2020]
+   documents = project.get_documents(ids=recent)
+
+This makes it possible to work with parts of a corpus separately, for instance to compare how a pipeline performs on older versus newer material, without reprocessing anything.
 
 Running Processing Modules
 ---------------------------
@@ -87,6 +111,9 @@ After running modules on your project, you can retrieve the processed documents 
 
    # Get all documents with their results
    documents = project.get_documents()
+
+   # Or only specific ones, using the IDs from create_documents()
+   documents = project.get_documents(ids=document_ids)
 
    # Access the results
    for doc in documents:
