@@ -25,21 +25,20 @@ Here's a minimal working example, which assumes the ``geonames`` gazetteer has b
 
    # Parse a text
    text = "The Eiffel Tower in Paris attracts millions of visitors each year."
-   documents = geoparser.parse(text)
+   document = geoparser.parse(text)
 
    # Access the results
-   for doc in documents:
-       print(f"Document: {doc.text}\n")
-       for toponym in doc.toponyms:
-           print(f"  Toponym: {toponym.text}")
-           if toponym.location:
-               location = toponym.location
-               print(f"    Name: {location.data.get('name')}")
-               print(f"    Country: {location.data.get('country_name')}")
-               print(f"    Coordinates: ({location.data.get('latitude')}, {location.data.get('longitude')})")
-           else:
-               print("    Location: Could not be resolved")
-           print()
+   print(f"Document: {document.text}\n")
+   for toponym in document.toponyms:
+       print(f"  Toponym: {toponym.text}")
+       if toponym.location:
+           location = toponym.location
+           print(f"    Name: {location.data.get('name')}")
+           print(f"    Country: {location.data.get('country_name')}")
+           print(f"    Coordinates: ({location.data.get('latitude')}, {location.data.get('longitude')})")
+       else:
+           print("    Location: Could not be resolved")
+       print()
 
 This code identifies place names in the text and links them to geographic locations in the GeoNames gazetteer. The output might look like:
 
@@ -60,7 +59,7 @@ This code identifies place names in the text and links them to geographic locati
 Processing Multiple Documents
 ------------------------------
 
-The ``parse()`` method accepts both a single text string and a list of texts. Processing multiple documents together enables efficient batch processing:
+The ``parse()`` method accepts a list of texts as well as a single text string, and the result mirrors what was passed in: a single text is parsed into a single ``Document``, while a list of texts is parsed into a list of ``Document`` objects. Processing multiple documents together enables efficient batch processing:
 
 .. code-block:: python
 
@@ -90,7 +89,7 @@ The ``parse()`` method accepts both a single text string and a list of texts. Pr
 Understanding the Results
 --------------------------
 
-The ``parse()`` method returns a list of ``Document`` objects in the same order as the input texts, so results can be related back to whatever the texts came from. Each document has a ``toponyms`` property that provides access to the identified place names (references) within that document.
+A single text is parsed into a single ``Document``, which the first example above works with directly. A list of texts is parsed into a list of ``Document`` objects in the same order as the input texts, so results can be related back to whatever the texts came from. Either way, each document has a ``toponyms`` property that provides access to the identified place names (references) within that document.
 
 Each toponym (``Reference`` object) has several important properties:
 
@@ -118,15 +117,14 @@ Not all identified place names can be successfully linked to geographic location
        recognizer=SpacyRecognizer(),
        resolver=SentenceTransformerResolver(gazetteer_name="geonames"),
    )
-   documents = geoparser.parse("They traveled from Atlantis to Wonderland.")
+   document = geoparser.parse("They traveled from Atlantis to Wonderland.")
 
-   for doc in documents:
-       for toponym in doc.toponyms:
-           print(f"Toponym: {toponym.text}")
-           if toponym.location:
-               print(f"  Resolved to: {toponym.location.data.get('name')}")
-           else:
-               print("  Could not be resolved (fictional location)")
+   for toponym in document.toponyms:
+       print(f"Toponym: {toponym.text}")
+       if toponym.location:
+           print(f"  Resolved to: {toponym.location.data.get('name')}")
+       else:
+           print("  Could not be resolved (fictional location)")
 
 .. _customizing-geoparser:
 
@@ -148,7 +146,7 @@ The examples above use ``SpacyRecognizer`` and ``SentenceTransformerResolver`` w
 
    geoparser = Geoparser(recognizer=recognizer, resolver=resolver)
    
-   documents = geoparser.parse("Zurich is the largest city in Switzerland.")
+   document = geoparser.parse("Zurich is the largest city in Switzerland.")
 
 For more details on working with different modules, see the :doc:`guides/modules` guide.
 
@@ -166,7 +164,7 @@ By default, the ``parse()`` method creates a temporary project internally and de
        recognizer=SpacyRecognizer(),
        resolver=SentenceTransformerResolver(gazetteer_name="geonames"),
    )
-   documents = geoparser.parse("Berlin is the capital of Germany.", save=True)
+   document = geoparser.parse("Berlin is the capital of Germany.", save=True)
    # Results saved under project name: a1b2c3d4
 
 When ``save=True``, the method prints the project name that was created. You can later access these results using the ``Project`` class, as described in the :doc:`guides/projects` guide.

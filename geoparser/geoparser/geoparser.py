@@ -1,5 +1,5 @@
 import uuid
-from typing import List, Optional, Union
+from typing import List, Optional, Sequence, Union, overload
 
 from geoparser.db.models import Document
 from geoparser.modules.recognizers import Recognizer
@@ -43,31 +43,47 @@ class Geoparser:
         self.recognizer = recognizer
         self.resolver = resolver
 
-    def parse(self, texts: Union[str, List[str]], save: bool = False) -> List[Document]:
+    @overload
+    def parse(self, texts: str, save: bool = False) -> Document: ...
+
+    @overload
+    def parse(self, texts: Sequence[str], save: bool = False) -> List[Document]: ...
+
+    def parse(
+        self, texts: Union[str, Sequence[str]], save: bool = False
+    ) -> Union[Document, List[Document]]:
         """
         Parse one or more texts with the configured recognizer and resolver.
+
+        The result mirrors the input: a single text is parsed into a single
+        document, while a sequence of texts is parsed into a list of documents
+        in the same order as the texts that were passed in.
 
         This method creates a new project for each parse operation, processes the texts,
         and returns the results. By default, the project is deleted after processing
         to keep the parse method stateless.
 
         Args:
-            texts: Either a single document text or a list of texts
+            texts: Either a single document text or a sequence of texts
             save: If True, preserve the project after processing. If False (default),
                   delete the project to maintain stateless behavior.
 
         Returns:
-            List of Document objects with processed references and referents
-            from the configured recognizer and resolver, in the same order as
-            the texts that were passed in.
+            A single Document if a single text was passed, or a list of Documents
+            if a sequence of texts was passed, with processed references and
+            referents from the configured recognizer and resolver.
         """
+        # A single text is parsed into a single document, so remember which
+        # shape was asked for before normalizing the input
+        single_text = isinstance(texts, str)
+
         # Create a new project for this parse operation
         project_name = uuid.uuid4().hex[:8]
         project = Project(project_name)
 
         try:
             # Create documents in the project
-            document_ids = project.create_documents(texts)
+            document_ids = project.create_documents([texts] if single_text else texts)
 
             # Run the recognizer on all documents (if provided)
             if self.recognizer is not None:
@@ -85,7 +101,7 @@ class Geoparser:
             if save:
                 print(f"Results saved under project name: {project_name}")
 
-            return documents
+            return documents[0] if single_text else documents
 
         finally:
             # Clean up the project unless the user wants to save it

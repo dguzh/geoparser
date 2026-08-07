@@ -64,7 +64,7 @@ class Project:
 
             return project_record.id
 
-    def create_documents(self, texts: Union[str, List[str]]) -> List[uuid.UUID]:
+    def create_documents(self, texts: t.Sequence[str]) -> List[uuid.UUID]:
         """
         Create documents in the project.
 
@@ -74,14 +74,23 @@ class Project:
         to retrieve results for specific documents later on.
 
         Args:
-            texts: Either a single document text or a list of document texts
+            texts: Document texts to create. A single document is created by
+                   passing a sequence with one text in it.
 
         Returns:
             IDs of the created documents, in the order the texts were provided
+
+        Raises:
+            TypeError: If a single text is passed instead of a sequence of texts
         """
-        # Convert single string to list for uniform processing
+        # A bare string would be iterated character by character, creating one
+        # document per character, so reject it instead of doing that silently
         if isinstance(texts, str):
-            texts = [texts]
+            raise TypeError(
+                "create_documents() expects a sequence of texts. To create a single "
+                "document, pass a sequence with one text in it: "
+                "create_documents(['...'])."
+            )
 
         document_ids = []
 

@@ -59,7 +59,7 @@ class TestProjectCreateDocuments:
     @patch("geoparser.project.project.ProjectRepository")
     @patch("geoparser.project.project.DocumentRepository")
     def test_creates_single_document(self, mock_doc_repo, mock_project_repo):
-        """Test that create_documents creates a single document from a string."""
+        """Test that create_documents creates a single document from a one-text list."""
         # Arrange
 
         mock_existing_project = Mock()
@@ -69,13 +69,31 @@ class TestProjectCreateDocuments:
         project = Project("TestProject")
 
         # Act
-        project.create_documents("Test document text")
+        project.create_documents(["Test document text"])
 
         # Assert
         mock_doc_repo.create.assert_called_once()
         call_args = mock_doc_repo.create.call_args[0]
         assert call_args[1].text == "Test document text"
         assert call_args[1].project_id == project.id
+
+    @patch("geoparser.project.project.ProjectRepository")
+    @patch("geoparser.project.project.DocumentRepository")
+    def test_rejects_a_bare_string(self, mock_doc_repo, mock_project_repo):
+        """Test that create_documents rejects a string instead of splitting it up."""
+        # Arrange
+
+        mock_existing_project = Mock()
+        mock_existing_project.id = UUID("12345678-1234-5678-1234-567812345678")
+        mock_project_repo.get_by_name.return_value = mock_existing_project
+
+        project = Project("TestProject")
+
+        # Act & Assert
+        with pytest.raises(TypeError, match="expects a sequence of texts"):
+            project.create_documents("Test document text")
+
+        mock_doc_repo.create.assert_not_called()
 
     @patch("geoparser.project.project.ProjectRepository")
     @patch("geoparser.project.project.DocumentRepository")

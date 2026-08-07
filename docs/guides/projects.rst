@@ -29,7 +29,7 @@ Once created, a project persists in the database until explicitly deleted. You c
 Adding Documents
 ----------------
 
-After creating a project, you can add documents to it using the ``create_documents()`` method. This method accepts either a single text string or a list of text strings:
+After creating a project, you can add documents to it using the ``create_documents()`` method. This method takes a list of text strings, one per document:
 
 .. code-block:: python
 
@@ -38,7 +38,7 @@ After creating a project, you can add documents to it using the ``create_documen
    project = Project("news_analysis")
 
    # Add a single document
-   project.create_documents("The summit took place in Geneva.")
+   project.create_documents(["The summit took place in Geneva."])
 
    # Add multiple documents
    texts = [

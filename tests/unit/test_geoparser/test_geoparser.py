@@ -80,7 +80,7 @@ class TestGeoparserParse:
         mock_resolver.id = "test_res"
 
         mock_project_instance = Mock()
-        mock_project_instance.get_documents.return_value = []
+        mock_project_instance.get_documents.return_value = [Mock()]
         mock_project_class.return_value = mock_project_instance
 
         geoparser = Geoparser(mock_recognizer, mock_resolver)
@@ -105,7 +105,7 @@ class TestGeoparserParse:
         mock_resolver.id = "test_res"
 
         mock_project_instance = Mock()
-        mock_project_instance.get_documents.return_value = []
+        mock_project_instance.get_documents.return_value = [Mock()]
         mock_project_class.return_value = mock_project_instance
 
         geoparser = Geoparser(mock_recognizer, mock_resolver)
@@ -114,7 +114,7 @@ class TestGeoparserParse:
         geoparser.parse("Test text")
 
         # Assert
-        mock_project_instance.create_documents.assert_called_once_with("Test text")
+        mock_project_instance.create_documents.assert_called_once_with(["Test text"])
 
     @patch("geoparser.geoparser.geoparser.Project")
     def test_runs_recognizer_on_documents(self, mock_project_class):
@@ -126,7 +126,7 @@ class TestGeoparserParse:
         mock_resolver.id = "test_res"
 
         mock_project_instance = Mock()
-        mock_project_instance.get_documents.return_value = []
+        mock_project_instance.get_documents.return_value = [Mock()]
         mock_project_class.return_value = mock_project_instance
 
         geoparser = Geoparser(mock_recognizer, mock_resolver)
@@ -147,7 +147,7 @@ class TestGeoparserParse:
         mock_resolver.id = "test_res"
 
         mock_project_instance = Mock()
-        mock_project_instance.get_documents.return_value = []
+        mock_project_instance.get_documents.return_value = [Mock()]
         mock_project_class.return_value = mock_project_instance
 
         geoparser = Geoparser(mock_recognizer, mock_resolver)
@@ -191,7 +191,7 @@ class TestGeoparserParse:
         mock_resolver.id = "test_res"
 
         mock_project_instance = Mock()
-        mock_project_instance.get_documents.return_value = []
+        mock_project_instance.get_documents.return_value = [Mock()]
         mock_project_class.return_value = mock_project_instance
 
         geoparser = Geoparser(mock_recognizer, mock_resolver)
@@ -212,7 +212,7 @@ class TestGeoparserParse:
         mock_resolver.id = "test_res"
 
         mock_project_instance = Mock()
-        mock_project_instance.get_documents.return_value = []
+        mock_project_instance.get_documents.return_value = [Mock()]
         mock_project_class.return_value = mock_project_instance
 
         geoparser = Geoparser(mock_recognizer, mock_resolver)
@@ -224,8 +224,30 @@ class TestGeoparserParse:
         mock_project_instance.delete.assert_not_called()
 
     @patch("geoparser.geoparser.geoparser.Project")
-    def test_returns_processed_documents(self, mock_project_class):
-        """Test that parse returns the processed documents."""
+    def test_returns_single_document_for_a_single_text(self, mock_project_class):
+        """Test that parse returns one document when given a single text."""
+        # Arrange
+        mock_recognizer = Mock()
+        mock_recognizer.id = "test_rec"
+        mock_resolver = Mock()
+        mock_resolver.id = "test_res"
+
+        mock_doc = Mock()
+        mock_project_instance = Mock()
+        mock_project_instance.get_documents.return_value = [mock_doc]
+        mock_project_class.return_value = mock_project_instance
+
+        geoparser = Geoparser(mock_recognizer, mock_resolver)
+
+        # Act
+        result = geoparser.parse("Test text")
+
+        # Assert
+        assert result == mock_doc
+
+    @patch("geoparser.geoparser.geoparser.Project")
+    def test_returns_list_of_documents_for_a_list_of_texts(self, mock_project_class):
+        """Test that parse returns a list of documents when given a list of texts."""
         # Arrange
         mock_recognizer = Mock()
         mock_recognizer.id = "test_rec"
@@ -241,12 +263,32 @@ class TestGeoparserParse:
         geoparser = Geoparser(mock_recognizer, mock_resolver)
 
         # Act
-        result = geoparser.parse("Test text")
+        result = geoparser.parse(["Text 1", "Text 2"])
 
         # Assert
-        assert len(result) == 2
-        assert result[0] == mock_doc1
-        assert result[1] == mock_doc2
+        assert result == [mock_doc1, mock_doc2]
+
+    @patch("geoparser.geoparser.geoparser.Project")
+    def test_returns_list_for_a_single_text_in_a_list(self, mock_project_class):
+        """Test that the result shape follows the input container, not its length."""
+        # Arrange
+        mock_recognizer = Mock()
+        mock_recognizer.id = "test_rec"
+        mock_resolver = Mock()
+        mock_resolver.id = "test_res"
+
+        mock_doc = Mock()
+        mock_project_instance = Mock()
+        mock_project_instance.get_documents.return_value = [mock_doc]
+        mock_project_class.return_value = mock_project_instance
+
+        geoparser = Geoparser(mock_recognizer, mock_resolver)
+
+        # Act
+        result = geoparser.parse(["Test text"])
+
+        # Assert
+        assert result == [mock_doc]
 
     @patch("geoparser.geoparser.geoparser.Project")
     def test_handles_list_of_texts(self, mock_project_class):
@@ -282,7 +324,7 @@ class TestGeoparserParse:
         mock_resolver.id = "test_res"
 
         mock_project_instance = Mock()
-        mock_project_instance.get_documents.return_value = []
+        mock_project_instance.get_documents.return_value = [Mock()]
         mock_project_class.return_value = mock_project_instance
 
         geoparser = Geoparser(mock_recognizer, mock_resolver)

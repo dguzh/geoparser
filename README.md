@@ -36,10 +36,10 @@ gp = Geoparser(
 
 # Parse text
 text = "Paris is the capital of France."
-docs = gp.parse(text)
+doc = gp.parse(text)
 
 # Access results
-for toponym in docs[0].toponyms:
+for toponym in doc.toponyms:
     print(f"{toponym.text} -> {toponym.location.data}")
 ```
 
