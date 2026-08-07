@@ -37,7 +37,11 @@ class Gazetteer:
         """
         path = artifact_path(gazetteer_name)
         if not path.exists():
-            raise ValueError(f"Gazetteer '{gazetteer_name}' is not installed.")
+            raise ValueError(
+                f"Gazetteer '{gazetteer_name}' is not installed. Install it by running "
+                f"'python -m geoparser install {gazetteer_name}', or run "
+                "'python -m geoparser list' to see which gazetteers are installed."
+            )
         self.gazetteer_name = gazetteer_name
         self._artifact = GazetteerArtifact(path)
 
