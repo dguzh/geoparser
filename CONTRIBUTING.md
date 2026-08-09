@@ -98,57 +98,53 @@ A few practical tips that make reviews easier:
 - Add or update tests when behavior changes
 - Update docs when user-facing behavior changes
 
-CI runs on pull requests only, never on branch pushes, so a commit is tested once rather than twice. The full matrix is three operating systems across Python 3.10–3.14. Pushing again to an open pull request cancels the previous run.
+CI runs on pull requests into `main` and on `main` itself, never on feature-branch pushes. The matrix is three operating systems across Python 3.10–3.14. Pushing again to an open pull request cancels the previous run.
 
-If you add a dependency, commit the updated `poetry.lock` alongside `pyproject.toml`, and prefer permissively licensed packages — geoparser is MIT-licensed and its dependencies should not impose stricter terms on users.
+If you add a dependency, commit the updated `poetry.lock` alongside `pyproject.toml`. Prefer permissively licensed packages; geoparser is MIT-licensed.
 
 ## Releasing
 
-Releases are driven entirely by tags, and the tag name is the version — there is no release branch. Tags carry no `v` prefix.
+For maintainers. Releases are driven by tags: the tag name is the version, tags carry no `v` prefix, and there is no release branch.
 
-**Step 1 — set the version.** The version lives in `pyproject.toml`, so bumping it is an ordinary code change. Set the *final* version even if you plan to cut release candidates first.
-
-**Step 2 — tag the merged commit.** A tag is a separate ref, not a branch push, so the branch ruleset does not apply and this works even though `main` rejects direct pushes:
+Bump the version with `poetry version <version>` in the last pull request of the cycle, setting the final version even when release candidates come first. Once it is merged, tag from `main`:
 
 ```bash
 git switch main && git pull
-git tag 0.6.0rc1 && git push origin 0.6.0rc1
+VERSION=$(poetry version --short)
+git tag "${VERSION}rc1" && git push origin "${VERSION}rc1"
 ```
 
-**Step 3 — verify the published artifact.** PEP 440 hides pre-releases from resolvers, so `--pre` is required to see it at all and ordinary users cannot install it by accident:
+Check the candidate in a clean environment. `--pre` is required, since pre-releases are hidden from resolvers:
 
 ```bash
-python -m venv /tmp/rc && /tmp/rc/bin/pip install --pre geoparser==0.6.0rc1
-/tmp/rc/bin/python -c "import geoparser; print(geoparser.__version__)"
+python -m venv /tmp/rc
+/tmp/rc/bin/pip install --pre "geoparser==${VERSION}rc1"
+/tmp/rc/bin/python -c "from importlib.metadata import version; print(version('geoparser'))"
 ```
 
-**Step 4 — cut the real release.** No second version bump is needed; a release-candidate tag stamps its own version onto the build, while a plain tag uses the version already in `pyproject.toml`:
+Then tag the release itself. No second version bump is needed:
 
 ```bash
-git tag 0.6.0 && git push origin 0.6.0
+git tag "$VERSION" && git push origin "$VERSION"
 ```
 
-If the candidate needs fixes, merge them through a pull request as usual and tag `0.6.0rc2`.
+If the candidate needs fixes, merge them through a pull request and tag `${VERSION}rc2`.
 
-### What the tag decides
+### What each tag produces
 
-A tag containing `rc` publishes to PyPI as a pre-release, which `pip install geoparser` will not pick up, and leaves nothing on the Releases page. A plain `MAJOR.MINOR.PATCH` tag publishes a full release, signs the artifacts with Sigstore, and creates the GitHub Release.
+| Tag | PyPI | GitHub Release | Read the Docs |
+| --- | --- | --- | --- |
+| `1.4.0rc1` | pre-release, needs `--pre` | none | inactive until activated |
+| `1.4.0` | release | created, Sigstore-signed | eligible for `stable` |
 
-### The safeguards
+A final release can also be published from the GitHub web UI when the notes are worth writing by hand. That creates the tag and triggers the same workflow, which attaches the signed artifacts to it. Only publishing creates the tag; saving a draft does not.
 
-Before anything is published, the workflow checks that the tagged commit is reachable from `main`, so a tag accidentally placed on a feature branch is rejected. It then checks the tag against `pyproject.toml` and refuses to publish if they disagree, so tagging `0.7.0` when the file says `0.6.0` fails instead of shipping. A malformed tag such as `v0.6.0` or `0.6` does not match the trigger at all and is silently ignored.
+### If a tag publishes nothing
 
-### Tags and GitHub Releases
-
-A tag is a git ref pointing at a commit. A GitHub Release is a page GitHub builds on top of a tag, carrying a title, notes and file attachments. Every release needs a tag; a tag needs no release.
-
-Both directions work, and the workflow handles either:
-
-- **Tag from the command line.** The tag triggers the workflow, which creates the GitHub Release for you with auto-generated notes — for final versions only.
-- **Publish a release from the web UI.** Creating the release creates the tag, which triggers the same workflow; it then attaches the signed artifacts to the release you published instead of generating its own. Use this when you want to write the notes by hand. This applies to final versions only — publishing a release for an `rc` tag still uploads to PyPI, but the workflow attaches nothing, so the release page stays empty.
-
-Only *publishing* a release creates its tag. Saving a draft does not, so nothing runs until you press publish.
+- The tag must point at a commit on `main`.
+- The tag must agree with `pyproject.toml`, ignoring any `rc` suffix. With the file at `1.4.0`, both `1.4.0` and `1.4.0rc2` are accepted; `1.4.1`, `1.5.0` and `1.5.0rc1` are rejected.
+- The tag must read `MAJOR.MINOR.PATCH` or `MAJOR.MINOR.PATCHrcN`. Anything else, such as `v1.4.0`, `1.4` or `1.4.0-rc1`, starts no workflow at all, so there is no failed run to inspect.
 
 ## Licensing
 
-This project is MIT-licensed; see [LICENSE](./LICENSE). Dependencies are declared rather than bundled, so each one is distributed under its own license by its own maintainers; pip installs those license files alongside the packages.
+This project is MIT-licensed; see [LICENSE](./LICENSE). Dependencies are declared rather than bundled, so each is distributed under its own license by its own maintainers.
