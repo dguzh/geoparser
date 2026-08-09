@@ -26,16 +26,20 @@ pip install geoparser
 
 ```python
 from geoparser import Geoparser
+from geoparser.modules import SentenceTransformerResolver, SpacyRecognizer
 
-# Initialize with default settings
-gp = Geoparser()
+# Build a pipeline from a recognizer and a resolver
+gp = Geoparser(
+    recognizer=SpacyRecognizer(),
+    resolver=SentenceTransformerResolver(gazetteer_name="geonames"),
+)
 
 # Parse text
 text = "Paris is the capital of France."
-docs = gp.parse(text)
+doc = gp.parse(text)
 
 # Access results
-for toponym in docs[0].toponyms:
+for toponym in doc.toponyms:
     print(f"{toponym.text} -> {toponym.location.data}")
 ```
 
@@ -47,6 +51,10 @@ Full documentation is available at **[docs.geoparser.app](https://docs.geoparser
 - [Quick Start Tutorial](https://docs.geoparser.app/en/latest/quickstart.html)
 - [User Guides](https://docs.geoparser.app/en/latest/guides/projects.html)
 - [API Reference](https://docs.geoparser.app/en/latest/api/geoparser.html)
+
+## Roadmap
+
+Larger changes we intend to make — splitting the gazetteer and the default modules into standalone packages, and rethinking how documents and results are passed in and out — are described in [ROADMAP.md](ROADMAP.md).
 
 ## Contributing
 

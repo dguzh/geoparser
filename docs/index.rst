@@ -28,6 +28,11 @@ Demo
 
 Discover what is possible with the Irchel Geoparser. Our :doc:`demo` page showcases an interactive visualization of place names mentioned in Jules Verne's "Around the World in Eighty Days". The demo includes a complete Jupyter notebook and Docker setup so you can reproduce the analysis yourself.
 
+Roadmap
+-------
+
+The library is under active development, and its architecture is expected to evolve: we plan to separate the gazetteer subsystem and the heavyweight default modules into standalone packages, and to rethink how documents and results are passed in and out. The `roadmap <https://github.com/dguzh/geoparser/blob/main/ROADMAP.md>`_ describes these directions in more detail.
+
 Contributing
 ------------
 

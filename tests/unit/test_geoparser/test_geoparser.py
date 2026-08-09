@@ -4,6 +4,7 @@ Unit tests for geoparser/geoparser/geoparser.py
 Tests the Geoparser class with mocked dependencies.
 """
 
+import uuid
 from unittest.mock import Mock, patch
 
 import pytest
@@ -28,26 +29,17 @@ class TestGeoparserInitialization:
         assert geoparser.recognizer == mock_recognizer
         assert geoparser.resolver == mock_resolver
 
-    @patch("geoparser.modules.SpacyRecognizer")
-    @patch("geoparser.modules.SentenceTransformerResolver")
-    def test_creates_default_modules_when_none_provided(
-        self, mock_resolver_class, mock_recognizer_class
-    ):
-        """Test that Geoparser creates default modules when none are provided."""
-        # Arrange
-        mock_recognizer_instance = Mock()
-        mock_resolver_instance = Mock()
-        mock_recognizer_class.return_value = mock_recognizer_instance
-        mock_resolver_class.return_value = mock_resolver_instance
+    def test_requires_recognizer_and_resolver(self):
+        """Test that Geoparser cannot be created without modules."""
+        # Act & Assert
+        with pytest.raises(TypeError):
+            Geoparser()
 
-        # Act
-        geoparser = Geoparser()
-
-        # Assert
-        mock_recognizer_class.assert_called_once_with()
-        mock_resolver_class.assert_called_once_with()
-        assert geoparser.recognizer == mock_recognizer_instance
-        assert geoparser.resolver == mock_resolver_instance
+    def test_requires_resolver(self):
+        """Test that Geoparser cannot be created with a recognizer alone."""
+        # Act & Assert
+        with pytest.raises(TypeError):
+            Geoparser(Mock())
 
     def test_accepts_none_for_recognizer(self):
         """Test that Geoparser accepts None for recognizer to skip recognition."""
@@ -73,74 +65,6 @@ class TestGeoparserInitialization:
         assert geoparser.recognizer == mock_recognizer
         assert geoparser.resolver is None
 
-    @patch("geoparser.modules.SpacyRecognizer")
-    def test_legacy_spacy_model_parameter_shows_deprecation_warning(
-        self, mock_recognizer_class
-    ):
-        """Test that using spacy_model parameter shows deprecation warning."""
-        # Arrange
-        mock_recognizer_instance = Mock()
-        mock_recognizer_class.return_value = mock_recognizer_instance
-        mock_resolver = Mock()
-
-        # Act & Assert
-        with pytest.warns(DeprecationWarning, match="Deprecated parameter detected"):
-            geoparser = Geoparser(resolver=mock_resolver, spacy_model="en_core_web_sm")
-
-        # Should still create recognizer with the model
-        mock_recognizer_class.assert_called_once_with(model_name="en_core_web_sm")
-        assert geoparser.recognizer == mock_recognizer_instance
-
-    @patch("geoparser.modules.SentenceTransformerResolver")
-    def test_legacy_transformer_model_parameter_shows_deprecation_warning(
-        self, mock_resolver_class
-    ):
-        """Test that using transformer_model parameter shows deprecation warning."""
-        # Arrange
-        mock_resolver_instance = Mock()
-        mock_resolver_class.return_value = mock_resolver_instance
-        mock_recognizer = Mock()
-
-        # Act & Assert
-        with pytest.warns(DeprecationWarning, match="Deprecated parameter detected"):
-            geoparser = Geoparser(
-                recognizer=mock_recognizer,
-                transformer_model="dguzh/geo-all-MiniLM-L6-v2",
-            )
-
-        # Should still create resolver with the model
-        mock_resolver_class.assert_called_once_with(
-            model_name="dguzh/geo-all-MiniLM-L6-v2"
-        )
-        assert geoparser.resolver == mock_resolver_instance
-
-    @patch("geoparser.modules.SpacyRecognizer")
-    @patch("geoparser.modules.SentenceTransformerResolver")
-    def test_legacy_parameters_show_single_consolidated_warning(
-        self, mock_resolver_class, mock_recognizer_class
-    ):
-        """Test that using both legacy parameters shows single consolidated warning."""
-        # Arrange
-        mock_recognizer_instance = Mock()
-        mock_resolver_instance = Mock()
-        mock_recognizer_class.return_value = mock_recognizer_instance
-        mock_resolver_class.return_value = mock_resolver_instance
-
-        # Act & Assert
-        with pytest.warns(DeprecationWarning, match="Deprecated parameters detected"):
-            geoparser = Geoparser(
-                spacy_model="en_core_web_sm",
-                transformer_model="dguzh/geo-all-MiniLM-L6-v2",
-            )
-
-        # Should create both with the specified models
-        mock_recognizer_class.assert_called_once_with(model_name="en_core_web_sm")
-        mock_resolver_class.assert_called_once_with(
-            model_name="dguzh/geo-all-MiniLM-L6-v2"
-        )
-        assert geoparser.recognizer == mock_recognizer_instance
-        assert geoparser.resolver == mock_resolver_instance
-
 
 @pytest.mark.unit
 class TestGeoparserParse:
@@ -156,7 +80,7 @@ class TestGeoparserParse:
         mock_resolver.id = "test_res"
 
         mock_project_instance = Mock()
-        mock_project_instance.get_documents.return_value = []
+        mock_project_instance.get_documents.return_value = [Mock()]
         mock_project_class.return_value = mock_project_instance
 
         geoparser = Geoparser(mock_recognizer, mock_resolver)
@@ -181,7 +105,7 @@ class TestGeoparserParse:
         mock_resolver.id = "test_res"
 
         mock_project_instance = Mock()
-        mock_project_instance.get_documents.return_value = []
+        mock_project_instance.get_documents.return_value = [Mock()]
         mock_project_class.return_value = mock_project_instance
 
         geoparser = Geoparser(mock_recognizer, mock_resolver)
@@ -190,7 +114,7 @@ class TestGeoparserParse:
         geoparser.parse("Test text")
 
         # Assert
-        mock_project_instance.create_documents.assert_called_once_with("Test text")
+        mock_project_instance.create_documents.assert_called_once_with(["Test text"])
 
     @patch("geoparser.geoparser.geoparser.Project")
     def test_runs_recognizer_on_documents(self, mock_project_class):
@@ -202,7 +126,7 @@ class TestGeoparserParse:
         mock_resolver.id = "test_res"
 
         mock_project_instance = Mock()
-        mock_project_instance.get_documents.return_value = []
+        mock_project_instance.get_documents.return_value = [Mock()]
         mock_project_class.return_value = mock_project_instance
 
         geoparser = Geoparser(mock_recognizer, mock_resolver)
@@ -223,7 +147,7 @@ class TestGeoparserParse:
         mock_resolver.id = "test_res"
 
         mock_project_instance = Mock()
-        mock_project_instance.get_documents.return_value = []
+        mock_project_instance.get_documents.return_value = [Mock()]
         mock_project_class.return_value = mock_project_instance
 
         geoparser = Geoparser(mock_recognizer, mock_resolver)
@@ -235,26 +159,27 @@ class TestGeoparserParse:
         mock_project_instance.run_resolver.assert_called_once_with(mock_resolver)
 
     @patch("geoparser.geoparser.geoparser.Project")
-    def test_retrieves_documents_with_default_tag(self, mock_project_class):
-        """Test that parse retrieves documents using the default 'latest' tag."""
+    def test_retrieves_documents_by_created_ids(self, mock_project_class):
+        """Test that parse retrieves the documents it created, in input order."""
         # Arrange
         mock_recognizer = Mock()
         mock_recognizer.id = "test_rec_id"
         mock_resolver = Mock()
         mock_resolver.id = "test_res_id"
 
+        document_ids = [uuid.uuid4(), uuid.uuid4()]
         mock_project_instance = Mock()
+        mock_project_instance.create_documents.return_value = document_ids
         mock_project_instance.get_documents.return_value = []
         mock_project_class.return_value = mock_project_instance
 
         geoparser = Geoparser(mock_recognizer, mock_resolver)
 
         # Act
-        geoparser.parse("Test text")
+        geoparser.parse(["Text 1", "Text 2"])
 
         # Assert
-        # get_documents is called with default tag parameter
-        mock_project_instance.get_documents.assert_called_once_with()
+        mock_project_instance.get_documents.assert_called_once_with(ids=document_ids)
 
     @patch("geoparser.geoparser.geoparser.Project")
     def test_deletes_project_after_parsing_by_default(self, mock_project_class):
@@ -266,7 +191,7 @@ class TestGeoparserParse:
         mock_resolver.id = "test_res"
 
         mock_project_instance = Mock()
-        mock_project_instance.get_documents.return_value = []
+        mock_project_instance.get_documents.return_value = [Mock()]
         mock_project_class.return_value = mock_project_instance
 
         geoparser = Geoparser(mock_recognizer, mock_resolver)
@@ -287,7 +212,7 @@ class TestGeoparserParse:
         mock_resolver.id = "test_res"
 
         mock_project_instance = Mock()
-        mock_project_instance.get_documents.return_value = []
+        mock_project_instance.get_documents.return_value = [Mock()]
         mock_project_class.return_value = mock_project_instance
 
         geoparser = Geoparser(mock_recognizer, mock_resolver)
@@ -299,8 +224,30 @@ class TestGeoparserParse:
         mock_project_instance.delete.assert_not_called()
 
     @patch("geoparser.geoparser.geoparser.Project")
-    def test_returns_processed_documents(self, mock_project_class):
-        """Test that parse returns the processed documents."""
+    def test_returns_single_document_for_a_single_text(self, mock_project_class):
+        """Test that parse returns one document when given a single text."""
+        # Arrange
+        mock_recognizer = Mock()
+        mock_recognizer.id = "test_rec"
+        mock_resolver = Mock()
+        mock_resolver.id = "test_res"
+
+        mock_doc = Mock()
+        mock_project_instance = Mock()
+        mock_project_instance.get_documents.return_value = [mock_doc]
+        mock_project_class.return_value = mock_project_instance
+
+        geoparser = Geoparser(mock_recognizer, mock_resolver)
+
+        # Act
+        result = geoparser.parse("Test text")
+
+        # Assert
+        assert result == mock_doc
+
+    @patch("geoparser.geoparser.geoparser.Project")
+    def test_returns_list_of_documents_for_a_list_of_texts(self, mock_project_class):
+        """Test that parse returns a list of documents when given a list of texts."""
         # Arrange
         mock_recognizer = Mock()
         mock_recognizer.id = "test_rec"
@@ -316,12 +263,32 @@ class TestGeoparserParse:
         geoparser = Geoparser(mock_recognizer, mock_resolver)
 
         # Act
-        result = geoparser.parse("Test text")
+        result = geoparser.parse(["Text 1", "Text 2"])
 
         # Assert
-        assert len(result) == 2
-        assert result[0] == mock_doc1
-        assert result[1] == mock_doc2
+        assert result == [mock_doc1, mock_doc2]
+
+    @patch("geoparser.geoparser.geoparser.Project")
+    def test_returns_list_for_a_single_text_in_a_list(self, mock_project_class):
+        """Test that the result shape follows the input container, not its length."""
+        # Arrange
+        mock_recognizer = Mock()
+        mock_recognizer.id = "test_rec"
+        mock_resolver = Mock()
+        mock_resolver.id = "test_res"
+
+        mock_doc = Mock()
+        mock_project_instance = Mock()
+        mock_project_instance.get_documents.return_value = [mock_doc]
+        mock_project_class.return_value = mock_project_instance
+
+        geoparser = Geoparser(mock_recognizer, mock_resolver)
+
+        # Act
+        result = geoparser.parse(["Test text"])
+
+        # Assert
+        assert result == [mock_doc]
 
     @patch("geoparser.geoparser.geoparser.Project")
     def test_handles_list_of_texts(self, mock_project_class):
@@ -357,7 +324,7 @@ class TestGeoparserParse:
         mock_resolver.id = "test_res"
 
         mock_project_instance = Mock()
-        mock_project_instance.get_documents.return_value = []
+        mock_project_instance.get_documents.return_value = [Mock()]
         mock_project_class.return_value = mock_project_instance
 
         geoparser = Geoparser(mock_recognizer, mock_resolver)
