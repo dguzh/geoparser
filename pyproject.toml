@@ -9,7 +9,6 @@ homepage = "https://geoparser.app"
 repository = "https://github.com/dguzh/geoparser"
 include = [
     "LICENSE",
-    "THIRD_PARTY_LICENSES",
     "README.md",
     "ROADMAP.md",
 ]

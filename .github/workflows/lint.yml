@@ -1,35 +1,40 @@
-name: lint
+name: Lint
 
 on:
-  push:
   pull_request:
+    branches:
+      - main
+  workflow_dispatch:
 
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  black:
-    name: black
+  lint:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - uses: psf/black@stable
-        with:
-          use_pyproject: true
 
-  isort:
-    name: isort
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: isort/isort-action@master
+      # Versions mirror the dev dependencies resolved in poetry.lock. Installing
+      # the three tools directly keeps this job at a few seconds; a full
+      # `poetry install` would pull torch and the CUDA stack.
+      - name: Install lint tools
+        run: pip install black==25.11.0 isort==7.0.0 autoflake==2.3.3
 
-  autoflake:
-    name: autoflake
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: creyD/autoflake_action@master
-        with:
-          options: --check --remove-all-unused-imports --recursive --exclude '__init__.py'
+      - name: black
+        run: black --check --diff .
+
+      - name: isort
+        run: isort --check-only --diff .
+
+      - name: autoflake
+        run: autoflake --check --remove-all-unused-imports --recursive --exclude '__init__.py' .

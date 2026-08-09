@@ -1,17 +1,25 @@
-name: upload_previews
+name: Coverage preview
 
+# Tests only runs on pull requests now, so this keys off any successful run and
+# publishes the browsable coverage report against the pull request head.
 on:
   workflow_run:
-    workflows: test
-    branches: main
-    types: completed
+    workflows: ["Tests"]
+    types:
+      - completed
+
 permissions:
-  statuses: write
+  contents: read
 
 jobs:
-  upload-previews:
+  upload:
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      statuses: write
+      # Listing the triggering run and downloading its artifacts.
+      actions: read
     steps:
       - uses: actions/setup-python@v5
         with:

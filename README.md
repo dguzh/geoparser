@@ -68,4 +68,4 @@ The Irchel Geoparser originated as part of my Master's thesis and was further de
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-Third-party licenses are listed in [THIRD_PARTY_LICENSES](THIRD_PARTY_LICENSES).
+Geoparser depends on a number of third-party libraries, listed in [pyproject.toml](pyproject.toml). Each is distributed separately under its own license, which pip installs alongside it.

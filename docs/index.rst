@@ -46,7 +46,7 @@ The Irchel Geoparser originated as part of my Master's thesis and was further de
 License
 -------
 
-The Irchel Geoparser is released under the `MIT License <https://github.com/dguzh/geoparser/blob/main/LICENSE>`_. It also uses several third-party libraries, each with its own license. For a complete list of these licenses, see the `full license details <https://github.com/dguzh/geoparser/blob/main/THIRD_PARTY_LICENSES>`_ in the repository.
+The Irchel Geoparser is released under the `MIT License <https://github.com/dguzh/geoparser/blob/main/LICENSE>`_. It depends on a number of third-party libraries, listed in `pyproject.toml <https://github.com/dguzh/geoparser/blob/main/pyproject.toml>`_. Each is distributed separately under its own license, which pip installs alongside it.
 
 
 .. toctree::
