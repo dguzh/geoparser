@@ -5,6 +5,8 @@
 
 import os
 import sys
+import tomllib
+from pathlib import Path
 
 sys.path.insert(0, os.path.abspath(".."))
 
@@ -14,7 +16,13 @@ sys.path.insert(0, os.path.abspath(".."))
 project = "Irchel Geoparser"
 copyright = "2024-2026, Diego Gomes"
 author = "Diego Gomes"
-release = "0.5.0"
+
+# Read from pyproject.toml rather than importlib.metadata, because Read the Docs
+# installs the dependencies with --no-root and never installs geoparser itself.
+_pyproject = Path(__file__).resolve().parent.parent / "pyproject.toml"
+release = tomllib.loads(_pyproject.read_text(encoding="utf-8"))["tool"]["poetry"][
+    "version"
+]
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
