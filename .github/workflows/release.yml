@@ -50,7 +50,7 @@ jobs:
           python-version: "3.x"
 
       - name: Install Poetry
-        uses: abatilo/actions-poetry@v3
+        uses: abatilo/actions-poetry@v4
 
       - name: Resolve the version from the tag
         id: version
