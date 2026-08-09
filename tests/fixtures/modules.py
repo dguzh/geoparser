@@ -6,6 +6,8 @@ Mock fixtures are lightweight and fast for unit tests, while real fixtures
 load actual models for integration tests.
 """
 
+import copy
+from functools import lru_cache
 from typing import List, Tuple
 from unittest.mock import Mock
 
@@ -13,10 +15,64 @@ import pytest
 
 from geoparser.modules.recognizers.manual import ManualRecognizer
 from geoparser.modules.recognizers.spacy import SpacyRecognizer
+from geoparser.modules.resolvers import sentencetransformer as st_module
 from geoparser.modules.resolvers.manual import ManualResolver
 from geoparser.modules.resolvers.sentencetransformer import (
     SentenceTransformerResolver,
 )
+
+
+@pytest.fixture(scope="session", autouse=True)
+def reuse_loaded_models():
+    """
+    Read each model off disk once per session instead of once per test.
+
+    Constructing a real SentenceTransformerResolver loads three models and
+    measures at roughly 4 seconds; 33 tests request one, so the naive cost is
+    over two minutes in every CI job.
+
+    The transformer is deep-copied for each construction rather than shared,
+    because Project.train_resolver fine-tunes it in place and a shared instance
+    would leak trained weights into every later test. A deepcopy measures ~50x
+    cheaper than a load. The tokenizer and the sentence-splitting pipeline are
+    only ever read from, so those are shared directly — deep-copying a spaCy
+    pipeline is slower than simply reloading it.
+
+    That last point is an invariant this fixture cannot enforce: every resolver
+    receives the *same* tokenizer and the *same* Language object. A test that
+    mutates one — assigning to tokenizer.model_max_length, calling add_tokens or
+    nlp.add_pipe — will corrupt every test that runs after it. Use monkeypatch
+    for such a change, or exclude that model from the cache here.
+    """
+    original_transformer = st_module.SentenceTransformer
+    load_transformer = lru_cache(maxsize=None)(original_transformer)
+    load_tokenizer = lru_cache(maxsize=None)(st_module.AutoTokenizer.from_pretrained)
+
+    def transformer_factory(*args, **kwargs):
+        if kwargs or len(args) != 1:
+            return original_transformer(*args, **kwargs)
+        return copy.deepcopy(load_transformer(args[0]))
+
+    class CachedAutoTokenizer:
+        from_pretrained = staticmethod(load_tokenizer)
+
+    class CachedSpacy:
+        # Stands in for the spacy module inside the resolver's namespace so that
+        # `_load_spacy_model` keeps its download-on-miss branch and unit tests
+        # can still patch `sentencetransformer.spacy.load` and `spacy.cli`.
+        def __init__(self, real):
+            self._real = real
+            self.load = lru_cache(maxsize=None)(real.load)
+
+        def __getattr__(self, name):
+            return getattr(self._real, name)
+
+    with pytest.MonkeyPatch.context() as monkeypatch:
+        monkeypatch.setattr(st_module, "SentenceTransformer", transformer_factory)
+        monkeypatch.setattr(st_module, "AutoTokenizer", CachedAutoTokenizer)
+        monkeypatch.setattr(st_module, "spacy", CachedSpacy(st_module.spacy))
+        yield
+
 
 # Mock Recognizers for Unit Tests
 
@@ -65,9 +121,9 @@ def real_spacy_recognizer():
     """
     Create a real SpacyRecognizer with actual spaCy model.
 
-    This fixture is function-scoped to ensure proper test isolation. While loading
-    the spaCy model is expensive (~1-2s per test), this approach guarantees that
-    each test has its own isolated state and no cross-test contamination.
+    This fixture is function-scoped to ensure proper test isolation. Loading the
+    spaCy model measures at ~0.25s, so rebuilding it per test is cheap enough
+    that isolation is worth more than the time saved by sharing.
 
     Returns:
         SpacyRecognizer instance with loaded model
@@ -139,9 +195,9 @@ def real_sentencetransformer_resolver(andorra_gazetteer):
     """
     Create a real SentenceTransformerResolver with actual transformer model.
 
-    This fixture is function-scoped to ensure proper test isolation. While loading
-    the transformer model is expensive (~2-3s per test), this approach guarantees
-    that each test has its own isolated state and no cross-test contamination.
+    This fixture is function-scoped to ensure proper test isolation. The three
+    models it loads are cached for the session by `reuse_loaded_models`, so each
+    test still gets its own resolver without paying the load cost again.
 
     Note: Uses a small model for faster testing. The resolver targets the Andorra
     gazetteer, which must be installed before the resolver is constructed (the

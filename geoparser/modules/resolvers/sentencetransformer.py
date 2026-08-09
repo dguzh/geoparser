@@ -99,15 +99,16 @@ class SentenceTransformerResolver(Resolver):
             gazetteer_name, attribute_map
         )
 
+        # Initialize gazetteer first, so that a missing one is reported before
+        # any time is spent loading models
+        self.gazetteer = Gazetteer(gazetteer_name)
+
         # Initialize transformer and tokenizer
         self.transformer = SentenceTransformer(model_name)
         self.tokenizer = AutoTokenizer.from_pretrained(model_name)
 
         # Initialize spaCy model for sentence splitting
         self.nlp = self._load_spacy_model("xx_sent_ud_sm")
-
-        # Initialize gazetteer
-        self.gazetteer = Gazetteer(gazetteer_name)
 
         # Caches for document processing to avoid recomputation
         self.doc_tokens: Dict[str, int] = {}  # text -> token count

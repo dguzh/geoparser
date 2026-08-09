@@ -1,16 +1,21 @@
-name: coverage_comment
+name: Coverage comment
 
+# Runs from the base repository rather than inside the Tests workflow so that
+# pull requests from forks can be commented on without ever granting write
+# permissions to fork-controlled code.
 on:
   workflow_run:
-    workflows: ["test"]
+    workflows: ["Tests"]
     types:
       - completed
 
+permissions: {}
+
 jobs:
-  post-coverage-comment:
-    name: Display coverage comment
-    runs-on: ubuntu-latest
+  comment:
     if: github.event.workflow_run.event == 'pull_request' && github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       pull-requests: write
       contents: write

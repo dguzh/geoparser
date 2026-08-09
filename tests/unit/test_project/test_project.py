@@ -5,7 +5,7 @@ Tests the Project class with mocked dependencies.
 """
 
 from unittest.mock import ANY, Mock, patch
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import pytest
 
@@ -59,7 +59,7 @@ class TestProjectCreateDocuments:
     @patch("geoparser.project.project.ProjectRepository")
     @patch("geoparser.project.project.DocumentRepository")
     def test_creates_single_document(self, mock_doc_repo, mock_project_repo):
-        """Test that create_documents creates a single document from a string."""
+        """Test that create_documents creates a single document from a one-text list."""
         # Arrange
 
         mock_existing_project = Mock()
@@ -69,13 +69,31 @@ class TestProjectCreateDocuments:
         project = Project("TestProject")
 
         # Act
-        project.create_documents("Test document text")
+        project.create_documents(["Test document text"])
 
         # Assert
         mock_doc_repo.create.assert_called_once()
         call_args = mock_doc_repo.create.call_args[0]
         assert call_args[1].text == "Test document text"
         assert call_args[1].project_id == project.id
+
+    @patch("geoparser.project.project.ProjectRepository")
+    @patch("geoparser.project.project.DocumentRepository")
+    def test_rejects_a_bare_string(self, mock_doc_repo, mock_project_repo):
+        """Test that create_documents rejects a string instead of splitting it up."""
+        # Arrange
+
+        mock_existing_project = Mock()
+        mock_existing_project.id = UUID("12345678-1234-5678-1234-567812345678")
+        mock_project_repo.get_by_name.return_value = mock_existing_project
+
+        project = Project("TestProject")
+
+        # Act & Assert
+        with pytest.raises(TypeError, match="expects a sequence of texts"):
+            project.create_documents("Test document text")
+
+        mock_doc_repo.create.assert_not_called()
 
     @patch("geoparser.project.project.ProjectRepository")
     @patch("geoparser.project.project.DocumentRepository")
@@ -100,6 +118,144 @@ class TestProjectCreateDocuments:
         assert "Doc 1" in call_args_list
         assert "Doc 2" in call_args_list
         assert "Doc 3" in call_args_list
+
+    @patch("geoparser.project.project.ProjectRepository")
+    @patch("geoparser.project.project.DocumentRepository")
+    def test_returns_document_ids_in_input_order(
+        self, mock_doc_repo, mock_project_repo
+    ):
+        """Test that create_documents returns the new IDs in the order of the texts."""
+        # Arrange
+
+        mock_existing_project = Mock()
+        mock_existing_project.id = UUID("12345678-1234-5678-1234-567812345678")
+        mock_project_repo.get_by_name.return_value = mock_existing_project
+
+        created_ids = [uuid4(), uuid4(), uuid4()]
+        mock_doc_repo.create.side_effect = [Mock(id=id) for id in created_ids]
+
+        project = Project("TestProject")
+
+        # Act
+        document_ids = project.create_documents(["Doc 1", "Doc 2", "Doc 3"])
+
+        # Assert
+        assert document_ids == created_ids
+
+
+@pytest.mark.unit
+class TestProjectGetDocumentsByIds:
+    """Test Project get_documents method when specific IDs are requested."""
+
+    @patch("geoparser.project.project.Context")
+    @patch("geoparser.project.project.ProjectRepository")
+    @patch("geoparser.project.project.DocumentRepository")
+    def test_returns_documents_in_requested_order(
+        self, mock_doc_repo, mock_project_repo, mock_context
+    ):
+        """Test that get_documents returns documents in the order the IDs were given."""
+        # Arrange
+
+        mock_existing_project = Mock()
+        mock_existing_project.id = UUID("12345678-1234-5678-1234-567812345678")
+        mock_project_repo.get_by_name.return_value = mock_existing_project
+
+        first_id, second_id = uuid4(), uuid4()
+        mock_doc1 = Mock(id=first_id, references=[])
+        mock_doc2 = Mock(id=second_id, references=[])
+
+        # The repository makes no promises about ordering
+        mock_doc_repo.get_by_ids.return_value = [mock_doc2, mock_doc1]
+
+        mock_context_instance = Mock()
+        mock_context_instance.get_recognizer_context.return_value = None
+        mock_context_instance.get_resolver_context.return_value = None
+        mock_context.return_value = mock_context_instance
+
+        project = Project("TestProject")
+
+        # Act
+        documents = project.get_documents(ids=[first_id, second_id])
+
+        # Assert
+        assert documents == [mock_doc1, mock_doc2]
+        mock_doc_repo.get_by_ids.assert_called_once_with(
+            ANY, project.id, [first_id, second_id]
+        )
+
+    @patch("geoparser.project.project.Context")
+    @patch("geoparser.project.project.ProjectRepository")
+    @patch("geoparser.project.project.DocumentRepository")
+    def test_accepts_ids_as_strings(
+        self, mock_doc_repo, mock_project_repo, mock_context
+    ):
+        """Test that get_documents accepts IDs given as strings."""
+        # Arrange
+
+        mock_existing_project = Mock()
+        mock_existing_project.id = UUID("12345678-1234-5678-1234-567812345678")
+        mock_project_repo.get_by_name.return_value = mock_existing_project
+
+        document_id = uuid4()
+        mock_doc = Mock(id=document_id, references=[])
+        mock_doc_repo.get_by_ids.return_value = [mock_doc]
+
+        mock_context_instance = Mock()
+        mock_context_instance.get_recognizer_context.return_value = None
+        mock_context_instance.get_resolver_context.return_value = None
+        mock_context.return_value = mock_context_instance
+
+        project = Project("TestProject")
+
+        # Act
+        documents = project.get_documents(ids=str(document_id))
+
+        # Assert
+        assert documents == [mock_doc]
+        mock_doc_repo.get_by_ids.assert_called_once_with(ANY, project.id, [document_id])
+
+    @patch("geoparser.project.project.Context")
+    @patch("geoparser.project.project.ProjectRepository")
+    @patch("geoparser.project.project.DocumentRepository")
+    def test_raises_for_unknown_id(
+        self, mock_doc_repo, mock_project_repo, mock_context
+    ):
+        """Test that get_documents raises if an ID is not in the project."""
+        # Arrange
+
+        mock_existing_project = Mock()
+        mock_existing_project.id = UUID("12345678-1234-5678-1234-567812345678")
+        mock_project_repo.get_by_name.return_value = mock_existing_project
+
+        unknown_id = uuid4()
+        mock_doc_repo.get_by_ids.return_value = []
+
+        mock_context_instance = Mock()
+        mock_context_instance.get_recognizer_context.return_value = None
+        mock_context_instance.get_resolver_context.return_value = None
+        mock_context.return_value = mock_context_instance
+
+        project = Project("TestProject")
+
+        # Act & Assert
+        with pytest.raises(ValueError, match=str(unknown_id)):
+            project.get_documents(ids=[unknown_id])
+
+    @patch("geoparser.project.project.ProjectRepository")
+    @patch("geoparser.project.project.DocumentRepository")
+    def test_raises_for_value_that_is_not_an_id(self, mock_doc_repo, mock_project_repo):
+        """Test that a value that isn't an ID is reported with a hint about tags."""
+        # Arrange
+
+        mock_existing_project = Mock()
+        mock_existing_project.id = UUID("12345678-1234-5678-1234-567812345678")
+        mock_project_repo.get_by_name.return_value = mock_existing_project
+
+        project = Project("TestProject")
+
+        # Act & Assert
+        with pytest.raises(ValueError, match="not a valid document ID"):
+            project.get_documents(ids="baseline")
 
 
 @pytest.mark.unit

@@ -1,14 +1,10 @@
 import uuid
-import warnings
-from typing import List, Optional, Union
+from typing import List, Optional, Sequence, Union, overload
 
 from geoparser.db.models import Document
 from geoparser.modules.recognizers import Recognizer
 from geoparser.modules.resolvers import Resolver
 from geoparser.project import Project
-
-# Sentinel value to distinguish "not provided" from "explicitly None"
-_UNSET = object()
 
 
 class Geoparser:
@@ -17,152 +13,77 @@ class Geoparser:
 
     Provides a simple parse method for processing texts with configured recognizer and resolver.
     The Geoparser creates a new project for each parse operation, making it stateless by default.
+
+    The recognizer and resolver have to be provided explicitly, so that it is
+    always clear which modules a pipeline is built from::
+
+        from geoparser import Geoparser
+        from geoparser.modules import SentenceTransformerResolver, SpacyRecognizer
+
+        geoparser = Geoparser(
+            recognizer=SpacyRecognizer(),
+            resolver=SentenceTransformerResolver(gazetteer_name="geonames"),
+        )
     """
 
     def __init__(
         self,
-        recognizer: Optional[Recognizer] = _UNSET,
-        resolver: Optional[Resolver] = _UNSET,
-        spacy_model: Optional[str] = None,
-        transformer_model: Optional[str] = None,
+        recognizer: Optional[Recognizer],
+        resolver: Optional[Resolver],
     ):
         """
         Initialize a Geoparser instance.
 
         Args:
-            recognizer: The recognizer module to use for identifying references.
-                       If not provided, a default SpacyRecognizer will be created.
-                       Can be explicitly set to None to skip recognition step.
-            resolver: The resolver module to use for resolving references to referents.
-                     If not provided, a default SentenceTransformerResolver will be created.
-                     Can be explicitly set to None to skip resolution step.
-            spacy_model: (Deprecated) Name of spaCy model to use.
-                        Use SpacyRecognizer(model_name='...') instead.
-            transformer_model: (Deprecated) Name of transformer model to use.
-                              Use SentenceTransformerResolver(model_name='...') instead.
+            recognizer: The recognizer module to use for identifying references,
+                        or None to skip the recognition step.
+            resolver: The resolver module to use for resolving references to referents,
+                      or None to skip the resolution step.
         """
-        # Handle legacy parameters with deprecation warning
-        self._warn_deprecated_parameters(spacy_model, transformer_model)
+        self.recognizer = recognizer
+        self.resolver = resolver
 
-        # Set up recognizer
-        if recognizer is _UNSET:
-            # No recognizer provided, create default
-            from geoparser.modules import SpacyRecognizer
+    @overload
+    def parse(self, texts: str, save: bool = False) -> Document: ...
 
-            if spacy_model is not None:
-                self.recognizer = SpacyRecognizer(model_name=spacy_model)
-            else:
-                self.recognizer = SpacyRecognizer()
-        else:
-            # Recognizer explicitly provided (could be None to skip)
-            self.recognizer = recognizer
+    @overload
+    def parse(self, texts: Sequence[str], save: bool = False) -> List[Document]: ...
 
-        # Set up resolver
-        if resolver is _UNSET:
-            # No resolver provided, create default
-            from geoparser.modules import SentenceTransformerResolver
-
-            if transformer_model is not None:
-                self.resolver = SentenceTransformerResolver(
-                    model_name=transformer_model
-                )
-            else:
-                self.resolver = SentenceTransformerResolver()
-        else:
-            # Resolver explicitly provided (could be None to skip)
-            self.resolver = resolver
-
-    @staticmethod
-    def _warn_deprecated_parameters(
-        spacy_model: Optional[str], transformer_model: Optional[str]
-    ) -> None:
-        """
-        Show deprecation warning for legacy parameters.
-
-        Args:
-            spacy_model: Legacy spacy_model parameter value
-            transformer_model: Legacy transformer_model parameter value
-        """
-        # Collect all legacy parameters used
-        legacy_params = []
-        if spacy_model is not None:
-            legacy_params.append(
-                ("spacy_model", spacy_model, "SpacyRecognizer", "recognizer")
-            )
-        if transformer_model is not None:
-            legacy_params.append(
-                (
-                    "transformer_model",
-                    transformer_model,
-                    "SentenceTransformerResolver",
-                    "resolver",
-                )
-            )
-
-        # Show a single consolidated warning if any legacy parameters are used
-        if not legacy_params:
-            return
-
-        # List the deprecated parameters
-        param_names = ", ".join([f"'{param}'" for param, _, _, _ in legacy_params])
-        warning_parts = [
-            f"Deprecated parameter{'s' if len(legacy_params) > 1 else ''} detected: {param_names}. "
-            "The Geoparser now uses a module-based architecture "
-            "where you create and configure recognizer and resolver modules explicitly.\n"
-        ]
-
-        # Build the old usage example
-        old_params = ",\n        ".join(
-            [f"{param}='{value}'" for param, value, _, _ in legacy_params]
-        )
-
-        warning_parts.append("Instead of:")
-        warning_parts.append(f"    Geoparser(\n        {old_params}\n    )\n")
-
-        # Build the new usage example
-        warning_parts.append("Please use:")
-        imports = [f"{module_class}" for _, _, module_class, _ in legacy_params]
-        warning_parts.append(
-            f"    from geoparser.modules import {', '.join(imports)}\n"
-        )
-
-        new_params = ",\n        ".join(
-            [
-                f"{arg_name}={module_class}(model_name='{value}')"
-                for _, value, module_class, arg_name in legacy_params
-            ]
-        )
-        warning_parts.append(f"    Geoparser(\n        {new_params}\n    )\n\n")
-
-        # Use simplefilter to control how the warning is displayed
-        with warnings.catch_warnings():
-            warnings.simplefilter("always", DeprecationWarning)
-            warnings.warn("\n".join(warning_parts), DeprecationWarning, stacklevel=3)
-
-    def parse(self, texts: Union[str, List[str]], save: bool = False) -> List[Document]:
+    def parse(
+        self, texts: Union[str, Sequence[str]], save: bool = False
+    ) -> Union[Document, List[Document]]:
         """
         Parse one or more texts with the configured recognizer and resolver.
+
+        The result mirrors the input: a single text is parsed into a single
+        document, while a sequence of texts is parsed into a list of documents
+        in the same order as the texts that were passed in.
 
         This method creates a new project for each parse operation, processes the texts,
         and returns the results. By default, the project is deleted after processing
         to keep the parse method stateless.
 
         Args:
-            texts: Either a single document text or a list of texts
+            texts: Either a single document text or a sequence of texts
             save: If True, preserve the project after processing. If False (default),
                   delete the project to maintain stateless behavior.
 
         Returns:
-            List of Document objects with processed references and referents
-            from the configured recognizer and resolver.
+            A single Document if a single text was passed, or a list of Documents
+            if a sequence of texts was passed, with processed references and
+            referents from the configured recognizer and resolver.
         """
+        # A single text is parsed into a single document, so remember which
+        # shape was asked for before normalizing the input
+        single_text = isinstance(texts, str)
+
         # Create a new project for this parse operation
         project_name = uuid.uuid4().hex[:8]
         project = Project(project_name)
 
         try:
             # Create documents in the project
-            project.create_documents(texts)
+            document_ids = project.create_documents([texts] if single_text else texts)
 
             # Run the recognizer on all documents (if provided)
             if self.recognizer is not None:
@@ -172,14 +93,15 @@ class Geoparser:
             if self.resolver is not None:
                 project.run_resolver(self.resolver)
 
-            # Get all documents with results from our specific recognizer and resolver
-            documents = project.get_documents()
+            # Get the documents back in input order, with results from our
+            # specific recognizer and resolver
+            documents = project.get_documents(ids=document_ids)
 
             # If save is True, inform the user about the project name
             if save:
                 print(f"Results saved under project name: {project_name}")
 
-            return documents
+            return documents[0] if single_text else documents
 
         finally:
             # Clean up the project unless the user wants to save it

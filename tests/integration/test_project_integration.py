@@ -61,6 +61,50 @@ class TestProjectIntegration:
         # Cleanup
         project.delete()
 
+    def test_create_documents_returns_ids_that_identify_documents(self):
+        """Test that the returned IDs can be used to retrieve specific documents."""
+        # Arrange
+        project = Project("doc_id_test_project")
+        texts = ["First document.", "Second document.", "Third document."]
+
+        # Act
+        document_ids = project.create_documents(texts)
+
+        # Assert - IDs come back in input order and select documents in any order
+        assert len(document_ids) == 3
+
+        documents = project.get_documents(ids=document_ids)
+        assert [document.text for document in documents] == texts
+
+        selected = project.get_documents(ids=[document_ids[2], document_ids[0]])
+        assert [document.text for document in selected] == [
+            "Third document.",
+            "First document.",
+        ]
+
+        single = project.get_documents(ids=document_ids[1])
+        assert [document.text for document in single] == ["Second document."]
+
+        # Cleanup
+        project.delete()
+
+    def test_get_documents_rejects_id_from_another_project(self):
+        """Test that documents of other projects cannot be retrieved by ID."""
+        # Arrange
+        other_project = Project("other_doc_id_project")
+        other_ids = other_project.create_documents(["Someone else's document."])
+
+        project = Project("doc_id_isolation_project")
+        project.create_documents(["My document."])
+
+        # Act & Assert
+        with pytest.raises(ValueError, match=str(other_ids[0])):
+            project.get_documents(ids=other_ids)
+
+        # Cleanup
+        project.delete()
+        other_project.delete()
+
     def test_run_recognizer_creates_references(self):
         """Test that run_recognizer creates reference records."""
         # Arrange
