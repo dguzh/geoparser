@@ -81,7 +81,7 @@ jobs:
         run: poetry install
 
       - name: Cache Hugging Face models
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.cache/huggingface
           key: huggingface-${{ runner.os }}-${{ hashFiles('poetry.lock') }}
