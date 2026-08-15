@@ -23,20 +23,35 @@ _pyproject = Path(__file__).resolve().parent.parent / "pyproject.toml"
 release = tomllib.loads(_pyproject.read_text(encoding="utf-8"))["tool"]["poetry"][
     "version"
 ]
+version = ".".join(release.split(".")[:2])
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
 
 extensions = [
     "sphinx.ext.autodoc",
+    "sphinx.ext.intersphinx",
     "sphinx.ext.napoleon",
     "sphinx_tabs.tabs",
 ]
+
+intersphinx_mapping = {
+    "python": ("https://docs.python.org/3", None),
+    "shapely": ("https://shapely.readthedocs.io/en/stable", None),
+}
 
 templates_path = ["_templates"]
 exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
 
 add_module_names = False
+
+# Internal base classes that appear in autodoc signatures but are not part of the
+# documented surface, so there is nothing to link them to.
+nitpick_ignore = [
+    ("py:class", "geoparser.modules.module.Module"),
+    # Shapely does not publish this base class in its objects.inventory.
+    ("py:class", "shapely.geometry.base.BaseGeometry"),
+]
 
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output

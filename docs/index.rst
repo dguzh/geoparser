@@ -3,45 +3,64 @@
 Irchel Geoparser
 ================
 
-The **Irchel Geoparser** is a Python library for identifying place names in unstructured text and linking them to geographic locations. It provides a modular platform for geoparsing that supports custom processing strategies, persistent project-based workflows, and configuration-driven gazetteer integration.
+The **Irchel Geoparser** finds place names in text and links them to places in a geographic database.
 
-Overview
---------
+Give it a sentence, a document, or a corpus, and it returns the place names it found, each one linked where possible to an entry in a **gazetteer** — a database of places. What that entry tells you depends on the gazetteer, but usually includes coordinates and attributes such as the kind of place it is and the administrative units it belongs to. That turns prose into data you can map, count, and join to anything else.
 
-Geoparsing extracts place names from text and links them to geographic locations. The Irchel Geoparser approaches this task through a two-stage pipeline that separates toponym recognition (identifying place names) from toponym resolution (linking them to specific locations). This separation is a deliberate design choice that enables flexible experimentation with different processing strategies and systematic comparison of their performance. Identified toponyms are linked to gazetteer databases that provide rich geographic metadata including coordinates, administrative hierarchies, feature types, and population information.
+.. code-block:: python
 
-Key Features
+   from geoparser import Geoparser
+   from geoparser.modules import SentenceTransformerResolver, SpacyRecognizer
+
+   geoparser = Geoparser(
+       recognizer=SpacyRecognizer(),
+       resolver=SentenceTransformerResolver(gazetteer_name="geonames"),
+   )
+
+   document = geoparser.parse(
+       "The conference was held in Zurich, with satellite events in Geneva and Basel."
+   )
+
+   for toponym in document.toponyms:
+       location = toponym.location  # None if the name could not be resolved
+       print(f"{toponym.text} → {location.data['name']}, {location.data['country_name']} "
+             f"({location.data['latitude']}, {location.data['longitude']})")
+
+.. code-block:: text
+
+   Zurich → Zürich, Switzerland (47.36667, 8.55)
+   Geneva → Geneva, Switzerland (46.20222, 6.14569)
+   Basel → Basel, Switzerland (47.55839, 7.57327)
+
+Each name here has been tied to one specific entry in GeoNames, so besides the name and coordinates printed above you also have a stable identifier for the place, what kind of place it is, the administrative units it belongs to, and a geometry you can map, measure, or export.
+
+Start with :doc:`installation`, then parse your first text in the :doc:`quickstart`. The :doc:`demo` maps every place mentioned in Jules Verne's *Around the World in Eighty Days*.
+
+What It Does
 ------------
 
-- **Project-Based Workflows**: Documents and processing results are stored in a persistent database, enabling long-term research and comparative analysis
-- **Modular Architecture**: Pluggable recognizer and resolver modules can be mixed, matched, and extended by implementing well-defined interfaces
-- **Trainable Modules**: Recognizers and resolvers can be fine-tuned on annotated data to improve performance for specific domains or languages
-- **Custom Gazetteers**: Arbitrary geographic databases can be integrated through YAML configuration files that describe data sources and transformations
+Geoparsing is conventionally split into two stages, and this library keeps them separate. A **recognizer** finds which words in a text are place names; a **resolver** then decides which place each name refers to, choosing from the entries of a gazetteer. That second step is the hard one — GeoNames records 122 places called Paris and 291 called Springfield — and it is why installing a gazetteer is part of setting the library up.
 
-Getting Started
----------------
+You supply the recognizer, the resolver, and the gazetteer explicitly, and each can be exchanged for another. That is the library's central design decision, and most of what the library can do follows from it. A recognizer that finds place names with a statistical model can be replaced by one that takes spans you supply yourself; either module can be pointed at a different underlying model; either can be fine-tuned on your own annotated data for a particular language, period, or domain; and you can write a module of your own against a small interface. Results from several such pipelines can be kept side by side over the same corpus and compared.
 
-To begin using the Irchel Geoparser, follow the :doc:`installation` guide to set up the library and install a gazetteer. Then proceed to the :doc:`quickstart` guide for a simple example of parsing text and accessing results. For more advanced usage, explore the user guides that cover :doc:`guides/projects`, :doc:`guides/modules`, :doc:`guides/training`, and :doc:`guides/gazetteers`.
+The two pre-configured gazetteers cover the modern world and Switzerland in detail, and other geographic data — a historical atlas, an excavation catalogue, a national register, your own field data — becomes a gazetteer through a YAML configuration file, with no code to write.
 
-Demo
-----
+:doc:`concepts` explains all of this in more depth, and without code.
 
-Discover what is possible with the Irchel Geoparser. Our :doc:`demo` page showcases an interactive visualization of place names mentioned in Jules Verne's "Around the World in Eighty Days". The demo includes a complete Jupyter notebook and Docker setup so you can reproduce the analysis yourself.
+Project Status
+--------------
 
-Roadmap
--------
-
-The library is under active development, and its architecture is expected to evolve: we plan to separate the gazetteer subsystem and the heavyweight default modules into standalone packages, and to rethink how documents and results are passed in and out. The `roadmap <https://github.com/dguzh/geoparser/blob/main/ROADMAP.md>`_ describes these directions in more detail.
+The library is under active development and its architecture is still evolving; while the version remains below 1.0, minor releases may make breaking changes. `ROADMAP.md <https://github.com/dguzh/geoparser/blob/main/ROADMAP.md>`_ describes the larger changes we intend to make.
 
 Contributing
 ------------
 
-The Irchel Geoparser is an open-source project, and contributions are welcome. If you encounter issues or have suggestions for improvements, please open an issue or submit a pull request on the `GitHub repository <https://github.com/dguzh/geoparser>`_.
+The Irchel Geoparser is open source. Questions, bug reports, and ideas are all welcome on the `issue tracker <https://github.com/dguzh/geoparser/issues>`_, and contributions are welcome too — see `CONTRIBUTING.md <https://github.com/dguzh/geoparser/blob/main/CONTRIBUTING.md>`_.
 
 Acknowledgments
 ---------------
 
-The Irchel Geoparser originated as part of my Master's thesis and was further developed with support from the `Department of Geography <https://www.geo.uzh.ch/>`_ at the University of Zurich and the `Public Data Lab <https://publicdatalab.ch/>`_ of the Digitalization Initiative of the Zurich Higher Education Institutions. I thank Prof. Dr. Ross Purves for the opportunity to continue this work as part of a research project.
+The Irchel Geoparser originated as part of Diego Gomes' Master's thesis and was further developed with support from the `Department of Geography <https://www.geo.uzh.ch/>`_ at the University of Zurich and the `Public Data Lab <https://publicdatalab.ch/>`_ of the Digitalization Initiative of the Zurich Higher Education Institutions. We thank Prof. Dr. Ross Purves for the opportunity to continue this work as part of a research project.
 
 License
 -------
@@ -56,16 +75,21 @@ The Irchel Geoparser is released under the `MIT License <https://github.com/dguz
 
    installation
    quickstart
+   concepts
+   demo
 
 .. toctree::
    :maxdepth: 1
    :caption: User Guides
    :hidden:
 
-   guides/projects
+   guides/results
    guides/modules
-   guides/training
    guides/gazetteers
+   guides/custom-gazetteers
+   guides/projects
+   guides/annotating
+   guides/training
 
 .. toctree::
    :maxdepth: 1

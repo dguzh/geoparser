@@ -1,18 +1,18 @@
 .. _modules:
 
-Modules
-=======
+Configuring Modules
+===================
 
-This guide explains how to use the built-in recognizer and resolver modules, customize their behavior, and create your own custom modules.
+Modules are the interchangeable parts of a pipeline. This guide covers the two built-in ones, the parameters that matter when your results are disappointing, and how to write your own.
 
-Overview
---------
+What a Module Is
+----------------
 
-The Irchel Geoparser uses a modular architecture where recognition and resolution are handled by pluggable components called modules. This design allows you to mix and match different processing strategies, create custom implementations, and extend the system without modifying its core.
+There are two kinds. A **recognizer** finds place names in text: it takes texts and returns character positions. A **resolver** links those names to places: it takes texts and positions and returns gazetteer entries. Nothing else is a module, and neither kind knows anything about the other.
 
-Modules come in two types: recognizers identify place names in text, while resolvers link these place names to geographic entities in gazetteers. Each module type implements a specific interface that defines how it interacts with the rest of the system. The key aspect of this architecture is that modules are completely database-agnostic—they operate purely on text and return predictions, while service layers handle all database interactions.
+That is the whole interface, and it is deliberately small. A module receives text and returns predictions; everything else — storing results, avoiding duplicate work, keeping different runs apart — happens outside it. The practical consequence is that writing a module is a modest job: implement one method, and it works everywhere the built-in ones do.
 
-When you run a module on a project, the system stores both the module's results and its configuration in the database. This enables the system to track which results came from which module, avoid reprocessing data unnecessarily, and support comparative analysis of different module configurations. Each module is uniquely identified by hashing its name and configuration parameters, ensuring that modules with different settings are treated as distinct processing approaches.
+One behavior follows from this and is worth knowing early. A module is identified by its class **together with its configuration**. ``SpacyRecognizer()`` and ``SpacyRecognizer(model_name="en_core_web_trf")`` are two different modules as far as the library is concerned, with separate results. That is what makes it safe to run a pipeline repeatedly without redoing work, and what makes comparing configurations possible — but it also means changing a parameter does not update your old results, it produces new ones alongside them.
 
 Built-in Recognizers
 --------------------
@@ -84,7 +84,7 @@ The ``min_similarity`` threshold controls how confident the resolver must be bef
 
 The ``max_tiers`` parameter controls how aggressively the resolver searches for candidates. The resolver uses an iterative strategy starting with exact string matching and progressively relaxing to phrase matching, partial matching, and fuzzy matching. For each search method, it ranks results by relevance and groups them into tiers. The ``max_tiers`` parameter determines how many of these tiers to include—higher values mean the resolver expands its search to include more potential candidates, which can help resolve difficult toponyms but increases processing time.
 
-The ``attribute_map`` parameter tells the resolver how to read the gazetteer's attributes. Before comparing a candidate place against the text, this resolver describes the candidate in words — "Paris (city) in Île-de-France, France" — and since every gazetteer names its attributes differently, it needs to be told which ones that sentence is built from. The built-in gazetteers already carry this mapping, so it only has to be passed for a gazetteer of your own:
+The ``attribute_map`` parameter tells the resolver how to read the gazetteer's attributes. Before comparing a candidate place against the text, this resolver describes the candidate in words — "Paris (city) in Île-de-France, France" — and since every gazetteer names its attributes differently, it needs to be told which ones that sentence is built from. The resolver already knows the mapping for GeoNames and SwissNames3D, so it only has to be passed for a gazetteer of your own:
 
 .. code-block:: python
 
@@ -339,11 +339,7 @@ The ``fit()`` method can accept additional keyword arguments for training parame
 Next Steps
 ----------
 
-Now that you understand the module system, you can explore:
+If adjusting parameters is not enough — because the recognizer does not know your domain's place names, or the resolver was tuned on data unlike yours — the remaining option is to train on your own material. Continue to :doc:`training`.
 
-- :doc:`training` - Learn how to fine-tune recognizers and resolvers on your own data
-- :doc:`gazetteers` - Understand how to work with geographic databases
-- :doc:`projects` - Use modules in project-based workflows
-
-For complete API documentation of module classes, see the :doc:`../api/modules` reference.
+Full signatures for every module are in the :doc:`../api/modules` reference.
 

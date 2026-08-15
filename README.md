@@ -9,18 +9,21 @@
 
 A Python library for extracting place names from text and linking them to geographic locations.
 
-## Features
-
-- **Project-Based Workflows**: Store documents and results in a persistent database for long-term research
-- **Modular Architecture**: Mix and match different recognizers and resolvers, or build your own
-- **Trainable Models**: Fine-tune recognizers and resolvers on your own annotated data
-- **Custom Gazetteers**: Integrate any geographic database through simple YAML configuration
+Geoparsing is split into two stages, and the library keeps them separate: a *recognizer* finds which words are place names, and a *resolver* decides which place each name refers to, choosing from the entries of a *gazetteer*. You supply the recognizer, the resolver, and the gazetteer explicitly, and each can be exchanged for another: a module can be replaced by one that works differently, pointed at a different underlying model, or fine-tuned on your own annotated data, and you can write a module of your own against a small interface. The library ships gazetteer configurations for the modern world and for Switzerland, and other geographic data becomes a gazetteer through a YAML configuration file, with no code to write.
 
 ## Installation
 
 ```bash
 pip install geoparser
 ```
+
+The library also needs a gazetteer, which is not bundled: it is the database of places that names are resolved against.
+
+```bash
+python -m geoparser install geonames
+```
+
+See the [installation guide](https://docs.geoparser.app/en/latest/installation.html) for environment setup, the available gazetteers, and their disk requirements.
 
 ## Quick Start
 
@@ -29,32 +32,38 @@ from geoparser import Geoparser
 from geoparser.modules import SentenceTransformerResolver, SpacyRecognizer
 
 # Build a pipeline from a recognizer and a resolver
-gp = Geoparser(
+geoparser = Geoparser(
     recognizer=SpacyRecognizer(),
     resolver=SentenceTransformerResolver(gazetteer_name="geonames"),
 )
 
 # Parse text
-text = "Paris is the capital of France."
-doc = gp.parse(text)
+document = geoparser.parse(
+    "The conference was held in Zurich, with satellite events in Geneva and Basel."
+)
 
 # Access results
-for toponym in doc.toponyms:
-    print(f"{toponym.text} -> {toponym.location.data}")
+for toponym in document.toponyms:
+    location = toponym.location  # None if the name could not be resolved
+    print(f"{toponym.text} -> {location.data['name']}, {location.data['country_name']} "
+          f"({location.data['latitude']}, {location.data['longitude']})")
 ```
+
+```text
+Zurich -> Zürich, Switzerland (47.36667, 8.55)
+Geneva -> Geneva, Switzerland (46.20222, 6.14569)
+Basel -> Basel, Switzerland (47.55839, 7.57327)
+```
+
+Each name here has been tied to one specific entry in GeoNames, so besides the name and coordinates printed above you also have a stable identifier for the place, what kind of place it is, the administrative units it belongs to, and a geometry you can map, measure, or export.
 
 ## Documentation
 
-Full documentation is available at **[docs.geoparser.app](https://docs.geoparser.app)**
+Full documentation, including setup, guides, and the API reference, is available at **[docs.geoparser.app](https://docs.geoparser.app)**.
 
-- [Installation Guide](https://docs.geoparser.app/en/latest/installation.html)
-- [Quick Start Tutorial](https://docs.geoparser.app/en/latest/quickstart.html)
-- [User Guides](https://docs.geoparser.app/en/latest/guides/projects.html)
-- [API Reference](https://docs.geoparser.app/en/latest/api/geoparser.html)
+## Project Status
 
-## Roadmap
-
-Larger changes we intend to make — splitting the gazetteer and the default modules into standalone packages, and rethinking how documents and results are passed in and out — are described in [ROADMAP.md](ROADMAP.md).
+The library is under active development and its architecture is still evolving; while the version remains below `1.0`, minor releases may make breaking changes. [ROADMAP.md](ROADMAP.md) describes the larger changes we intend to make.
 
 ## Contributing
 
@@ -62,7 +71,7 @@ Questions, bug reports, and ideas are always welcome via [issues](https://github
 
 ## Acknowledgments
 
-The Irchel Geoparser originated as part of my Master's thesis and was further developed with support from the [Department of Geography](https://www.geo.uzh.ch/) at the University of Zurich and the [Public Data Lab](https://publicdatalab.ch/) of the Digitalization Initiative of the Zurich Higher Education Institutions. I thank Prof. Dr. Ross Purves for the opportunity to continue this work as part of a research project.
+The Irchel Geoparser originated as part of Diego Gomes' Master's thesis and was further developed with support from the [Department of Geography](https://www.geo.uzh.ch/) at the University of Zurich and the [Public Data Lab](https://publicdatalab.ch/) of the Digitalization Initiative of the Zurich Higher Education Institutions. We thank Prof. Dr. Ross Purves for the opportunity to continue this work as part of a research project.
 
 ## License
 
