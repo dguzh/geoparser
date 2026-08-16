@@ -1,117 +1,144 @@
 Models
 ======
 
+The objects a pipeline returns. You never construct these yourself — they come back from
+:meth:`Geoparser.parse() <geoparser.geoparser.geoparser.Geoparser.parse>` and
+:meth:`Project.get_documents() <geoparser.project.project.Project.get_documents>` — so only
+the attributes you read are documented here.
+
 Document
 --------
 
-.. autoclass:: geoparser.db.models.Document
-   :members:
-   :show-inheritance:
-   :exclude-members: id, project_id, project, references, recognitions, text, toponyms, model_config, model_post_init
+.. py:class:: Document
+   :module: geoparser.db.models.document
 
-   The Document model represents a text document that has been added to a project for geoparsing.
-
-   **Properties:**
+   One text that was parsed.
 
    .. py:attribute:: text
       :type: str
-      :no-index:
 
-      The full text content of the document.
+      The full text content of the document, as stored. Line endings are normalized to
+      ``\n`` when the document is created, which matters when matching annotations against
+      it by text.
+
+   .. py:attribute:: id
+      :type: uuid.UUID
+
+      The document's unique identifier. These are the values returned by
+      :meth:`Project.create_documents() <geoparser.project.project.Project.create_documents>`
+      and accepted by the ``ids`` argument of
+      :meth:`Project.get_documents() <geoparser.project.project.Project.get_documents>`.
+      Store them alongside your own records to relate results back to where the text came from.
 
    .. py:attribute:: toponyms
       :type: List[Reference]
-      :no-index:
 
-      Returns references (identified place names) filtered by the recognizer configured in the current context.
-      This property is used to access the place names that were identified by a specific recognizer module.
+      The place names found in this document: the references produced by the recognizer
+      registered for the current tag.
+
+      Because it is filtered by tag, this is empty when no recognizer has been run under the
+      tag you retrieved the document with — which is a different situation from a recognizer
+      that ran and found nothing, though they look the same. See :doc:`../guides/projects`.
 
 Reference
 ---------
 
-.. autoclass:: geoparser.db.models.Reference
-   :members:
-   :show-inheritance:
-   :exclude-members: id, document_id, recognizer_id, document, recognizer, referents, resolutions, start, end, text, location, model_config, model_post_init
+.. py:class:: Reference
+   :module: geoparser.db.models.reference
 
-   The Reference model represents an identified place name (toponym) within a document.
-
-   **Properties:**
-
-   .. py:attribute:: start
-      :type: int
-      :no-index:
-
-      The starting character position of the place name in the document text.
-
-   .. py:attribute:: end
-      :type: int
-      :no-index:
-
-      The ending character position of the place name in the document text.
+   One recognized place name within a document — a *toponym*. Obtained from
+   :attr:`Document.toponyms <geoparser.db.models.document.Document.toponyms>`.
 
    .. py:attribute:: text
       :type: Optional[str]
-      :no-index:
 
-      The actual text of the place name as it appears in the document. This is typically
-      extracted automatically from the document text using the start and end positions.
+      The place name as it appears in the document. Derived from the document text using
+      ``start`` and ``end`` rather than stored independently, so it always reflects the offsets.
+
+   .. py:attribute:: start
+      :type: int
+
+      Character offset in the document text where the place name begins.
+
+   .. py:attribute:: end
+      :type: int
+
+      Character offset where the place name ends, exclusive — so
+      ``document.text[reference.start:reference.end]`` is the place name. Widen the slice to
+      recover the surrounding context.
 
    .. py:attribute:: location
       :type: Optional[Feature]
-      :no-index:
 
-      Returns the resolved geographic feature from the resolver configured in the current context.
-      This property provides access to the geographic entity that this place name refers to,
-      or None if the place name could not be resolved.
+      The gazetteer feature this place name was resolved to by the resolver registered for
+      the current tag, or ``None`` if it was not resolved.
+
+      ``None`` is a normal outcome: the place may be absent from the gazetteer, or no
+      candidate may have passed the resolver's confidence threshold. Always check before
+      reading attributes.
 
 Feature
 -------
 
-.. autoclass:: geoparser.gazetteer.feature.Feature
-   :members:
-   :show-inheritance:
-   :exclude-members: id, names, identifier, type, data, geometry, crs, gazetteer_name
+.. py:class:: Feature
+   :module: geoparser.gazetteer.feature
 
-   The Feature class represents a geographic entity from an installed gazetteer.
+   One place in a gazetteer. Returned by
+   :attr:`Reference.location <geoparser.db.models.reference.Reference.location>`, and by
+   :meth:`Gazetteer.search() <geoparser.gazetteer.gazetteer.Gazetteer.search>` and
+   :meth:`Gazetteer.find() <geoparser.gazetteer.gazetteer.Gazetteer.find>`.
 
-   **Properties:**
+   Two features are equal when they have the same identifier in the same gazetteer, so they
+   can be used as dictionary keys or set members to aggregate mentions by place.
 
    .. py:attribute:: identifier
       :type: str
-      :no-index:
 
-      The feature's stable identifier within its gazetteer (for example the geonameid
-      for GeoNames features).
-
-   .. py:attribute:: source
-      :type: str
-      :no-index:
-
-      The name of the gazetteer source the feature was built from
-      (for example ``allCountries``, ``cities500``, or ``swissNAMES3D_PKT``).
+      The feature's stable identifier within its gazetteer — the geonameid for GeoNames, a
+      UUID for SwissNames3D, whatever a custom gazetteer defines. This is what to store when
+      recording a resolution, and what to group by when counting mentions per place: names
+      are ambiguous, identifiers are not.
 
    .. py:attribute:: data
       :type: Dict[str, Any]
-      :no-index:
 
-      Returns the feature's data as a dictionary. The available keys depend
-      on which gazetteer (and source) the feature comes from. For GeoNames, common
-      keys include name, latitude, longitude, country_name, feature_name, population,
-      and administrative divisions. For SwissNames3D, keys include NAME, OBJEKTART,
-      GEMEINDE_NAME, KANTON_NAME, and elevation. This property is cached for performance.
+      The feature's attributes.
+
+      Which keys exist depends on the gazetteer, and on the source within it, so read them
+      with ``.get()`` rather than by subscripting. For GeoNames, common keys are ``name``,
+      ``latitude``, ``longitude``, ``country_name``, ``feature_name``, ``feature_class``, and
+      ``population``; for SwissNames3D, ``NAME``, ``OBJEKTART``, ``KANTON_NAME``, and
+      ``HOEHE``. Full lists are in :doc:`../guides/gazetteers`. Cached after first access.
 
    .. py:attribute:: geometry
-      :type: Optional[BaseGeometry]
-      :no-index:
+      :type: Optional[shapely.geometry.base.BaseGeometry]
 
-      Returns the geographic geometry (point, line, or polygon) associated with this feature
-      as a Shapely geometry object, in the gazetteer's coordinate reference system
-      (``crs``). This property is cached for performance.
+      The feature's geometry as a Shapely object, in the coordinate reference system given by
+      ``crs`` — usually a point, but lines, polygons, and multi-part geometries occur.
+
+      ``None`` when the gazetteer records the place by name without locating it — roughly a
+      sixth of Pleiades places, for instance, are attested in texts but never located.
+      Cached after first access.
+
+   .. py:attribute:: crs
+      :type: str
+
+      The coordinate reference system ``geometry`` is expressed in, as an authority code such
+      as ``EPSG:4326``. Fixed per gazetteer and chosen when it is built, so every feature from
+      one gazetteer shares it. Use this rather than assuming, when exporting spatial data from
+      a custom gazetteer.
 
    .. py:attribute:: names
       :type: List[str]
-      :no-index:
 
-      All searchable names of this feature. This property is cached for performance.
+      Every name the feature is searchable by: its main name plus any historical spellings,
+      transliterations, translations, and abbreviations the gazetteer records. Unordered and
+      unlabelled — there is no notion of a preferred name or of a name's language.
+      Cached after first access.
 
+   .. py:attribute:: source
+      :type: str
+
+      The gazetteer source this feature was built from, such as ``allCountries`` for GeoNames.
+      Useful for telling apart features of different kinds within one gazetteer, since
+      attributes vary by source.

@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "geoparser"
-version = "0.5.0"
+version = "0.6.0"
 description = "A customizable geoparsing library for unstructured text"
 authors = ["Diego Gomes <diego.gomes@uzh.ch>"]
 readme = "README.md"
@@ -48,8 +48,9 @@ jupyter = "^1.1.1"
 pytest = "^8.4.2"
 pytest-cov = "^7.0.0"
 requests-mock = "^1.12.1"
+shibuya = "^2026.7.12"
 sphinx = "^7.4.7"
-sphinx-rtd-theme = "^3.0.2"
+sphinx-copybutton = "^0.5.2"
 sphinx-tabs = "^3.4.7"
 en-core-web-sm = {url = "https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0.tar.gz"}
 xx-sent-ud-sm = {url = "https://github.com/explosion/spacy-models/releases/download/xx_sent_ud_sm-3.8.0/xx_sent_ud_sm-3.8.0.tar.gz"}

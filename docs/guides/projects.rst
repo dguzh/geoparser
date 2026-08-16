@@ -1,16 +1,27 @@
 .. _projects:
 
-Projects
-========
+Managing Projects
+=================
 
-This guide explains how to use projects for organizing documents and processing results, comparing different processing strategies, and managing annotations for training.
+A project is a workspace that remembers. Documents you add and results you produce are stored under a name, so you can return to them in a later session — and, more usefully, run several different pipelines over the same corpus and keep every result set side by side.
 
-Overview
---------
+When to Use One
+---------------
 
-While the simple ``Geoparser.parse()`` interface (which is essentially a convenience wrapper around the Project class) is convenient for quick tasks, projects provide a more powerful approach for research and production workflows. The project-based architecture replaces the in-memory session-oriented approach with persistent storage, enabling long-term research workflows and systematic comparison of different processing configurations.
+``Geoparser.parse()`` is the right tool for analysis you run in one sitting: text in, results out, nothing stored. Most work is like that, and the :doc:`../quickstart` covers it.
 
-Projects maintain comprehensive state information about what has been processed, by which modules, and using which configuration. This enables sophisticated queries about processing outcomes and supports comparative analysis of different approaches applied to the same data. All results are stored with associated tags that identify which recognizer and resolver combination produced them, allowing you to experiment with different processing strategies while keeping all results organized.
+Reach for a project when one of these is true:
+
+- **The corpus is large enough that reprocessing it is painful.** Parse once, then query the results as often as you like.
+- **You want to compare configurations.** Two recognizers, three similarity thresholds, a different gazetteer — run them all over the same documents and keep each set of results separately, which is what makes the comparison meaningful.
+- **You are working with annotations.** Training and evaluation both need human-annotated data stored alongside model output, so that the two can be compared.
+- **The work spans sessions.** Results survive closing Python.
+
+The cost is bookkeeping: you name things, and you keep track of which name holds what. Projects record what has been processed, by which module, with which configuration, and every result is filed under a **tag** identifying the pipeline that produced it. Tags are the part worth understanding properly, and they are covered below. Full signatures for every method are in the :doc:`../api/project` reference.
+
+.. note::
+
+   ``Geoparser`` is the interface we expect to remain stable. The database-backed project layer is likely to become one option among several rather than the foundation everything sits on, so where either would serve, prefer ``Geoparser``.
 
 Creating and Loading Projects
 ------------------------------
@@ -66,7 +77,7 @@ Passing those IDs to ``get_documents()`` retrieves exactly those documents, in t
 .. code-block:: python
 
    # Results for one specific article
-   documents = project.get_documents(ids=article["document_id"])
+   documents = project.get_documents(ids=articles[0]["document_id"])
 
    # Or for a subset of your material, in your own order
    recent = [article["document_id"] for article in articles if article["year"] >= 2020]
@@ -120,8 +131,10 @@ After running modules on your project, you can retrieve the processed documents 
        print(f"Document: {doc.text}")
        for toponym in doc.toponyms:
            print(f"  - {toponym.text}", end="")
-           if toponym.location:
-               print(f" → {toponym.location.data.get('name')}")
+           location = toponym.location
+           if location:
+               data = location.data
+               print(f" → {data.get('name')} ({data.get('latitude')}, {data.get('longitude')})")
            else:
                print(" (unresolved)")
        print()
@@ -227,12 +240,14 @@ Projects support managing manually annotated data, which is essential for traini
    project.create_documents(texts)
 
    # Create references (identified place names)
-   references = [[(0, 5), (23, 29)]]  # "Paris" and "France"
+   references = [[(0, 5), (24, 30)]]  # "Paris" and "France"
    project.create_references(texts, references, tag="manual")
 
    # Create referents (resolved locations)
    referents = [[("geonames", "2988507"), ("geonames", "3017382")]]
    project.create_referents(texts, references, referents, tag="manual")
+
+Positions are character offsets into the document text, with ``end`` exclusive — exactly what ``text[start:end]`` expects. Check them before annotating in bulk: ``"Paris is the capital of France."[24:30]`` is ``'France'``, whereas ``[23:29]`` would give ``' Franc'``. Reference text is recomputed from the offsets rather than taken from any text you supply, so an off-by-one is stored silently.
 
 These methods store the annotations in the database using internal recognizer and resolver modules. The annotations can then be used for training or evaluation purposes.
 
@@ -275,8 +290,8 @@ The JSON file should follow this structure:
                        "loc_id": "2988507"
                    },
                    {
-                       "start": 23,
-                       "end": 29,
+                       "start": 24,
+                       "end": 30,
                        "text": "France",
                        "loc_id": "3017382"
                    }
@@ -285,7 +300,9 @@ The JSON file should follow this structure:
        ]
    }
 
-The ``loc_id`` field should contain the identifier from the specified gazetteer, or empty string/null for toponyms that were not linked to locations.
+The ``loc_id`` field should contain the identifier from the specified gazetteer, or empty string/null for toponyms that were not linked to locations. Only ``start`` and ``end`` are read for each toponym; the ``"text"`` field is documentation for the reader, and the stored reference text is recomputed from the offsets.
+
+This is the format the :doc:`annotator <annotating>` exports, so annotations made there can be loaded without conversion.
 
 Deleting Projects
 -----------------
@@ -303,15 +320,3 @@ When you're done with a project and want to free up database space, you can dele
    project.delete()
 
 This removes the project and all its documents, references, and referents from the database. The deletion is permanent and cannot be undone, so use this method carefully.
-
-Next Steps
-----------
-
-Now that you understand project-based workflows, you can explore:
-
-- :doc:`modules` - Learn about the different recognizers and resolvers available
-- :doc:`training` - Use project annotations to train custom models
-- :doc:`gazetteers` - Understand how geographic databases work
-
-For complete API documentation of the Project class, see the :doc:`../api/project` reference.
-

@@ -1,7 +1,7 @@
 .. _training:
 
-Training
-========
+Training Modules
+================
 
 This guide explains how to train and fine-tune modules on annotated data to improve performance for specific domains, languages, or use cases.
 
@@ -10,7 +10,7 @@ Overview
 
 The Irchel Geoparser supports training and fine-tuning of modules using annotated data. Any module that implements a ``fit()`` method with the appropriate interface can be trained. Training improves performance on texts that differ from the data the models were originally trained on, and it enables support for new languages or specialized geographic contexts.
 
-The built-in ``SpacyRecognizer`` and ``SentenceTransformerResolver`` modules implement a ``fit()`` method that trains the underlying models on annotated examples. The training process requires documents with ground-truth annotations: for recognizers, you need the positions of place names in text; for resolvers, you need both the place name positions and their correct linkages to gazetteer entries. Training is performed through the project-level methods (``project.train_recognizer()`` and ``project.train_resolver()``), which automatically gather training data from annotated documents in the project and call the module's ``fit()`` method.
+The built-in ``SpacyRecognizer`` and ``SentenceTransformerResolver`` modules implement a ``fit()`` method that trains the underlying models on annotated examples. The training process requires documents with ground-truth annotations: for recognizers, you need the positions of place names in text; for resolvers, you need both the place name positions and their correct linkages to gazetteer entries. If you do not have such annotations yet, :doc:`annotating` covers producing them. Training is performed through the project-level methods (``project.train_recognizer()`` and ``project.train_resolver()``), which automatically gather training data from annotated documents in the project and call the module's ``fit()`` method.
 
 Training SpacyRecognizer
 ------------------------
@@ -27,20 +27,31 @@ Training data consists of texts and the positions of place names within those te
    from geoparser import Project
 
    project = Project("training_corpus")
-   
+
    # Option 1: Create annotations manually
+   texts = ["The summit was held in Geneva."]
+
+   # The documents must exist before they can be annotated
+   project.create_documents(texts)
+
    project.create_references(
-       texts=["The summit was held in Geneva."],
-       references=[[(26, 32)]],  # Position of "Geneva"
-       tag="training"
+       texts=texts,
+       references=[[(23, 29)]],  # Position of "Geneva"
+       tag="gold"
    )
-   
+
    # Option 2: Load from JSON file
    project.load_annotations(
        path="annotations.json",
-       tag="training",
+       tag="gold",
        create_documents=True
    )
+
+The tag you choose here matters: it is how you refer to this set of annotations later. Training reads its examples from one tag, so the tag you annotate under has to be the tag you train on. We use ``"gold"`` throughout this guide.
+
+.. warning::
+
+   ``create_references()`` and ``create_referents()`` annotate documents that are already in the project; they do not create them. They match annotations to documents by **exact text equality**, and an annotation whose text matches no stored document is skipped without an error. So call ``create_documents()`` first, and pass exactly the same strings to both. ``load_annotations()`` differs in taking a ``create_documents`` flag, which is why Option 2 needs no separate call.
 
 See the :doc:`projects` guide for detailed information on working with annotations.
 
@@ -71,6 +82,10 @@ Once you have annotated documents in a project, training a recognizer is straigh
    )
 
 The ``train_recognizer()`` method retrieves all documents from the project that have reference annotations associated with the specified tag. It extracts the texts and reference positions, then calls the recognizer's ``fit()`` method to perform the actual training. The trained model is saved to the specified output path.
+
+.. note::
+
+   If the tag you train on has no annotations — most often because it is not the tag you annotated under — training fails with ``ValueError: No training examples found. Ensure documents contain reference annotations.`` rather than training on nothing. Check the tag first with ``len(project.get_documents(tag="gold")[0].toponyms)``.
 
 The training parameters control how the model learns. The ``epochs`` parameter determines how many times the training algorithm iterates over the dataset. More epochs can improve performance but may lead to overfitting if you have limited training data. The ``batch_size`` controls how many examples are processed together during each training step. Larger batches provide more stable gradients but require more memory. The ``dropout`` rate adds regularization by randomly dropping neural network connections during training, which helps prevent overfitting. The ``learning_rate`` determines how quickly the model adjusts its parameters during training.
 
@@ -107,26 +122,39 @@ Training a resolver requires both the positions of place names and their correct
    from geoparser import Project
 
    project = Project("training_corpus")
-   
+
    # Option 1: Create annotations manually
+   texts = ["The summit was held in Geneva."]
+   references = [[(23, 29)]]
+
+   project.create_documents(texts)
+
+   # The place names themselves...
+   project.create_references(texts, references, tag="gold")
+
+   # ...and the gazetteer features they refer to
    project.create_referents(
-       texts=["The summit was held in Geneva."],
-       references=[[(26, 32)]],
-       referents=[[("geonames", "2660645")]],  # Geneva, Switzerland
-       tag="training"
+       texts,
+       references,
+       referents=[[("geonames", "2660646")]],  # the city of Geneva
+       tag="gold"
    )
-   
+
    # Option 2: Load from JSON file
    project.load_annotations(
        path="annotations.json",
-       tag="training",
+       tag="gold",
        create_documents=True
    )
+
+Both calls are needed. ``create_referents()`` records which feature each place name refers to, but it does not record the place names themselves, so on its own it leaves nothing to train on and ``train_resolver()`` fails with ``ValueError: No training examples found. Ensure documents contain references with referent annotations.`` Pass the same ``references`` to both calls, and as with the recognizer, annotate and train under the same tag and create the documents first.
+
+Note that the referent is a specific gazetteer feature, not a place in the abstract, so it is worth checking which one you have picked. GeoNames distinguishes the city of Geneva (``2660646``) from the canton of the same name (``2660645``); for this sentence the city is the right answer, and training on the canton would teach the resolver the wrong association. ``Gazetteer("geonames").find("2660646")`` is the quickest way to confirm an identifier before committing to it.
 
 See the :doc:`projects` guide for detailed information on working with annotations.
 
 Training the Resolver
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~
 
 Training a resolver through a project is similar to training a recognizer:
 
@@ -218,15 +246,4 @@ After training, you should evaluate your models on held-out test data that wasn'
    print(f"Predictions: {pred_count} toponyms")
 
 For more sophisticated evaluation, you'll want to compute precision, recall, and F1 scores for recognition, and accuracy metrics for resolution. The comparison requires aligning predicted toponyms with gold standard annotations based on position and then checking whether the resolved locations match.
-
-Next Steps
-----------
-
-Now that you understand training, you can explore:
-
-- :doc:`modules` - Learn more about the module architecture and creating custom modules
-- :doc:`gazetteers` - Understand the geographic databases used for resolution
-- :doc:`projects` - Use projects to organize training and evaluation workflows
-
-For complete API documentation of training methods, see the :doc:`../api/project` and :doc:`../api/modules` references.
 
