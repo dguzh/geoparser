@@ -1,4 +1,6 @@
-# Irchel Geoparser
+<p align="center">
+  <img src="docs/_static/logo.png" alt="Irchel Geoparser" width="440">
+</p>
 
 [![CI](https://img.shields.io/github/actions/workflow/status/dguzh/geoparser/test.yml?branch=main&logo=github&label=CI)](https://github.com/dguzh/geoparser/actions/workflows/test.yml?query=branch%3Amain+)
 [![Coverage](https://coverage-badge.samuelcolvin.workers.dev/dguzh/geoparser.svg)](https://coverage-badge.samuelcolvin.workers.dev/redirect/dguzh/geoparser)

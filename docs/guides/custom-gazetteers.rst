@@ -295,7 +295,7 @@ Step 5: Add Names from a Second File
 
 A gazetteer is only as good as its names, and so far each place has exactly one. The real names are in ``names.csv``, one row per name, each pointing at a place through ``place_id``:
 
-.. code-block:: text
+.. code-block:: none
 
    place_id  title      language_tag  attested_form  romanized_form_1
    433032    Pompeii    la                           Pompeii
@@ -395,7 +395,7 @@ Step 6: Clean Up the Names
 
 Names sometimes need work before they are usable, because source data mixes names with editorial notation. A quick look through Pleiades titles shows three patterns:
 
-.. code-block:: text
+.. code-block:: none
 
    Visurgis (river)                     qualifier in parentheses (4,295 titles)
    Sigoulones?                          uncertain identification (1,373 titles)
@@ -813,7 +813,7 @@ Duplicate Identifiers
 
 Within one block, rows that share an identifier are **merged into a single feature**: all their names are collected, their geometries are unioned into one possibly multi-part geometry, and each data value is taken from the first row. This is automatic, and it is how datasets that spread a place over several records — multi-part geometries, one row per name — end up as one place.
 
-.. code-block:: text
+.. code-block:: none
 
    p1  North Summit  800     →  one feature "p1", names {North Summit, South Summit},
    p1  South Summit  1200       height 800, geometry MultiPoint of both rows

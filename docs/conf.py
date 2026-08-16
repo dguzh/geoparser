@@ -32,6 +32,7 @@ extensions = [
     "sphinx.ext.autodoc",
     "sphinx.ext.intersphinx",
     "sphinx.ext.napoleon",
+    "sphinx_copybutton",
     "sphinx_tabs.tabs",
 ]
 
@@ -39,6 +40,10 @@ intersphinx_mapping = {
     "python": ("https://docs.python.org/3", None),
     "shapely": ("https://shapely.readthedocs.io/en/stable", None),
 }
+
+# Output blocks are nothing to copy, so keep the button off them. Everything else keeps the
+# extension's default target, a `pre` inside a highlighted block.
+copybutton_selector = "div:not(.highlight-text) > div.highlight > pre"
 
 templates_path = ["_templates"]
 exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
@@ -56,7 +61,27 @@ nitpick_ignore = [
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
 
-html_theme = "sphinx_rtd_theme"
+html_theme = "shibuya"
 html_static_path = ["_static"]
 
+html_logo = "_static/logo.png"
+html_favicon = "_static/favicon.ico"
+html_css_files = ["custom.css"]
 html_show_sourcelink = False
+
+html_theme_options = {
+    # Radix "cyan" is within a shade of the logo's teal, so no CSS override is needed.
+    "accent_color": "cyan",
+    "github_url": "https://github.com/dguzh/geoparser",
+    "og_image_url": "https://docs.geoparser.app/en/latest/_static/og-image.png",
+    # The theme reserves a sidebar slot for Read the Docs ads by default.
+    "ethical_ads_publisher": "",
+}
+
+# Drives the repository link in the sidebar and the "Edit this page" links. The theme's
+# defaults for the branch and the docs directory (main, /docs/) already match this repo.
+html_context = {
+    "source_type": "github",
+    "source_user": "dguzh",
+    "source_repo": "geoparser",
+}
