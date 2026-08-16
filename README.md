@@ -1,13 +1,15 @@
 <p align="center">
-  <img src="docs/_static/logo.png" alt="Irchel Geoparser" width="440">
+  <img src="docs/_static/logo.png" alt="Irchel Geoparser" width="360">
 </p>
 
-[![CI](https://img.shields.io/github/actions/workflow/status/dguzh/geoparser/test.yml?branch=main&logo=github&label=CI)](https://github.com/dguzh/geoparser/actions/workflows/test.yml?query=branch%3Amain+)
-[![Coverage](https://coverage-badge.samuelcolvin.workers.dev/dguzh/geoparser.svg)](https://coverage-badge.samuelcolvin.workers.dev/redirect/dguzh/geoparser)
-[![PyPI](https://img.shields.io/pypi/v/geoparser.svg)](https://pypi.org/project/geoparser)
-[![Downloads](https://static.pepy.tech/badge/geoparser)](https://pepy.tech/projects/geoparser)
-[![Python](https://img.shields.io/pypi/pyversions/geoparser.svg)](https://pypi.org/project/geoparser)
-[![License](https://img.shields.io/github/license/dguzh/geoparser.svg)](https://github.com/dguzh/geoparser/blob/main/LICENSE)
+<p align="center">
+  <a href="https://github.com/dguzh/geoparser/actions/workflows/test.yml?query=branch%3Amain+"><img src="https://img.shields.io/github/actions/workflow/status/dguzh/geoparser/test.yml?branch=main&logo=github&label=CI" alt="CI"></a>
+  <a href="https://coverage-badge.samuelcolvin.workers.dev/redirect/dguzh/geoparser"><img src="https://coverage-badge.samuelcolvin.workers.dev/dguzh/geoparser.svg" alt="Coverage"></a>
+  <a href="https://pypi.org/project/geoparser"><img src="https://img.shields.io/pypi/v/geoparser.svg" alt="PyPI"></a>
+  <a href="https://pepy.tech/projects/geoparser"><img src="https://static.pepy.tech/badge/geoparser" alt="Downloads"></a>
+  <a href="https://pypi.org/project/geoparser"><img src="https://img.shields.io/pypi/pyversions/geoparser.svg" alt="Python"></a>
+  <a href="https://github.com/dguzh/geoparser/blob/main/LICENSE"><img src="https://img.shields.io/github/license/dguzh/geoparser.svg" alt="License"></a>
+</p>
 
 A Python library for extracting place names from text and linking them to geographic locations.
 
