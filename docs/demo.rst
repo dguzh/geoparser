@@ -3,7 +3,7 @@
 Demo
 ====
 
-Every populated place mentioned in Jules Verne's *Around the World in Eighty Days*, extracted from the novel and mapped — 27 of them, across all 37 chapters. Marker size is how often the place is mentioned; hover over one to read the passages it appears in.
+Every populated place mentioned in Jules Verne's *Around the World in Eighty Days*, extracted from the novel and mapped — 74 of them, across all 37 chapters. Marker size is how often the place is mentioned; hover over one to read the passages it appears in.
 
 .. raw:: html
 
