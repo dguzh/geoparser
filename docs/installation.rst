@@ -180,6 +180,8 @@ To confirm the gazetteer is queryable before writing any pipeline code:
 
 Both the number of results and the absence of the French capital from the top of the list are expected. Place names are ambiguous, and GeoNames records 122 distinct places called Paris; ``search()`` returns all of them in no particular order, since it has no notion of which is the most prominent. Choosing between candidates like these, using the context a name appeared in, is the job of a resolver — the subject of :doc:`concepts`.
 
+The setup is now complete, and you can parse your first text in the :doc:`quickstart`. The remaining sections on this page are optional.
+
 Using a GPU
 -----------
 
@@ -244,8 +246,3 @@ Upgrading
    The database format is not yet stable between releases. If you upgrade and your project database was written by an older version, the library will refuse to open it and tell you so. There is no automatic migration yet: you will need to delete ``geoparser.db``, which loses stored projects and results. Export anything you want to keep first — see :doc:`guides/results`.
 
 To remove everything, delete the environment folder, and the data directory above if you want the gazetteers and projects gone as well. Nothing is installed anywhere else.
-
-Next Steps
-----------
-
-Setup is complete. Parse your first text in the :doc:`quickstart`.

@@ -864,9 +864,3 @@ Further Examples
 ~~~~~~~~~~~~~~~~
 
 The pre-configured gazetteers are built exactly the same way, and their files are worth reading once you have your own working: `geonames.yaml <https://github.com/dguzh/geoparser/blob/main/geoparser/gazetteer/configs/geonames.yaml>`_ (a large tabular dataset with four lookup joins) and `swissnames3d.yaml <https://github.com/dguzh/geoparser/blob/main/geoparser/gazetteer/configs/swissnames3d.yaml>`_ (six spatial sources, chained spatial joins, and multi-part geometry merging).
-
-Next Steps
-----------
-
-- :doc:`modules` — tell a resolver how to read your gazetteer's attributes
-- :doc:`training` — fine-tune a resolver against your own gazetteer

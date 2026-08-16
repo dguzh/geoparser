@@ -44,11 +44,11 @@ The Workflow
 
 **1. Start a session.** A session is one annotation job: a set of documents, a chosen gazetteer, and the annotations made so far. Upload one or more plain text files and pick the gazetteer to link places to. The gazetteer is fixed for the session, because identifiers only mean something relative to it.
 
-**2. Pre-annotate, or don't.** For each document you can run the recognizer to propose candidate spans, then correct them, which is considerably faster than marking every name by hand. Or annotate from scratch if you would rather not be anchored by the model's suggestions — for building an unbiased evaluation set, that is the better choice.
+**2. The recognizer proposes spans.** The first time you open a document, the recognizer runs over it and marks the place names it finds, so that you correct proposals instead of marking every name by hand. This happens automatically and cannot be skipped from the interface; the spaCy model it uses is the one chosen when the session was started.
 
-**3. Mark the place names.** Select a span of text to record it as a toponym. Spans may not overlap; attempting it is refused with ``Overlap with existing toponym.`` rather than silently accepted, since overlapping annotations have no consistent interpretation downstream.
+**3. Correct the place names.** Select a span of text to add a toponym the recognizer missed, and remove the ones it marked in error. Spans may not overlap, so an annotation overlapping an existing toponym is rejected — overlapping spans have no consistent interpretation downstream.
 
-**4. Link each name to a place.** For a marked toponym, the annotator searches the gazetteer and shows the candidates with their attributes and coordinates so you can tell one Springfield from another. Choose the right one. A toponym you cannot resolve — a fictional place, or one genuinely absent from the gazetteer — can be left unlinked, and that is meaningful information rather than an omission: it records that a human could not resolve it either.
+**4. Link each name to a place.** For a marked toponym, the annotator searches the gazetteer and shows the candidates with their attributes and coordinates so you can tell one Springfield from another. Choose the right one. A toponym you cannot resolve — a fictional place, or one genuinely absent from the gazetteer — can be left unlinked, which records that a human could not resolve it either.
 
 **5. Download the annotations.** The session exports as a JSON file. Sessions are also stored in the annotator's own database, so you can close the browser and continue later.
 
@@ -127,22 +127,3 @@ Two arguments decide how it behaves.
    predicted = project.get_documents(tag="predicted")
 
 From here the annotations are ordinary project data: they can train a module, as in :doc:`training`, or serve as the reference set for evaluation.
-
-Practical Advice
-----------------
-
-Annotation is slower than people expect — budget on the order of an hour per few thousand words for careful work, more if the material is unfamiliar or the places are obscure.
-
-**Write down your decisions as you go.** Do metonymic uses count, where "Washington" means a government rather than a city? Do you annotate nested names like "Cambridge, Massachusetts" as one toponym or two? Are demonyms such as "Swiss" in scope? None of these has a single right answer, but inconsistency across a corpus is worse than any of the possible answers, and you will not remember on day three what you decided on day one.
-
-**Annotate a held-out set separately.** Data used for training cannot also measure performance. Split the material first, so the temptation does not arise.
-
-**Have a second person annotate a sample.** Agreement between two annotators on the same few documents tells you how reliable your guidelines are, and is worth reporting in any publication that rests on the corpus.
-
-**Keep the JSON exports.** They are the durable artefact — small, plain text, and readable without this library. The annotator's own database is a working file, not an archive.
-
-Next Steps
-----------
-
-- :doc:`training` — fine-tune a recognizer or resolver on these annotations
-- :doc:`projects` — organize annotated and predicted results side by side

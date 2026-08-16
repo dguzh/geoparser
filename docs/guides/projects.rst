@@ -17,7 +17,7 @@ Reach for a project when one of these is true:
 - **You are working with annotations.** Training and evaluation both need human-annotated data stored alongside model output, so that the two can be compared.
 - **The work spans sessions.** Results survive closing Python.
 
-The cost is bookkeeping: you name things, and you keep track of which name holds what. Projects record what has been processed, by which module, with which configuration, and every result is filed under a **tag** identifying the pipeline that produced it. Tags are the part worth understanding properly, and they are covered below.
+The cost is bookkeeping: you name things, and you keep track of which name holds what. Projects record what has been processed, by which module, with which configuration, and every result is filed under a **tag** identifying the pipeline that produced it. Tags are the part worth understanding properly, and they are covered below. Full signatures for every method are in the :doc:`../api/project` reference.
 
 .. note::
 
@@ -320,11 +320,3 @@ When you're done with a project and want to free up database space, you can dele
    project.delete()
 
 This removes the project and all its documents, references, and referents from the database. The deletion is permanent and cannot be undone, so use this method carefully.
-
-Next Steps
-----------
-
-The usual reason for keeping annotated data in a project is to train on it. Continue to :doc:`annotating` to produce annotations, or to :doc:`training` if you already have them.
-
-Full signatures are in the :doc:`../api/project` reference.
-

@@ -70,7 +70,7 @@ Then the mentions are grouped by the place they resolved to. Two details in this
            end = min(len(document.text), toponym.end + 30)
            entry["mentions"].append((chapter["number"], document.text[start:end]))
 
-**Grouping by** ``identifier``, **not by name**, is the important one. Names are shared between genuinely different places — GeoNames has 122 called Paris — so grouping by ``data["name"]`` would merge distinct places into one marker, silently and with no error to warn you.
+**Grouping by** ``identifier``, **not by name**, is the important one. Names are shared between genuinely different places — GeoNames has 122 called Paris — so grouping by ``data["name"]`` would merge distinct places into a single marker.
 
 **Filtering on** ``feature_class`` is what keeps the map readable. GeoNames classifies every feature, and ``"P"`` means a populated place; without the filter, "Europe", "the Atlantic", and "the Rocky Mountains" all become single points, which is misleading rather than informative. The full list of classes is in :doc:`guides/gazetteers`.
 
@@ -83,7 +83,7 @@ Run It Yourself
 
 The complete notebook is in the repository at `demo/demo.ipynb <https://github.com/dguzh/geoparser/blob/main/demo/demo.ipynb>`_. It downloads the book, splits the chapters, runs the pipeline, and builds the map you see above.
 
-To run it in your own environment, you need the library, the ``geonames`` gazetteer, and two extras:
+To run it in your own environment, you need the library and the ``geonames`` gazetteer, both covered in :doc:`installation`, plus two extras:
 
 .. code-block:: bash
 
@@ -106,10 +106,3 @@ Alternatively, a pre-built Docker image has everything including the gazetteer a
    docker run -p 8888:8888 dguzh/geoparser-demo:latest
 
 Then open ``http://localhost:8888`` and run ``demo.ipynb``. The image is convenient but large — around 10 GB compressed, expanding to roughly 30 GB, mostly the GeoNames gazetteer — so the first pull takes a while. Later runs start immediately.
-
-Next Steps
-----------
-
-- :doc:`installation` — set the library up on your own machine
-- :doc:`quickstart` — the same pipeline, built up step by step on a short text
-- :doc:`guides/results` — export results to CSV, GeoJSON, or a spatial file

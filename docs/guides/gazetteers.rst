@@ -49,7 +49,7 @@ Opening a gazetteer
 
    gazetteer = Gazetteer("geonames")
 
-The name must correspond to an installed gazetteer. If it does not, this raises immediately with instructions rather than returning an empty gazetteer that silently finds nothing.
+The name must correspond to an installed gazetteer; if it does not, this raises a ``ValueError`` naming the command that would install it.
 
 Searching by name
 ~~~~~~~~~~~~~~~~~
@@ -138,7 +138,7 @@ Working with Features
        print(f"Geometry: {feature.geometry}")    # Shapely geometry, or None
        print(f"CRS: {feature.crs}")              # e.g. EPSG:4326
 
-The ``identifier`` is what you store to refer to this place — in annotations, in exported data, or anywhere you need the reference to survive. The ``source`` names the gazetteer source the feature came from (``allCountries`` in GeoNames), which is how you tell apart features of different kinds within one gazetteer. ``names`` holds every string the place is searchable by, unordered and unlabelled. ``data`` holds the attributes, and ``geometry`` a Shapely object in the coordinate system given by ``crs`` — usually a Point, but lines, polygons, and multi-part geometries occur too, and it is ``None`` for a place the gazetteer records by name without locating.
+The ``identifier`` is what you store to refer to this place — in annotations, in exported data, or anywhere you need the reference to survive. The ``source`` names the gazetteer source the feature came from (``allCountries`` in GeoNames), which is how you tell apart features of different kinds within one gazetteer. ``names`` holds every string the place is searchable by, unordered and unlabelled. ``data`` holds the attributes, and ``geometry`` a Shapely object in the coordinate system given by ``crs`` — usually a Point, but lines, polygons, and multi-part geometries occur too, and it can be ``None``, since a gazetteer need not give every place a location.
 
 .. code-block:: python
 
@@ -182,9 +182,3 @@ A resolver is told which gazetteer to use when you construct it:
    resolver = SentenceTransformerResolver(gazetteer_name="swissnames3d")
 
 For GeoNames and SwissNames3D that is all that is needed. A resolver that describes candidates in words — as ``SentenceTransformerResolver`` does — additionally has to be told which attributes to build that description from when the gazetteer is one of your own, since it cannot guess. See :doc:`modules`.
-
-Next Steps
-----------
-
-- :doc:`custom-gazetteers` — build a gazetteer from your own data
-- :doc:`modules` — how resolvers use gazetteers, and how to configure them for one of yours

@@ -58,7 +58,7 @@ Those attributes are what makes resolution possible at all. GeoNames describes o
 
 This is why installing a gazetteer is a required setup step in this library and not a detail. Recognition works on text alone, but resolving a name to a place here means selecting an entry from a gazetteer, so there has to be one to select from. It is not the only way the problem can be approached — there are methods that predict coordinates directly from the words, without a list of candidate places — but selecting from a gazetteer is what this library does, and it is what gives you an identifier and attributes rather than a coordinate pair alone.
 
-It is also why the choice of gazetteer shapes your results more than any other single decision: a gazetteer containing only cities cannot resolve a river, and one covering only the modern world cannot resolve a Roman province, no matter how good the models are. If neither of the pre-configured gazetteers describes the world you are studying, you can build one from your own data — see :ref:`custom-gazetteers`.
+It is also why the choice of gazetteer shapes your results more than any other single decision: a gazetteer containing only cities cannot resolve a river, and one covering only the modern world cannot resolve a Roman province, no matter how good the models are. :doc:`guides/gazetteers` describes what the pre-configured gazetteers contain, and if neither of them describes the world you are studying, you can build one from your own data — see :ref:`custom-gazetteers`.
 
 Putting It Together
 -------------------
@@ -67,7 +67,7 @@ A pipeline in this library is two stages in sequence: text goes to the recognize
 
 Both modules are stated explicitly when you build a ``Geoparser``, and there are no defaults for either.
 
-That explicitness is deliberate. The two stages are independent, and separating them is the library's central design decision. It means you can change how names are found without touching how they are resolved, compare two recognizers against the same resolver to see which finds more, give a resolver a different gazetteer, or replace either stage with an implementation of your own. It also means the two stages can fail independently, which is worth remembering when a result looks wrong: if nothing comes back, check first whether anything was recognized, since a resolver cannot resolve a name a recognizer never found.
+That explicitness is deliberate. The two stages are independent, and separating them is the library's central design decision. It means you can change how names are found without touching how they are resolved, compare two recognizers against the same resolver to see which finds more, give a resolver a different gazetteer, or replace either stage with an implementation of your own — :doc:`guides/modules` covers the modules that exist and how to write one. It also means the two stages can fail independently, which is worth remembering when a result looks wrong: if nothing comes back, check first whether anything was recognized, since a resolver cannot resolve a name a recognizer never found.
 
 What Comes Out
 --------------
@@ -122,11 +122,3 @@ Words You Will See
      - A label identifying one pipeline's results within a project, so several can coexist over the same documents.
    * - **Artifact**
      - The single self-contained file an installed gazetteer consists of.
-
-Next Steps
-----------
-
-- :doc:`quickstart` — run the pipeline described here
-- :doc:`guides/modules` — choose recognizers and resolvers, or write your own
-- :doc:`guides/gazetteers` — what the pre-configured gazetteers contain, and how to look places up directly
-- :doc:`guides/custom-gazetteers` — turn your own data into a gazetteer

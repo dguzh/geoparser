@@ -8,9 +8,9 @@ Modules are the interchangeable parts of a pipeline. This guide covers the two b
 What a Module Is
 ----------------
 
-There are two kinds. A **recognizer** finds place names in text: it takes texts and returns character positions. A **resolver** links those names to places: it takes texts and positions and returns gazetteer entries. Nothing else is a module, and neither kind knows anything about the other.
+There are two kinds. A **recognizer** finds place names in text: it takes texts and returns character positions. A **resolver** links those names to places: it takes texts and positions and returns gazetteer entries. Each is written independently of the other, and a pipeline is one of each.
 
-That is the whole interface, and it is deliberately small. A module receives text and returns predictions; everything else — storing results, avoiding duplicate work, keeping different runs apart — happens outside it. The practical consequence is that writing a module is a modest job: implement one method, and it works everywhere the built-in ones do.
+That is the whole interface, and it is deliberately small. A module receives text and returns predictions; everything else — storing results, avoiding duplicate work, keeping different runs apart — happens outside it. The practical consequence is that writing a module is a modest job: implement one method, and it works everywhere the built-in ones do. Full signatures for every module are in the :doc:`../api/modules` reference.
 
 One behavior follows from this and is worth knowing early. A module is identified by its class **together with its configuration**. ``SpacyRecognizer()`` and ``SpacyRecognizer(model_name="en_core_web_trf")`` are two different modules as far as the library is concerned, with separate results. That is what makes it safe to run a pipeline repeatedly without redoing work, and what makes comparing configurations possible — but it also means changing a parameter does not update your old results, it produces new ones alongside them.
 
@@ -335,11 +335,3 @@ For resolvers, the ``fit()`` method should additionally accept referents:
        pass
 
 The ``fit()`` method can accept additional keyword arguments for training parameters like learning rate, batch size, or number of epochs. Once implemented, your custom modules can be trained using the project-level training methods described in the :doc:`training` guide.
-
-Next Steps
-----------
-
-If adjusting parameters is not enough — because the recognizer does not know your domain's place names, or the resolver was tuned on data unlike yours — the remaining option is to train on your own material. Continue to :doc:`training`.
-
-Full signatures for every module are in the :doc:`../api/modules` reference.
-

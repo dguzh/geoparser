@@ -10,7 +10,7 @@ Overview
 
 The Irchel Geoparser supports training and fine-tuning of modules using annotated data. Any module that implements a ``fit()`` method with the appropriate interface can be trained. Training improves performance on texts that differ from the data the models were originally trained on, and it enables support for new languages or specialized geographic contexts.
 
-The built-in ``SpacyRecognizer`` and ``SentenceTransformerResolver`` modules implement a ``fit()`` method that trains the underlying models on annotated examples. The training process requires documents with ground-truth annotations: for recognizers, you need the positions of place names in text; for resolvers, you need both the place name positions and their correct linkages to gazetteer entries. Training is performed through the project-level methods (``project.train_recognizer()`` and ``project.train_resolver()``), which automatically gather training data from annotated documents in the project and call the module's ``fit()`` method.
+The built-in ``SpacyRecognizer`` and ``SentenceTransformerResolver`` modules implement a ``fit()`` method that trains the underlying models on annotated examples. The training process requires documents with ground-truth annotations: for recognizers, you need the positions of place names in text; for resolvers, you need both the place name positions and their correct linkages to gazetteer entries. If you do not have such annotations yet, :doc:`annotating` covers producing them. Training is performed through the project-level methods (``project.train_recognizer()`` and ``project.train_resolver()``), which automatically gather training data from annotated documents in the project and call the module's ``fit()`` method.
 
 Training SpacyRecognizer
 ------------------------
@@ -246,11 +246,4 @@ After training, you should evaluate your models on held-out test data that wasn'
    print(f"Predictions: {pred_count} toponyms")
 
 For more sophisticated evaluation, you'll want to compute precision, recall, and F1 scores for recognition, and accuracy metrics for resolution. The comparison requires aligning predicted toponyms with gold standard annotations based on position and then checking whether the resolved locations match.
-
-Next Steps
-----------
-
-A trained module is used exactly like a built-in one, so the rest of the documentation applies unchanged. If you have not yet produced annotations to train on, start with :doc:`annotating`.
-
-Full signatures are in the :doc:`../api/project` and :doc:`../api/modules` references.
 

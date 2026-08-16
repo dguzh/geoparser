@@ -98,7 +98,7 @@ The geographic information is on ``toponym.location``:
      Type:        seat of a second-order administrative division
      Coordinates: 53.38297, -1.4659
 
-``location`` is a **feature**: one entry in the gazetteer. Its ``data`` is a dictionary of whatever that gazetteer records, which varies between gazetteers and even between sources inside one gazetteer — so read it with ``.get()`` rather than ``data["name"]``.
+``location`` is a **feature**: one entry in the gazetteer. Its ``data`` is a dictionary of whatever that gazetteer records, which varies between gazetteers and even between sources inside one gazetteer — so read it with ``.get()`` rather than ``data["name"]``. :doc:`guides/results` goes through all three objects and their attributes in full.
 
 Note that the gazetteer's name for a place need not be the name in the text. Ask the same pipeline about Vienna and the feature comes back as ``Wien``. If you want to group or count places, use ``location.identifier`` — the gazetteer's stable id for that place, ``2643123`` for Manchester — because names are ambiguous and identifiers are not.
 
@@ -289,13 +289,3 @@ Keeping the Results
    Results saved under project name: a1b2c3d4
 
 The printed name is how you get back to those results later, with ``Project("a1b2c3d4")``. When you know in advance that you want to keep something, it is better to create a project with a name you chose — see :doc:`guides/projects`.
-
-Next Steps
-----------
-
-You can now parse text and read the results. The obvious next question is how to get them into something you can analyse:
-
-- :doc:`guides/results` — rows, CSV, pandas, GeoJSON, and how to keep the surrounding context
-- :doc:`guides/modules` — if too little is being recognized or resolved, the fix is here
-- :doc:`concepts` — the ideas underneath all of this, if you skipped it
-- :doc:`api/geoparser` — the full API reference
