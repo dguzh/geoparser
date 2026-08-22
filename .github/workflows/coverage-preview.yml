@@ -1,0 +1,39 @@
+name: Coverage preview
+
+# Tests only runs on pull requests now, so this keys off any successful run and
+# publishes the browsable coverage report against the pull request head.
+on:
+  workflow_run:
+    workflows: ["Tests"]
+    types:
+      - completed
+
+permissions:
+  contents: read
+
+jobs:
+  upload:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      statuses: write
+      # Listing the triggering run and downloading its artifacts.
+      actions: read
+    steps:
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install smokeshow
+      - uses: dawidd6/action-download-artifact@v21
+        with:
+          workflow: test.yml
+          commit: ${{ github.event.workflow_run.head_sha }}
+      - run: smokeshow upload coverage-html
+        env:
+          SMOKESHOW_GITHUB_STATUS_DESCRIPTION: Coverage {coverage-percentage}
+          SMOKESHOW_GITHUB_CONTEXT: coverage
+          SMOKESHOW_GITHUB_COVERAGE_THRESHOLD: 98
+          SMOKESHOW_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SMOKESHOW_GITHUB_PR_HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          SMOKESHOW_AUTH_KEY: ${{ secrets.SMOKESHOW_AUTH_KEY }}

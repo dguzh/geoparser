@@ -1,10 +1,13 @@
 """
 Gazetteer fixtures for testing.
 
-Provides fixtures for working with the Andorra gazetteer in tests,
-including paths to configuration files and a helper to install the gazetteer.
+Provides fixtures for working with the Andorra gazetteer in tests. The
+gazetteer is built once per test session into a temporary gazetteers
+directory; individual tests activate it by pointing the
+``GEOPARSER_GAZETTEERS_DIR`` environment variable at that directory.
 """
 
+import os
 from pathlib import Path
 
 import pytest
@@ -21,19 +24,36 @@ def andorra_config_path() -> Path:
     return Path(__file__).parent / "gazetteer" / "andorranames.yaml"
 
 
+@pytest.fixture(scope="session")
+def session_gazetteers_dir(tmp_path_factory, andorra_config_path: Path) -> Path:
+    """
+    Build the Andorra gazetteer artifact once for the whole test session.
+
+    Returns:
+        Path to a temporary gazetteers directory containing the artifact
+    """
+    from geoparser.gazetteer.build import GazetteerBuilder
+
+    directory = tmp_path_factory.mktemp("gazetteers")
+    original = os.environ.get("GEOPARSER_GAZETTEERS_DIR")
+    os.environ["GEOPARSER_GAZETTEERS_DIR"] = str(directory)
+    try:
+        GazetteerBuilder().build(andorra_config_path)
+    finally:
+        if original is None:
+            os.environ.pop("GEOPARSER_GAZETTEERS_DIR", None)
+        else:
+            os.environ["GEOPARSER_GAZETTEERS_DIR"] = original
+    return directory
+
+
 @pytest.fixture(scope="function")
-def andorra_gazetteer(andorra_config_path: Path) -> None:
+def andorra_gazetteer(session_gazetteers_dir: Path, monkeypatch) -> None:
     """
-    Install the Andorra gazetteer into the test database.
+    Make the pre-built Andorra gazetteer available to the test.
 
-    This fixture automatically installs the Andorra gazetteer for tests that need it.
-    The autouse patch_db fixture redirects all database operations to use the test
-    database, so the installer will use the test database automatically.
-
-    Args:
-        andorra_config_path: Path to andorranames.yaml configuration file
+    Points the gazetteers directory at the session-scoped build so that
+    ``Gazetteer("andorranames")`` resolves to the test artifact instead of
+    any gazetteers installed on the machine.
     """
-    from geoparser.gazetteer.installer import GazetteerInstaller
-
-    installer = GazetteerInstaller()
-    installer.install(andorra_config_path, chunksize=5000, keep_downloads=False)
+    monkeypatch.setenv("GEOPARSER_GAZETTEERS_DIR", str(session_gazetteers_dir))

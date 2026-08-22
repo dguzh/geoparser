@@ -1,0 +1,11 @@
+version: 2
+
+updates:
+  # Third-party actions are pinned by tag or SHA, which means they never pick
+  # up security fixes on their own. Dependabot is what makes pinning safe.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    commit-message:
+      prefix: ci

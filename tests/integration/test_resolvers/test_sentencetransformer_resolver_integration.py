@@ -334,21 +334,26 @@ class TestSentenceTransformerResolverIntegration:
         # Arrange
         long_text = (
             "This is a very long document. " * 100
-            + "Andorra la Vella is mentioned here. "
+            + "Canillo is a parish in Andorra known for ski resorts. "
             + "This continues for much longer. " * 100
         )
-        start = long_text.index("Andorra la Vella")
-        end = start + len("Andorra la Vella")
-        texts = [long_text]
-        references = [[(start, end)]]
+        start = long_text.index("Canillo")
+        end = start + len("Canillo")
+        token_limit = (
+            real_sentencetransformer_resolver.transformer.get_max_seq_length() - 2
+        )
 
         # Act
-        results = real_sentencetransformer_resolver.predict(texts, references)
+        context = real_sentencetransformer_resolver._extract_context(
+            long_text, start, end
+        )
 
-        # Assert
-        # Should still resolve despite long text
-        assert len(results) == 1
-        assert results[0][0] is not None
+        # Assert - verify truncation behavior
+        assert len(real_sentencetransformer_resolver.tokenizer.tokenize(context)) <= (
+            token_limit
+        )
+        assert long_text[start:end] in context
+        assert len(context) < len(long_text)
 
     def test_handles_reference_at_document_start(
         self, real_sentencetransformer_resolver, andorra_gazetteer
@@ -386,15 +391,15 @@ class TestSentenceTransformerResolverIntegration:
     ):
         """Test that resolver searches the gazetteer for location candidates."""
         # Arrange
-        texts = ["Visit Encamp, a beautiful parish."]
-        references = [[(6, 12)]]  # "Encamp"
+        texts = ["Canillo is known for its ski resorts."]
+        references = [[(0, 7)]]  # "Canillo"
 
         # Act
         results = real_sentencetransformer_resolver.predict(texts, references)
 
         # Assert
         assert len(results) == 1
-        # Should find Encamp in Andorra gazetteer
+        # Should find Canillo in Andorra gazetteer
         assert results[0][0] is not None
         gazetteer_name, identifier = results[0][0]
         assert gazetteer_name == "andorranames"
@@ -514,8 +519,8 @@ class TestSentenceTransformerResolverIntegration:
     ):
         """Test that fit accepts and uses custom training parameters."""
         # Arrange
-        texts = ["Encamp is a parish."]
-        references = [[(0, 6)]]  # "Encamp"
+        texts = ["Canillo is a parish."]
+        references = [[(0, 7)]]  # "Canillo"
         referents = [[("andorranames", "3041204")]]
         output_path = tmp_path / "trained_model"
 

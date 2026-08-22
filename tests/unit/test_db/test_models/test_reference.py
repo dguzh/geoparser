@@ -115,43 +115,47 @@ class TestReferenceModel:
         test_session: Session,
         reference_factory,
         resolver_factory,
-        feature_factory,
     ):
         """Test that location returns the correct feature when resolver context is set."""
         # Arrange
+        from unittest.mock import Mock, patch
+
         from geoparser.db.crud import ReferentRepository
         from geoparser.db.models import ReferentCreate
 
         reference = reference_factory()
         resolver = resolver_factory(id="test_resolver")
-        feature = feature_factory()
 
-        # Create referent linking reference to feature via resolver
-        referent = ReferentRepository.create(
+        # Create referent linking reference to a gazetteer feature via resolver
+        ReferentRepository.create(
             test_session,
             ReferentCreate(
                 reference_id=reference.id,
-                feature_id=feature.id,
+                gazetteer_name="andorranames",
+                feature_identifier="3041563",
                 resolver_id=resolver.id,
             ),
         )
 
         test_session.refresh(reference)
+        fake_feature = Mock()
 
         # Act
         reference._set_resolver_context("test_resolver")
-        location = reference.location
+        with patch("geoparser.gazetteer.gazetteer.Gazetteer") as mock_gazetteer:
+            mock_gazetteer.return_value.find.return_value = fake_feature
+            location = reference.location
 
         # Assert
-        assert location is not None
-        assert location.id == feature.id
+        assert location is fake_feature
+        mock_gazetteer.assert_called_once_with("andorranames")
+        mock_gazetteer.return_value.find.assert_called_once_with("3041563")
 
     def test_location_returns_none_when_no_matching_referent(
         self,
         test_session: Session,
         reference_factory,
         resolver_factory,
-        feature_factory,
     ):
         """Test that location returns None when context is set but no matching referent exists."""
         # Arrange
@@ -161,14 +165,14 @@ class TestReferenceModel:
         reference = reference_factory()
         resolver1 = resolver_factory(id="resolver1")
         resolver2 = resolver_factory(id="resolver2")
-        feature = feature_factory()
 
         # Create referent with resolver1
         ReferentRepository.create(
             test_session,
             ReferentCreate(
                 reference_id=reference.id,
-                feature_id=feature.id,
+                gazetteer_name="andorranames",
+                feature_identifier="3041563",
                 resolver_id="resolver1",
             ),
         )

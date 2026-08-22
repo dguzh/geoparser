@@ -16,7 +16,7 @@ class ManualRecognizer(Recognizer):
     multiple annotation sets (e.g., from different annotators) to be stored
     for the same documents.
 
-    The annotations are provided at initialization and returned by predict_references()
+    The annotations are provided at initialization and returned by predict()
     in the same order as the input documents. The label is stored in the database
     config to differentiate between different annotation sets.
     """

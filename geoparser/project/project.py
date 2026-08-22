@@ -64,21 +64,43 @@ class Project:
 
             return project_record.id
 
-    def create_documents(self, texts: Union[str, List[str]]) -> None:
+    def create_documents(self, texts: t.Sequence[str]) -> List[uuid.UUID]:
         """
         Create documents in the project.
 
+        The returned IDs are in the same order as the texts that were passed in,
+        which lets you relate documents back to whatever they came from. Keep
+        them alongside your own records and pass them to :meth:`get_documents`
+        to retrieve results for specific documents later on.
+
         Args:
-            texts: Either a single document text or a list of document texts
+            texts: Document texts to create. A single document is created by
+                   passing a sequence with one text in it.
+
+        Returns:
+            IDs of the created documents, in the order the texts were provided
+
+        Raises:
+            TypeError: If a single text is passed instead of a sequence of texts
         """
-        # Convert single string to list for uniform processing
+        # A bare string would be iterated character by character, creating one
+        # document per character, so reject it instead of doing that silently
         if isinstance(texts, str):
-            texts = [texts]
+            raise TypeError(
+                "create_documents() expects a sequence of texts. To create a single "
+                "document, pass a sequence with one text in it: "
+                "create_documents(['...'])."
+            )
+
+        document_ids = []
 
         with get_session() as session:
             for text in texts:
                 document_create = DocumentCreate(text=text, project_id=self.id)
-                DocumentRepository.create(session, document_create)
+                document = DocumentRepository.create(session, document_create)
+                document_ids.append(document.id)
+
+        return document_ids
 
     def create_references(
         self, texts: List[str], references: List[List[tuple]], tag: str
@@ -115,24 +137,93 @@ class Project:
         )
         self.run_resolver(resolver, tag=tag)
 
-    def get_documents(self, tag: str = "latest") -> List[Document]:
+    @staticmethod
+    def _normalize_document_ids(
+        ids: Union[uuid.UUID, str, t.Sequence[Union[uuid.UUID, str]]],
+    ) -> List[uuid.UUID]:
         """
-        Retrieve all documents in the project with context set for the specified tag.
+        Convert document IDs given as UUIDs or strings into a list of UUIDs.
 
         Args:
+            ids: A single document ID or a sequence of document IDs
+
+        Returns:
+            List of document IDs as UUID objects
+
+        Raises:
+            ValueError: If a value cannot be interpreted as a document ID
+        """
+        # A single ID is accepted as well as a sequence of them
+        if isinstance(ids, (str, uuid.UUID)):
+            ids = [ids]
+
+        normalized = []
+        for value in ids:
+            if isinstance(value, uuid.UUID):
+                normalized.append(value)
+                continue
+            try:
+                normalized.append(uuid.UUID(str(value)))
+            except (AttributeError, TypeError, ValueError):
+                raise ValueError(
+                    f"'{value}' is not a valid document ID. Document IDs are the values "
+                    "returned by create_documents(). To select results by tag instead, "
+                    "pass the tag as a keyword argument: get_documents(tag='...')."
+                ) from None
+
+        return normalized
+
+    def get_documents(
+        self,
+        ids: t.Optional[
+            Union[uuid.UUID, str, t.Sequence[Union[uuid.UUID, str]]]
+        ] = None,
+        tag: str = "latest",
+    ) -> List[Document]:
+        """
+        Retrieve documents in the project with context set for the specified tag.
+
+        Args:
+            ids: Document IDs to retrieve, as returned by :meth:`create_documents`.
+                 The documents are returned in the order given here. If omitted,
+                 every document in the project is returned.
             tag: Tag identifier to determine which recognizer/resolver context to use
                  (default: "latest")
 
         Returns:
             List of Document objects with context set for filtering.
+
+        Raises:
+            ValueError: If an ID does not belong to a document in this project
         """
+        # Validate the requested IDs before touching the database
+        requested_ids = None if ids is None else self._normalize_document_ids(ids)
+
         # Retrieve recognizer and resolver IDs for the specified tag
         recognizer_id = self.context.get_recognizer_context(tag)
         resolver_id = self.context.get_resolver_context(tag)
 
         with get_session() as session:
-            # Retrieve all documents for the project
-            documents = DocumentRepository.get_by_project(session, self.id)
+            if requested_ids is None:
+                # Retrieve all documents for the project
+                documents = DocumentRepository.get_by_project(session, self.id)
+            else:
+                # Retrieve the requested documents in the order they were requested
+                found = {
+                    document.id: document
+                    for document in DocumentRepository.get_by_ids(
+                        session, self.id, requested_ids
+                    )
+                }
+
+                missing = [str(id) for id in requested_ids if id not in found]
+                if missing:
+                    raise ValueError(
+                        f"No documents with the following IDs exist in project "
+                        f"'{self.name}': {', '.join(missing)}"
+                    )
+
+                documents = [found[id] for id in requested_ids]
 
             # Always set context on each document (even if None)
             for doc in documents:

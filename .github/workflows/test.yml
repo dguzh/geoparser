@@ -1,56 +1,69 @@
-name: test
+name: Tests
 
 on:
+  pull_request:
+    branches:
+      - main
+  # The trunk itself is also tested. This is what keeps the README badges alive,
+  # seeds the default-branch Actions cache that every pull request restores from
+  # (caches written by a pull request are scoped to that pull request alone), and
+  # catches two pull requests that pass separately but break once both are merged.
   push:
     branches:
-      - '**'
-    tags:
-      - '**'
-  pull_request:
+      - main
+  workflow_dispatch:
 
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  # Superseding a pull request commit is free; superseding a trunk commit would
+  # leave a commit on main permanently untested.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  test:
-    name: test
+  pytest:
     strategy:
+      fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
-        python-version: ['3.10', '3.11', '3.12', '3.13']
+        python-version: ['3.10', '3.11', '3.12', '3.13', '3.14']
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Set up Python ${{ matrix.python-version }}
         if: runner.os != 'macOS'
         uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
-      
+
       - name: Set up Python ${{ matrix.python-version }} (macOS)
         if: runner.os == 'macOS'
         run: |
           brew install python@${{ matrix.python-version }}
-      
+
       - name: Install Poetry
         if: runner.os != 'macOS'
         run: |
           pipx install poetry --python python
           poetry env use python
-      
+
       - name: Install Poetry (macOS)
         if: runner.os == 'macOS'
         run: |
           pipx install poetry --python python${{ matrix.python-version }}
           poetry env use python${{ matrix.python-version }}
-      
+
       - name: Setup local virtual environment
         run: |
           poetry config virtualenvs.create true --local
           poetry config virtualenvs.in-project true --local
-      
-      - name: Install project dependencies
-        run: poetry install
-      
+
+      # torch pulls the full CUDA stack on Linux, which does not fit alongside
+      # the toolchains preinstalled on the runner image.
       - name: Free up disk space (Linux only)
         if: runner.os == 'Linux'
         run: |
@@ -63,10 +76,21 @@ jobs:
           sudo rm -rf /usr/local/lib/android
           echo "Disk space after cleanup:"
           df -h
-      
+
+      - name: Install project dependencies
+        run: poetry install
+
+      - name: Cache Hugging Face models
+        uses: actions/cache@v6
+        with:
+          path: ~/.cache/huggingface
+          key: huggingface-${{ runner.os }}-${{ hashFiles('poetry.lock') }}
+          restore-keys: |
+            huggingface-${{ runner.os }}-
+
       - name: Run pytest
         run: poetry run pytest -v --cov=geoparser
-      
+
       - run: mkdir coverage
       - run: mv .coverage coverage/.coverage.${{ runner.os }}-py${{ matrix.python-version }}
       - name: Store coverage files
@@ -76,11 +100,12 @@ jobs:
           path: coverage
           include-hidden-files: true
 
-  coverage-combine:
-    needs: [test]
+  coverage:
+    needs: [pytest]
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Install Python
         uses: actions/setup-python@v5
       - name: Get coverage files
@@ -93,10 +118,14 @@ jobs:
       - run: coverage combine coverage
       - run: coverage report
       - run: coverage html --show-contexts --title "geoparser coverage for ${{ github.sha }}"
+      # tests-passed depends on this job, so a hiccup in a third-party commenting
+      # action must not become a merge blocker. The comment itself is posted by
+      # the Coverage comment workflow from the artifact written here.
       - name: Coverage comment
         id: coverage_comment
         uses: py-cov-action/python-coverage-comment-action@v3
         if: github.event_name == 'pull_request'
+        continue-on-error: true
         with:
           GITHUB_TOKEN: ${{ github.token }}
           MINIMUM_GREEN: 100
@@ -118,3 +147,16 @@ jobs:
         with:
           name: coverage-html
           path: htmlcov
+
+  # The one check the branch ruleset requires. Matrix job names encode the
+  # matrix values, so requiring those directly deadlocks the ruleset as soon as
+  # the matrix changes; this name never does.
+  tests-passed:
+    if: always()
+    needs: [pytest, coverage]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Fail if any job did not succeed
+        if: contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') || contains(needs.*.result, 'skipped')
+        run: exit 1

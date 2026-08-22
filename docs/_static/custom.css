@@ -1,0 +1,21 @@
+/* The logo is a two-line wordmark, which the theme's default 28px height renders too
+   small to read. The navbar is 56px tall, so 34px still leaves clear space around it. */
+.sy-head-brand img {
+  height: 34px;
+}
+
+/* The theme's CSS reset leaves code blocks without vertical margins of their own: a block
+   is spaced by the margin of the paragraph above it, so two in a row end up flush. */
+.yue div[class*="highlight-"] + div[class*="highlight-"] {
+  margin-top: 1rem;
+}
+
+/* Program output is written as a `text` block. Since it has no syntax colouring, it would
+   otherwise look like another command: the theme tints code panels with the accent colour,
+   so giving output a neutral surface and a border separates what you run from what you get
+   back. Verbatim data that is not output belongs in a `none` block, which stays untouched. */
+.yue div.highlight-text > div.highlight > pre {
+  background-color: var(--sy-c-surface);
+  border: 1px solid var(--sy-c-divider);
+  color: var(--sy-c-light);
+}

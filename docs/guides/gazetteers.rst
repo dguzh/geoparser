@@ -1,59 +1,47 @@
 .. _gazetteers:
 
-Gazetteers
-==========
+Querying Gazetteers
+===================
 
-This guide explains how to query gazetteer data, understand feature attributes, and configure custom gazetteers for specialized geographic databases.
+A gazetteer is the list of places a resolver chooses from. This guide explains what one contains, how the pre-configured gazetteers differ, and how to query them directly from Python. Installing one is covered in :doc:`../installation`, and building one from your own data in :doc:`custom-gazetteers`.
 
-Overview
---------
-
-The Irchel Geoparser uses gazetteers as the authoritative source of geographic information for toponym resolution. A gazetteer stores information about places, including their names, types, administrative hierarchies, and coordinates. When you mention "Paris" in a text, the gazetteer contains entries for Paris, France; Paris, Texas; Paris, Ontario; and many other places named Paris around the world. Each entry includes not just the name but also attributes like coordinates, population, feature type, and administrative hierarchy that help distinguish one Paris from another.
-
-The library's architecture separates the gazetteer system from the processing modules. Resolvers don't access gazetteers directly through SQL queries or file reads—instead, they use the ``Gazetteer`` class interface which provides standardized search methods. This abstraction allows gazetteers to have different internal schemas and still be used interchangeably by resolvers.
-
-Gazetteers are stored in a centralized SQLite database that includes spatial indexing capabilities through the SpatiaLite extension. This database can contain multiple gazetteers simultaneously, each with its own tables and indices. The gazetteer installer handles all the complexity of downloading source data, transforming it into the right format, creating database schemas, and building indices.
-
-Built-in Gazetteers
+What a Gazetteer Is
 -------------------
 
-The library includes support for two major gazetteers that cover different geographic scopes and use cases.
+The Irchel Geoparser uses gazetteers as the authoritative source of geographic information for toponym resolution. A gazetteer stores information about places: their names, types, administrative hierarchies, and coordinates. When a text mentions "Paris", the gazetteer holds entries for Paris, France; Paris, Texas; Paris, Ontario; and many others. Each entry carries not just the name but attributes — coordinates, population, feature type, administrative hierarchy — that are what make it possible to tell one Paris from another.
+
+The library keeps gazetteers separate from the processing modules. Resolvers never reach into a gazetteer with SQL or file reads; they go through the ``Gazetteer`` class, which offers a small set of search methods. That boundary is what lets any gazetteer work with any resolver.
+
+Every installed gazetteer is a single, self-contained SQLite file — an *artifact* — with a fixed schema shared by all gazetteers: a ``feature`` table (identifier, source, data as JSON, geometry as WKB), a ``name`` table with full-text and phonetic indexes for search, and a small ``metadata`` table. Artifacts are built from declarative YAML configurations by a pipeline that downloads the source files, stages them in a transient analytical database (DuckDB), and projects them into the canonical schema — including joins, spatial joins, and deduplication. The source files and staging data are discarded after the build; the artifact is the only thing installed, and it is never modified afterwards.
+
+Because artifacts share one schema, all gazetteers behave identically at query time regardless of how heterogeneous their source data is. Geometries are stored in a single coordinate reference system per gazetteer (EPSG:4326 by default); any reprojection happens once, at build time.
+
+The Pre-configured Gazetteers
+-----------------------------
+
+The library includes ready-made configurations for two gazetteers, so either can be installed without writing one. Install them as described in :doc:`../installation`; what follows is what you get.
 
 GeoNames
 ~~~~~~~~
 
-GeoNames is a comprehensive global gazetteer containing over 13 million place names. It includes entries for countries, administrative divisions, cities, towns, neighborhoods, natural features like mountains and rivers, and points of interest like buildings and monuments. However, the global scope means that coverage varies significantly by region, with some areas having more detailed and up-to-date information than others.
+A comprehensive global gazetteer of over 13 million place names, covering countries, administrative divisions, cities, towns, neighborhoods, natural features such as mountains and rivers, and points of interest such as buildings and monuments. It is the gazetteer the default resolver models were trained against, and the one to use for real work.
 
-To install GeoNames:
-
-.. code-block:: bash
-
-   python -m geoparser download geonames
-
-The installation process can take up to 15-30 minutes depending on your system.
+Its global scope comes with uneven coverage: some regions are described in far more detail, and kept more current, than others. Consider what that means for your material before drawing conclusions from how much resolved.
 
 SwissNames3D
 ~~~~~~~~~~~~
 
-SwissNames3D is a high-quality gazetteer specifically for Switzerland, provided by Swisstopo, the Swiss Federal Office of Topography. It contains detailed information about geographic features within Switzerland, including precise 3D coordinates, building addresses, and fine-grained feature classifications. The gazetteer also maintains relationships with administrative boundaries, allowing features to be associated with municipalities, districts, and cantons.
+The official Swiss placename register from Swisstopo, the Federal Office of Topography. Within Switzerland it is far richer than GeoNames: fine-grained feature classifications and full geometries — points, lines, and polygons — with each feature linked to its municipality, district, and canton by spatial joins computed at build time.
 
-To install SwissNames3D:
+Its attribute names are German, and the pre-trained resolver models were fine-tuned on English GeoNames descriptions, so expect to lower ``min_similarity`` and ideally to fine-tune. See :doc:`modules` and :doc:`training`.
 
-.. code-block:: bash
+Querying a Gazetteer
+--------------------
 
-   python -m geoparser download swissnames3d
+The ``Gazetteer`` class is what resolvers use, and you can use it directly — to explore what a gazetteer contains, to check whether a place is in it before blaming the resolver, or to write a resolver of your own.
 
-The installation process typically completes within a few minutes.
-
-Querying Gazetteers
--------------------
-
-The ``Gazetteer`` class provides a Python interface for querying gazetteer data. This interface is primarily used by resolvers, but you can also use it directly for exploration or custom processing logic.
-
-Initializing a Gazetteer
-~~~~~~~~~~~~~~~~~~~~~~~~~
-
-Create a gazetteer instance by specifying its name:
+Opening a gazetteer
+~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: python
 
@@ -61,12 +49,12 @@ Create a gazetteer instance by specifying its name:
 
    gazetteer = Gazetteer("geonames")
 
-The gazetteer name must correspond to an installed gazetteer in the database. If the gazetteer isn't installed, an error will occur when you try to query it.
+The name must correspond to an installed gazetteer; if it does not, this raises a ``ValueError`` naming the command that would install it.
 
-Searching for Features
-~~~~~~~~~~~~~~~~~~~~~~
+Searching by name
+~~~~~~~~~~~~~~~~~
 
-The ``search()`` method finds features matching a given name string. It supports different search methods that trade off precision and recall:
+``search()`` finds features by name, with four methods that trade precision for recall:
 
 .. code-block:: python
 
@@ -74,37 +62,43 @@ The ``search()`` method finds features matching a given name string. It supports
 
    gazetteer = Gazetteer("geonames")
 
-   # Exact string matching
    features = gazetteer.search("Paris", method="exact")
    print(f"Found {len(features)} features")
    
-   for feature in features[:5]:  # Show first 5
+   for feature in features[:5]:
        print(f"- {feature.data.get('name')}, {feature.data.get('country_name')}")
 
-The search method parameter controls the matching strategy:
+.. list-table::
+   :header-rows: 1
+   :widths: 16 84
 
-- ``"exact"``: Only returns features whose name exactly matches the search string (case-insensitive and diacritics-insensitive). This is the fastest method but will miss features with slightly different names.
+   * - Method
+     - Behavior
+   * - ``"exact"``
+     - Only features whose name matches the search string exactly, ignoring case and diacritics. Fastest, and misses anything spelled differently.
+   * - ``"phrase"``
+     - Features whose name contains the search string as a complete phrase. Catches "New York City" when searching for "New York", but is still restrictive.
+   * - ``"partial"``
+     - Features whose name contains any token of the search string. Handles added or omitted articles and qualifiers, at the cost of many more candidates.
+   * - ``"fuzzy"``
+     - Approximate string matching, tolerating spelling variation and typos. The most permissive, and the slowest.
 
-- ``"phrase"``: Returns features whose name contains the search string as a complete phrase. This catches variations like "New York City" when searching for "New York" but is still quite restrictive.
-
-- ``"partial"``: Returns features whose name contains any of the tokens in the search string. This is more flexible and can handle cases where articles or qualifiers are included or omitted, but it may return many candidates.
-
-- ``"fuzzy"``: Uses fuzzy string matching to find features with names similar to the search string, even with spelling variations or typos. This is the most permissive method and generates the most candidates.
-
-For the non-exact search methods, you can specify a ``tiers`` parameter that controls how many rank tiers of results to include. Results are ranked by their match score (BM25 relevance for phrase/partial methods, edit distance for fuzzy method), and tiers group results into brackets of similar scores. Higher tier values include more results but also results with lower match quality:
+Two further arguments shape the result. ``tiers`` controls how many rank tiers of results to include for the non-exact methods: results are ranked by match score — BM25 relevance for phrase and partial, edit distance for fuzzy — and grouped into brackets of similar scores, so a higher value reaches further down into lower-quality matches. ``limit`` caps the number of results returned, defaulting to 10000, which matters mainly for common names under permissive methods.
 
 .. code-block:: python
 
-   # Get only the top-ranked matches
+   # Only the top-ranked matches
    features = gazetteer.search("London", method="partial", tiers=1)
    
-   # Get more permissive results including lower-ranked matches
+   # More permissive, including lower-ranked matches
    features = gazetteer.search("London", method="partial", tiers=3)
 
-Finding Features by Identifier
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+An empty result means either that the name is genuinely absent or that the method was too strict. Working up from ``"exact"`` through ``"fuzzy"`` is the quickest way to tell which.
 
-If you know a feature's identifier, you can retrieve it directly using the ``find()`` method:
+Looking up by identifier
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+If you know a feature's identifier, ``find()`` retrieves it directly:
 
 .. code-block:: python
 
@@ -112,7 +106,7 @@ If you know a feature's identifier, you can retrieve it directly using the ``fin
 
    gazetteer = Gazetteer("geonames")
 
-   # Look up Paris, France by its geonameid
+   # Paris, France, by its geonameid
    feature = gazetteer.find("2988507")
    
    if feature:
@@ -120,12 +114,12 @@ If you know a feature's identifier, you can retrieve it directly using the ``fin
        print(f"Country: {feature.data.get('country_name')}")
        print(f"Population: {feature.data.get('population')}")
 
-The identifier used in ``find()`` should match the identifier scheme used by that gazetteer. For GeoNames, this is the geonameid; for SwissNames3D, it's the UUID.
+The identifier scheme is the gazetteer's own: the geonameid for GeoNames, a UUID for SwissNames3D, and whatever you chose for a gazetteer of your own. ``find()`` returns ``None`` for an unknown identifier rather than raising, so check before using the result.
 
 Working with Features
 ---------------------
 
-The ``search()`` and ``find()`` methods return ``Feature`` objects that represent individual geographic entities in the gazetteer. Each feature has several important properties:
+``search()`` and ``find()`` return ``Feature`` objects, one per place:
 
 .. code-block:: python
 
@@ -137,280 +131,54 @@ The ``search()`` and ``find()`` methods return ``Feature`` objects that represen
    if features:
        feature = features[0]
        
-       # The feature's unique identifier value
-       print(f"ID: {feature.location_id_value}")
-       
-       # The feature's attributes as a dictionary
-       print(f"Data: {feature.data}")
-       
-       # The feature's geometry as a Shapely object
-       print(f"Geometry: {feature.geometry}")
-       print(f"Coordinates: ({feature.geometry.x}, {feature.geometry.y})")
+       print(f"ID: {feature.identifier}")        # stable identifier
+       print(f"Source: {feature.source}")        # which source it was built from
+       print(f"Data: {feature.data}")            # attributes, as a dictionary
+       print(f"Names: {feature.names}")          # every name it is searchable by
+       print(f"Geometry: {feature.geometry}")    # Shapely geometry, or None
+       print(f"CRS: {feature.crs}")              # e.g. EPSG:4326
 
-The ``location_id_value`` property contains the identifier that can be used to reference this feature, for example when creating referent annotations. The ``data`` property is a dictionary containing all the attributes from the gazetteer for this feature. The ``geometry`` property returns a Shapely geometry object representing the feature's spatial extent. Most gazetteers use Point geometries for locations, but this can also be polygons or other geometry types depending on the gazetteer.
+The ``identifier`` is what you store to refer to this place — in annotations, in exported data, or anywhere you need the reference to survive. The ``source`` names the gazetteer source the feature came from (``allCountries`` in GeoNames), which is how you tell apart features of different kinds within one gazetteer. ``names`` holds every string the place is searchable by, unordered and unlabelled. ``data`` holds the attributes, and ``geometry`` a Shapely object in the coordinate system given by ``crs`` — usually a Point, but lines, polygons, and multi-part geometries occur too, and it can be ``None``, since a gazetteer need not give every place a location.
 
-The attributes available in the ``data`` dictionary depend on which gazetteer you're using. For GeoNames, common attributes include:
+.. code-block:: python
 
-- ``name``: The main name of the feature
-- ``latitude`` and ``longitude``: Coordinates in decimal degrees
-- ``feature_name``: Human-readable feature type (e.g., "city", "mountain", "stream")
-- ``country_name``: Name of the country the feature is in
-- ``admin1_name``, ``admin2_name``: First and second-level administrative divisions
-- ``population``: Population count for inhabited places
-- ``elevation``: Elevation in meters above sea level
+   if feature.geometry is not None:
+       print(feature.geometry.x, feature.geometry.y)
 
-For SwissNames3D, attributes include:
-
-- ``NAME``: The name of the feature
-- ``OBJEKTART``: Detailed object type in German
-- ``GEMEINDE_NAME``: Municipality name
-- ``KANTON_NAME``: Canton name
-- ``HOEHE``: Elevation in meters
-
-The exact attribute schema is defined in the gazetteer's configuration file and reflected in the database schema.
-
-Custom Gazetteer Configuration
--------------------------------
-
-The library supports adding custom gazetteers through YAML configuration files. This capability allows you to integrate specialized geographic databases, regional data sources, or proprietary location data without modifying the core library code. A gazetteer configuration describes data sources, their formats, how to process and transform the data, and how features should be identified and named.
-
-Configuration Structure
+Attributes by gazetteer
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-A gazetteer configuration file has the following top-level structure:
+Which keys are in ``data`` depends on the gazetteer, and on the source within it. For GeoNames:
 
-.. code-block:: yaml
+- ``name``, ``asciiname``: The main name of the feature, and its ASCII transliteration
+- ``latitude`` and ``longitude``: Coordinates in decimal degrees
+- ``feature_class``: Single-letter top-level category — ``P`` populated place, ``A`` administrative area, ``H`` water, ``T`` terrain, ``S`` spot or building, ``L`` area, ``R`` road, ``U`` undersea, ``V`` vegetation. The usual way to filter results to one kind of place
+- ``feature_code``, ``feature_name``: The finer-grained type code and its human-readable form ("city", "mountain", "stream")
+- ``country_code``, ``country_name``: The country the feature is in
+- ``admin1_name``, ``admin2_name``: First and second-level administrative divisions, with ``admin1_code`` through ``admin4_code`` for their codes
+- ``population``: Population count for inhabited places
+- ``elevation``, ``dem``: Elevation in metres, as recorded and as sampled from a digital elevation model
+- ``cc2``, ``timezone``, ``modification_date``: Alternate country codes, timezone, and when the GeoNames record last changed
 
-   name: my_gazetteer  # Unique identifier for the gazetteer
-   sources:            # List of data sources to process
-     - name: source1
-       # ... source configuration ...
-     - name: source2
-       # ... source configuration ...
+For SwissNames3D the keys vary by source, because the gazetteer is built from point, line, polygon, and boundary datasets. Present on all named features:
 
-Each source describes a single data file or download that will be loaded into the database. Sources can be combined through joins to create a unified view of geographic features. Not all sources need to provide features directly—some sources can serve as auxiliary data that enrich other sources through joins (such as administrative boundary data or alternate name lookups).
+- ``NAME``: The name of the feature
+- ``OBJEKTART``: Detailed object type, in German
+- ``GEMEINDE_NAME``, ``BEZIRK_NAME``, ``KANTON_NAME``: Municipality, district, and canton, assigned by spatial join
 
-Source Types and Downloads
-~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Point features additionally carry ``HOEHE`` (elevation in metres); line features carry ``KUNSTBAUTE``, and polygon features ``EINWOHNERK`` and ``ISCED``.
 
-Sources can be either tabular (CSV, TSV) or spatial (shapefiles, GeoPackage). For tabular sources, specify the separator character. For URLs, the installer automatically handles ZIP archives:
+Because keys differ between sources even inside one gazetteer, read them with ``feature.data.get("key")`` rather than by subscripting. The exact keys are defined per source in the gazetteer's configuration file, so a custom gazetteer has whatever keys you gave it.
 
-.. code-block:: yaml
+Using a Gazetteer with a Resolver
+---------------------------------
 
-   sources:
-     - name: places
-       url: https://example.com/data.zip  # Downloaded and extracted
-       file: places.csv                   # File within the ZIP
-       type: tabular
-       separator: ","
+A resolver is told which gazetteer to use when you construct it:
 
-For local files, provide both the ``path`` (directory containing the file) and ``file`` (filename):
+.. code-block:: python
 
-.. code-block:: yaml
+   from geoparser.modules import SentenceTransformerResolver
 
-   sources:
-     - name: local_data
-       path: /path/to/data/directory
-       file: data.csv
-       type: tabular
-       separator: "\t"
+   resolver = SentenceTransformerResolver(gazetteer_name="swissnames3d")
 
-Defining Attributes
-~~~~~~~~~~~~~~~~~~~
-
-Each source must declare its attributes in two categories: original attributes that exist in the source file, and derived attributes computed from SQL expressions.
-
-Original attributes match columns in the source file. Specify their data types (TEXT, INTEGER, REAL, GEOMETRY) and optionally mark them for indexing:
-
-.. code-block:: yaml
-
-   attributes:
-     original:
-       - name: geonameid
-         type: INTEGER
-         index: true         # Create database index
-       - name: name
-         type: TEXT
-       - name: latitude
-         type: REAL
-       - name: longitude
-         type: REAL
-       - name: population
-         type: INTEGER
-
-Derived attributes are computed using SQL expressions. This is useful for constructing geometries from coordinates, concatenating fields, or applying transformations:
-
-.. code-block:: yaml
-
-   attributes:
-     derived:
-       - name: geometry
-         type: GEOMETRY
-         expression: "'POINT(' || longitude || ' ' || latitude || ')'"
-         index: true
-         srid: 4326           # Spatial reference system
-       - name: full_code
-         type: TEXT
-         expression: "country_code || '.' || admin_code"
-         index: true
-       - name: name_normalized
-         type: TEXT
-         expression: "lower(trim(name))"
-
-Creating Views with Joins
-~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-If you have multiple sources, you need to define a view that specifies which columns to include in the final gazetteer and how to join the sources together. The view section lists the columns to select and the join conditions:
-
-.. code-block:: yaml
-
-   view:
-     select:
-       - source: places        # Source table name
-         column: geonameid     # Column to include
-       - source: places
-         column: name
-       - source: places
-         column: latitude
-       - source: places
-         column: longitude
-       - source: admin_names   # From a different source
-         column: name
-         alias: admin_name     # Rename column in view
-       - source: places
-         column: geometry
-     join:
-       - type: LEFT JOIN       # Join type
-         source: admin_names   # Source to join
-         condition: places.admin_code = admin_names.code  # Join condition
-
-You can use any SQL join type (LEFT JOIN, INNER JOIN, etc.) and specify complex join conditions. This allows you to enrich your main features table with data from auxiliary tables.
-
-Spatial Joins
-~~~~~~~~~~~~~
-
-For determining spatial relationships (e.g., which administrative region contains each feature), you can use spatial join conditions with SpatiaLite functions:
-
-.. code-block:: yaml
-
-   join:
-     - type: LEFT JOIN
-       source: municipalities
-       condition: ST_Within(places.geometry, municipalities.geometry)
-
-This joins each place with the municipality whose boundary contains it. Note that spatial joins can be computationally expensive for large datasets.
-
-Defining Features
-~~~~~~~~~~~~~~~~~
-
-The final step is specifying how features are identified and named. The identifier column(s) provide unique IDs for features, while name columns define searchable names:
-
-.. code-block:: yaml
-
-   features:
-     identifier:
-       - column: geonameid     # Primary identifier column
-     names:
-       - column: name          # Main name
-       - column: asciiname     # ASCII variant
-       - column: alternatenames  # Multiple names in one column
-         separator: ","        # Split on commas
-
-Name columns with separators are split into individual names during registration, allowing a single feature to be found under multiple name variants.
-
-Complete Example
-~~~~~~~~~~~~~~~~
-
-Here's a complete configuration demonstrating both tabular and spatial sources combined with a spatial join:
-
-.. code-block:: yaml
-
-   name: my_gazetteer
-   sources:
-     # Main tabular source with point locations and view
-     - name: places
-       url: https://example.com/places.csv
-       file: places.csv
-       type: tabular
-       separator: ","
-       attributes:
-         original:
-           - name: id
-             type: INTEGER
-             index: true
-           - name: name
-             type: TEXT
-           - name: lat
-             type: REAL
-           - name: lon
-             type: REAL
-         derived:
-           - name: geometry
-             type: GEOMETRY
-             expression: "'POINT(' || lon || ' ' || lat || ')'"
-             index: true
-             srid: 4326
-       view:
-         select:
-           - source: places
-             column: id
-           - source: places
-             column: name
-           - source: places
-             column: lat
-           - source: places
-             column: lon
-           - source: regions
-             column: region_name
-           - source: places
-             column: geometry
-         join:
-           - type: LEFT JOIN
-             source: regions
-             condition: ST_Within(places.geometry, regions.geometry)
-       features:
-         identifier:
-           - column: id
-         names:
-           - column: name
-     
-     # Auxiliary spatial source with administrative boundaries
-     - name: regions
-       url: https://example.com/regions.zip
-       file: regions.shp
-       type: spatial
-       attributes:
-         original:
-           - name: region_id
-             type: INTEGER
-           - name: region_name
-             type: TEXT
-           - name: geometry
-             type: GEOMETRY
-             index: true
-             srid: 4326
-
-This example shows how tabular place data can be enriched with regional information from a spatial data source through a spatial join. The view is defined on the source that provides features (places), while the regions source serves as auxiliary data. For more comprehensive examples, refer to the built-in gazetteer configurations on GitHub: `geonames.yaml <https://github.com/dguzh/geoparser/blob/main/geoparser/gazetteer/configs/geonames.yaml>`_ and `swissnames3d.yaml <https://github.com/dguzh/geoparser/blob/main/geoparser/gazetteer/configs/swissnames3d.yaml>`_.
-
-Installing Custom Gazetteers
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-To install a custom gazetteer, provide the path to your configuration file:
-
-.. code-block:: bash
-
-   python -m geoparser download path/to/my_gazetteer.yaml
-
-The installer validates the configuration, downloads or locates the specified files, creates database tables according to the attribute specifications, loads the data, applies transformations and derivations, creates indices, and registers the gazetteer so it can be queried through the standard interface.
-
-Next Steps
-----------
-
-Now that you understand gazetteers, you can explore:
-
-- :doc:`modules` - Learn how resolvers use gazetteers for disambiguation
-- :doc:`training` - Train resolvers on specific gazetteers for better performance
-- :doc:`projects` - Use projects to organize work with different gazetteers
-
-For complete API documentation of gazetteer classes, see the :doc:`../api/gazetteer` reference.
-
+For GeoNames and SwissNames3D that is all that is needed. A resolver that describes candidates in words — as ``SentenceTransformerResolver`` does — additionally has to be told which attributes to build that description from when the gazetteer is one of your own, since it cannot guess. See :doc:`modules`.

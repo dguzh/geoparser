@@ -1,18 +1,18 @@
 .. _modules:
 
-Modules
-=======
+Configuring Modules
+===================
 
-This guide explains how to use the built-in recognizer and resolver modules, customize their behavior, and create your own custom modules.
+Modules are the interchangeable parts of a pipeline. This guide covers the two built-in ones, the parameters that matter when your results are disappointing, and how to write your own.
 
-Overview
---------
+What a Module Is
+----------------
 
-The Irchel Geoparser uses a modular architecture where recognition and resolution are handled by pluggable components called modules. This design allows you to mix and match different processing strategies, create custom implementations, and extend the system without modifying its core.
+There are two kinds. A **recognizer** finds place names in text: it takes texts and returns character positions. A **resolver** links those names to places: it takes texts and positions and returns gazetteer entries. Each is written independently of the other, and a pipeline is one of each.
 
-Modules come in two types: recognizers identify place names in text, while resolvers link these place names to geographic entities in gazetteers. Each module type implements a specific interface that defines how it interacts with the rest of the system. The key aspect of this architecture is that modules are completely database-agnostic—they operate purely on text and return predictions, while service layers handle all database interactions.
+That is the whole interface, and it is deliberately small. A module receives text and returns predictions; everything else — storing results, avoiding duplicate work, keeping different runs apart — happens outside it. The practical consequence is that writing a module is a modest job: implement one method, and it works everywhere the built-in ones do. Full signatures for every module are in the :doc:`../api/modules` reference.
 
-When you run a module on a project, the system stores both the module's results and its configuration in the database. This enables the system to track which results came from which module, avoid reprocessing data unnecessarily, and support comparative analysis of different module configurations. Each module is uniquely identified by hashing its name and configuration parameters, ensuring that modules with different settings are treated as distinct processing approaches.
+One behavior follows from this and is worth knowing early. A module is identified by its class **together with its configuration**. ``SpacyRecognizer()`` and ``SpacyRecognizer(model_name="en_core_web_trf")`` are two different modules as far as the library is concerned, with separate results. That is what makes it safe to run a pipeline repeatedly without redoing work, and what makes comparing configurations possible — but it also means changing a parameter does not update your old results, it produces new ones alongside them.
 
 Built-in Recognizers
 --------------------
@@ -84,27 +84,39 @@ The ``min_similarity`` threshold controls how confident the resolver must be bef
 
 The ``max_tiers`` parameter controls how aggressively the resolver searches for candidates. The resolver uses an iterative strategy starting with exact string matching and progressively relaxing to phrase matching, partial matching, and fuzzy matching. For each search method, it ranks results by relevance and groups them into tiers. The ``max_tiers`` parameter determines how many of these tiers to include—higher values mean the resolver expands its search to include more potential candidates, which can help resolve difficult toponyms but increases processing time.
 
-For gazetteers other than GeoNames and SwissNames3D, you need to provide a custom ``attribute_map`` that tells the resolver which attributes to use when generating location descriptions:
+The ``attribute_map`` parameter tells the resolver how to read the gazetteer's attributes. Before comparing a candidate place against the text, this resolver describes the candidate in words — "Paris (city) in Île-de-France, France" — and since every gazetteer names its attributes differently, it needs to be told which ones that sentence is built from. The resolver already knows the mapping for GeoNames and SwissNames3D, so it only has to be passed for a gazetteer of your own:
 
 .. code-block:: python
 
    from geoparser.modules import SentenceTransformerResolver
 
-   # Custom gazetteer with different attribute names
-   custom_map = {
-       "name": "place_name",
-       "type": "category",
-       "level1": "country",
-       "level2": "region",
-       "level3": "district"
-   }
-
    resolver = SentenceTransformerResolver(
-       gazetteer_name="custom_gazetteer",
-       attribute_map=custom_map
+       gazetteer_name="my_gazetteer",
+       attribute_map={
+           "name": "place_name",
+           "type": "category",
+           "level1": "country",
+           "level2": "region",
+           "level3": "district",
+       },
    )
 
-The attribute map should specify which columns in your gazetteer correspond to the name, type, and hierarchical administrative levels. The resolver uses these attributes to generate textual descriptions like "Paris (city) in Île-de-France, France".
+The values are keys of your gazetteer's ``data`` dictionary, and which keys exist is decided when the gazetteer is configured (see :ref:`custom-gazetteers`). ``name`` and ``type`` are both required. The administrative levels are optional, with ``level1`` the outermost enclosing place and ``level3`` the innermost; supply only as many as your data supports. A gazetteer of ancient places, for example, may have nothing above the Roman province a place falls in:
+
+.. code-block:: python
+
+   resolver = SentenceTransformerResolver(
+       gazetteer_name="pleiades",
+       attribute_map={
+           "name": "title",
+           "type": "place_types",
+           "level1": "province",
+       },
+   )
+
+That map describes a candidate as "Pompeii (settlement, urban area) in Italia". Keys that are missing from a feature's ``data`` are left out of its description rather than failing, so a mapping may name an attribute that only some of your features carry.
+
+Bear in mind that the pre-trained models are fine-tuned on GeoNames-style descriptions. Against a gazetteer whose vocabulary is very different, expect to lower ``min_similarity`` and, for the best results, to fine-tune a resolver of your own on data annotated with that gazetteer's features — see :doc:`training`.
 
 The SentenceTransformerResolver works best when place names have distinctive contexts that help disambiguate them. For example, "I visited the Eiffel Tower in Paris" provides strong contextual clues. Short texts with minimal context or lists of place names without surrounding text present more challenging scenarios where the resolver may struggle.
 
@@ -277,7 +289,7 @@ Resolvers typically interact with gazetteers to find candidate locations. The li
                            key=lambda c: c.data.get('population', 0) or 0
                        )
                        doc_results.append(
-                           (self.gazetteer_name, best.location_id_value)
+                           (self.gazetteer_name, best.identifier)
                        )
                    else:
                        doc_results.append(None)
@@ -323,15 +335,3 @@ For resolvers, the ``fit()`` method should additionally accept referents:
        pass
 
 The ``fit()`` method can accept additional keyword arguments for training parameters like learning rate, batch size, or number of epochs. Once implemented, your custom modules can be trained using the project-level training methods described in the :doc:`training` guide.
-
-Next Steps
-----------
-
-Now that you understand the module system, you can explore:
-
-- :doc:`training` - Learn how to fine-tune recognizers and resolvers on your own data
-- :doc:`gazetteers` - Understand how to work with geographic databases
-- :doc:`projects` - Use modules in project-based workflows
-
-For complete API documentation of module classes, see the :doc:`../api/modules` reference.
-

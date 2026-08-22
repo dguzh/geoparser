@@ -1,0 +1,139 @@
+name: Release
+
+# Releases are driven entirely by tags; the tag name is the version. Tags carry
+# no `v` prefix, matching 0.2.0 through 0.5.0.
+#
+#   0.6.0rc1  ->  PyPI pre-release + GitHub pre-release
+#   0.6.0     ->  PyPI release     + GitHub release
+#
+# PEP 440 hides pre-releases from resolvers unless the user passes `--pre`, so
+# publishing a release candidate to real PyPI cannot reach ordinary users while
+# still exercising a genuine dependency resolution.
+#
+# pyproject.toml only ever needs the final version (0.6.0). A release-candidate
+# tag stamps its own version onto the build, so cutting rc2, rc3 and the final
+# release all work from a single version bump.
+on:
+  push:
+    tags:
+      - '[0-9]+.[0-9]+.[0-9]+'
+      - '[0-9]+.[0-9]+.[0-9]+rc[0-9]+'
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    outputs:
+      prerelease: ${{ steps.version.outputs.prerelease }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # Needed to prove the tagged commit is reachable from main.
+          fetch-depth: 0
+
+      # Fetched explicitly rather than relying on origin/main existing, since the
+      # checkout is of a tag and remote-tracking branches are not guaranteed.
+      - name: Verify the tag points at a commit on main
+        run: |
+          git fetch --quiet origin refs/heads/main
+          if ! git merge-base --is-ancestor "$GITHUB_SHA" FETCH_HEAD; then
+            echo "::error::Tag '$GITHUB_REF_NAME' is not on main, so it has not been through a pull request"
+            exit 1
+          fi
+
+      - name: Install Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Install Poetry
+        uses: abatilo/actions-poetry@v4
+
+      - name: Resolve the version from the tag
+        id: version
+        run: |
+          tag="$GITHUB_REF_NAME"
+          declared="$(poetry version --short)"
+          if [ "${tag%%rc*}" != "${declared%%rc*}" ]; then
+            echo "::error::Tag '$tag' does not match the pyproject.toml version '$declared'"
+            exit 1
+          fi
+          if [ "$tag" != "$declared" ]; then
+            poetry version "$tag"
+          fi
+          case "$tag" in
+            *rc*) echo "prerelease=true" >> "$GITHUB_OUTPUT" ;;
+            *)    echo "prerelease=false" >> "$GITHUB_OUTPUT" ;;
+          esac
+
+      - name: Build a binary wheel and a source tarball
+        run: poetry build
+
+      - name: Store the distribution packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: python-package-distributions
+          path: dist/
+
+  publish:
+    needs: [build]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment:
+      name: pypi
+      url: https://pypi.org/p/geoparser
+    permissions:
+      id-token: write
+    steps:
+      - name: Download the dists
+        uses: actions/download-artifact@v4
+        with:
+          name: python-package-distributions
+          path: dist/
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+
+  github-release:
+    # Release candidates are throwaway verification artifacts that nobody
+    # downloads from GitHub, so they ship to PyPI without leaving anything on
+    # the Releases page. Drop this line to publish them as GitHub pre-releases.
+    if: needs.build.outputs.prerelease == 'false'
+    needs: [build, publish]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+      id-token: write
+    steps:
+      - name: Download the dists
+        uses: actions/download-artifact@v4
+        with:
+          name: python-package-distributions
+          path: dist/
+
+      - name: Sign the dists with Sigstore
+        uses: sigstore/gh-action-sigstore-python@v3.5.0
+        with:
+          inputs: >-
+            ./dist/*.tar.gz
+            ./dist/*.whl
+
+      # `dist/` now holds the packages plus the sigstore signatures and
+      # certificates. Handles a tag pushed from the CLI (no release yet) and a
+      # release published from the GitHub UI (release already exists).
+      - name: Publish the GitHub Release
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" dist/** \
+              --repo "$GITHUB_REPOSITORY" --clobber
+          else
+            gh release create "$GITHUB_REF_NAME" dist/** \
+              --repo "$GITHUB_REPOSITORY" \
+              --generate-notes --title "$GITHUB_REF_NAME"
+          fi

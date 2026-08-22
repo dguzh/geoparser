@@ -6,15 +6,17 @@ import spacy
 import torch
 from datasets import Dataset
 from sentence_transformers import SentenceTransformer, SentenceTransformerTrainer
-from sentence_transformers.losses import ContrastiveLoss
-from sentence_transformers.training_args import SentenceTransformerTrainingArguments
+from sentence_transformers.sentence_transformer.losses import ContrastiveLoss
+from sentence_transformers.sentence_transformer.training_args import (
+    SentenceTransformerTrainingArguments,
+)
 from transformers import AutoTokenizer, logging
 
 from geoparser.gazetteer.gazetteer import Gazetteer
 from geoparser.modules.resolvers import Resolver
 
 if t.TYPE_CHECKING:
-    from geoparser.db.models.feature import Feature
+    from geoparser.gazetteer.feature import Feature
 
 # Suppress transformers tokenizer token length warnings
 logging.set_verbosity_error()
@@ -34,6 +36,13 @@ class SentenceTransformerResolver(Resolver):
     # Gazetteer-specific attribute mappings for location descriptions
     GAZETTEER_ATTRIBUTE_MAP = {
         "geonames": {
+            "name": "name",
+            "type": "feature_name",
+            "level1": "country_name",
+            "level2": "admin1_name",
+            "level3": "admin2_name",
+        },
+        "geonames-cities": {
             "name": "name",
             "type": "feature_name",
             "level1": "country_name",
@@ -90,15 +99,16 @@ class SentenceTransformerResolver(Resolver):
             gazetteer_name, attribute_map
         )
 
+        # Initialize gazetteer first, so that a missing one is reported before
+        # any time is spent loading models
+        self.gazetteer = Gazetteer(gazetteer_name)
+
         # Initialize transformer and tokenizer
         self.transformer = SentenceTransformer(model_name)
         self.tokenizer = AutoTokenizer.from_pretrained(model_name)
 
         # Initialize spaCy model for sentence splitting
         self.nlp = self._load_spacy_model("xx_sent_ud_sm")
-
-        # Initialize gazetteer
-        self.gazetteer = Gazetteer(gazetteer_name)
 
         # Caches for document processing to avoid recomputation
         self.doc_tokens: Dict[str, int] = {}  # text -> token count
@@ -424,7 +434,7 @@ class SentenceTransformerResolver(Resolver):
                 if best_similarity >= min_similarity:
                     doc_results[ref_idx] = (
                         self.gazetteer_name,
-                        best_candidate.location_id_value,
+                        best_candidate.identifier,
                     )
 
     def _extract_context(self, text: str, start: int, end: int) -> str:
@@ -707,7 +717,7 @@ class SentenceTransformerResolver(Resolver):
                     description = self._generate_description(candidate)
 
                     # Determine if this is a positive or negative example
-                    label = 1 if candidate.location_id_value == identifier else 0
+                    label = 1 if candidate.identifier == identifier else 0
 
                     # Add as training example
                     sentence1_texts.append(context)

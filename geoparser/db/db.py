@@ -7,15 +7,12 @@ from pathlib import Path
 from typing import Iterator
 
 from appdirs import user_data_dir
-from sqlalchemy import Engine, event
+from sqlalchemy import Engine, event, text
 from sqlalchemy.engine import Connection
 from sqlalchemy.pool import NullPool
 from sqlmodel import Session, SQLModel, create_engine
 
 import geoparser.db.models  # noqa: F401
-
-from .extensions.spatialite.loader import get_spatialite_path, load_spatialite_extension
-from .extensions.spellfix.loader import get_spellfix_path, load_spellfix_extension
 
 # Database URL configuration (SQLite)
 DATABASE_URL = os.getenv(
@@ -28,45 +25,23 @@ db_path = DATABASE_URL.replace("sqlite:///", "")
 Path(db_path).parent.mkdir(parents=True, exist_ok=True)
 
 
-# Event listener for SQLite foreign keys and SpatiaLite
+# Event listener for SQLite foreign keys
 # This applies to ALL Engine instances (including test engines)
 @event.listens_for(Engine, "connect")
 def _set_sqlite_pragma(dbapi_connection, connection_record):
     """
     Configure SQLite connections on connect.
 
-    Enables foreign key enforcement and loads SpatiaLite and Spellfix extensions
-    for all SQLite connections.
+    Enables foreign key enforcement for all SQLite connections.
 
     Args:
         dbapi_connection: Database API connection object
         connection_record: SQLAlchemy connection record
     """
     if isinstance(dbapi_connection, sqlite3.Connection):
-        # Enable foreign key enforcement
         cursor = dbapi_connection.cursor()
         cursor.execute("PRAGMA foreign_keys=ON")
         cursor.close()
-
-        # Load SpatiaLite extension
-        spatialite_path = get_spatialite_path()
-        if spatialite_path is None:
-            raise RuntimeError("SpatiaLite library not found.")
-
-        try:
-            load_spatialite_extension(dbapi_connection, spatialite_path)
-        except Exception as e:
-            raise RuntimeError(f"Failed to load SpatiaLite extension: {e}") from e
-
-        # Load Spellfix extension
-        spellfix_path = get_spellfix_path()
-        if spellfix_path is None:
-            raise RuntimeError("Spellfix library not found.")
-
-        try:
-            load_spellfix_extension(dbapi_connection, spellfix_path)
-        except Exception as e:
-            raise RuntimeError(f"Failed to load Spellfix extension: {e}") from e
 
 
 # Create engine once at module level
@@ -79,6 +54,53 @@ engine: Engine = create_engine(
 )
 
 
+def _check_database_compatibility() -> None:
+    """
+    Fail early if the database was created by an incompatible older version.
+
+    Older releases stored gazetteer data (gazetteer/source/feature/name tables)
+    inside this database and linked referents to it via a feature foreign key.
+    Gazetteers now live in separate artifact files, so such databases cannot be
+    used as-is.
+
+    Raises:
+        RuntimeError: If a legacy database layout is detected.
+    """
+    with engine.connect() as connection:
+
+        def _table_exists(name: str) -> bool:
+            result = connection.execute(
+                text("SELECT 1 FROM sqlite_master WHERE type='table' AND name=:name"),
+                {"name": name},
+            )
+            return result.first() is not None
+
+        def _table_has_column(table: str, column: str) -> bool:
+            result = connection.execute(
+                text(f"SELECT 1 FROM pragma_table_info('{table}') WHERE name=:column"),
+                {"column": column},
+            )
+            return result.first() is not None
+
+        legacy_gazetteer_tables = any(
+            _table_exists(name) for name in ("gazetteer", "source", "feature", "name")
+        )
+        legacy_referent_layout = _table_exists("referent") and not _table_has_column(
+            "referent", "feature_identifier"
+        )
+
+        if legacy_gazetteer_tables or legacy_referent_layout:
+            raise RuntimeError(
+                "Your geoparser database was created by an older version and is not compatible "
+                "with this release:\n\n"
+                f"{db_path}\n\n"
+                "The Irchel Geoparser is still in active development, and the database format "
+                "may change between releases. There is no automatic upgrade path yet, so you "
+                "will need to delete the database file and reinstall the gazetteers to continue. "
+                "Doing so also removes any projects and results stored in the database. "
+            )
+
+
 def create_db_and_tables() -> None:
     """
     Create all database tables.
@@ -87,6 +109,7 @@ def create_db_and_tables() -> None:
     For this application, tables are created automatically at module import.
     This function is provided for explicit table creation if needed.
     """
+    _check_database_compatibility()
     SQLModel.metadata.create_all(engine)
 
 
@@ -113,10 +136,9 @@ def get_connection() -> Iterator[Connection]:
     """
     Get a database connection using context manager pattern.
 
-    For operations that need direct connection access (like executing
-    raw SQL in installer stages). This is the preferred way to get a
-    connection as it accesses the engine at runtime, respecting any
-    patches applied during testing.
+    For operations that need direct connection access (like executing raw
+    SQL). This is the preferred way to get a connection as it accesses the
+    engine at runtime, respecting any patches applied during testing.
 
     Yields:
         SQLAlchemy Connection for database operations

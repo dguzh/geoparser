@@ -1,665 +1,318 @@
 name: swissnames3d
+crs: EPSG:4326
+disk: 3500000000 # 3.5 GB
+
 sources:
   - name: swissNAMES3D_PKT
     url: https://data.geo.admin.ch/ch.swisstopo.swissnames3d/swissnames3d_2024/swissnames3d_2024_2056.shp.zip
     file: swissNAMES3D_PKT.shp
-    type: spatial
+    crs: EPSG:2056
     attributes:
-      original:
-        - name: UUID
-          type: TEXT
-          index: true
-        - name: OBJEKTART
-          type: TEXT
-        - name: OBJEKTKLAS
-          type: TEXT
-        - name: HOEHE
-          type: REAL
-        - name: GEBAEUDENU
-          type: INTEGER
-        - name: NAME_UUID
-          type: TEXT
-        - name: NAME
-          type: TEXT
-        - name: STATUS
-          type: TEXT
-        - name: SPRACHCODE
-          type: TEXT
-        - name: NAMEN_TYP
-          type: TEXT
-        - name: NAMENGRUPP
-          type: TEXT
-        - name: geometry
-          type: GEOMETRY
-          index: true
-          srid: 2056
-      derived:
-        - name: NAME_NO_PARENS
-          type: TEXT
-          expression: "CASE WHEN instr(NAME, '(') > 0 THEN trim(substr(NAME, 1, instr(NAME, '(') - 1)) ELSE NAME END"
-        - name: NAME_NO_CODE
-          type: TEXT
-          expression: "CASE WHEN length(NAME) > 3 AND substr(NAME, -3, 1) = ' ' AND substr(NAME, -2, 2) GLOB '[A-Z][A-Z]' THEN trim(substr(NAME, 1, length(NAME) - 3)) ELSE NAME END"
-    view:
-      select:
-        - source: swissNAMES3D_PKT
-          column: UUID
-        - source: swissNAMES3D_PKT
-          column: OBJEKTART
-        - source: swissNAMES3D_PKT
-          column: OBJEKTKLAS
-        - source: swissNAMES3D_PKT
-          column: HOEHE
-        - source: swissNAMES3D_PKT
-          column: GEBAEUDENU
-        - source: swissNAMES3D_PKT
-          column: NAME_UUID
-        - source: swissNAMES3D_PKT
-          column: NAME
-        - source: swissNAMES3D_PKT
-          column: NAME_NO_PARENS
-        - source: swissNAMES3D_PKT
-          column: NAME_NO_CODE
-        - source: swissNAMES3D_PKT
-          column: STATUS
-        - source: swissNAMES3D_PKT
-          column: SPRACHCODE
-        - source: swissNAMES3D_PKT
-          column: NAMEN_TYP
-        - source: swissNAMES3D_PKT
-          column: NAMENGRUPP
-        - source: swissNAMES3D_PKT
-          column: geometry
-        - source: swissBOUNDARIES3D_HOHEITSGEBIET
-          column: NAME
-          alias: GEMEINDE_NAME
-        - source: swissBOUNDARIES3D_HOHEITSGEBIET
-          column: BFS_NUMMER
-          alias: GEMEINDE_BFS_NUMMER
-        - source: swissBOUNDARIES3D_BEZIRKSGEBIET
-          column: NAME
-          alias: BEZIRK_NAME
-        - source: swissBOUNDARIES3D_BEZIRKSGEBIET
-          column: BEZIRKSNUM
-          alias: BEZIRKSNUM
-        - source: swissBOUNDARIES3D_KANTONSGEBIET
-          column: NAME
-          alias: KANTON_NAME
-        - source: swissBOUNDARIES3D_KANTONSGEBIET
-          column: KANTONSNUM
-          alias: KANTONSNUM
-      join:
-        - type: LEFT JOIN
-          source: swissBOUNDARIES3D_HOHEITSGEBIET
-          condition: ST_Within(swissNAMES3D_PKT.geometry, swissBOUNDARIES3D_HOHEITSGEBIET.geometry)
-        - type: LEFT JOIN
-          source: swissBOUNDARIES3D_BEZIRKSGEBIET
-          condition: swissBOUNDARIES3D_HOHEITSGEBIET.BEZIRKSNUM = swissBOUNDARIES3D_BEZIRKSGEBIET.BEZIRKSNUM
-        - type: LEFT JOIN
-          source: swissBOUNDARIES3D_KANTONSGEBIET
-          condition: swissBOUNDARIES3D_BEZIRKSGEBIET.KANTONSNUM = swissBOUNDARIES3D_KANTONSGEBIET.KANTONSNUM
-    features:
-      identifier:
-        - column: UUID
-      names:
-        - column: NAME
-        - column: NAME_NO_PARENS
-        - column: NAME_NO_CODE
+      - name: "UUID"
+        type: text
+      - name: "OBJEKTART"
+        type: text
+      - name: "OBJEKTKLAS"
+        type: text
+      - name: "HOEHE"
+        type: real
+      - name: "GEBAEUDENU"
+        type: text
+      - name: "NAME_UUID"
+        type: text
+      - name: "NAME"
+        type: text
+      - name: "STATUS"
+        type: text
+      - name: "SPRACHCODE"
+        type: text
+      - name: "NAMEN_TYP"
+        type: text
+      - name: "NAMENGRUPP"
+        type: text
+      - name: "geometry"
+        type: geometry
 
   - name: swissNAMES3D_LIN
     url: https://data.geo.admin.ch/ch.swisstopo.swissnames3d/swissnames3d_2024/swissnames3d_2024_2056.shp.zip
     file: swissNAMES3D_LIN.shp
-    type: spatial
+    crs: EPSG:2056
     attributes:
-      original:
-        - name: UUID
-          type: TEXT
-          index: true
-        - name: OBJEKTART
-          type: TEXT
-        - name: OBJEKTKLAS
-          type: TEXT
-        - name: KUNSTBAUTE
-          type: TEXT
-        - name: NAME_UUID
-          type: TEXT
-        - name: NAME
-          type: TEXT
-        - name: STATUS
-          type: TEXT
-        - name: SPRACHCODE
-          type: TEXT
-        - name: NAMEN_TYP
-          type: TEXT
-        - name: NAMENGRUPP
-          type: TEXT
-        - name: geometry
-          type: GEOMETRY
-          index: true
-          srid: 2056
-      derived:
-        - name: NAME_NO_PARENS
-          type: TEXT
-          expression: "CASE WHEN instr(NAME, '(') > 0 THEN trim(substr(NAME, 1, instr(NAME, '(') - 1)) ELSE NAME END"
-        - name: NAME_NO_CODE
-          type: TEXT
-          expression: "CASE WHEN length(NAME) > 3 AND substr(NAME, -3, 1) = ' ' AND substr(NAME, -2, 2) GLOB '[A-Z][A-Z]' THEN trim(substr(NAME, 1, length(NAME) - 3)) ELSE NAME END"
-    view:
-      select:
-        - source: swissNAMES3D_LIN
-          column: UUID
-        - source: swissNAMES3D_LIN
-          column: OBJEKTART
-        - source: swissNAMES3D_LIN
-          column: OBJEKTKLAS
-        - source: swissNAMES3D_LIN
-          column: KUNSTBAUTE
-        - source: swissNAMES3D_LIN
-          column: NAME_UUID
-        - source: swissNAMES3D_LIN
-          column: NAME
-        - source: swissNAMES3D_LIN
-          column: NAME_NO_PARENS
-        - source: swissNAMES3D_LIN
-          column: NAME_NO_CODE
-        - source: swissNAMES3D_LIN
-          column: STATUS
-        - source: swissNAMES3D_LIN
-          column: SPRACHCODE
-        - source: swissNAMES3D_LIN
-          column: NAMEN_TYP
-        - source: swissNAMES3D_LIN
-          column: NAMENGRUPP
-        - source: swissNAMES3D_LIN
-          column: geometry
-        - source: swissBOUNDARIES3D_HOHEITSGEBIET
-          column: NAME
-          alias: GEMEINDE_NAME
-        - source: swissBOUNDARIES3D_HOHEITSGEBIET
-          column: BFS_NUMMER
-          alias: GEMEINDE_BFS_NUMMER
-        - source: swissBOUNDARIES3D_BEZIRKSGEBIET
-          column: NAME
-          alias: BEZIRK_NAME
-        - source: swissBOUNDARIES3D_BEZIRKSGEBIET
-          column: BEZIRKSNUM
-          alias: BEZIRKSNUM
-        - source: swissBOUNDARIES3D_KANTONSGEBIET
-          column: NAME
-          alias: KANTON_NAME
-        - source: swissBOUNDARIES3D_KANTONSGEBIET
-          column: KANTONSNUM
-          alias: KANTONSNUM
-      join:
-        - type: LEFT JOIN
-          source: swissBOUNDARIES3D_HOHEITSGEBIET
-          condition: ST_Within(ST_Centroid(swissNAMES3D_LIN.geometry), swissBOUNDARIES3D_HOHEITSGEBIET.geometry)
-        - type: LEFT JOIN
-          source: swissBOUNDARIES3D_BEZIRKSGEBIET
-          condition: swissBOUNDARIES3D_HOHEITSGEBIET.BEZIRKSNUM = swissBOUNDARIES3D_BEZIRKSGEBIET.BEZIRKSNUM
-        - type: LEFT JOIN
-          source: swissBOUNDARIES3D_KANTONSGEBIET
-          condition: swissBOUNDARIES3D_BEZIRKSGEBIET.KANTONSNUM = swissBOUNDARIES3D_KANTONSGEBIET.KANTONSNUM
-    features:
-      identifier:
-        - column: UUID
-      names:
-        - column: NAME
-        - column: NAME_NO_PARENS
-        - column: NAME_NO_CODE
+      - name: "UUID"
+        type: text
+      - name: "OBJEKTART"
+        type: text
+      - name: "OBJEKTKLAS"
+        type: text
+      - name: "KUNSTBAUTE"
+        type: text
+      - name: "NAME_UUID"
+        type: text
+      - name: "NAME"
+        type: text
+      - name: "STATUS"
+        type: text
+      - name: "SPRACHCODE"
+        type: text
+      - name: "NAMEN_TYP"
+        type: text
+      - name: "NAMENGRUPP"
+        type: text
+      - name: "geometry"
+        type: geometry
 
   - name: swissNAMES3D_PLY
     url: https://data.geo.admin.ch/ch.swisstopo.swissnames3d/swissnames3d_2024/swissnames3d_2024_2056.shp.zip
     file: swissNAMES3D_PLY.shp
-    type: spatial
+    crs: EPSG:2056
     attributes:
-      original:
-        - name: UUID
-          type: TEXT
-          index: true
-        - name: OBJEKTART
-          type: TEXT
-        - name: OBJEKTKLAS
-          type: TEXT
-        - name: EINWOHNERK
-          type: INTEGER
-        - name: NAME_UUID
-          type: TEXT
-        - name: NAME
-          type: TEXT
-        - name: STATUS
-          type: TEXT
-        - name: SPRACHCODE
-          type: TEXT
-        - name: NAMEN_TYP
-          type: TEXT
-        - name: NAMENGRUPP
-          type: TEXT
-        - name: ISCED
-          type: TEXT
-        - name: geometry
-          type: GEOMETRY
-          index: true
-          srid: 2056
-      derived:
-        - name: NAME_NO_PARENS
-          type: TEXT
-          expression: "CASE WHEN instr(NAME, '(') > 0 THEN trim(substr(NAME, 1, instr(NAME, '(') - 1)) ELSE NAME END"
-        - name: NAME_NO_CODE
-          type: TEXT
-          expression: "CASE WHEN length(NAME) > 3 AND substr(NAME, -3, 1) = ' ' AND substr(NAME, -2, 2) GLOB '[A-Z][A-Z]' THEN trim(substr(NAME, 1, length(NAME) - 3)) ELSE NAME END"
-    view:
-      select:
-        - source: swissNAMES3D_PLY
-          column: UUID
-        - source: swissNAMES3D_PLY
-          column: OBJEKTART
-        - source: swissNAMES3D_PLY
-          column: OBJEKTKLAS
-        - source: swissNAMES3D_PLY
-          column: EINWOHNERK
-        - source: swissNAMES3D_PLY
-          column: NAME_UUID
-        - source: swissNAMES3D_PLY
-          column: NAME
-        - source: swissNAMES3D_PLY
-          column: NAME_NO_PARENS
-        - source: swissNAMES3D_PLY
-          column: NAME_NO_CODE
-        - source: swissNAMES3D_PLY
-          column: STATUS
-        - source: swissNAMES3D_PLY
-          column: SPRACHCODE
-        - source: swissNAMES3D_PLY
-          column: NAMEN_TYP
-        - source: swissNAMES3D_PLY
-          column: NAMENGRUPP
-        - source: swissNAMES3D_PLY
-          column: ISCED
-        - source: swissNAMES3D_PLY
-          column: geometry
-        - source: swissBOUNDARIES3D_HOHEITSGEBIET
-          column: NAME
-          alias: GEMEINDE_NAME
-        - source: swissBOUNDARIES3D_HOHEITSGEBIET
-          column: BFS_NUMMER
-          alias: GEMEINDE_BFS_NUMMER
-        - source: swissBOUNDARIES3D_BEZIRKSGEBIET
-          column: NAME
-          alias: BEZIRK_NAME
-        - source: swissBOUNDARIES3D_BEZIRKSGEBIET
-          column: BEZIRKSNUM
-          alias: BEZIRKSNUM
-        - source: swissBOUNDARIES3D_KANTONSGEBIET
-          column: NAME
-          alias: KANTON_NAME
-        - source: swissBOUNDARIES3D_KANTONSGEBIET
-          column: KANTONSNUM
-          alias: KANTONSNUM
-      join:
-        - type: LEFT JOIN
-          source: swissBOUNDARIES3D_HOHEITSGEBIET
-          condition: ST_Within(ST_Centroid(swissNAMES3D_PLY.geometry), swissBOUNDARIES3D_HOHEITSGEBIET.geometry)
-        - type: LEFT JOIN
-          source: swissBOUNDARIES3D_BEZIRKSGEBIET
-          condition: swissBOUNDARIES3D_HOHEITSGEBIET.BEZIRKSNUM = swissBOUNDARIES3D_BEZIRKSGEBIET.BEZIRKSNUM
-        - type: LEFT JOIN
-          source: swissBOUNDARIES3D_KANTONSGEBIET
-          condition: swissBOUNDARIES3D_BEZIRKSGEBIET.KANTONSNUM = swissBOUNDARIES3D_KANTONSGEBIET.KANTONSNUM
-    features:
-      identifier:
-        - column: UUID
-      names:
-        - column: NAME
-        - column: NAME_NO_PARENS
-        - column: NAME_NO_CODE
+      - name: "UUID"
+        type: text
+      - name: "OBJEKTART"
+        type: text
+      - name: "OBJEKTKLAS"
+        type: text
+      - name: "EINWOHNERK"
+        type: text
+      - name: "NAME_UUID"
+        type: text
+      - name: "NAME"
+        type: text
+      - name: "STATUS"
+        type: text
+      - name: "SPRACHCODE"
+        type: text
+      - name: "NAMEN_TYP"
+        type: text
+      - name: "NAMENGRUPP"
+        type: text
+      - name: "ISCED"
+        type: text
+      - name: "geometry"
+        type: geometry
 
-  - name: swissBOUNDARIES3D_HOHEITSGEBIET
+  - name: swissBOUNDARIES3D_1_5_TLM_HOHEITSGEBIET
     url: https://data.geo.admin.ch/ch.swisstopo.swissboundaries3d/swissboundaries3d_2024-01/swissboundaries3d_2024-01_2056_5728.shp.zip
     file: swissBOUNDARIES3D_1_5_TLM_HOHEITSGEBIET.shp
-    type: spatial
+    crs: EPSG:2056
     attributes:
-      original:
-        - name: UUID
-          type: TEXT
-          index: true
-        - name: DATUM_AEND
-          type: TEXT
-        - name: DATUM_ERST
-          type: TEXT
-        - name: ERSTELL_J
-          type: INTEGER
-        - name: ERSTELL_M
-          type: INTEGER
-        - name: GRUND_AEND
-          type: TEXT
-        - name: HERKUNFT
-          type: TEXT
-        - name: HERKUNFT_J
-          type: INTEGER
-        - name: HERKUNFT_M
-          type: INTEGER
-        - name: REVISION_J
-          type: INTEGER
-        - name: REVISION_M
-          type: INTEGER
-        - name: REVISION_Q
-          type: INTEGER
-        - name: OBJEKTART
-          type: TEXT
-        - name: BFS_NUMMER
-          type: INTEGER
-        - name: BEZIRKSNUM
-          type: INTEGER
-          index: true
-        - name: KANTONSNUM
-          type: INTEGER
-          index: true
-        - name: NAME
-          type: TEXT
-        - name: GEM_FLAECH
-          type: REAL
-        - name: SEE_FLAECH
-          type: REAL
-        - name: ICC
-          type: TEXT
-        - name: SHN
-          type: TEXT
-        - name: EINWOHNERZ
-          type: INTEGER
-        - name: HIST_NR
-          type: INTEGER
-        - name: geometry
-          type: GEOMETRY
-          index: true
-          srid: 2056
-      derived:
-        - name: NAME_NO_PARENS
-          type: TEXT
-          expression: "CASE WHEN instr(NAME, '(') > 0 THEN trim(substr(NAME, 1, instr(NAME, '(') - 1)) ELSE NAME END"
-    view:
-      select:
-        - source: swissBOUNDARIES3D_HOHEITSGEBIET
-          column: UUID
-        - source: swissBOUNDARIES3D_HOHEITSGEBIET
-          column: DATUM_AEND
-        - source: swissBOUNDARIES3D_HOHEITSGEBIET
-          column: DATUM_ERST
-        - source: swissBOUNDARIES3D_HOHEITSGEBIET
-          column: ERSTELL_J
-        - source: swissBOUNDARIES3D_HOHEITSGEBIET
-          column: ERSTELL_M
-        - source: swissBOUNDARIES3D_HOHEITSGEBIET
-          column: GRUND_AEND
-        - source: swissBOUNDARIES3D_HOHEITSGEBIET
-          column: HERKUNFT
-        - source: swissBOUNDARIES3D_HOHEITSGEBIET
-          column: HERKUNFT_J
-        - source: swissBOUNDARIES3D_HOHEITSGEBIET
-          column: HERKUNFT_M
-        - source: swissBOUNDARIES3D_HOHEITSGEBIET
-          column: REVISION_J
-        - source: swissBOUNDARIES3D_HOHEITSGEBIET
-          column: REVISION_M
-        - source: swissBOUNDARIES3D_HOHEITSGEBIET
-          column: REVISION_Q
-        - source: swissBOUNDARIES3D_HOHEITSGEBIET
-          column: OBJEKTART
-        - source: swissBOUNDARIES3D_HOHEITSGEBIET
-          column: BFS_NUMMER
-        - source: swissBOUNDARIES3D_HOHEITSGEBIET
-          column: BEZIRKSNUM
-        - source: swissBOUNDARIES3D_BEZIRKSGEBIET
-          column: NAME
-          alias: BEZIRK_NAME
-        - source: swissBOUNDARIES3D_HOHEITSGEBIET
-          column: KANTONSNUM
-        - source: swissBOUNDARIES3D_KANTONSGEBIET
-          column: NAME
-          alias: KANTON_NAME
-        - source: swissBOUNDARIES3D_HOHEITSGEBIET
-          column: NAME
-        - source: swissBOUNDARIES3D_HOHEITSGEBIET
-          column: NAME_NO_PARENS
-        - source: swissBOUNDARIES3D_HOHEITSGEBIET
-          column: GEM_FLAECH
-        - source: swissBOUNDARIES3D_HOHEITSGEBIET
-          column: SEE_FLAECH
-        - source: swissBOUNDARIES3D_HOHEITSGEBIET
-          column: ICC
-        - source: swissBOUNDARIES3D_HOHEITSGEBIET
-          column: SHN
-        - source: swissBOUNDARIES3D_HOHEITSGEBIET
-          column: EINWOHNERZ
-        - source: swissBOUNDARIES3D_HOHEITSGEBIET
-          column: HIST_NR
-        - source: swissBOUNDARIES3D_HOHEITSGEBIET
-          column: geometry
-      join:
-        - type: LEFT JOIN
-          source: swissBOUNDARIES3D_BEZIRKSGEBIET
-          condition: swissBOUNDARIES3D_HOHEITSGEBIET.BEZIRKSNUM = swissBOUNDARIES3D_BEZIRKSGEBIET.BEZIRKSNUM
-        - type: LEFT JOIN
-          source: swissBOUNDARIES3D_KANTONSGEBIET
-          condition: swissBOUNDARIES3D_HOHEITSGEBIET.KANTONSNUM = swissBOUNDARIES3D_KANTONSGEBIET.KANTONSNUM
-    features:
-      identifier:
-        - column: UUID
-      names:
-        - column: NAME
-        - column: NAME_NO_PARENS
+      - name: "UUID"
+        type: text
+      - name: "OBJEKTART"
+        type: text
+      - name: "BFS_NUMMER"
+        type: integer
+      - name: "BEZIRKSNUM"
+        type: integer
+      - name: "KANTONSNUM"
+        type: integer
+      - name: "NAME"
+        type: text
+      - name: "GEM_FLAECH"
+        type: real
+      - name: "SEE_FLAECH"
+        type: real
+      - name: "ICC"
+        type: text
+      - name: "SHN"
+        type: text
+      - name: "EINWOHNERZ"
+        type: integer
+      - name: "geometry"
+        type: geometry
 
-  - name: swissBOUNDARIES3D_BEZIRKSGEBIET
+  - name: swissBOUNDARIES3D_1_5_TLM_BEZIRKSGEBIET
     url: https://data.geo.admin.ch/ch.swisstopo.swissboundaries3d/swissboundaries3d_2024-01/swissboundaries3d_2024-01_2056_5728.shp.zip
     file: swissBOUNDARIES3D_1_5_TLM_BEZIRKSGEBIET.shp
-    type: spatial
+    crs: EPSG:2056
     attributes:
-      original:
-        - name: UUID
-          type: TEXT
-          index: true
-        - name: DATUM_AEND
-          type: TEXT
-        - name: DATUM_ERST
-          type: TEXT
-        - name: ERSTELL_J
-          type: INTEGER
-        - name: ERSTELL_M
-          type: INTEGER
-        - name: GRUND_AEND
-          type: TEXT
-        - name: HERKUNFT
-          type: TEXT
-        - name: HERKUNFT_J
-          type: INTEGER
-        - name: HERKUNFT_M
-          type: INTEGER
-        - name: REVISION_J
-          type: INTEGER
-        - name: REVISION_M
-          type: INTEGER
-        - name: REVISION_Q
-          type: INTEGER
-        - name: OBJEKTART
-          type: TEXT
-        - name: BEZIRKSNUM
-          type: INTEGER
-          index: true
-        - name: SEE_FLAECH
-          type: REAL
-        - name: BEZIRKSFLA
-          type: REAL
-        - name: NAME
-          type: TEXT
-        - name: KANTONSNUM
-          type: INTEGER
-          index: true
-        - name: ICC
-          type: TEXT
-        - name: EINWOHNERZ
-          type: INTEGER
-        - name: geometry
-          type: GEOMETRY
-          index: true
-          srid: 2056
-      derived:
-        - name: NAME_NO_PARENS
-          type: TEXT
-          expression: "CASE WHEN instr(NAME, '(') > 0 THEN trim(substr(NAME, 1, instr(NAME, '(') - 1)) ELSE NAME END"
-    view:
-      select:
-        - source: swissBOUNDARIES3D_BEZIRKSGEBIET
-          column: UUID
-        - source: swissBOUNDARIES3D_BEZIRKSGEBIET
-          column: DATUM_AEND
-        - source: swissBOUNDARIES3D_BEZIRKSGEBIET
-          column: DATUM_ERST
-        - source: swissBOUNDARIES3D_BEZIRKSGEBIET
-          column: ERSTELL_J
-        - source: swissBOUNDARIES3D_BEZIRKSGEBIET
-          column: ERSTELL_M
-        - source: swissBOUNDARIES3D_BEZIRKSGEBIET
-          column: GRUND_AEND
-        - source: swissBOUNDARIES3D_BEZIRKSGEBIET
-          column: HERKUNFT
-        - source: swissBOUNDARIES3D_BEZIRKSGEBIET
-          column: HERKUNFT_J
-        - source: swissBOUNDARIES3D_BEZIRKSGEBIET
-          column: HERKUNFT_M
-        - source: swissBOUNDARIES3D_BEZIRKSGEBIET
-          column: REVISION_J
-        - source: swissBOUNDARIES3D_BEZIRKSGEBIET
-          column: REVISION_M
-        - source: swissBOUNDARIES3D_BEZIRKSGEBIET
-          column: REVISION_Q
-        - source: swissBOUNDARIES3D_BEZIRKSGEBIET
-          column: OBJEKTART
-        - source: swissBOUNDARIES3D_BEZIRKSGEBIET
-          column: BEZIRKSNUM
-        - source: swissBOUNDARIES3D_BEZIRKSGEBIET
-          column: SEE_FLAECH
-        - source: swissBOUNDARIES3D_BEZIRKSGEBIET
-          column: BEZIRKSFLA
-        - source: swissBOUNDARIES3D_BEZIRKSGEBIET
-          column: NAME
-        - source: swissBOUNDARIES3D_BEZIRKSGEBIET
-          column: NAME_NO_PARENS
-        - source: swissBOUNDARIES3D_BEZIRKSGEBIET
-          column: KANTONSNUM
-        - source: swissBOUNDARIES3D_KANTONSGEBIET
-          column: NAME
-          alias: KANTON_NAME
-        - source: swissBOUNDARIES3D_BEZIRKSGEBIET
-          column: ICC
-        - source: swissBOUNDARIES3D_BEZIRKSGEBIET
-          column: EINWOHNERZ
-        - source: swissBOUNDARIES3D_BEZIRKSGEBIET
-          column: geometry
-      join:
-        - type: LEFT JOIN
-          source: swissBOUNDARIES3D_KANTONSGEBIET
-          condition: swissBOUNDARIES3D_BEZIRKSGEBIET.KANTONSNUM = swissBOUNDARIES3D_KANTONSGEBIET.KANTONSNUM
-    features:
-      identifier:
-        - column: UUID
-      names:
-        - column: NAME
-        - column: NAME_NO_PARENS
+      - name: "UUID"
+        type: text
+      - name: "OBJEKTART"
+        type: text
+      - name: "BEZIRKSNUM"
+        type: integer
+      - name: "KANTONSNUM"
+        type: integer
+      - name: "NAME"
+        type: text
+      - name: "BEZIRKSFLA"
+        type: real
+      - name: "SEE_FLAECH"
+        type: real
+      - name: "ICC"
+        type: text
+      - name: "EINWOHNERZ"
+        type: integer
+      - name: "geometry"
+        type: geometry
 
-  - name: swissBOUNDARIES3D_KANTONSGEBIET
+  - name: swissBOUNDARIES3D_1_5_TLM_KANTONSGEBIET
     url: https://data.geo.admin.ch/ch.swisstopo.swissboundaries3d/swissboundaries3d_2024-01/swissboundaries3d_2024-01_2056_5728.shp.zip
     file: swissBOUNDARIES3D_1_5_TLM_KANTONSGEBIET.shp
-    type: spatial
+    crs: EPSG:2056
     attributes:
-      original:
-        - name: UUID
-          type: TEXT
-          index: true
-        - name: DATUM_AEND
-          type: TEXT
-        - name: DATUM_ERST
-          type: TEXT
-        - name: ERSTELL_J
-          type: INTEGER
-        - name: ERSTELL_M
-          type: INTEGER
-        - name: GRUND_AEND
-          type: TEXT
-        - name: HERKUNFT
-          type: TEXT
-        - name: HERKUNFT_J
-          type: INTEGER
-        - name: HERKUNFT_M
-          type: INTEGER
-        - name: REVISION_J
-          type: INTEGER
-        - name: REVISION_M
-          type: INTEGER
-        - name: REVISION_Q
-          type: INTEGER
-        - name: OBJEKTART
-          type: TEXT
-        - name: KANTONSNUM
-          type: INTEGER
-          index: true
-        - name: SEE_FLAECH
-          type: REAL
-        - name: KANTONSFLA
-          type: REAL
-        - name: NAME
-          type: TEXT
-        - name: ICC
-          type: TEXT
-        - name: EINWOHNERZ
-          type: INTEGER
-        - name: geometry
-          type: GEOMETRY
-          index: true
-          srid: 2056
-    view:
-      select:
-        - source: swissBOUNDARIES3D_KANTONSGEBIET
-          column: UUID
-        - source: swissBOUNDARIES3D_KANTONSGEBIET
-          column: DATUM_AEND
-        - source: swissBOUNDARIES3D_KANTONSGEBIET
-          column: DATUM_ERST
-        - source: swissBOUNDARIES3D_KANTONSGEBIET
-          column: ERSTELL_J
-        - source: swissBOUNDARIES3D_KANTONSGEBIET
-          column: ERSTELL_M
-        - source: swissBOUNDARIES3D_KANTONSGEBIET
-          column: GRUND_AEND
-        - source: swissBOUNDARIES3D_KANTONSGEBIET
-          column: HERKUNFT
-        - source: swissBOUNDARIES3D_KANTONSGEBIET
-          column: HERKUNFT_J
-        - source: swissBOUNDARIES3D_KANTONSGEBIET
-          column: HERKUNFT_M
-        - source: swissBOUNDARIES3D_KANTONSGEBIET
-          column: REVISION_J
-        - source: swissBOUNDARIES3D_KANTONSGEBIET
-          column: REVISION_M
-        - source: swissBOUNDARIES3D_KANTONSGEBIET
-          column: REVISION_Q
-        - source: swissBOUNDARIES3D_KANTONSGEBIET
-          column: OBJEKTART
-        - source: swissBOUNDARIES3D_KANTONSGEBIET
-          column: KANTONSNUM
-        - source: swissBOUNDARIES3D_KANTONSGEBIET
-          column: SEE_FLAECH
-        - source: swissBOUNDARIES3D_KANTONSGEBIET
-          column: KANTONSFLA
-        - source: swissBOUNDARIES3D_KANTONSGEBIET
-          column: NAME
-        - source: swissBOUNDARIES3D_KANTONSGEBIET
-          column: ICC
-        - source: swissBOUNDARIES3D_KANTONSGEBIET
-          column: EINWOHNERZ
-        - source: swissBOUNDARIES3D_KANTONSGEBIET
-          column: geometry
-    features:
-      identifier:
-        - column: UUID
-      names:
-        - column: NAME
+      - name: "UUID"
+        type: text
+      - name: "OBJEKTART"
+        type: text
+      - name: "KANTONSNUM"
+        type: integer
+      - name: "NAME"
+        type: text
+      - name: "KANTONSFLA"
+        type: real
+      - name: "SEE_FLAECH"
+        type: real
+      - name: "ICC"
+        type: text
+      - name: "EINWOHNERZ"
+        type: integer
+      - name: "geometry"
+        type: geometry
+
+features:
+  - source: swissNAMES3D_PKT
+    joins:
+      - "LEFT JOIN swissBOUNDARIES3D_1_5_TLM_HOHEITSGEBIET g ON ST_Within(ST_Centroid(geometry), g.geometry)"
+      - "LEFT JOIN swissBOUNDARIES3D_1_5_TLM_BEZIRKSGEBIET b ON g.BEZIRKSNUM = b.BEZIRKSNUM"
+      - "LEFT JOIN swissBOUNDARIES3D_1_5_TLM_KANTONSGEBIET k ON b.KANTONSNUM = k.KANTONSNUM"
+    identifier: "UUID"
+    geometry: "geometry"
+    names:
+      - "NAME"
+      - "CASE WHEN instr(NAME, '(') > 0 THEN trim(substr(NAME, 1, instr(NAME, '(') - 1)) ELSE NAME END"
+      - "CASE WHEN length(NAME) > 3 AND substr(NAME, -3, 1) = ' ' AND regexp_matches(substr(NAME, -2, 2), '^[A-Z][A-Z]$') THEN trim(substr(NAME, 1, length(NAME) - 3)) ELSE NAME END"
+    data:
+      - "NAME"
+      - "OBJEKTART"
+      - "OBJEKTKLAS"
+      - "HOEHE"
+      - "GEBAEUDENU"
+      - "NAME_UUID"
+      - "STATUS"
+      - "SPRACHCODE"
+      - "NAMEN_TYP"
+      - "NAMENGRUPP"
+      - "g.NAME AS GEMEINDE_NAME"
+      - "g.BFS_NUMMER AS GEMEINDE_BFS_NUMMER"
+      - "b.NAME AS BEZIRK_NAME"
+      - "g.BEZIRKSNUM"
+      - "k.NAME AS KANTON_NAME"
+      - "b.KANTONSNUM"
+
+  - source: swissNAMES3D_LIN
+    joins:
+      - "LEFT JOIN swissBOUNDARIES3D_1_5_TLM_HOHEITSGEBIET g ON ST_Within(ST_Centroid(geometry), g.geometry)"
+      - "LEFT JOIN swissBOUNDARIES3D_1_5_TLM_BEZIRKSGEBIET b ON g.BEZIRKSNUM = b.BEZIRKSNUM"
+      - "LEFT JOIN swissBOUNDARIES3D_1_5_TLM_KANTONSGEBIET k ON b.KANTONSNUM = k.KANTONSNUM"
+    identifier: "UUID"
+    geometry: "geometry"
+    names:
+      - "NAME"
+      - "CASE WHEN instr(NAME, '(') > 0 THEN trim(substr(NAME, 1, instr(NAME, '(') - 1)) ELSE NAME END"
+      - "CASE WHEN length(NAME) > 3 AND substr(NAME, -3, 1) = ' ' AND regexp_matches(substr(NAME, -2, 2), '^[A-Z][A-Z]$') THEN trim(substr(NAME, 1, length(NAME) - 3)) ELSE NAME END"
+    data:
+      - "NAME"
+      - "OBJEKTART"
+      - "OBJEKTKLAS"
+      - "KUNSTBAUTE"
+      - "NAME_UUID"
+      - "STATUS"
+      - "SPRACHCODE"
+      - "NAMEN_TYP"
+      - "NAMENGRUPP"
+      - "g.NAME AS GEMEINDE_NAME"
+      - "g.BFS_NUMMER AS GEMEINDE_BFS_NUMMER"
+      - "b.NAME AS BEZIRK_NAME"
+      - "g.BEZIRKSNUM"
+      - "k.NAME AS KANTON_NAME"
+      - "b.KANTONSNUM"
+
+  - source: swissNAMES3D_PLY
+    joins:
+      - "LEFT JOIN swissBOUNDARIES3D_1_5_TLM_HOHEITSGEBIET g ON ST_Within(ST_Centroid(geometry), g.geometry)"
+      - "LEFT JOIN swissBOUNDARIES3D_1_5_TLM_BEZIRKSGEBIET b ON g.BEZIRKSNUM = b.BEZIRKSNUM"
+      - "LEFT JOIN swissBOUNDARIES3D_1_5_TLM_KANTONSGEBIET k ON b.KANTONSNUM = k.KANTONSNUM"
+    identifier: "UUID"
+    geometry: "geometry"
+    names:
+      - "NAME"
+      - "CASE WHEN instr(NAME, '(') > 0 THEN trim(substr(NAME, 1, instr(NAME, '(') - 1)) ELSE NAME END"
+      - "CASE WHEN length(NAME) > 3 AND substr(NAME, -3, 1) = ' ' AND regexp_matches(substr(NAME, -2, 2), '^[A-Z][A-Z]$') THEN trim(substr(NAME, 1, length(NAME) - 3)) ELSE NAME END"
+    data:
+      - "NAME"
+      - "OBJEKTART"
+      - "OBJEKTKLAS"
+      - "EINWOHNERK"
+      - "ISCED"
+      - "NAME_UUID"
+      - "STATUS"
+      - "SPRACHCODE"
+      - "NAMEN_TYP"
+      - "NAMENGRUPP"
+      - "g.NAME AS GEMEINDE_NAME"
+      - "g.BFS_NUMMER AS GEMEINDE_BFS_NUMMER"
+      - "b.NAME AS BEZIRK_NAME"
+      - "g.BEZIRKSNUM"
+      - "k.NAME AS KANTON_NAME"
+      - "b.KANTONSNUM"
+
+  - source: swissBOUNDARIES3D_1_5_TLM_HOHEITSGEBIET
+    joins:
+      - "LEFT JOIN swissBOUNDARIES3D_1_5_TLM_BEZIRKSGEBIET b ON BEZIRKSNUM = b.BEZIRKSNUM"
+      - "LEFT JOIN swissBOUNDARIES3D_1_5_TLM_KANTONSGEBIET k ON b.KANTONSNUM = k.KANTONSNUM"
+    identifier: "UUID"
+    geometry: "geometry"
+    names:
+      - "NAME"
+      - "CASE WHEN instr(NAME, '(') > 0 THEN trim(substr(NAME, 1, instr(NAME, '(') - 1)) ELSE NAME END"
+    data:
+      - "NAME"
+      - "OBJEKTART"
+      - "NAME AS GEMEINDE_NAME"
+      - "BFS_NUMMER AS GEMEINDE_BFS_NUMMER"
+      - "b.NAME AS BEZIRK_NAME"
+      - "BEZIRKSNUM"
+      - "k.NAME AS KANTON_NAME"
+      - "b.KANTONSNUM"
+      - "GEM_FLAECH"
+      - "SEE_FLAECH"
+      - "ICC"
+      - "SHN"
+      - "EINWOHNERZ"
+
+  - source: swissBOUNDARIES3D_1_5_TLM_BEZIRKSGEBIET
+    joins:
+      - "LEFT JOIN swissBOUNDARIES3D_1_5_TLM_KANTONSGEBIET k ON KANTONSNUM = k.KANTONSNUM"
+    identifier: "UUID"
+    geometry: "geometry"
+    names:
+      - "NAME"
+      - "CASE WHEN instr(NAME, '(') > 0 THEN trim(substr(NAME, 1, instr(NAME, '(') - 1)) ELSE NAME END"
+    data:
+      - "NAME"
+      - "OBJEKTART"
+      - "NAME AS BEZIRK_NAME"
+      - "BEZIRKSNUM"
+      - "k.NAME AS KANTON_NAME"
+      - "KANTONSNUM"
+      - "BEZIRKSFLA"
+      - "SEE_FLAECH"
+      - "ICC"
+      - "EINWOHNERZ"
+
+  - source: swissBOUNDARIES3D_1_5_TLM_KANTONSGEBIET
+    identifier: "UUID"
+    geometry: "geometry"
+    names:
+      - "NAME"
+    data:
+      - "NAME"
+      - "OBJEKTART"
+      - "NAME AS KANTON_NAME"
+      - "KANTONSNUM"
+      - "KANTONSFLA"
+      - "SEE_FLAECH"
+      - "ICC"
+      - "EINWOHNERZ"

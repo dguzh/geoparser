@@ -31,8 +31,19 @@ class TestCliApp:
         # Assert
         assert "annotator" in commands
 
-    def test_app_has_download_command(self):
-        """Test that app has download command registered."""
+    def test_app_has_install_command(self):
+        """Test that app has install command registered."""
+        # Arrange
+        from geoparser.cli.app import app
+
+        # Act - Get registered commands
+        commands = {cmd.name: cmd for cmd in app.registered_commands}
+
+        # Assert
+        assert "install" in commands
+
+    def test_app_has_download_command_as_deprecated_alias(self):
+        """Test that app keeps download registered as deprecated."""
         # Arrange
         from geoparser.cli.app import app
 
@@ -41,3 +52,4 @@ class TestCliApp:
 
         # Assert
         assert "download" in commands
+        assert commands["download"].deprecated is True

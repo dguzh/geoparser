@@ -3,167 +3,289 @@
 Quickstart
 ==========
 
-This guide provides a quick introduction to using the Irchel Geoparser for basic geoparsing tasks. After following the :doc:`installation` guide, you can start parsing text with just a few lines of code.
+This is a single worked example, built up one step at a time. By the end you will have parsed a text, read the results, dealt with names that do not resolve, and adjusted the pipeline.
 
-Basic Usage
------------
+It assumes you have worked through :doc:`installation`, so that you have both the package and a gazetteer. The examples use ``geonames``.
 
-The simplest way to use the library is through the ``Geoparser`` class, which provides a stateless interface for quick geoparsing tasks. The default settings are optimized for English texts, prioritizing speed over accuracy. See the :ref:`customizing-geoparser` section below for other options.
+Building a Geoparser
+--------------------
 
-Here's a minimal working example:
+A geoparser is made of two modules that you provide explicitly: a **recognizer** that finds place names in text, and a **resolver** that links them to a gazetteer.
 
 .. code-block:: python
 
    from geoparser import Geoparser
+   from geoparser.modules import SentenceTransformerResolver, SpacyRecognizer
 
-   # Initialize the geoparser with default settings
-   geoparser = Geoparser()
+   geoparser = Geoparser(
+       recognizer=SpacyRecognizer(),
+       resolver=SentenceTransformerResolver(gazetteer_name="geonames"),
+   )
 
-   # Parse a text
-   text = "The Eiffel Tower in Paris attracts millions of visitors each year."
-   documents = geoparser.parse(text)
+Both arguments are required, and there are no defaults: omitting either raises a ``TypeError``. You can pass ``None`` to skip a stage — ``resolver=None`` gives you recognition only — but that has to be said explicitly.
 
-   # Access the results
-   for doc in documents:
-       print(f"Document: {doc.text}\n")
-       for toponym in doc.toponyms:
-           print(f"  Toponym: {toponym.text}")
-           if toponym.location:
-               location = toponym.location
-               print(f"    Name: {location.data.get('name')}")
-               print(f"    Country: {location.data.get('country_name')}")
-               print(f"    Coordinates: ({location.data.get('latitude')}, {location.data.get('longitude')})")
-           else:
-               print("    Location: Could not be resolved")
-           print()
+The first time you run this it downloads the models the two modules need, printing something like ``Downloading spaCy model 'en_core_web_sm'...``. That happens once. The modules chosen here are the fast ones, tuned for English and favouring speed over accuracy; :ref:`quickstart-customizing` below covers the alternatives.
 
-This code identifies place names in the text and links them to geographic locations in the GeoNames gazetteer. The output might look like:
+Parsing a Text
+--------------
+
+Give ``parse()`` a text and it returns a **document**: the text, plus the place names found in it.
+
+.. code-block:: python
+
+   text = (
+       "Heavy rain caused flooding across northern England this week. The worst "
+       "damage was reported in Manchester and Leeds, where rivers burst their banks "
+       "overnight. Emergency services in Sheffield said they had received hundreds "
+       "of calls."
+   )
+
+   document = geoparser.parse(text)
+   print(f"{len(document.toponyms)} toponyms found")
 
 .. code-block:: text
 
-   Document: The Eiffel Tower in Paris attracts millions of visitors each year.
+   4 toponyms found
 
-     Toponym: Eiffel Tower
-       Name: Eiffel Tower
-       Country: France
-       Coordinates: (48.85837, 2.29448)
+A paragraph rather than a sentence, deliberately. The resolver decides between places of the same name by reading the words around them, so it works markedly better on a few sentences of connected prose than on a lone short sentence — see :ref:`quickstart-context`.
 
-     Toponym: Paris
-       Name: Paris
-       Country: France
-       Coordinates: (48.85341, 2.3488)
+Reading the Results
+-------------------
 
-Processing Multiple Documents
-------------------------------
-
-The ``parse()`` method accepts both a single text string and a list of texts. Processing multiple documents together enables efficient batch processing:
+Each toponym knows what it says and where it sits in the text:
 
 .. code-block:: python
 
-   from geoparser import Geoparser
+   for toponym in document.toponyms:
+       print(f"{toponym.text!r} at characters {toponym.start}-{toponym.end}")
 
-   geoparser = Geoparser()
+.. code-block:: text
+
+   'England' at characters 43-50
+   'Manchester' at characters 95-105
+   'Leeds' at characters 110-115
+   'Sheffield' at characters 181-190
+
+The offsets index into ``document.text``, so ``document.text[toponym.start:toponym.end]`` is the toponym itself, and a wider slice gives you the text around it.
+
+The geographic information is on ``toponym.location``:
+
+.. code-block:: python
+
+   for toponym in document.toponyms:
+       location = toponym.location
+       print(f"{toponym.text}:")
+       print(f"  Name:        {location.data.get('name')}")
+       print(f"  Type:        {location.data.get('feature_name')}")
+       print(f"  Coordinates: {location.data.get('latitude')}, {location.data.get('longitude')}")
+
+.. code-block:: text
+
+   England:
+     Name:        England
+     Type:        first-order administrative division
+     Coordinates: 52.16045, -0.70312
+   Manchester:
+     Name:        Manchester
+     Type:        seat of a second-order administrative division
+     Coordinates: 53.48095, -2.23743
+   Leeds:
+     Name:        Leeds
+     Type:        seat of a second-order administrative division
+     Coordinates: 53.79648, -1.54785
+   Sheffield:
+     Name:        Sheffield
+     Type:        seat of a second-order administrative division
+     Coordinates: 53.38297, -1.4659
+
+``location`` is a **feature**: one entry in the gazetteer. Its ``data`` is a dictionary of whatever that gazetteer records, which varies between gazetteers and even between sources inside one gazetteer — so read it with ``.get()`` rather than ``data["name"]``. :doc:`guides/results` goes through all three objects and their attributes in full.
+
+Note that the gazetteer's name for a place need not be the name in the text. Ask the same pipeline about Vienna and the feature comes back as ``Wien``. If you want to group or count places, use ``location.identifier`` — the gazetteer's stable id for that place, ``2643123`` for Manchester — because names are ambiguous and identifiers are not.
+
+A feature also carries a ``geometry``, a Shapely object you can map or measure:
+
+.. code-block:: python
+
+   point = document.toponyms[1].location.geometry
+   print(point, point.x, point.y)
+
+.. code-block:: text
+
+   POINT (-2.23743 53.48095) -2.23743 53.48095
+
+Handling What Is Missing
+------------------------
+
+The code above works only because every name resolved and every attribute was present. Neither is guaranteed, so this is the version to actually write:
+
+.. code-block:: python
+
+   text = (
+       "The expedition began in Cape Town, where the crew loaded supplies before "
+       "heading south. After three weeks at sea they reached South Georgia, a "
+       "remote island in the southern Atlantic, and from there they pushed on "
+       "toward Antarctica."
+   )
+
+   document = geoparser.parse(text)
+
+   for toponym in document.toponyms:
+       if toponym.location is None:
+           print(f"{toponym.text}: not resolved")
+       else:
+           print(f"{toponym.text}: {toponym.location.data.get('name')}")
+
+.. code-block:: text
+
+   Cape Town: Cape Town
+   South Georgia: not resolved
+   Atlantic: Atlantic Ocean
+   Antarctica: Antarctica
+
+``location`` is ``None`` when a name was recognized but not resolved, as happened to South Georgia here. There are two reasons this can happen: the place may be absent from the gazetteer, or no candidate may have passed the resolver's similarity threshold. Either way, check for ``None`` before reading attributes.
+
+Individual attributes go missing too, independently of that:
+
+.. code-block:: python
+
+   for toponym in document.toponyms:
+       if toponym.location:
+           print(f"{toponym.text}: {toponym.location.data.get('country_name')!r}")
+
+.. code-block:: text
+
+   Cape Town: 'South Africa'
+   Atlantic: None
+   Antarctica: None
+
+An ocean and a continent are in no country, so ``country_name`` is simply absent for them. The same applies to ``geometry``, which is ``None`` for places a gazetteer records by name without locating. Reading attributes with ``.get()``, and checking ``location`` for ``None``, is therefore the normal way to work with results.
+
+Parsing Several Texts
+---------------------
+
+``parse()`` accepts a list, and processes it as a batch, which is considerably faster than looping:
+
+.. code-block:: python
 
    texts = [
-       "London is the capital of the United Kingdom.",
-       "Tokyo is Japan's largest city.",
-       "The Statue of Liberty stands in New York Harbor."
+       "Researchers in Nairobi and Mombasa collected samples along the Kenyan coast.",
+       "The festival moved from Salzburg to Vienna after a dispute over funding.",
+       "The conference was held in Zurich, with satellite events in Geneva and Basel.",
    ]
 
    documents = geoparser.parse(texts)
 
-   for i, doc in enumerate(documents, 1):
+   for i, document in enumerate(documents, start=1):
        print(f"Document {i}:")
-       for toponym in doc.toponyms:
-           if toponym.location:
-               print(f"  - {toponym.text} → {toponym.location.data.get('name')}")
-       print()
+       for toponym in document.toponyms:
+           name = toponym.location.data.get("name") if toponym.location else "unresolved"
+           print(f"  {toponym.text} -> {name}")
 
-Understanding the Results
---------------------------
+.. code-block:: text
 
-The ``parse()`` method returns a list of ``Document`` objects, each representing one of the input texts. Each document has a ``toponyms`` property that provides access to the identified place names (references) within that document.
+   Document 1:
+     Nairobi -> Nairobi
+     Mombasa -> Mombasa
+   Document 2:
+     Salzburg -> Salzburg
+     Vienna -> Wien
+   Document 3:
+     Zurich -> Zürich
+     Geneva -> Geneva
+     Basel -> Basel
 
-Each toponym (``Reference`` object) has several important properties:
+The result mirrors the input: pass a string and you get one document, pass a list and you get a list of documents **in the same order**. That ordering is what lets you relate results back to wherever the texts came from:
 
-- ``text``: The actual text of the place name as it appears in the document
-- ``start``: The starting character position in the document text
-- ``end``: The ending character position in the document text
-- ``location``: The resolved geographic entity (a ``Feature`` object), or ``None`` if the toponym is unresolved
+.. code-block:: python
 
-When a toponym is successfully resolved, its ``location`` property contains a ``Feature`` object with geographic information. The feature has two main properties:
+   for text, document in zip(texts, documents):
+       ...
 
-- ``data``: A dictionary containing attributes from the gazetteer. For GeoNames, common attributes include ``name``, ``country_name``, ``latitude``, ``longitude``, ``population``, ``feature_name`` (the type of place), and various administrative divisions.
-- ``geometry``: A Shapely geometry object representing the feature's spatial extent (typically a Point for most gazetteers, but can be polygons or other geometry types).
+For larger or longer-lived work, identifiers are a sturdier link than position — see :doc:`guides/projects`.
 
-Working with Unresolved Toponyms
----------------------------------
+.. _quickstart-context:
 
-Not all identified place names can be successfully linked to geographic locations. Always check if the location is ``None`` before accessing its attributes:
+Why Context Matters
+-------------------
+
+How much context a text provides has a large effect on the results, and it is worth seeing that directly. Here is a short sentence:
+
+.. code-block:: python
+
+   document = geoparser.parse("She flew from Paris to Tokyo last spring.")
+
+.. code-block:: text
+
+   'Paris'  ->  not resolved
+   'Tokyo'  ->  Takeo, Japan
+
+Tokyo has become Takeo, a town in Kyushu, and Paris has not resolved at all. Now the same two names with something around them:
+
+.. code-block:: python
+
+   document = geoparser.parse(
+       "She flew from Paris to Tokyo last spring, changing planes twice. The trip "
+       "was her first visit to Japan, and she spent a week in the city before "
+       "returning to France."
+   )
+
+.. code-block:: text
+
+   'Paris'   ->  Paris, France
+   'Tokyo'   ->  Tokyo, Japan
+   'Japan'   ->  Japan
+   'France'  ->  Republic of France
+
+Nothing changed but the surrounding words. The resolver compares the context a name appears in against descriptions of the candidate places, so a name with no context to go on is a name it has little basis to choose for. The recognizer is context-dependent in the same way, and will miss names in a bare sentence that it finds in a paragraph.
+
+The practical consequences:
+
+- **Parse whole paragraphs or documents**, not isolated sentences or bare lists of place names. If your data really is a list of names — a spreadsheet column, say — a geoparser is the wrong tool, and you want a plain gazetteer lookup instead (:doc:`guides/gazetteers`).
+- **Check results against the text.** Both errors above are silent: nothing is raised, and ``Takeo`` looks like a plausible answer until you compare it with what the sentence said.
+- **The defaults are tuned for English news prose.** That is what the default models were trained on. On historical, literary, or non-English material, expect worse and read the next section.
+
+.. _quickstart-customizing:
+
+Changing the Pipeline
+---------------------
+
+Both modules take parameters, which is how you adapt the pipeline to your own material:
 
 .. code-block:: python
 
    from geoparser import Geoparser
+   from geoparser.modules import SentenceTransformerResolver, SpacyRecognizer
 
-   geoparser = Geoparser()
-   documents = geoparser.parse("They traveled from Atlantis to Wonderland.")
+   geoparser = Geoparser(
+       # A larger, more accurate spaCy model
+       recognizer=SpacyRecognizer(model_name="en_core_web_trf"),
+       # A different gazetteer, and a lower confidence threshold
+       resolver=SentenceTransformerResolver(
+           gazetteer_name="swissnames3d",
+           min_similarity=0.5,
+       ),
+   )
 
-   for doc in documents:
-       for toponym in doc.toponyms:
-           print(f"Toponym: {toponym.text}")
-           if toponym.location:
-               print(f"  Resolved to: {toponym.location.data.get('name')}")
-           else:
-               print("  Could not be resolved (fictional location)")
+   document = geoparser.parse("Zurich is the largest city in Switzerland.")
 
-.. _customizing-geoparser:
+Two parameters have the largest effect on how much gets recognized and resolved:
 
-Customizing the Geoparser
---------------------------
+- ``model_name`` on the recognizer. The default ``en_core_web_sm`` is trained on contemporary English news text. On historical, literary, or non-English material it can miss most place names, and nothing downstream can recover a name that was never found. A larger model, or one for your language, usually helps.
+- ``min_similarity`` on the resolver, default ``0.6``. It is how confident the resolver must be before committing. Lower it to resolve more and risk more mistakes; raise it for the opposite. The default is calibrated for English news text against GeoNames, so other material generally wants a lower value.
 
-The default ``Geoparser()`` uses a spaCy model for recognition and a SentenceTransformer model for resolution. You can customize these components by providing your own module instances:
+:doc:`guides/modules` covers every parameter, the second pre-trained resolver model, and how to write modules of your own.
 
-.. code-block:: python
+Keeping the Results
+-------------------
 
-   from geoparser import Geoparser
-   from geoparser.modules import SpacyRecognizer, SentenceTransformerResolver
-
-   # Use a more accurate spaCy model
-   recognizer = SpacyRecognizer(model_name="en_core_web_trf")
-   
-   # Use a different gazetteer
-   resolver = SentenceTransformerResolver(gazetteer_name="swissnames3d")
-
-   geoparser = Geoparser(recognizer=recognizer, resolver=resolver)
-   
-   documents = geoparser.parse("Zurich is the largest city in Switzerland.")
-
-For more details on working with different modules, see the :doc:`guides/modules` guide.
-
-Persisting Results
-------------------
-
-By default, the ``parse()`` method creates a temporary project internally and deletes it after returning the results. If you want to keep the results for later analysis, use the ``save=True`` parameter:
+``parse()`` throws its work away once it returns. To keep it:
 
 .. code-block:: python
 
-   from geoparser import Geoparser
+   document = geoparser.parse("Berlin is the capital of Germany.", save=True)
 
-   geoparser = Geoparser()
-   documents = geoparser.parse("Berlin is the capital of Germany.", save=True)
-   # Results saved under project name: a1b2c3d4
+.. code-block:: text
 
-When ``save=True``, the method prints the project name that was created. You can later access these results using the ``Project`` class, as described in the :doc:`guides/projects` guide.
+   Results saved under project name: a1b2c3d4
 
-Next Steps
-----------
-
-This quickstart covered the basics of using the Irchel Geoparser for simple tasks. To learn more about advanced features, explore these guides:
-
-- :doc:`guides/projects` - Persistent workspaces for research and analysis
-- :doc:`guides/modules` - Using and creating custom recognizers and resolvers
-- :doc:`guides/training` - Fine-tuning models on your own data
-- :doc:`guides/gazetteers` - Working with different geographic databases
-
-For complete API documentation, see the :doc:`api/geoparser` reference.
-
+The printed name is how you get back to those results later, with ``Project("a1b2c3d4")``. When you know in advance that you want to keep something, it is better to create a project with a name you chose — see :doc:`guides/projects`.

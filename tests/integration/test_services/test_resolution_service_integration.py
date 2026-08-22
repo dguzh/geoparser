@@ -228,7 +228,10 @@ class TestResolutionServiceIntegration:
 
         referents = ReferentRepository.get_by_reference(test_session, reference.id)
         assert len(referents) == 1
-        assert referents[0].feature_id is not None
+        assert referents[0].gazetteer_name == "andorranames"
+        assert referents[0].feature_identifier == "3041563"
+        assert referents[0].feature is not None
+        assert referents[0].feature.identifier == "3041563"
 
     def test_transactions_are_committed(
         self,
@@ -433,8 +436,8 @@ class TestResolutionServiceIntegration:
         from geoparser.project import Project
 
         project = Project("referents_extraction_test")
-        texts = ["Encamp is a parish."]
-        references = [[(0, 6)]]
+        texts = ["Canillo is a parish."]
+        references = [[(0, 7)]]
         referents = [[("andorranames", "3041204")]]
 
         project.create_documents(texts)

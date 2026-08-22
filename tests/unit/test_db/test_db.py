@@ -7,7 +7,7 @@ test fixtures that redirect database operations to test databases.
 
 import pytest
 from sqlalchemy import Engine
-from sqlmodel import Session, text
+from sqlmodel import Session, create_engine, text
 
 
 @pytest.mark.unit
@@ -24,13 +24,6 @@ class TestTestEngineFixture:
         result = test_session.exec(text("PRAGMA foreign_keys"))
         foreign_keys_enabled = result.scalar()
         assert foreign_keys_enabled == 1
-
-    def test_loads_spatialite(self, test_session):
-        """Test that SpatiaLite extension is loaded via global event listener."""
-        result = test_session.exec(text("SELECT spatialite_version()"))
-        version = result.scalar()
-        assert version is not None
-        assert isinstance(version, str)
 
     def test_creates_tables(self, test_session):
         """Test that tables are created automatically."""
@@ -91,108 +84,119 @@ class TestPatchDbFixture:
             table_name = result.scalar()
             assert table_name == "project"
 
+    def test_redirects_get_connection(self, test_session):
+        """Test that get_connection() uses test database."""
+        from geoparser.db.db import get_connection
+
+        # get_connection() should use the test database
+        with get_connection() as connection:
+            result = connection.execute(
+                text(
+                    "SELECT name FROM sqlite_master WHERE type='table' AND name='project'"
+                )
+            )
+            table_name = result.scalar()
+            assert table_name == "project"
+
+
+@pytest.mark.unit
+class TestDatabaseCompatibilityCheck:
+    """Test the legacy-database compatibility check in create_db_and_tables()."""
+
+    @staticmethod
+    def _make_engine():
+        from sqlalchemy.pool import StaticPool
+
+        return create_engine(
+            "sqlite:///:memory:",
+            poolclass=StaticPool,
+            connect_args={"check_same_thread": False},
+        )
+
+    def test_raises_for_legacy_gazetteer_tables(self):
+        """A database holding old gazetteer tables is rejected clearly."""
+        from unittest.mock import patch
+
+        import geoparser.db.db as db
+
+        legacy_engine = self._make_engine()
+        with legacy_engine.connect() as connection:
+            connection.execute(
+                text("CREATE TABLE gazetteer (id INTEGER PRIMARY KEY, name TEXT)")
+            )
+            connection.commit()
+
+        with patch.object(db, "engine", legacy_engine):
+            with pytest.raises(RuntimeError):
+                db.create_db_and_tables()
+
+    def test_raises_for_legacy_referent_layout(self):
+        """A referent table without feature_identifier is rejected clearly."""
+        from unittest.mock import patch
+
+        import geoparser.db.db as db
+
+        legacy_engine = self._make_engine()
+        with legacy_engine.connect() as connection:
+            connection.execute(
+                text(
+                    "CREATE TABLE referent "
+                    "(id INTEGER PRIMARY KEY, feature_id INTEGER)"
+                )
+            )
+            connection.commit()
+
+        with patch.object(db, "engine", legacy_engine):
+            with pytest.raises(RuntimeError):
+                db.create_db_and_tables()
+
+    def test_allows_fresh_database(self):
+        """An empty database is fine and gets its tables created."""
+        from unittest.mock import patch
+
+        import geoparser.db.db as db
+
+        fresh_engine = self._make_engine()
+        with patch.object(db, "engine", fresh_engine):
+            db.create_db_and_tables()
+
+        with fresh_engine.connect() as connection:
+            result = connection.execute(
+                text(
+                    "SELECT 1 FROM sqlite_master "
+                    "WHERE type='table' AND name='referent'"
+                )
+            )
+            assert result.first() is not None
+
+    def test_allows_current_database(self):
+        """A current database layout is accepted."""
+        import geoparser.db.db as db
+
+        # The autouse patch_db fixture points db.engine at the test engine,
+        # which already has the current tables from create_all().
+        db.create_db_and_tables()
+
 
 @pytest.mark.unit
 class TestSetSqlitePragma:
     """Test the _set_sqlite_pragma event listener."""
 
-    def test_raises_runtime_error_when_spatialite_not_found(self):
-        """Test that RuntimeError is raised when SpatiaLite library is not found."""
-        # Arrange
-        import sqlite3
-        from unittest.mock import patch
+    def test_enables_foreign_keys_on_connect(self, test_session):
+        """Test that foreign key enforcement is switched on for connections."""
+        result = test_session.exec(text("PRAGMA foreign_keys"))
+        assert result.scalar() == 1
+
+    def test_skips_non_sqlite_connections(self):
+        """Test that non-SQLite connections are left unmodified."""
+        from unittest.mock import Mock
 
         from geoparser.db.db import _set_sqlite_pragma
 
-        connection = sqlite3.connect(":memory:")
+        connection = Mock()
 
-        # Act & Assert
-        with patch("geoparser.db.db.get_spatialite_path", return_value=None):
-            with pytest.raises(RuntimeError, match="SpatiaLite library not found"):
-                _set_sqlite_pragma(connection, None)
+        # Act - a non-sqlite3 connection should be ignored without error
+        _set_sqlite_pragma(connection, None)
 
-        connection.close()
-
-    def test_raises_runtime_error_when_spatialite_fails_to_load(self):
-        """Test that RuntimeError is raised when SpatiaLite fails to load."""
-        # Arrange
-        import sqlite3
-        from pathlib import Path
-        from unittest.mock import patch
-
-        from geoparser.db.db import _set_sqlite_pragma
-
-        connection = sqlite3.connect(":memory:")
-
-        # Act & Assert
-        with patch(
-            "geoparser.db.db.get_spatialite_path",
-            return_value=Path("/fake/path/mod_spatialite.so"),
-        ):
-            with patch(
-                "geoparser.db.db.load_spatialite_extension",
-                side_effect=Exception("Load failed"),
-            ):
-                with pytest.raises(
-                    RuntimeError, match="Failed to load SpatiaLite extension"
-                ):
-                    _set_sqlite_pragma(connection, None)
-
-        connection.close()
-
-    def test_raises_runtime_error_when_spellfix_not_found(self):
-        """Test that RuntimeError is raised when Spellfix library is not found."""
-        # Arrange
-        import sqlite3
-        from pathlib import Path
-        from unittest.mock import patch
-
-        from geoparser.db.db import _set_sqlite_pragma
-
-        connection = sqlite3.connect(":memory:")
-
-        # Act & Assert
-        with patch(
-            "geoparser.db.db.get_spatialite_path",
-            return_value=Path("/fake/path/mod_spatialite.so"),
-        ):
-            with patch("geoparser.db.db.load_spatialite_extension"):
-                with patch("geoparser.db.db.get_spellfix_path", return_value=None):
-                    with pytest.raises(
-                        RuntimeError, match="Spellfix library not found"
-                    ):
-                        _set_sqlite_pragma(connection, None)
-
-        connection.close()
-
-    def test_raises_runtime_error_when_spellfix_fails_to_load(self):
-        """Test that RuntimeError is raised when Spellfix fails to load."""
-        # Arrange
-        import sqlite3
-        from pathlib import Path
-        from unittest.mock import patch
-
-        from geoparser.db.db import _set_sqlite_pragma
-
-        connection = sqlite3.connect(":memory:")
-
-        # Act & Assert
-        with patch(
-            "geoparser.db.db.get_spatialite_path",
-            return_value=Path("/fake/path/mod_spatialite.so"),
-        ):
-            with patch("geoparser.db.db.load_spatialite_extension"):
-                with patch(
-                    "geoparser.db.db.get_spellfix_path",
-                    return_value=Path("/fake/path/spellfix.so"),
-                ):
-                    with patch(
-                        "geoparser.db.db.load_spellfix_extension",
-                        side_effect=Exception("Load failed"),
-                    ):
-                        with pytest.raises(
-                            RuntimeError, match="Failed to load Spellfix extension"
-                        ):
-                            _set_sqlite_pragma(connection, None)
-
-        connection.close()
+        # Assert
+        connection.cursor.assert_not_called()

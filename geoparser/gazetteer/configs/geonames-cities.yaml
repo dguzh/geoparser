@@ -1,0 +1,218 @@
+name: geonames-cities
+crs: EPSG:4326
+disk: 800000000 # 0.8 GB
+
+sources:
+  - name: cities500
+    url: https://download.geonames.org/export/dump/cities500.zip
+    file: cities500.txt
+    delimiter: "\t"
+    quote: ""
+    attributes:
+      - name: "geonameid"
+        type: integer
+      - name: "name"
+        type: text
+      - name: "asciiname"
+        type: text
+      - name: "alternatenames"
+        type: text
+      - name: "latitude"
+        type: real
+      - name: "longitude"
+        type: real
+      - name: "feature_class"
+        type: text
+      - name: "feature_code"
+        type: text
+      - name: "country_code"
+        type: text
+      - name: "cc2"
+        type: text
+      - name: "admin1_code"
+        type: text
+      - name: "admin2_code"
+        type: text
+      - name: "admin3_code"
+        type: text
+      - name: "admin4_code"
+        type: text
+      - name: "population"
+        type: integer
+      - name: "elevation"
+        type: integer
+      - name: "dem"
+        type: integer
+      - name: "timezone"
+        type: text
+      - name: "modification_date"
+        type: text
+
+  - name: admin1CodesASCII
+    url: https://download.geonames.org/export/dump/admin1CodesASCII.txt
+    file: admin1CodesASCII.txt
+    delimiter: "\t"
+    quote: ""
+    attributes:
+      - name: "code"
+        type: text
+      - name: "name"
+        type: text
+      - name: "asciiname"
+        type: text
+      - name: "geonameid"
+        type: integer
+
+  - name: admin2Codes
+    url: https://download.geonames.org/export/dump/admin2Codes.txt
+    file: admin2Codes.txt
+    delimiter: "\t"
+    quote: ""
+    attributes:
+      - name: "code"
+        type: text
+      - name: "name"
+        type: text
+      - name: "asciiname"
+        type: text
+      - name: "geonameid"
+        type: integer
+
+  - name: countryInfo
+    url: https://download.geonames.org/export/dump/countryInfo.txt
+    file: countryInfo.txt
+    delimiter: "\t"
+    quote: ""
+    skip_rows: 50
+    attributes:
+      - name: "ISO"
+        type: text
+      - name: "ISO3"
+        type: text
+      - name: "ISO_Numeric"
+        type: integer
+      - name: "fips"
+        type: text
+      - name: "Country"
+        type: text
+      - name: "Capital"
+        type: text
+      - name: "Area"
+        type: real
+      - name: "Population"
+        type: integer
+      - name: "Continent"
+        type: text
+      - name: "tld"
+        type: text
+      - name: "CurrencyCode"
+        type: text
+      - name: "CurrencyName"
+        type: text
+      - name: "Phone"
+        type: text
+      - name: "PostalCodeFormat"
+        type: text
+      - name: "PostalCodeRegex"
+        type: text
+      - name: "Languages"
+        type: text
+      - name: "geonameid"
+        type: integer
+      - name: "neighbours"
+        type: text
+      - name: "EquivalentFipsCode"
+        type: text
+
+  - name: featureCodes_en
+    url: https://download.geonames.org/export/dump/featureCodes_en.txt
+    file: featureCodes_en.txt
+    delimiter: "\t"
+    quote: ""
+    attributes:
+      - name: "code"
+        type: text
+      - name: "name"
+        type: text
+      - name: "description"
+        type: text
+
+features:
+  - source: cities500
+    joins:
+      - "LEFT JOIN countryInfo c ON country_code = c.ISO"
+      - "LEFT JOIN admin1CodesASCII a1 ON country_code || '.' || admin1_code = a1.code"
+      - "LEFT JOIN admin2Codes a2 ON country_code || '.' || admin1_code || '.' || admin2_code = a2.code"
+      - "LEFT JOIN featureCodes_en f ON feature_class || '.' || feature_code = f.code"
+    identifier: "geonameid"
+    geometry: "ST_Point(longitude, latitude)"
+    names:
+      - "name"
+      - "CASE WHEN instr(name, '(') > 0 THEN trim(substr(name, 1, instr(name, '(') - 1)) ELSE name END"
+      - "asciiname"
+      - "CASE WHEN instr(asciiname, '(') > 0 THEN trim(substr(asciiname, 1, instr(asciiname, '(') - 1)) ELSE asciiname END"
+      - "unnest(string_split(alternatenames, ','))"
+    data:
+      - "name"
+      - "asciiname"
+      - "latitude"
+      - "longitude"
+      - "feature_class"
+      - "feature_code"
+      - "f.name AS feature_name"
+      - "country_code"
+      - "c.Country AS country_name"
+      - "cc2"
+      - "admin1_code"
+      - "a1.name AS admin1_name"
+      - "admin2_code"
+      - "a2.name AS admin2_name"
+      - "admin3_code"
+      - "admin4_code"
+      - "population"
+      - "elevation"
+      - "dem"
+      - "timezone"
+      - "modification_date"
+
+  - source: countryInfo
+    identifier: "geonameid"
+    names:
+      - "Country"
+      - "CASE WHEN instr(Country, '(') > 0 THEN trim(substr(Country, 1, instr(Country, '(') - 1)) ELSE Country END"
+    data:
+      - "Country AS name"
+      - "ISO AS country_code"
+      - "Country AS country_name"
+      - "Population AS population"
+
+  - source: admin1CodesASCII
+    joins:
+      - "LEFT JOIN countryInfo c ON regexp_extract(code, '^[^.]+') = c.ISO"
+    identifier: "geonameid"
+    names:
+      - "name"
+      - "asciiname"
+    data:
+      - "name"
+      - "regexp_extract(code, '^[^.]+') AS country_code"
+      - "c.Country AS country_name"
+      - "regexp_extract(code, '\\.([^.]+)$', 1) AS admin1_code"
+      - "name AS admin1_name"
+
+  - source: admin2Codes
+    joins:
+      - "LEFT JOIN countryInfo c ON regexp_extract(code, '^[^.]+') = c.ISO"
+      - "LEFT JOIN admin1CodesASCII a1 ON regexp_extract(code, '^[^.]+\\.[^.]+') = a1.code"
+    identifier: "geonameid"
+    names:
+      - "name"
+      - "asciiname"
+    data:
+      - "name"
+      - "regexp_extract(code, '^[^.]+') AS country_code"
+      - "c.Country AS country_name"
+      - "regexp_extract(code, '^[^.]+\\.([^.]+)', 1) AS admin1_code"
+      - "a1.name AS admin1_name"
+      - "regexp_extract(code, '\\.([^.]+)$', 1) AS admin2_code"
+      - "name AS admin2_name"
