@@ -94,7 +94,7 @@ jobs:
       - run: mkdir coverage
       - run: mv .coverage coverage/.coverage.${{ runner.os }}-py${{ matrix.python-version }}
       - name: Store coverage files
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: coverage-${{ matrix.os }}-${{ matrix.python-version }}
           path: coverage
@@ -131,19 +131,19 @@ jobs:
           MINIMUM_GREEN: 100
           MINIMUM_ORANGE: 98
       - name: Store Pull Request comment to be posted
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: steps.coverage_comment.outputs.COMMENT_FILE_WRITTEN == 'true'
         with:
           name: python-coverage-comment-action
           path: python-coverage-comment-action.txt
       - name: Store coverage data
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: coverage-data
           path: .coverage
           include-hidden-files: true
       - name: Store coverage html
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: coverage-html
           path: htmlcov
