@@ -109,7 +109,7 @@ jobs:
       - name: Install Python
         uses: actions/setup-python@v5
       - name: Get coverage files
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           merge-multiple: true
           pattern: coverage-*
