@@ -19,14 +19,18 @@ from geoparser.annotator.db.models.toponym import AnnotatorToponymCreate
 from geoparser.annotator.exceptions import SessionNotFoundException
 
 
-class SessionRepository(BaseRepository):
+class SessionRepository(BaseRepository[AnnotatorSession]):
     model = AnnotatorSession
     exception_factory: t.Callable = lambda x, y: SessionNotFoundException(
         f"{x} with ID {y} not found."
     )
 
     @classmethod
-    def create(
+    # BaseRepository declares the widest input type (SQLModel); each repository
+    # deliberately accepts its own Create/Update model. Callers always go
+    # through the concrete repository, so the precise signature is worth more
+    # here than strict substitutability.
+    def create(  # ty: ignore[invalid-method-override]
         cls,
         db: DBSession,
         item: AnnotatorSessionCreate,
@@ -107,7 +111,7 @@ class SessionRepository(BaseRepository):
         return super().read_all(db, **filters)
 
     @classmethod
-    def update(cls, db: DBSession, item: AnnotatorSessionUpdate) -> AnnotatorSession:
+    def update(cls, db: DBSession, item: AnnotatorSessionUpdate) -> AnnotatorSession:  # ty: ignore[invalid-method-override]
         return super().update(db, item)
 
     @classmethod

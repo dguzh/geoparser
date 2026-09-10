@@ -130,6 +130,26 @@ addopts = [
 ]
 console_output_style = "progress"
 
+[tool.mutmut]
+# Mutation testing: mutmut edits the source in small ways and re-runs the
+# tests; a mutant that survives is a line the suite does not really check.
+source_paths = ["geoparser"]
+# The annotator is a server-rendered UI that coverage also omits, and the CLI
+# layer is argument wiring around code that is mutated on its own. Everything
+# the library actually computes -- geoparser, gazetteer, services, modules, db
+# -- is mutated.
+do_not_mutate = [
+    "geoparser/annotator/*",
+    "geoparser/cli/*",
+]
+# Mutants are judged by the unit suite only. The integration and e2e suites
+# build a gazetteer and load real models, which at one test run per mutant
+# would take days rather than minutes.
+pytest_add_cli_args_test_selection = ["tests/unit"]
+# Coverage instrumentation is pure overhead here, and is re-collected per
+# mutant otherwise.
+pytest_add_cli_args = ["--no-cov", "-p", "no:cacheprovider"]
+
 [tool.coverage.report]
 exclude_also = [
     "raise AssertionError",

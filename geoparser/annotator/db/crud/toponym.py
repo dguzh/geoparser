@@ -24,7 +24,12 @@ if t.TYPE_CHECKING:
     from geoparser.gazetteer.feature import Feature
 
 
-class ToponymRepository(BaseRepository):
+# _remove_duplicates only ever returns elements of new_toponyms, so it keeps
+# whichever kind of toponym model it was handed.
+NewToponymT = t.TypeVar("NewToponymT", bound=AnnotatorToponymBase)
+
+
+class ToponymRepository(BaseRepository[AnnotatorToponym]):
     model = AnnotatorToponym
     exception_factory: t.Callable[[str, uuid.UUID], Exception] = lambda x, y: (
         ToponymNotFoundException(f"{x} with ID {y} not found.")
@@ -127,8 +132,16 @@ class ToponymRepository(BaseRepository):
 
     @classmethod
     def validate_overlap(
-        cls, db: DBSession, toponym: AnnotatorToponymCreate, document_id: uuid.UUID
+        cls,
+        db: DBSession,
+        toponym: AnnotatorToponymBase | AnnotatorToponymUpdate,
+        document_id: uuid.UUID | str | None,
     ) -> bool:
+        # A partial update that names no document, or leaves the span alone,
+        # cannot introduce an overlap. SQL already behaved this way -- comparing
+        # against NULL matched nothing -- so this only makes the outcome explicit.
+        if document_id is None or toponym.start is None or toponym.end is None:
+            return True
         filter_args = [
             AnnotatorToponym.document_id == document_id,
             (AnnotatorToponym.start < toponym.end)
@@ -146,9 +159,9 @@ class ToponymRepository(BaseRepository):
     @classmethod
     def _remove_duplicates(
         cls,
-        old_toponyms: list[AnnotatorToponym | AnnotatorToponymCreate],
-        new_toponyms: list[AnnotatorToponym | AnnotatorToponymCreate],
-    ) -> list[AnnotatorToponymCreate]:
+        old_toponyms: t.Sequence[AnnotatorToponym | AnnotatorToponymCreate],
+        new_toponyms: t.Sequence[NewToponymT],
+    ) -> list[NewToponymT]:
         toponyms = []
         for new_toponym in new_toponyms:
             # only add the new toponym if there is no existing one
@@ -157,7 +170,9 @@ class ToponymRepository(BaseRepository):
         return sorted(toponyms, key=lambda x: x.start)
 
     @classmethod
-    def _get_wgs84_coordinates(cls, feature: "Feature") -> tuple[float, float]:
+    def _get_wgs84_coordinates(
+        cls, feature: "Feature"
+    ) -> tuple[float, float] | tuple[None, None]:
         """
         Extract WGS84 (lat, lon) coordinates from a feature's geometry.
 
@@ -255,14 +270,18 @@ class ToponymRepository(BaseRepository):
         return candidate_descriptions, append_existing_candidate
 
     @classmethod
-    def create(
+    # BaseRepository declares the widest input type (SQLModel); each repository
+    # deliberately accepts its own Create/Update model. Callers always go
+    # through the concrete repository, so the precise signature is worth more
+    # here than strict substitutability.
+    def create(  # ty: ignore[invalid-method-override]
         cls,
         db: DBSession,
         item: AnnotatorToponymCreate,
         exclude: list[str] | None = None,
         additional: dict[str, t.Any] | None = None,
     ) -> AnnotatorToponym:
-        assert "document_id" in additional, (
+        assert additional and "document_id" in additional, (
             "toponym cannot be created without link to document"
         )
         cls.validate_overlap(db, item, additional["document_id"])
@@ -275,7 +294,7 @@ class ToponymRepository(BaseRepository):
     @classmethod
     def _get_toponym(
         cls,
-        toponyms: list[AnnotatorToponym | AnnotatorToponymCreate],
+        toponyms: t.Sequence[AnnotatorToponym | AnnotatorToponymCreate],
         start: int,
         end: int,
     ) -> AnnotatorToponym | AnnotatorToponymCreate | None:
@@ -288,7 +307,10 @@ class ToponymRepository(BaseRepository):
     def get_toponym(
         cls, document: "AnnotatorDocument", start: int, end: int
     ) -> AnnotatorToponym | None:
-        return cls._get_toponym(document.toponyms, start, end)
+        # document.toponyms holds persisted rows, so the lookup can only yield
+        # an AnnotatorToponym or None.
+        found = cls._get_toponym(list(document.toponyms), start, end)
+        return found if isinstance(found, AnnotatorToponym) else None
 
     @classmethod
     def read_all(cls, db: DBSession, **filters) -> list[AnnotatorToponym]:
@@ -301,15 +323,17 @@ class ToponymRepository(BaseRepository):
         gazetteer_name: str,
         candidates_request: CandidatesGet,
     ) -> dict:
-        toponym = cls.get_toponym(doc, candidates_request.start, candidates_request.end)
+        toponym = cls.get_toponym(
+            doc, candidates_request.start or 0, candidates_request.end or 0
+        )
         if not toponym:
             raise ToponymNotFoundException
         candidate_descriptions, existing_candidate_is_appended = (
             cls.get_candidate_descriptions(
                 gazetteer_name,
                 toponym,
-                candidates_request.text,
-                candidates_request.query_text,
+                candidates_request.text or "",
+                candidates_request.query_text or "",
             )
         )
 
@@ -326,11 +350,11 @@ class ToponymRepository(BaseRepository):
         }
 
     @classmethod
-    def update(
+    def update(  # ty: ignore[invalid-method-override]
         cls,
         db: DBSession,
-        item: AnnotatorToponymUpdate,
-        document_id: str | None = None,
+        item: AnnotatorToponymUpdate | AnnotatorToponym,
+        document_id: uuid.UUID | str | None = None,
     ) -> AnnotatorToponym:
         cls.validate_overlap(db, item, document_id or item.document_id)
         return super().update(db, item)
@@ -343,6 +367,8 @@ class ToponymRepository(BaseRepository):
         annotation: AnnotatorToponymBase,
     ) -> list[AnnotatorToponym]:
         toponym = cls.get_toponym(document, annotation.start, annotation.end)
+        if toponym is None:
+            raise ToponymNotFoundException
         one_sense_per_discourse = (
             toponym.document.session.settings.one_sense_per_discourse
         )

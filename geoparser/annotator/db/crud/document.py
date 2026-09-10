@@ -19,7 +19,7 @@ from geoparser.annotator.exceptions import DocumentNotFoundException
 from geoparser.modules.recognizers.spacy import SpacyRecognizer
 
 
-class DocumentRepository(BaseRepository):
+class DocumentRepository(BaseRepository[AnnotatorDocument]):
     model = AnnotatorDocument
     exception_factory: t.Callable[[str, uuid.UUID], Exception] = lambda x, y: (
         DocumentNotFoundException(f"{x} with ID {y} not found.")
@@ -30,7 +30,7 @@ class DocumentRepository(BaseRepository):
         result = db.exec(
             select(AnnotatorDocument.doc_index)
             .where(AnnotatorDocument.session_id == session_id)
-            .order_by(AnnotatorDocument.doc_index.desc())
+            .order_by(AnnotatorDocument.doc_index.desc())  # ty: ignore[unresolved-attribute]
         ).first()
         return result if result is not None else -1
 
@@ -39,7 +39,7 @@ class DocumentRepository(BaseRepository):
         documents = db.exec(
             select(AnnotatorDocument)
             .where(AnnotatorDocument.session_id == session_id)
-            .order_by(AnnotatorDocument.doc_index.asc())
+            .order_by(AnnotatorDocument.doc_index.asc())  # ty: ignore[unresolved-attribute]
         ).all()
         for i, doc in enumerate(documents):
             if doc.doc_index != i:
@@ -48,7 +48,11 @@ class DocumentRepository(BaseRepository):
         db.commit()
 
     @classmethod
-    def create(
+    # BaseRepository declares the widest input type (SQLModel); each repository
+    # deliberately accepts its own Create/Update model. Callers always go
+    # through the concrete repository, so the precise signature is worth more
+    # here than strict substitutability.
+    def create(  # ty: ignore[invalid-method-override]
         cls,
         db: DBSession,
         item: AnnotatorDocumentCreate,
@@ -62,7 +66,7 @@ class DocumentRepository(BaseRepository):
         document = super().create(
             db,
             item,
-            exclude=["toponyms", *exclude],
+            exclude=["toponyms", *(exclude or [])],
             additional={
                 "doc_index": cls.get_highest_index(db, additional["session_id"]) + 1,
                 **additional,
@@ -92,10 +96,12 @@ class DocumentRepository(BaseRepository):
         documents = []
         for file in files:
             toponyms = []
-            filename = secure_filename(file.filename)
+            filename = secure_filename(file.filename or "")
             text = file.file.read().decode("utf-8")
             if apply_spacy and recognizer:
-                references = recognizer.predict([text])[0]
+                # Recognizers may return None for a document they cannot
+                # process; that yields no toponyms rather than a TypeError.
+                references = recognizer.predict([text])[0] or []
                 toponyms = [
                     AnnotatorToponymCreate(text=text[start:end], start=start, end=end)
                     for start, end in references
@@ -176,14 +182,15 @@ class DocumentRepository(BaseRepository):
         return super().read_all(db, **filters)
 
     @classmethod
-    def update(cls, db: DBSession, item: AnnotatorDocumentUpdate) -> AnnotatorDocument:
+    def update(cls, db: DBSession, item: AnnotatorDocumentUpdate) -> AnnotatorDocument:  # ty: ignore[invalid-method-override]
         return super().update(db, item)
 
     @classmethod
     def parse(cls, db: DBSession, id: uuid.UUID) -> AnnotatorDocument:
         document = cls.read(db, id)
         recognizer = SpacyRecognizer(model_name=document.spacy_model)
-        references = recognizer.predict([document.text])[0]
+        # None means the recognizer could not process the document.
+        references = recognizer.predict([document.text])[0] or []
         spacy_toponyms = [
             AnnotatorToponymCreate(text=document.text[start:end], start=start, end=end)
             for start, end in references

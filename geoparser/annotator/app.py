@@ -25,6 +25,7 @@ from geoparser.annotator.db.crud import (
 from geoparser.annotator.db.db import create_db_and_tables, db_location, engine, get_db
 from geoparser.annotator.db.models import (
     AnnotatorDocument,
+    AnnotatorSession,
     AnnotatorSessionCreate,
     AnnotatorSessionForTemplate,
     AnnotatorSessionSettings,
@@ -69,13 +70,30 @@ app.mount(
     StaticFiles(directory=os.path.join(os.path.dirname(__file__), "static")),
     name="static",
 )
-app.add_exception_handler(SessionNotFoundException, session_exception_handler)
+# Starlette types a handler's second parameter as bare Exception, while the
+# documented FastAPI pattern -- and every handler below -- narrows it to the
+# exception the handler is registered for. That contravariance is not
+# expressible against the current stubs.
 app.add_exception_handler(
-    SessionSettingsNotFoundException, sessionsettings_exception_handler
+    SessionNotFoundException,
+    session_exception_handler,  # ty: ignore[invalid-argument-type]
 )
-app.add_exception_handler(DocumentNotFoundException, document_exception_handler)
-app.add_exception_handler(ToponymNotFoundException, toponym_exception_handler)
-app.add_exception_handler(ToponymOverlapException, toponym_overlap_exception_handler)
+app.add_exception_handler(
+    SessionSettingsNotFoundException,
+    sessionsettings_exception_handler,  # ty: ignore[invalid-argument-type]
+)
+app.add_exception_handler(
+    DocumentNotFoundException,
+    document_exception_handler,  # ty: ignore[invalid-argument-type]
+)
+app.add_exception_handler(
+    ToponymNotFoundException,
+    toponym_exception_handler,  # ty: ignore[invalid-argument-type]
+)
+app.add_exception_handler(
+    ToponymOverlapException,
+    toponym_overlap_exception_handler,  # ty: ignore[invalid-argument-type]
+)
 templates = Jinja2Templates(
     directory=os.path.join(os.path.dirname(__file__), "templates")
 )
@@ -123,7 +141,9 @@ def annotate(
     db: t.Annotated[DBSession, Depends(get_db)],
     session_id: uuid.UUID,
     doc_index: int = 0,
-) -> HTMLResponse:
+    # Response, not HTMLResponse: this route redirects when the session or
+    # document is missing.
+) -> Response:
     global current_gazetteer_name
 
     try:
@@ -285,7 +305,7 @@ def continue_session_file(
 @app.delete("/session/{session_id}", tags=["session"])
 def delete_session(
     db: t.Annotated[DBSession, Depends(get_db)],
-    session: t.Annotated[dict, Depends(get_session)],
+    session: t.Annotated[AnnotatorSession, Depends(get_session)],
 ) -> BaseResponse:
     SessionRepository.delete(db, session.id)
     return BaseResponse()
@@ -295,7 +315,7 @@ def delete_session(
 def add_documents(
     response: Response,
     db: t.Annotated[DBSession, Depends(get_db)],
-    session: t.Annotated[dict, Depends(get_session)],
+    session: t.Annotated[AnnotatorSession, Depends(get_session)],
     spacy_model: t.Annotated[str, Form()],
     files: list[UploadFile] | None = None,
 ) -> BaseResponse:
@@ -310,7 +330,7 @@ def add_documents(
 
 @app.get("/session/{session_id}/documents", tags=["document"])
 def get_documents(
-    session: t.Annotated[dict, Depends(get_session)],
+    session: t.Annotated[AnnotatorSession, Depends(get_session)],
 ) -> list[AnnotatorDocument]:
     return session.documents
 
@@ -318,7 +338,7 @@ def get_documents(
 @app.post("/session/{session_id}/document/{doc_index}/parse", tags=["document"])
 def parse_document(
     db: t.Annotated[DBSession, Depends(get_db)],
-    doc: t.Annotated[dict, Depends(get_document)],
+    doc: t.Annotated[AnnotatorDocument, Depends(get_document)],
 ) -> ParsingResponse:
     if not doc.spacy_applied:
         doc = DocumentRepository.parse(db, doc.id)
@@ -329,7 +349,7 @@ def parse_document(
 @app.get("/session/{session_id}/document/{doc_index}/progress", tags=["document"])
 def get_document_progress(
     db: t.Annotated[DBSession, Depends(get_db)],
-    doc: t.Annotated[dict, Depends(get_document)],
+    doc: t.Annotated[AnnotatorDocument, Depends(get_document)],
 ) -> ProgressResponse:
     return ProgressResponse(**DocumentRepository.get_document_progress(db, doc.id))
 
@@ -337,7 +357,7 @@ def get_document_progress(
 @app.get("/session/{session_id}/document/{doc_index}/text", tags=["document"])
 def get_document_text(
     db: t.Annotated[DBSession, Depends(get_db)],
-    doc: t.Annotated[dict, Depends(get_document)],
+    doc: t.Annotated[AnnotatorDocument, Depends(get_document)],
 ) -> PreAnnotatedTextResponse:
     return PreAnnotatedTextResponse(
         pre_annotated_text=DocumentRepository.get_pre_annotated_text(db, doc.id)
@@ -351,7 +371,7 @@ def get_document_text(
 )
 def delete_document(
     db: t.Annotated[DBSession, Depends(get_db)],
-    session: t.Annotated[dict, Depends(get_session)],
+    session: t.Annotated[AnnotatorSession, Depends(get_session)],
     doc_index: int,
 ) -> BaseResponse:
     DocumentRepository.delete(db, session.documents[doc_index].id)
@@ -362,10 +382,13 @@ def delete_document(
     "/session/{session_id}/document/{doc_index}/get_candidates", tags=["candidates"]
 )
 def get_candidates(
-    doc: t.Annotated[dict, Depends(get_document)],
+    doc: t.Annotated[AnnotatorDocument, Depends(get_document)],
     candidates_request: CandidatesGet,
 ) -> dict[str, t.Any]:
     global current_gazetteer_name
+    # Set when the annotate page for this session was opened.
+    if current_gazetteer_name is None:
+        raise SessionNotFoundException
     return ToponymRepository.get_candidates(
         doc, current_gazetteer_name, candidates_request
     )
@@ -374,8 +397,8 @@ def get_candidates(
 @app.post("/session/{session_id}/document/{doc_index}/annotation", tags=["annotation"])
 def create_annotation(
     db: t.Annotated[DBSession, Depends(get_db)],
-    session: t.Annotated[dict, Depends(get_session)],
-    doc: t.Annotated[dict, Depends(get_document)],
+    session: t.Annotated[AnnotatorSession, Depends(get_session)],
+    doc: t.Annotated[AnnotatorDocument, Depends(get_document)],
     annotation: AnnotatorToponymBase,
 ) -> BaseResponse:
     # Add new toponym
@@ -395,7 +418,7 @@ def create_annotation(
 @app.get("/session/{session_id}/annotations/download", tags=["annotation"])
 def download_annotations(
     db: t.Annotated[DBSession, Depends(get_db)],
-    session: t.Annotated[dict, Depends(get_session)],
+    session: t.Annotated[AnnotatorSession, Depends(get_session)],
 ) -> StreamingResponse:
     # Prepare annotations file for download
     file_content = json.dumps(
@@ -414,8 +437,8 @@ def download_annotations(
 @app.put("/session/{session_id}/document/{doc_index}/annotation", tags=["annotation"])
 def overwrite_annotation(
     db: t.Annotated[DBSession, Depends(get_db)],
-    session: t.Annotated[dict, Depends(get_session)],
-    doc: t.Annotated[dict, Depends(get_document)],
+    session: t.Annotated[AnnotatorSession, Depends(get_session)],
+    doc: t.Annotated[AnnotatorDocument, Depends(get_document)],
     annotation: AnnotatorToponymBase,
 ) -> BaseResponse:
     ToponymRepository.annotate_many(db, doc, annotation)
@@ -428,14 +451,17 @@ def overwrite_annotation(
 @app.patch("/session/{session_id}/document/{doc_index}/annotation", tags=["annotation"])
 def update_annotation(
     db: t.Annotated[DBSession, Depends(get_db)],
-    session: t.Annotated[dict, Depends(get_session)],
-    doc: t.Annotated[dict, Depends(get_document)],
+    session: t.Annotated[AnnotatorSession, Depends(get_session)],
+    doc: t.Annotated[AnnotatorDocument, Depends(get_document)],
     annotation: AnnotationEdit,
 ) -> BaseResponse:
     # Find the toponym to edit
     toponym = ToponymRepository.get_toponym(
         doc, annotation.old_start, annotation.old_end
     )
+    # Offsets that match no toponym are a client error, not a 500
+    if toponym is None:
+        raise ToponymNotFoundException
     # Update the toponym
     ToponymRepository.update(
         db,
@@ -459,13 +485,15 @@ def update_annotation(
 )
 def delete_annotation(
     db: t.Annotated[DBSession, Depends(get_db)],
-    session: t.Annotated[dict, Depends(get_session)],
-    doc: t.Annotated[dict, Depends(get_document)],
+    session: t.Annotated[AnnotatorSession, Depends(get_session)],
+    doc: t.Annotated[AnnotatorDocument, Depends(get_document)],
     start: int,
     end: int,
 ) -> BaseResponse:
     # Find the toponym to delete
     toponym = ToponymRepository.get_toponym(doc, start, end)
+    if toponym is None:
+        raise ToponymNotFoundException
     ToponymRepository.delete(db, toponym.id)
     # Update last_updated timestamp
     SessionRepository.update(
@@ -476,7 +504,7 @@ def delete_annotation(
 
 @app.get("/session/{session_id}/settings", tags=["settings"])
 def get_session_settings(
-    session: t.Annotated[dict, Depends(get_session)],
+    session: t.Annotated[AnnotatorSession, Depends(get_session)],
 ) -> AnnotatorSessionSettings:
     return session.settings
 
@@ -484,7 +512,7 @@ def get_session_settings(
 @app.put("/session/{session_id}/settings", tags=["settings"])
 def put_session_settings(
     db: t.Annotated[DBSession, Depends(get_db)],
-    session: t.Annotated[dict, Depends(get_session)],
+    session: t.Annotated[AnnotatorSession, Depends(get_session)],
     session_settings: AnnotatorSessionSettingsBase,
 ) -> BaseResponse:
     SessionSettingsRepository.update(

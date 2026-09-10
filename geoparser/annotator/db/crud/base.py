@@ -7,7 +7,7 @@ from sqlmodel import Session, SQLModel, select
 T = t.TypeVar("T", bound=SQLModel)
 
 
-class BaseRepository(ABC):
+class BaseRepository(ABC, t.Generic[T]):
     model: type[T]
     exception_factory: t.Callable[[str, uuid.UUID], Exception] = lambda x, y: (
         ValueError(f"{x} with ID {y} not found.")
@@ -16,11 +16,13 @@ class BaseRepository(ABC):
     @classmethod
     def get_mapped_class(
         cls,
-        item: T,
+        item: SQLModel,
         exclude: list[str] | None = None,
         additional: dict[str, t.Any] | None = None,
     ) -> T:
-        item_data = item.model_dump(exclude=exclude or [], exclude_unset=True)
+        # pydantic wants a set here; it accepts a list identically, but the
+        # declared type is set[str].
+        item_data = item.model_dump(exclude=set(exclude or []), exclude_unset=True)
         return cls.model(**item_data, **(additional or {}))
 
     @classmethod
@@ -34,7 +36,7 @@ class BaseRepository(ABC):
     def create(
         cls,
         db: Session,
-        item: T,
+        item: SQLModel,
         exclude: list[str] | None = None,
         additional: dict[str, t.Any] | None = None,
     ) -> T:
@@ -45,7 +47,7 @@ class BaseRepository(ABC):
         return item
 
     @classmethod
-    def read(cls, db: Session, id: uuid.UUID) -> T | None:
+    def read(cls, db: Session, id: uuid.UUID) -> T:
         return cls.get_db_item(db, id)
 
     @classmethod
@@ -53,11 +55,13 @@ class BaseRepository(ABC):
         filter_args = [
             getattr(cls.model, key) == value for key, value in filters.items()
         ]
-        return db.exec(select(cls.model).where(*filter_args)).all()
+        return list(db.exec(select(cls.model).where(*filter_args)).all())
 
     @classmethod
-    def update(cls, db: Session, item: T) -> T:
-        db_item = cls.get_db_item(db, item.id)
+    def update(cls, db: Session, item: SQLModel) -> T:
+        # Every *Update model declares `id`; SQLModel is the widest type that
+        # covers all of them, and it does not carry the field itself.
+        db_item = cls.get_db_item(db, item.id)  # ty: ignore[unresolved-attribute]
         item_data = item.model_dump(exclude_unset=True)
         for key, value in item_data.items():
             setattr(db_item, key, value)
@@ -67,7 +71,7 @@ class BaseRepository(ABC):
         return db_item
 
     @classmethod
-    def delete(cls, db: Session, id: uuid.UUID) -> T | None:
+    def delete(cls, db: Session, id: uuid.UUID) -> T:
         item = cls.get_db_item(db, id)
         db.delete(item)
         db.commit()
