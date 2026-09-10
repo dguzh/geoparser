@@ -26,11 +26,13 @@ env:
   # The hard coverage gate, applied to the combined report across the whole
   # matrix. Single cells are not gated: platform-specific branches are
   # unreachable off their own operating system, so only the combination is a
-  # fair measure. Raise this when coverage rises; never lower it to go green.
-  COVERAGE_THRESHOLD: "99"
+  # fair measure -- and the combination is a union, so it can only be higher
+  # than any one cell. Raise this when coverage rises; never lower it to go green.
+  COVERAGE_THRESHOLD: "100"
   # The worst tolerated CRAP score (complexity^2 * (1-coverage)^3 + complexity).
-  # For fully covered code this is just a cyclomatic-complexity ceiling.
-  CRAP_THRESHOLD: "10"
+  # For fully covered code this is just a cyclomatic-complexity ceiling, so at
+  # 6 every measured function must stay under six branches.
+  CRAP_THRESHOLD: "6"
 
 jobs:
   pytest:

@@ -189,19 +189,40 @@ class SpacyRecognizer(Recognizer):
         """
         # Use spaCy's char_span to efficiently find overlapping span
         span = base_doc.char_span(start, end, alignment_mode="expand")
+        if not span:
+            return "LOC"  # Default fallback
 
-        if span:
-            # Check entities that overlap with our span
-            for ent in span.ents:
-                if ent.label_ in self.entity_types:
-                    return ent.label_
+        return self._span_label(span) or "LOC"
 
-            # If no entities in the exact span, check if span overlaps with any entity
-            for token in span:
-                if token.ent_type_ in self.entity_types:
-                    return token.ent_type_
+    def _span_label(self, span: spacy.tokens.Span) -> str | None:
+        """
+        The best geographical label a span carries, if any.
 
-        return "LOC"  # Default fallback
+        Entities lying inside the span win. Only when none of them is a wanted
+        type is the span scanned token by token, so a span with a matching
+        entity is never iterated.
+
+        Args:
+            span: The span covering the reference
+
+        Returns:
+            A wanted entity label, or None if the span carries none
+        """
+        return self._first_wanted(
+            ent.label_ for ent in span.ents
+        ) or self._first_wanted(token.ent_type_ for token in span)
+
+    def _first_wanted(self, labels: t.Iterable[str]) -> str | None:
+        """
+        The first label that is one of the configured entity types.
+
+        Args:
+            labels: Candidate labels, in priority order
+
+        Returns:
+            The first wanted label, or None if none matched
+        """
+        return next((label for label in labels if label in self.entity_types), None)
 
     def _prepare_training_data(
         self, texts: list[str], references: list[list[tuple[int, int]]]

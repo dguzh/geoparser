@@ -28,6 +28,8 @@ joined table is available, and the values to keep are selected in ``data``.
 from __future__ import annotations
 
 import re
+import typing as t
+from collections import Counter
 from enum import Enum
 from pathlib import Path
 
@@ -65,6 +67,20 @@ class AttributeDef(BaseModel):
 
     name: str
     type: DataType
+
+
+def _duplicates(values: t.Sequence[str | None]) -> set[str]:
+    """
+    The values that appear more than once.
+
+    Args:
+        values: Names to check; None entries are ignored
+
+    Returns:
+        The duplicated names
+    """
+    counts = Counter(value for value in values if value is not None)
+    return {value for value, count in counts.items() if count > 1}
 
 
 class SourceConfig(BaseModel):
@@ -139,8 +155,7 @@ class SourceConfig(BaseModel):
             raise ValueError(
                 f"Source '{self.name}' must declare at least one attribute"
             )
-        names = [attribute.name for attribute in self.attributes]
-        duplicates = {name for name in names if names.count(name) > 1}
+        duplicates = _duplicates([attribute.name for attribute in self.attributes])
         if duplicates:
             raise ValueError(
                 f"Source '{self.name}' has duplicate attribute names: "
@@ -155,8 +170,8 @@ class SourceConfig(BaseModel):
                 "geometry attribute"
             )
 
-    def _validate_spatial(self) -> None:
-        """A spatial source has one geometry attribute and no CSV-only options."""
+    def _reject_tabular_only_options(self) -> None:
+        """CSV parsing options make no sense without a delimiter."""
         for field in ("quote",):
             if getattr(self, field) is not None:
                 raise ValueError(
@@ -167,6 +182,10 @@ class SourceConfig(BaseModel):
             raise ValueError(
                 f"Source '{self.name}': 'skip_rows' is only valid for tabular sources"
             )
+
+    def _validate_spatial(self) -> None:
+        """A spatial source has exactly one geometry attribute, named for it."""
+        self._reject_tabular_only_options()
         geometry_attributes = self._geometry_attributes()
         if len(geometry_attributes) != 1:
             raise ValueError(
@@ -287,12 +306,7 @@ class FeatureConfig(BaseModel):
     def validate_feature(self) -> FeatureConfig:
         # validate_data has already rejected any entry without an alias, so
         # the None filter here is about types, not about dropping real keys.
-        data_names = [split_data_value(item)[1] for item in self.data]
-        duplicates = {
-            name
-            for name in data_names
-            if name is not None and data_names.count(name) > 1
-        }
+        duplicates = _duplicates([split_data_value(item)[1] for item in self.data])
         if duplicates:
             raise ValueError(
                 f"Feature '{self.source}' has duplicate data keys: "
@@ -335,8 +349,7 @@ class GazetteerConfig(BaseModel):
     def validate_sources(cls, value: list[SourceConfig]) -> list[SourceConfig]:
         if not value:
             raise ValueError("A gazetteer must define at least one source")
-        names = [source.name for source in value]
-        duplicates = {name for name in names if names.count(name) > 1}
+        duplicates = _duplicates([source.name for source in value])
         if duplicates:
             raise ValueError(f"Duplicate source names: {', '.join(sorted(duplicates))}")
         return value
@@ -346,8 +359,7 @@ class GazetteerConfig(BaseModel):
     def validate_features(cls, value: list[FeatureConfig]) -> list[FeatureConfig]:
         if not value:
             raise ValueError("A gazetteer must define at least one feature block")
-        sources = [feature.source for feature in value]
-        duplicates = {name for name in sources if sources.count(name) > 1}
+        duplicates = _duplicates([feature.source for feature in value])
         if duplicates:
             raise ValueError(
                 "Each source can back at most one feature block, but these back "

@@ -71,39 +71,57 @@ class ResolutionService:
             return
 
         with get_session() as session:
-            # Collect data for prediction
-            texts = []
-            reference_boundaries = []
-            reference_objects = []
-
-            for doc in documents:
-                # Filter to unprocessed references only
-                unprocessed_references = self._filter_unprocessed_references(
-                    session, doc.references, resolver_id
-                )
-
-                # Only add to lists if there are unprocessed references
-                if unprocessed_references:
-                    texts.append(doc.text)
-                    reference_boundaries.append(
-                        [(ref.start, ref.end) for ref in unprocessed_references]
-                    )
-                    reference_objects.append(unprocessed_references)
+            texts, reference_boundaries, reference_objects = self._collect_unprocessed(
+                session, documents, resolver_id
+            )
 
             # Only call predict if there are documents with unprocessed references
-            if texts:
-                # Get predictions from resolver using raw data
-                predicted_referents = self.resolver.predict(texts, reference_boundaries)
+            if not texts:
+                return
 
-                # Record predictions for each document. Resolvers are
-                # pluggable, so as in RecognitionService the prediction
-                # count is not enforced here.
-                for unprocessed_references, doc_referents in zip(
-                    reference_objects, predicted_referents, strict=False
-                ):
-                    self._record_referent_predictions(
-                        session, unprocessed_references, doc_referents, resolver_id
-                    )
+            predicted_referents = self.resolver.predict(texts, reference_boundaries)
+
+            # Record predictions for each document. Resolvers are pluggable, so
+            # as in RecognitionService the prediction count is not enforced here.
+            for unprocessed_references, doc_referents in zip(
+                reference_objects, predicted_referents, strict=False
+            ):
+                self._record_referent_predictions(
+                    session, unprocessed_references, doc_referents, resolver_id
+                )
+
+    def _collect_unprocessed(
+        self,
+        session: Session,
+        documents: list["Document"],
+        resolver_id: str,
+    ) -> tuple[list[str], list[list[tuple[int, int]]], list[list["Reference"]]]:
+        """
+        Gather the documents that still have references this resolver has not seen.
+
+        Args:
+            session: Database session
+            documents: Documents to inspect
+            resolver_id: Resolver whose prior work should be skipped
+
+        Returns:
+            Parallel lists of document texts, reference spans, and the
+            reference objects those spans came from
+        """
+        texts: list[str] = []
+        boundaries: list[list[tuple[int, int]]] = []
+        objects: list[list[Reference]] = []
+
+        for doc in documents:
+            unprocessed = self._filter_unprocessed_references(
+                session, doc.references, resolver_id
+            )
+            if unprocessed:
+                texts.append(doc.text)
+                boundaries.append([(ref.start, ref.end) for ref in unprocessed])
+                objects.append(unprocessed)
+
+        return texts, boundaries, objects
 
     def fit(self, documents: list["Document"], **kwargs) -> None:
         """
@@ -133,21 +151,7 @@ class ResolutionService:
         referents = []
 
         for doc in documents:
-            # Filter references that have referents from this resolver
-            # doc.toponyms returns references filtered by the recognizer context
-            doc_references = []
-            doc_referents = []
-
-            for ref in doc.toponyms:
-                # ref.location returns the feature filtered by the resolver context
-                if ref.location:
-                    doc_references.append((ref.start, ref.end))
-                    doc_referents.append(
-                        (
-                            ref.location.gazetteer_name,
-                            ref.location.identifier,
-                        )
-                    )
+            doc_references, doc_referents = self._annotated_pairs(doc)
 
             # Only include documents that have referent annotations
             if doc_references:
@@ -157,6 +161,30 @@ class ResolutionService:
 
         # Call the resolver's fit method with the prepared data
         fit(texts, references, referents, **kwargs)
+
+    @staticmethod
+    def _annotated_pairs(
+        doc: "Document",
+    ) -> tuple[list[tuple[int, int]], list[tuple[str, str]]]:
+        """
+        One document's resolved toponyms, as parallel spans and referents.
+
+        ``doc.toponyms`` is already filtered by the recognizer context, and
+        ``ref.location`` by the resolver context, so this keeps only the
+        references that carry a referent from the resolver being trained.
+
+        Args:
+            doc: The document to read annotations from
+
+        Returns:
+            The reference spans and their (gazetteer, identifier) referents
+        """
+        annotated = [(ref, ref.location) for ref in doc.toponyms if ref.location]
+        spans = [(ref.start, ref.end) for ref, _ in annotated]
+        pairs = [
+            (location.gazetteer_name, location.identifier) for _, location in annotated
+        ]
+        return spans, pairs
 
     def _record_referent_predictions(
         self,

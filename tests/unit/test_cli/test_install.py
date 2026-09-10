@@ -81,7 +81,7 @@ class TestGetBuiltinGazetteers:
 class TestInstallCli:
     """Test install_cli() function."""
 
-    @patch("geoparser.cli.install.GazetteerBuilder")
+    @patch("geoparser.gazetteer.build.GazetteerBuilder")
     @patch("geoparser.cli.install.Path")
     def test_installs_from_existing_file_path(self, mock_path_class, mock_builder):
         """Test that gazetteer is built when config file exists."""
@@ -101,7 +101,7 @@ class TestInstallCli:
         # Assert
         mock_builder_instance.build.assert_called_once_with(mock_path)
 
-    @patch("geoparser.cli.install.GazetteerBuilder")
+    @patch("geoparser.gazetteer.build.GazetteerBuilder")
     @patch("geoparser.cli.install._get_builtin_gazetteers")
     @patch("geoparser.cli.install.Path")
     def test_uses_builtin_gazetteer_when_name_matches(
@@ -173,7 +173,7 @@ class TestInstallCli:
         assert "swissnames3d" in error_message
         assert "Available built-in gazetteer configs" in error_message
 
-    @patch("geoparser.cli.install.GazetteerBuilder")
+    @patch("geoparser.gazetteer.build.GazetteerBuilder")
     @patch("geoparser.cli.install._get_builtin_gazetteers")
     @patch("geoparser.cli.install.Path")
     def test_creates_builder_instance(
@@ -201,7 +201,7 @@ class TestInstallCli:
 class TestListCli:
     """Test list_cli() function."""
 
-    @patch("geoparser.cli.install.list_artifacts")
+    @patch("geoparser.gazetteer.artifact.list_artifacts")
     def test_reports_when_no_gazetteers_installed(self, mock_list, capsys):
         """Test that an empty install base is reported."""
         from geoparser.cli.install import list_cli
@@ -212,8 +212,8 @@ class TestListCli:
 
         assert "No gazetteers installed" in capsys.readouterr().out
 
-    @patch("geoparser.cli.install.artifact_path")
-    @patch("geoparser.cli.install.list_artifacts")
+    @patch("geoparser.gazetteer.artifact.artifact_path")
+    @patch("geoparser.gazetteer.artifact.list_artifacts")
     def test_lists_installed_gazetteers_with_size(
         self, mock_list, mock_artifact_path, capsys
     ):
@@ -234,7 +234,7 @@ class TestListCli:
 class TestUninstallCli:
     """Test uninstall_cli() function."""
 
-    @patch("geoparser.cli.install.uninstall")
+    @patch("geoparser.gazetteer.build.builder.uninstall")
     def test_removes_installed_gazetteer(self, mock_uninstall, capsys):
         """Test that an installed gazetteer is removed."""
         from geoparser.cli.install import uninstall_cli
@@ -246,7 +246,7 @@ class TestUninstallCli:
         mock_uninstall.assert_called_once_with("andorranames")
         assert "Removed gazetteer 'andorranames'" in capsys.readouterr().out
 
-    @patch("geoparser.cli.install.uninstall")
+    @patch("geoparser.gazetteer.build.builder.uninstall")
     def test_exits_with_error_when_not_installed(self, mock_uninstall):
         """Test that uninstalling a missing gazetteer exits with an error."""
         import typer

@@ -13,7 +13,7 @@ import pytest
 class TestAnnotatorCli:
     """Test annotator_cli() function."""
 
-    @patch("geoparser.cli.annotator.run")
+    @patch("geoparser.annotator.app.run")
     def test_calls_annotator_run(self, mock_run):
         """Test that annotator_cli calls the annotator run function."""
         # Arrange
@@ -25,7 +25,7 @@ class TestAnnotatorCli:
         # Assert
         mock_run.assert_called_once()
 
-    @patch("geoparser.cli.annotator.run")
+    @patch("geoparser.annotator.app.run")
     def test_passes_no_arguments_to_run(self, mock_run):
         """Test that no arguments are passed to run()."""
         # Arrange

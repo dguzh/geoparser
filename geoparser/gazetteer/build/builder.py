@@ -279,33 +279,38 @@ class GazetteerBuilder:
         otherwise let the staging engine size itself above the container
         budget and get OOM-killed.
         """
-        candidates: list[int] = []
-        for reader in (
-            GazetteerBuilder._physical_memory_bytes_cgroup,
-            GazetteerBuilder._physical_memory_bytes_sysconf,
-            GazetteerBuilder._physical_memory_bytes_windows,
-        ):
-            try:
-                value = reader()
-            except (ValueError, OSError, AttributeError):
-                continue
-            if value is not None and value > 0:
-                candidates.append(value)
-        if not candidates:
+        candidates = [
+            value
+            for reader in (
+                GazetteerBuilder._physical_memory_bytes_cgroup,
+                GazetteerBuilder._physical_memory_bytes_sysconf,
+                GazetteerBuilder._physical_memory_bytes_windows,
+            )
+            if (value := GazetteerBuilder._read_memory(reader))
+        ]
+        return min(candidates) if candidates else None
+
+    @staticmethod
+    def _read_memory(reader: t.Callable[[], int | None]) -> int | None:
+        """
+        Run one memory probe, treating an unavailable source as no answer.
+
+        Args:
+            reader: A probe that returns a byte count or None
+
+        Returns:
+            A positive byte count, or None when this source cannot answer
+        """
+        try:
+            value = reader()
+        except (ValueError, OSError, AttributeError):
             return None
-        return min(candidates)
+        return value if value is not None and value > 0 else None
 
     @staticmethod
     def _physical_memory_bytes_cgroup() -> int | None:
         """Read this process's cgroup v2 ``memory.max`` limit, if finite."""
-        with open("/proc/self/cgroup", encoding="utf-8") as handle:
-            lines = handle.read().splitlines()
-        relative = None
-        for line in lines:
-            # Unified hierarchy: ``0::/docker/<id>`` (or similar).
-            if line.startswith("0::"):
-                relative = line[3:]
-                break
+        relative = GazetteerBuilder._unified_cgroup_path()
         if relative is None:
             return None
         # Walk from the process cgroup up to the root; Docker often sets
@@ -313,14 +318,59 @@ class GazetteerBuilder:
         directory = Path("/sys/fs/cgroup") / relative.lstrip("/")
         root = Path("/sys/fs/cgroup")
         while True:
-            limit_path = directory / "memory.max"
-            if limit_path.is_file():
-                text = limit_path.read_text(encoding="utf-8").strip()
-                if text != "max":
-                    return int(text)
-            if directory == root or directory.parent == directory:
+            limit = GazetteerBuilder._cgroup_memory_limit(directory)
+            if limit is not None:
+                return limit
+            if GazetteerBuilder._at_cgroup_root(directory, root):
                 return None
             directory = directory.parent
+
+    @staticmethod
+    def _at_cgroup_root(directory: Path, root: Path) -> bool:
+        """
+        Whether the walk up the cgroup tree has nowhere left to go.
+
+        Args:
+            directory: The cgroup directory just inspected
+            root: The cgroup filesystem root
+
+        Returns:
+            True when there is no further parent worth reading
+        """
+        return directory == root or directory.parent == directory
+
+    @staticmethod
+    def _unified_cgroup_path() -> str | None:
+        """
+        This process's path in the cgroup v2 unified hierarchy.
+
+        Returns:
+            The path after the ``0::`` prefix, or None if there is no
+            unified-hierarchy entry
+        """
+        with open("/proc/self/cgroup", encoding="utf-8") as handle:
+            for line in handle.read().splitlines():
+                # Unified hierarchy: ``0::/docker/<id>`` (or similar).
+                if line.startswith("0::"):
+                    return line[3:]
+        return None
+
+    @staticmethod
+    def _cgroup_memory_limit(directory: Path) -> int | None:
+        """
+        The finite ``memory.max`` of one cgroup directory, if it sets one.
+
+        Args:
+            directory: A cgroup directory to inspect
+
+        Returns:
+            The limit in bytes, or None when absent or unlimited
+        """
+        limit_path = directory / "memory.max"
+        if not limit_path.is_file():
+            return None
+        text = limit_path.read_text(encoding="utf-8").strip()
+        return None if text == "max" else int(text)
 
     @staticmethod
     def _physical_memory_bytes_sysconf() -> int | None:
@@ -403,19 +453,61 @@ class GazetteerBuilder:
                 file_path = acquirer.acquire(source_config)
                 loader.load(source_config, file_path)
 
+    @staticmethod
+    def _source_catalog(config: GazetteerConfig) -> dict[str, list[str]]:
+        """
+        The attribute names of each staged source table.
+
+        Every source declares its attributes, so the catalog comes straight
+        from the config; the staged tables carry exactly this schema.
+
+        Args:
+            config: The gazetteer configuration
+
+        Returns:
+            Attribute names keyed by source name
+        """
+        return {
+            source_config.name: [
+                attribute.name for attribute in source_config.attributes
+            ]
+            for source_config in config.sources
+        }
+
+    @staticmethod
+    def _compile_item_estimate(
+        config: GazetteerConfig, compiler: ProjectionCompiler
+    ) -> int:
+        """
+        How many progress items the compile stage expects to show.
+
+        Each feature block shows one item for assembling its features, one per
+        name it collects, and (only if it has a geometry) one for checking
+        whether any identifier repeats. Three more cover the cross-block merge.
+        The stage's total grows on the fly to cover the further "merging
+        duplicates" item that shows up only when duplicates are found.
+
+        Args:
+            config: The gazetteer configuration
+            compiler: The projection compiler for this build
+
+        Returns:
+            The initial item estimate for the stage
+        """
+        total = 3
+        for feature in config.features:
+            total += 1 + len(compiler.name_queries(feature))
+            if compiler.duplicate_geometry_query(feature) is not None:
+                total += 1
+        return total
+
     def _compile_features(
         self, connection: duckdb.DuckDBPyConnection, config: GazetteerConfig
     ) -> None:
         """Run each feature block's projection, then merge across blocks."""
         # Every source declares its attributes, so the catalog is built
         # directly from the config; the staged tables carry exactly this schema.
-        catalog = {
-            source_config.name: [
-                attribute.name for attribute in source_config.attributes
-            ]
-            for source_config in config.sources
-        }
-        compiler = ProjectionCompiler(config, catalog)
+        compiler = ProjectionCompiler(config, self._source_catalog(config))
 
         connection.execute(
             "CREATE TABLE _features (identifier VARCHAR, source VARCHAR, "
@@ -428,11 +520,7 @@ class GazetteerBuilder:
         # checking whether any identifier repeats; the stage's total grows on
         # the fly to cover the further "merging duplicates" item that shows
         # up only when duplicates are actually found.
-        total_estimate = 3
-        for feature in config.features:
-            total_estimate += 1 + len(compiler.name_queries(feature))
-            if compiler.duplicate_geometry_query(feature) is not None:
-                total_estimate += 1
+        total_estimate = self._compile_item_estimate(config, compiler)
 
         with stage("Compiling features", "Compiled features", total_estimate):
             for feature in config.features:

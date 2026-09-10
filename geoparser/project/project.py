@@ -3,6 +3,8 @@ import typing as t
 import uuid
 from pathlib import Path
 
+from sqlmodel import Session
+
 from geoparser.context import Context
 from geoparser.db.crud import DocumentRepository, ProjectRepository
 from geoparser.db.db import create_db_and_tables, get_session
@@ -205,32 +207,78 @@ class Project:
                 # Retrieve all documents for the project
                 documents = DocumentRepository.get_by_project(session, self.id)
             else:
-                # Retrieve the requested documents in the order they were requested
-                found = {
-                    document.id: document
-                    for document in DocumentRepository.get_by_ids(
-                        session, self.id, requested_ids
-                    )
-                }
+                documents = self._fetch_documents_in_order(session, requested_ids)
 
-                missing = [str(id) for id in requested_ids if id not in found]
-                if missing:
-                    raise ValueError(
-                        f"No documents with the following IDs exist in project "
-                        f"'{self.name}': {', '.join(missing)}"
-                    )
-
-                documents = [found[id] for id in requested_ids]
-
-            # Always set context on each document (even if None)
-            for doc in documents:
-                doc._set_recognizer_context(recognizer_id)
-
-                # Always set context on each reference (even if None)
-                for ref in doc.references:
-                    ref._set_resolver_context(resolver_id)
-
+            self._apply_context(documents, recognizer_id, resolver_id)
             return documents
+
+    def _fetch_documents_in_order(
+        self, session: Session, requested_ids: list[uuid.UUID]
+    ) -> list[Document]:
+        """
+        Retrieve specific documents, in the order they were requested.
+
+        Args:
+            session: Database session
+            requested_ids: Document IDs, already normalized
+
+        Returns:
+            The documents, ordered to match requested_ids
+
+        Raises:
+            ValueError: If an ID does not belong to a document in this project
+        """
+        found = {
+            document.id: document
+            for document in DocumentRepository.get_by_ids(
+                session, self.id, requested_ids
+            )
+        }
+
+        self._reject_unknown_ids(requested_ids, found)
+        return [found[id] for id in requested_ids]
+
+    def _reject_unknown_ids(
+        self, requested_ids: list[uuid.UUID], found: dict[uuid.UUID, Document]
+    ) -> None:
+        """
+        Fail if any requested ID is not a document in this project.
+
+        Args:
+            requested_ids: The IDs that were asked for
+            found: The documents that were actually retrieved, keyed by ID
+
+        Raises:
+            ValueError: If any requested ID is missing
+        """
+        missing = [str(id) for id in requested_ids if id not in found]
+        if missing:
+            raise ValueError(
+                f"No documents with the following IDs exist in project "
+                f"'{self.name}': {', '.join(missing)}"
+            )
+
+    @staticmethod
+    def _apply_context(
+        documents: list[Document],
+        recognizer_id: str | None,
+        resolver_id: str | None,
+    ) -> None:
+        """
+        Point each document and reference at one tag's recognizer and resolver.
+
+        The context is always set, including to None, so that a document loaded
+        for a tag with no results filters to nothing rather than to everything.
+
+        Args:
+            documents: Documents to annotate in place
+            recognizer_id: Recognizer whose references should be visible
+            resolver_id: Resolver whose referents should be visible
+        """
+        for doc in documents:
+            doc._set_recognizer_context(recognizer_id)
+            for ref in doc.references:
+                ref._set_resolver_context(resolver_id)
 
     def run_recognizer(self, recognizer: "Recognizer", tag: str = "latest") -> None:
         """
@@ -359,25 +407,9 @@ class Project:
         referents = []  # Location assignments (with None for non-geocoded toponyms)
 
         for doc in data["documents"]:
-            text = doc["text"]
-            texts.append(text)
-
-            # Extract all toponyms as references
-            doc_references = [(t["start"], t["end"]) for t in doc["toponyms"]]
-            references.append(doc_references)
-
-            # Create referents list aligned with ALL references
-            # Use None for toponyms that are not geocoded
-            doc_referents = []
-            for toponym in doc["toponyms"]:
-                # Only include toponyms that have been geocoded (loc_id is not "" and not null)
-                if toponym["loc_id"] and toponym["loc_id"] != "":
-                    doc_referents.append((gazetteer_name, toponym["loc_id"]))
-                else:
-                    # Non-geocoded: use None so resolver skips it
-                    doc_referents.append(None)
-
-            referents.append(doc_referents)
+            texts.append(doc["text"])
+            references.append([(t["start"], t["end"]) for t in doc["toponyms"]])
+            referents.append(self._referents_for(doc["toponyms"], gazetteer_name))
 
         # Create documents in the project if requested
         if create_documents:
@@ -386,6 +418,26 @@ class Project:
         # Create references and referents using the extracted methods
         self.create_references(texts, references, tag)
         self.create_referents(texts, references, referents, tag)
+
+    @staticmethod
+    def _referents_for(
+        toponyms: list[dict], gazetteer_name: str
+    ) -> list[tuple[str, str] | None]:
+        """
+        Build a referent per toponym, aligned one-to-one with the references.
+
+        Args:
+            toponyms: Toponym records from an annotator export
+            gazetteer_name: Gazetteer the loc_ids belong to
+
+        Returns:
+            One entry per toponym: a (gazetteer, identifier) pair when it was
+            geocoded, otherwise None so the resolver skips it.
+        """
+        return [
+            (gazetteer_name, toponym["loc_id"]) if toponym["loc_id"] else None
+            for toponym in toponyms
+        ]
 
     def delete(self) -> None:
         """

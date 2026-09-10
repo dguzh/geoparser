@@ -284,6 +284,72 @@ class TestMemoryLimit:
 
         assert GazetteerBuilder._physical_memory_bytes_cgroup() == 2147483648
 
+    def test_cgroup_reader_walks_up_to_a_parent_that_sets_a_limit(
+        self, tmp_path, monkeypatch
+    ):
+        """Docker sets memory.max on a parent while the leaf cgroup has none."""
+        from pathlib import Path as PathType
+
+        cgroup = tmp_path / "cgroup"
+        cgroup.write_text("0::/docker/abc\n")
+        cg_root = tmp_path / "cgroupfs"
+        (cg_root / "docker" / "abc").mkdir(parents=True)
+        # Only the parent carries the limit; the leaf has no memory.max at all.
+        (cg_root / "docker" / "memory.max").write_text("1073741824\n")
+
+        real_open = open
+
+        def _open(path, *args, **kwargs):
+            if str(path) == "/proc/self/cgroup":
+                return real_open(cgroup, *args, **kwargs)
+            return real_open(path, *args, **kwargs)
+
+        monkeypatch.setattr("builtins.open", _open)
+
+        real_path = PathType
+
+        def _path(*args, **kwargs):
+            if args and args[0] == "/sys/fs/cgroup":
+                return real_path(cg_root, *args[1:], **kwargs)
+            return real_path(*args, **kwargs)
+
+        monkeypatch.setattr("geoparser.gazetteer.build.builder.Path", _path)
+
+        assert GazetteerBuilder._physical_memory_bytes_cgroup() == 1073741824
+
+    def test_cgroup_reader_returns_none_when_every_level_is_unlimited(
+        self, tmp_path, monkeypatch
+    ):
+        """Walking to the root without a finite memory.max yields no limit."""
+        from pathlib import Path as PathType
+
+        cgroup = tmp_path / "cgroup"
+        cgroup.write_text("0::/docker/abc\n")
+        cg_root = tmp_path / "cgroupfs"
+        (cg_root / "docker" / "abc").mkdir(parents=True)
+        for directory in (cg_root, cg_root / "docker", cg_root / "docker" / "abc"):
+            (directory / "memory.max").write_text("max\n")
+
+        real_open = open
+
+        def _open(path, *args, **kwargs):
+            if str(path) == "/proc/self/cgroup":
+                return real_open(cgroup, *args, **kwargs)
+            return real_open(path, *args, **kwargs)
+
+        monkeypatch.setattr("builtins.open", _open)
+
+        real_path = PathType
+
+        def _path(*args, **kwargs):
+            if args and args[0] == "/sys/fs/cgroup":
+                return real_path(cg_root, *args[1:], **kwargs)
+            return real_path(*args, **kwargs)
+
+        monkeypatch.setattr("geoparser.gazetteer.build.builder.Path", _path)
+
+        assert GazetteerBuilder._physical_memory_bytes_cgroup() is None
+
     def test_windows_memory_reader_returns_total_phys(self, monkeypatch):
         """GlobalMemoryStatusEx success yields ullTotalPhys."""
         import ctypes

@@ -151,17 +151,43 @@ class Acquirer:
         if not archive_path.is_file():
             return True
 
-        if (
-            extraction_dir.name == target_filename
-            and archive_path.stat().st_mtime <= extraction_dir.stat().st_mtime
-        ):
-            return True
+        if extraction_dir.name == target_filename:
+            return self._is_fresh(archive_path, extraction_dir)
 
         target_path = self._find_target_file_quiet(extraction_dir, target_filename)
-        # bool() because the `and` yields None when no target file was found.
-        return bool(
-            target_path and archive_path.stat().st_mtime <= target_path.stat().st_mtime
-        )
+        return target_path is not None and self._is_fresh(archive_path, target_path)
+
+    @staticmethod
+    def _is_fresh(archive_path: Path, extracted: Path) -> bool:
+        """
+        Whether an extracted path is at least as new as its archive.
+
+        Args:
+            archive_path: The archive it came from
+            extracted: The extracted file or directory
+
+        Returns:
+            True when the extraction does not need redoing
+        """
+        return archive_path.stat().st_mtime <= extracted.stat().st_mtime
+
+    @staticmethod
+    def _unpack_zip(archive_path: Path, extraction_dir: Path) -> None:
+        """
+        Extract every member of a ZIP, reporting progress by uncompressed size.
+
+        Args:
+            archive_path: The archive to unpack
+            extraction_dir: Directory to unpack into
+        """
+        with zipfile.ZipFile(archive_path, "r") as zip_ref:
+            total_size = sum(info.file_size for info in zip_ref.infolist())
+            with item(
+                f"Unpacking {archive_path.name}", total=total_size or None
+            ) as progress_bar:
+                for zip_info in zip_ref.infolist():
+                    zip_ref.extract(zip_info, path=extraction_dir)
+                    progress_bar.update(zip_info.file_size)
 
     def _extract_zip(
         self, archive_path: Path, extraction_dir: Path, target_filename: str
@@ -171,14 +197,7 @@ class Acquirer:
             shutil.rmtree(extraction_dir)
         extraction_dir.mkdir(exist_ok=True)
 
-        with zipfile.ZipFile(archive_path, "r") as zip_ref:
-            total_size = sum(info.file_size for info in zip_ref.infolist())
-            with item(
-                f"Unpacking {archive_path.name}", total=total_size or None
-            ) as progress_bar:
-                for zip_info in zip_ref.infolist():
-                    zip_ref.extract(zip_info, path=extraction_dir)
-                    progress_bar.update(zip_info.file_size)
+        self._unpack_zip(archive_path, extraction_dir)
         advance()
 
         if extraction_dir.name == target_filename:

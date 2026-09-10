@@ -63,6 +63,20 @@ _EXPRESSION_TOKEN = re.compile(r"'(?:[^']|'')*'|\"[^\"]*\"|[A-Za-z_][A-Za-z0-9_]
 SOURCE_ALIAS = "src"
 
 
+def _tokens(expression: str) -> t.Iterator[tuple[re.Match[str], str]]:
+    """
+    Every token of a scalar SQL expression, with its match.
+
+    Args:
+        expression: Scalar SQL expression
+
+    Yields:
+        Each match and the text it matched
+    """
+    for match in _EXPRESSION_TOKEN.finditer(expression):
+        yield match, match.group(0)
+
+
 def qualifiers(expression: str) -> set[str]:
     """
     Collect the table qualifiers a scalar SQL expression reads columns from.
@@ -77,18 +91,31 @@ def qualifiers(expression: str) -> set[str]:
     Returns:
         Set of qualifier names, unquoted
     """
-    found = set()
-    for match in _EXPRESSION_TOKEN.finditer(expression):
-        token = match.group(0)
-        if token.startswith("'"):
-            continue
-        if not expression[match.end() :].lstrip().startswith("."):
-            continue
-        # Skip the qualified part of an already-qualified reference
-        if expression[: match.start()].rstrip().endswith("."):
-            continue
-        found.add(token[1:-1] if token.startswith('"') else token)
-    return found
+    return {
+        token[1:-1] if token.startswith('"') else token
+        for match, token in _tokens(expression)
+        if _is_qualifier(expression, match, token)
+    }
+
+
+def _is_qualifier(expression: str, match: re.Match[str], token: str) -> bool:
+    """
+    Whether a token is the qualifier part of a qualified column reference.
+
+    Args:
+        expression: The whole expression, for looking at what surrounds the token
+        match: The token's match within it
+        token: The matched text
+
+    Returns:
+        True when the token names a table that a column is read from
+    """
+    if token.startswith("'"):
+        return False
+    if not expression[match.end() :].lstrip().startswith("."):
+        return False
+    # Skip the qualified part of an already-qualified reference
+    return not expression[: match.start()].rstrip().endswith(".")
 
 
 def bare_references(expression: str) -> set[str]:
@@ -105,17 +132,31 @@ def bare_references(expression: str) -> set[str]:
     Returns:
         Set of bare column names
     """
-    found = set()
-    for match in _EXPRESSION_TOKEN.finditer(expression):
-        token = match.group(0)
-        if token.startswith("'") or token.startswith('"'):
-            continue
-        if expression[: match.start()].rstrip().endswith("."):
-            continue
-        if expression[match.end() :].lstrip().startswith("("):
-            continue
-        found.add(token)
-    return found
+    return {
+        token
+        for match, token in _tokens(expression)
+        if _is_bare_reference(expression, match, token)
+    }
+
+
+def _is_bare_reference(expression: str, match: re.Match[str], token: str) -> bool:
+    """
+    Whether a token is an unqualified column reference.
+
+    Args:
+        expression: The whole expression, for looking at what surrounds the token
+        match: The token's match within it
+        token: The matched text
+
+    Returns:
+        True for a bare column, False for literals, qualified parts and
+        function names
+    """
+    if token.startswith("'") or token.startswith('"'):
+        return False
+    if expression[: match.start()].rstrip().endswith("."):
+        return False
+    return not expression[match.end() :].lstrip().startswith("(")
 
 
 def qualify_expression(expression: str, replacements: t.Mapping[str, str]) -> str:

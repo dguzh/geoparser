@@ -26,6 +26,50 @@ _SOUNDEX_CODES = {
 }
 
 
+def _starts_new_group(code: str, previous_code: str) -> bool:
+    """
+    Whether a letter's code opens a new group rather than repeating one.
+
+    Args:
+        code: The Soundex digit for this letter, or "" for a non-coding letter
+        previous_code: The digit carried over from the preceding letter
+
+    Returns:
+        True when the digit should be emitted
+    """
+    return bool(code) and code != previous_code
+
+
+def _encode_suffix(letters: list[str], previous_code: str) -> str:
+    """
+    Encode the letters after the first into at most three digits.
+
+    Args:
+        letters: The remaining letters, uppercased
+        previous_code: The first letter's code, for adjacency tracking
+
+    Returns:
+        Between zero and three Soundex digits
+    """
+    digits = ""
+    for char in letters:
+        # h and w are transparent: they do not reset adjacency tracking, so two
+        # letters with the same code separated by h or w are coded only once.
+        if char in ("H", "W"):
+            continue
+
+        code = _SOUNDEX_CODES.get(char, "")
+        if _starts_new_group(code, previous_code):
+            digits += code
+
+        # Vowels (code "") reset adjacency, so identical codes separated by a
+        # vowel are coded twice.
+        previous_code = code
+        if len(digits) >= 3:
+            break
+    return digits
+
+
 def soundex(text: str) -> str:
     """
     Compute the American Soundex code for a string.
@@ -48,23 +92,5 @@ def soundex(text: str) -> str:
         return ""
 
     first = letters[0]
-    result = first
-    previous_code = _SOUNDEX_CODES.get(first, "")
-
-    for char in letters[1:]:
-        # h and w are transparent: they do not reset adjacency tracking, so two
-        # letters with the same code separated by h or w are coded only once.
-        if char in ("H", "W"):
-            continue
-
-        code = _SOUNDEX_CODES.get(char, "")
-        if code and code != previous_code:
-            result += code
-            if len(result) >= 4:
-                break
-
-        # Vowels (code "") reset adjacency, so identical codes separated by a
-        # vowel are coded twice.
-        previous_code = code
-
-    return (result + "000")[:4]
+    suffix = _encode_suffix(letters[1:], _SOUNDEX_CODES.get(first, ""))
+    return (first + suffix + "000")[:4]

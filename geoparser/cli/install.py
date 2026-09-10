@@ -3,10 +3,6 @@ from pathlib import Path
 
 import typer
 
-from geoparser.gazetteer.artifact import artifact_path, list_artifacts
-from geoparser.gazetteer.build import GazetteerBuilder
-from geoparser.gazetteer.build.builder import uninstall
-
 
 def _get_builtin_gazetteers() -> dict[str, Path]:
     """
@@ -53,6 +49,10 @@ def install_cli(config: str):
                 f"Available built-in gazetteer configs:\n{available}"
             )
 
+    # Imported per command: the build pipeline pulls in the heavy stack, and
+    # `list` and `uninstall` have no reason to wait for it.
+    from geoparser.gazetteer.build import GazetteerBuilder
+
     builder = GazetteerBuilder()
     builder.build(config_path)
 
@@ -61,6 +61,8 @@ def list_cli():
     """
     List installed gazetteers.
     """
+    from geoparser.gazetteer.artifact import artifact_path, list_artifacts
+
     names = list_artifacts()
     if not names:
         typer.echo("No gazetteers installed.")
@@ -77,6 +79,8 @@ def uninstall_cli(name: str):
     Args:
         name: Name of the gazetteer to remove.
     """
+    from geoparser.gazetteer.build.builder import uninstall
+
     if uninstall(name):
         typer.echo(f"Removed gazetteer '{name}'.")
     else:

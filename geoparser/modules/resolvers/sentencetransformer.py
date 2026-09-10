@@ -211,8 +211,8 @@ class SentenceTransformerResolver(Resolver):
         self._embed_contexts(contexts)
 
         # Initialize tracking structures (nested by document)
-        results = [[None for _ in doc_refs] for doc_refs in references]
-        candidates = [[[] for _ in doc_refs] for doc_refs in references]
+        results = self._empty_results(references)
+        candidates = self._empty_candidates(references)
 
         # Iterative search strategy with increasing tiers
         for tiers in range(1, self.max_tiers + 1):
@@ -223,6 +223,36 @@ class SentenceTransformerResolver(Resolver):
                 break
 
         return results
+
+    @staticmethod
+    def _empty_results(
+        references: list[list[tuple[int, int]]],
+    ) -> list[list[tuple[str, str] | None]]:
+        """
+        One empty result slot per reference, to be filled as they resolve.
+
+        Args:
+            references: Per-document reference spans
+
+        Returns:
+            A None per reference, nested by document
+        """
+        return [[None for _ in doc_refs] for doc_refs in references]
+
+    @staticmethod
+    def _empty_candidates(
+        references: list[list[tuple[int, int]]],
+    ) -> list[list[list["Feature"]]]:
+        """
+        One empty candidate list per reference.
+
+        Args:
+            references: Per-document reference spans
+
+        Returns:
+            An empty list per reference, nested by document
+        """
+        return [[[] for _ in doc_refs] for doc_refs in references]
 
     def _search_tier(
         self,
@@ -320,6 +350,42 @@ class SentenceTransformerResolver(Resolver):
             contexts.append(doc_contexts)
         return contexts
 
+    def _encode(self, texts: list[str]) -> "torch.Tensor":
+        """
+        Embed a batch of strings with the sentence transformer.
+
+        Args:
+            texts: Strings to embed
+
+        Returns:
+            One embedding per input string, in the same order
+        """
+        return self.transformer.encode(
+            texts,
+            convert_to_tensor=True,
+            batch_size=32,
+            show_progress_bar=True,
+        )
+
+    def _contexts_needing_embedding(self, contexts: list[list[str]]) -> list[str]:
+        """
+        The distinct contexts that are not already in the cache.
+
+        Args:
+            contexts: List of lists of context strings
+
+        Returns:
+            Sorted unique contexts still to encode
+        """
+        return sorted(
+            {
+                context
+                for doc_contexts in contexts
+                for context in doc_contexts
+                if context not in self.context_embeddings
+            }
+        )
+
     def _embed_contexts(self, contexts: list[list[str]]) -> None:
         """
         Generate embeddings for contexts, avoiding duplicate work.
@@ -327,30 +393,16 @@ class SentenceTransformerResolver(Resolver):
         Args:
             contexts: List of lists of context strings
         """
-        # Collect unique contexts that need encoding
-        contexts_to_encode = set()
-        for doc_contexts in contexts:
-            for context in doc_contexts:
-                # Only encode contexts we haven't seen before
-                if context not in self.context_embeddings:
-                    contexts_to_encode.add(context)
+        to_encode = self._contexts_needing_embedding(contexts)
+        if not to_encode:
+            return
 
-        # Encode unique contexts in batch
-        if contexts_to_encode:
-            unique_contexts = list(contexts_to_encode)
-            embeddings = self.transformer.encode(
-                unique_contexts,
-                convert_to_tensor=True,
-                batch_size=32,
-                show_progress_bar=True,
-            )
-
-            # Store embeddings in cache with context as key. The encoder
-            # returns one embedding per input, so strict= only matters if a
-            # stand-in model breaks that contract; truncating is the
-            # long-standing behaviour and is kept deliberately.
-            for context, embedding in zip(unique_contexts, embeddings, strict=False):
-                self.context_embeddings[context] = embedding
+        # The encoder returns one embedding per input, so strict= only matters
+        # if a stand-in model breaks that contract; truncating is the
+        # long-standing behaviour and is kept deliberately.
+        embeddings = self._encode(to_encode)
+        for context, embedding in zip(to_encode, embeddings, strict=False):
+            self.context_embeddings[context] = embedding
 
     def _gather_candidates(
         self,
@@ -372,8 +424,8 @@ class SentenceTransformerResolver(Resolver):
             method: Search method to use
             tiers: Number of rank tiers to include
         """
-        for _doc_idx, (text, doc_references, doc_candidates, doc_results) in enumerate(
-            zip(texts, references, candidates, results, strict=True)
+        for text, doc_references, doc_candidates, doc_results in zip(
+            texts, references, candidates, results, strict=True
         ):
             for ref_idx, ((start, end), result) in enumerate(
                 zip(doc_references, doc_results, strict=True)
@@ -382,15 +434,66 @@ class SentenceTransformerResolver(Resolver):
                 if result is not None:
                     continue
 
-                # Search for new candidates and merge with existing ones, avoiding duplicates
-                reference_text = text[start:end]
-                new_candidates = self.gazetteer.search(
-                    reference_text, method, tiers=tiers
-                )
-                existing_ids = {c.id for c in doc_candidates[ref_idx]}
-                for candidate in new_candidates:
-                    if candidate.id not in existing_ids:
-                        doc_candidates[ref_idx].append(candidate)
+                found = self.gazetteer.search(text[start:end], method, tiers=tiers)
+                self._merge_candidates(doc_candidates[ref_idx], found)
+
+    @staticmethod
+    def _merge_candidates(existing: list["Feature"], found: list["Feature"]) -> None:
+        """
+        Append newly found candidates, skipping ones already present.
+
+        Args:
+            existing: This reference's candidates so far, extended in place
+            found: Candidates the gazetteer just returned
+        """
+        existing_ids = {candidate.id for candidate in existing}
+        existing.extend(
+            candidate for candidate in found if candidate.id not in existing_ids
+        )
+
+    @staticmethod
+    def _unresolved_candidate_lists(
+        candidates: list[list[list["Feature"]]],
+        results: list[list[tuple[str, str] | None]],
+    ) -> list[list["Feature"]]:
+        """
+        The candidate lists belonging to references that are still unresolved.
+
+        Args:
+            candidates: Nested list of candidate lists for each reference
+            results: Nested list of current results
+
+        Returns:
+            One candidate list per unresolved reference
+        """
+        return [
+            candidate_list
+            for doc_candidates, doc_results in zip(candidates, results, strict=True)
+            for candidate_list, result in zip(doc_candidates, doc_results, strict=True)
+            if result is None
+        ]
+
+    def _candidates_needing_embedding(
+        self,
+        candidates: list[list[list["Feature"]]],
+        results: list[list[tuple[str, str] | None]],
+    ) -> list["Feature"]:
+        """
+        The distinct candidates of unresolved references that are not cached.
+
+        Args:
+            candidates: Nested list of candidate lists for each reference
+            results: Nested list of current results
+
+        Returns:
+            Unique candidates still to encode, in first-seen order
+        """
+        pending: dict[int, Feature] = {}
+        for candidate_list in self._unresolved_candidate_lists(candidates, results):
+            for candidate in candidate_list:
+                if candidate.id not in self.candidate_embeddings:
+                    pending[candidate.id] = candidate
+        return list(pending.values())
 
     def _embed_candidates(
         self,
@@ -404,44 +507,15 @@ class SentenceTransformerResolver(Resolver):
             candidates: Nested list of candidate lists for each reference
             results: Nested list of current results to determine which candidates need embedding
         """
-        # Collect unique candidates that need embedding
-        candidates_to_embed = {}  # Use dict to avoid duplicates: id -> candidate
-
-        for doc_candidates, doc_results in zip(candidates, results, strict=True):
-            for candidate_list, result in zip(doc_candidates, doc_results, strict=True):
-                # Skip already resolved references
-                if result is not None:
-                    continue
-
-                # Add candidates that don't have embeddings yet
-                for candidate in candidate_list:
-                    if candidate.id not in self.candidate_embeddings:
-                        candidates_to_embed[candidate.id] = candidate
-
-        if not candidates_to_embed:
+        pending = self._candidates_needing_embedding(candidates, results)
+        if not pending:
             return
 
-        # Convert to list for consistent ordering
-        candidates_list = list(candidates_to_embed.values())
-
-        # Generate descriptions for candidates
-        descriptions = [
-            self._generate_description(candidate) for candidate in candidates_list
-        ]
-
-        # Generate embeddings in batch
-        if descriptions:
-            embeddings = self.transformer.encode(
-                descriptions,
-                convert_to_tensor=True,
-                batch_size=32,
-                show_progress_bar=True,
-            )
-
-            # Store embeddings in cache. As above, the encoder's output
-            # length is its own contract rather than one enforced here.
-            for candidate, embedding in zip(candidates_list, embeddings, strict=False):
-                self.candidate_embeddings[candidate.id] = embedding
+        descriptions = [self._generate_description(candidate) for candidate in pending]
+        # As with contexts, the encoder's output length is its own contract.
+        embeddings = self._encode(descriptions)
+        for candidate, embedding in zip(pending, embeddings, strict=False):
+            self.candidate_embeddings[candidate.id] = embedding
 
     def _evaluate_candidates(
         self,
@@ -459,45 +533,66 @@ class SentenceTransformerResolver(Resolver):
             results: Nested list of current results (modified in-place)
             min_similarity: Minimum similarity threshold (default: 0.0)
         """
-        for _doc_idx, (doc_contexts, doc_candidates, doc_results) in enumerate(
-            zip(contexts, candidates, results, strict=True)
+        for doc_contexts, doc_candidates, doc_results in zip(
+            contexts, candidates, results, strict=True
         ):
-            for ref_idx, (context, candidate_list, result) in enumerate(
-                zip(doc_contexts, doc_candidates, doc_results, strict=True)
-            ):
-                # Skip already resolved references
-                if result is not None:
-                    continue
+            self._evaluate_document(
+                doc_contexts, doc_candidates, doc_results, min_similarity
+            )
 
-                # Skip if no candidates
-                if not candidate_list:
-                    continue
+    def _evaluate_document(
+        self,
+        doc_contexts: list[str],
+        doc_candidates: list[list["Feature"]],
+        doc_results: list[tuple[str, str] | None],
+        min_similarity: float,
+    ) -> None:
+        """
+        Resolve one document's still-unresolved references, in place.
 
-                # Get reference context embedding using context as key
-                context_embedding = self.context_embeddings[context]
+        Args:
+            doc_contexts: Context string per reference
+            doc_candidates: Candidate list per reference
+            doc_results: Result slot per reference, filled in place
+            min_similarity: Similarity a candidate must reach to be accepted
+        """
+        for ref_idx, (context, candidate_list, result) in enumerate(
+            zip(doc_contexts, doc_candidates, doc_results, strict=True)
+        ):
+            # Skip references that are already resolved or have nothing to rank
+            if result is not None or not candidate_list:
+                continue
 
-                # Get candidate embeddings
-                candidate_embeddings = [
-                    self.candidate_embeddings[candidate.id]
-                    for candidate in candidate_list
-                ]
+            referent = self._best_referent(context, candidate_list, min_similarity)
+            if referent is not None:
+                doc_results[ref_idx] = referent
 
-                # Calculate similarities
-                similarities = self._calculate_similarities(
-                    context_embedding, candidate_embeddings
-                )
+    def _best_referent(
+        self,
+        context: str,
+        candidate_list: list["Feature"],
+        min_similarity: float,
+    ) -> tuple[str, str] | None:
+        """
+        Pick the candidate most similar to a reference's context.
 
-                # Find best candidate
-                best_idx = max(range(len(similarities)), key=lambda j: similarities[j])
-                best_similarity = similarities[best_idx]
-                best_candidate = candidate_list[best_idx]
+        Args:
+            context: The reference's context string
+            candidate_list: Candidates to rank, all already embedded
+            min_similarity: Similarity a candidate must reach to be accepted
 
-                # Check if similarity meets threshold
-                if best_similarity >= min_similarity:
-                    doc_results[ref_idx] = (
-                        self.gazetteer_name,
-                        best_candidate.identifier,
-                    )
+        Returns:
+            A (gazetteer_name, identifier) pair, or None when the best
+            candidate is not similar enough
+        """
+        similarities = self._calculate_similarities(
+            self.context_embeddings[context],
+            [self.candidate_embeddings[candidate.id] for candidate in candidate_list],
+        )
+        best_idx = max(range(len(similarities)), key=lambda j: similarities[j])
+        if similarities[best_idx] < min_similarity:
+            return None
+        return self.gazetteer_name, candidate_list[best_idx].identifier
 
     def _extract_context(self, text: str, start: int, end: int) -> str:
         """
@@ -597,6 +692,41 @@ class SentenceTransformerResolver(Resolver):
                 return index
         raise ValueError(f"No sentence contains reference at position {start}-{end}")
 
+    def _sentence_tokens(self, sentence: "spacy.tokens.Span") -> int:
+        """
+        The token cost of one sentence.
+
+        Args:
+            sentence: The sentence to measure
+
+        Returns:
+            Number of tokens the encoder would spend on it
+        """
+        return len(self.tokenizer.tokenize(sentence.text))
+
+    def _affordable_cost(
+        self,
+        sentences: list["spacy.tokens.Span"],
+        index: int,
+        remaining: int,
+    ) -> int | None:
+        """
+        The cost of a neighbouring sentence, if it exists and still fits.
+
+        Args:
+            sentences: The document's sentence spans
+            index: Index of the neighbour being considered
+            remaining: Tokens left in the budget
+
+        Returns:
+            The neighbour's token cost, or None when there is no such sentence
+            or it would not fit
+        """
+        if index < 0 or index >= len(sentences):
+            return None
+        cost = self._sentence_tokens(sentences[index])
+        return cost if cost <= remaining else None
+
     def _expand_window(
         self,
         sentences: list["spacy.tokens.Span"],
@@ -618,32 +748,46 @@ class SentenceTransformerResolver(Resolver):
             The contiguous run of sentences to use as context
         """
         window = [sentences[target_idx]]
-        tokens_count = len(self.tokenizer.tokenize(sentences[target_idx].text))
+        remaining = token_limit - self._sentence_tokens(sentences[target_idx])
         first, last = target_idx, target_idx
 
         while True:
-            expanded = False
+            grew = False
 
-            if first > 0:
-                candidate = sentences[first - 1]
-                cost = len(self.tokenizer.tokenize(candidate.text))
-                if tokens_count + cost <= token_limit:
-                    window.insert(0, candidate)
-                    tokens_count += cost
-                    first -= 1
-                    expanded = True
+            cost = self._affordable_cost(sentences, first - 1, remaining)
+            if cost is not None:
+                first -= 1
+                remaining -= cost
+                window.insert(0, sentences[first])
+                grew = True
 
-            if last < len(sentences) - 1:
-                candidate = sentences[last + 1]
-                cost = len(self.tokenizer.tokenize(candidate.text))
-                if tokens_count + cost <= token_limit:
-                    window.append(candidate)
-                    tokens_count += cost
-                    last += 1
-                    expanded = True
+            cost = self._affordable_cost(sentences, last + 1, remaining)
+            if cost is not None:
+                last += 1
+                remaining -= cost
+                window.append(sentences[last])
+                grew = True
 
-            if not expanded:
+            if not grew:
                 return window
+
+    def _admin_levels(self, location_data: dict) -> list[str]:
+        """
+        Administrative place names for a candidate, most specific first.
+
+        Args:
+            location_data: The candidate's gazetteer attributes
+
+        Returns:
+            The non-empty administrative names, in level3..level1 order
+        """
+        values = []
+        for level in ("level3", "level2", "level1"):
+            if level in self.attribute_map:
+                value = location_data.get(self.attribute_map[level])
+                if value:
+                    values.append(value)
+        return values
 
     def _generate_description(self, candidate: "Feature") -> str:
         """
@@ -655,43 +799,24 @@ class SentenceTransformerResolver(Resolver):
         Returns:
             Location description string
         """
-        # Get location data
         location_data = candidate.data
-
-        # Use the attribute map that was set during initialization
         attr_map = self.attribute_map
-
-        # Extract attributes
-        feature_name = location_data.get(attr_map["name"])
-        feature_type = location_data.get(attr_map["type"])
-
-        # Build description components
         description_parts = []
 
-        # Add feature name if available
+        feature_name = location_data.get(attr_map["name"])
         if feature_name:
             description_parts.append(feature_name)
 
-        # Add feature type in brackets if available
+        feature_type = location_data.get(attr_map["type"])
         if feature_type:
             description_parts.append(f"({feature_type})")
 
-        # Build hierarchical context from admin levels
-        admin_levels = []
-        for level in ["level3", "level2", "level1"]:
-            if level in attr_map:
-                admin_value = location_data.get(attr_map[level])
-                if admin_value:
-                    admin_levels.append(admin_value)
-
-        # Combine description parts
+        admin_levels = self._admin_levels(location_data)
         if admin_levels:
             description_parts.append("in")
             description_parts.append(", ".join(admin_levels))
 
-        description = " ".join(description_parts).strip()
-
-        return description
+        return " ".join(description_parts).strip()
 
     def _calculate_similarities(
         self,

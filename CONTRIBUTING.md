@@ -63,7 +63,7 @@ uv run pytest
 Coverage is collected for `geoparser` (HTML report in `htmlcov/`; open `htmlcov/index.html`). `geoparser/annotator/` is omitted from coverage. CI enforces a hard floor on the combined coverage of the whole matrix:
 
 ```bash
-uv run pytest --cov-fail-under=99
+uv run pytest --cov-fail-under=100
 ```
 
 Useful subsets:
@@ -82,8 +82,8 @@ uv sync
 uv run ruff check .
 uv run ruff format --check .
 uv run ty check
-uv run pytest --cov-fail-under=99
-uv run python scripts/crap.py --max-crap 10
+uv run pytest --cov-fail-under=100
+uv run python scripts/crap.py --max-crap 6
 uv run mutmut run
 uv run mutmut export-cicd-stats
 uv run python scripts/mutation_gate.py --max-survivors 956

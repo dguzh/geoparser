@@ -142,10 +142,12 @@ do_not_mutate = [
     "geoparser/annotator/*",
     "geoparser/cli/*",
 ]
-# Mutants are judged by the unit suite only. The integration and e2e suites
-# build a gazetteer and load real models, which at one test run per mutant
-# would take days rather than minutes.
-pytest_add_cli_args_test_selection = ["tests/unit"]
+# Mutants are judged by the unit and integration suites. The integration suite
+# is what actually exercises the gazetteer build pipeline, so leaving it out
+# made most of that package look untested. mutmut only runs the tests that
+# reach a given mutant, so the cost is mostly the one-off mapping pass rather
+# than a whole suite per mutant.
+pytest_add_cli_args_test_selection = ["tests/unit", "tests/integration"]
 # Coverage instrumentation is pure overhead here, and is re-collected per
 # mutant otherwise.
 pytest_add_cli_args = ["--no-cov", "-p", "no:cacheprovider"]
@@ -164,6 +166,12 @@ exclude_also = [
     ]
 
 [tool.coverage.run]
+# sys.monitoring instead of the sys.settrace tracer: ~20% off the measured
+# runs, with byte-identical results. Coverage falls back to the default core
+# on Python 3.10/3.11, where sys.monitoring does not exist, and the warning
+# about doing so is silenced because that fallback is expected here.
+core = "sysmon"
+disable_warnings = ["no-sysmon"]
 source = ["geoparser"]
 omit = [
     "tests/*",

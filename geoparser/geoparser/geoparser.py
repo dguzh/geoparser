@@ -44,6 +44,18 @@ class Geoparser:
         self.recognizer = recognizer
         self.resolver = resolver
 
+    def _run_modules(self, project: Project) -> None:
+        """
+        Run whichever of the two modules were configured.
+
+        Args:
+            project: The project holding the documents to process
+        """
+        if self.recognizer is not None:
+            project.run_recognizer(self.recognizer)
+        if self.resolver is not None:
+            project.run_resolver(self.resolver)
+
     @overload
     def parse(self, texts: str, save: bool = False) -> Document: ...
 
@@ -86,13 +98,7 @@ class Geoparser:
             # Create documents in the project
             document_ids = project.create_documents([texts] if single_text else texts)
 
-            # Run the recognizer on all documents (if provided)
-            if self.recognizer is not None:
-                project.run_recognizer(self.recognizer)
-
-            # Run the resolver on all documents (if provided)
-            if self.resolver is not None:
-                project.run_resolver(self.resolver)
+            self._run_modules(project)
 
             # Get the documents back in input order, with results from our
             # specific recognizer and resolver

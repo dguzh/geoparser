@@ -221,6 +221,42 @@ class Loader:
                 lambda: self.connection.execute(read_sql),
             )
         advance()
+        self._normalize_geometry_column(source_config, file_path, raw)
+
+        select_parts = [
+            self._select_part(source_config, attribute)
+            for attribute in source_config.attributes
+        ]
+        table = quote_identifier(source_config.name)
+        cast_sql = (
+            f"CREATE OR REPLACE TABLE {table} AS "
+            f"SELECT {', '.join(select_parts)} FROM {raw}"
+        )
+        with item(f"Normalizing {source_config.name}", total=100) as bar:
+            track(
+                bar,
+                self.connection.query_progress,
+                lambda: self.connection.execute(cast_sql),
+            )
+        advance()
+        self.connection.execute(f"DROP TABLE {raw}")
+
+    def _sole_geometry_column(
+        self, source_config: SourceConfig, file_path: Path
+    ) -> str:
+        """
+        The one geometry column a spatial file must expose.
+
+        Args:
+            source_config: The source being loaded
+            file_path: The file it was read from, for error messages
+
+        Returns:
+            The column's name as ST_Read produced it
+
+        Raises:
+            ValueError: If the file has no geometry column, or more than one
+        """
         # Geometry types may carry a CRS parameter, e.g. GEOMETRY('EPSG:4326')
         geometry_columns = [
             row[0]
@@ -240,35 +276,42 @@ class Loader:
                 f"Source '{source_config.name}': multiple geometry columns found "
                 f"in {file_path}: {', '.join(geometry_columns)}"
             )
-        if geometry_columns[0] != GEOMETRY_COLUMN:
+        return geometry_columns[0]
+
+    def _normalize_geometry_column(
+        self, source_config: SourceConfig, file_path: Path, raw: str
+    ) -> None:
+        """
+        Rename the staged geometry column to the canonical name.
+
+        Args:
+            source_config: The source being loaded
+            file_path: The file it was read from, for error messages
+            raw: Quoted name of the raw staging table
+        """
+        found = self._sole_geometry_column(source_config, file_path)
+        if found != GEOMETRY_COLUMN:
             self.connection.execute(
                 f"ALTER TABLE {raw} RENAME COLUMN "
-                f"{quote_identifier(geometry_columns[0])} TO "
+                f"{quote_identifier(found)} TO "
                 f"{quote_identifier(GEOMETRY_COLUMN)}"
             )
 
-        select_parts = []
-        for attribute in source_config.attributes:
-            column = quote_identifier(attribute.name)
-            if attribute.type == DataType.GEOMETRY:
-                select_parts.append(f"{self._reprojection(source_config)} AS {column}")
-            else:
-                select_parts.append(
-                    f"CAST({column} AS {_DUCKDB_TYPES[attribute.type]}) AS {column}"
-                )
-        table = quote_identifier(source_config.name)
-        cast_sql = (
-            f"CREATE OR REPLACE TABLE {table} AS "
-            f"SELECT {', '.join(select_parts)} FROM {raw}"
-        )
-        with item(f"Normalizing {source_config.name}", total=100) as bar:
-            track(
-                bar,
-                self.connection.query_progress,
-                lambda: self.connection.execute(cast_sql),
-            )
-        advance()
-        self.connection.execute(f"DROP TABLE {raw}")
+    def _select_part(self, source_config: SourceConfig, attribute) -> str:
+        """
+        The SELECT expression that stages one attribute in its declared type.
+
+        Args:
+            source_config: The source being loaded
+            attribute: The attribute to project
+
+        Returns:
+            A single ``<expression> AS <column>`` fragment
+        """
+        column = quote_identifier(attribute.name)
+        if attribute.type == DataType.GEOMETRY:
+            return f"{self._reprojection(source_config)} AS {column}"
+        return f"CAST({column} AS {_DUCKDB_TYPES[attribute.type]}) AS {column}"
 
     def _reprojection(self, source_config: SourceConfig) -> str:
         """
