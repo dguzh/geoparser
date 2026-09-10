@@ -50,7 +50,14 @@ from contextlib import contextmanager
 from contextvars import ContextVar
 
 from rich.console import Console
-from rich.progress import BarColumn, Progress, ProgressColumn, Task, TimeElapsedColumn
+from rich.progress import (
+    BarColumn,
+    Progress,
+    ProgressColumn,
+    Task,
+    TaskID,
+    TimeElapsedColumn,
+)
 from rich.rule import Rule
 from rich.spinner import Spinner
 from rich.table import Column, Table
@@ -107,7 +114,9 @@ class _DescriptionColumn(ProgressColumn):
                 return Text(str(task.fields["done_label"]), style=f"bold {_DONE_STYLE}")
             return Text(str(task.description), style=f"bold {_RUNNING_STYLE}")
         line = Text(_CHILD_CONNECTOR, style="dim")
-        line.append_text(self._child_spinner.render(task.get_time()))
+        # Spinner.render is typed as any renderable; for a plain-text spinner
+        # it is always a Text, which is what append_text needs.
+        line.append_text(t.cast(Text, self._child_spinner.render(task.get_time())))
         line.append(" ")
         line.append(str(task.description), style="dim")
         return line
@@ -255,8 +264,8 @@ class Stage:
         self._completed = 0
         self._progress: Progress | None = None
         self._owns_display = False
-        self._task_id: int | None = None
-        self._stage_token = None
+        self._task_id: TaskID | None = None
+        self._stage_token: t.Any = None
 
     def __enter__(self) -> "Stage":
         progress = _active_progress.get()
@@ -274,14 +283,31 @@ class Stage:
         self._stage_token = _active_stage.set(self)
         return self
 
+    @property
+    def _display(self) -> tuple[Progress, TaskID]:
+        """
+        The progress display and task this stage owns.
+
+        Returns:
+            The active Progress and the stage's task id
+
+        Raises:
+            RuntimeError: If the stage is used outside its ``with`` block,
+                which previously surfaced as an AttributeError on None.
+        """
+        if self._progress is None or self._task_id is None:  # pragma: no cover
+            raise RuntimeError("Stage used outside of its `with` block")
+        return self._progress, self._task_id
+
     def __exit__(self, exc_type, exc_val, exc_tb) -> None:
         _active_stage.reset(self._stage_token)
+        progress, task_id = self._display
         if exc_type is None:
             # Snap to completion so the bar turns green and the label flips
             # to its done form even if a caller under-counted advances.
-            self._progress.update(self._task_id, completed=self.total_items)
+            progress.update(task_id, completed=self.total_items)
         if self._owns_display:
-            self._progress.stop()
+            progress.stop()
 
     def advance(self, count: int = 1) -> None:
         """
@@ -291,16 +317,18 @@ class Stage:
         items than the stage's estimate accounted for, so the bar never
         shows more completed than total and never has to jump backwards.
         """
+        progress, task_id = self._display
         self._completed += count
         if self._completed > self.total_items:
             self.total_items = self._completed
-            self._progress.update(self._task_id, total=self.total_items)
-        self._progress.advance(self._task_id, count)
+            progress.update(task_id, total=self.total_items)
+        progress.advance(task_id, count)
 
     def item(self, description: str, total: float | None = None) -> "_Item":
         """Create an item bar nested under this stage."""
-        task_id = self._progress.add_task(description, total=total, is_child=True)
-        return _Item(self._progress, task_id, total=total)
+        progress, _ = self._display
+        task_id = progress.add_task(description, total=total, is_child=True)
+        return _Item(progress, task_id, total=total)
 
 
 @contextmanager
@@ -328,7 +356,7 @@ class _Item:
     def __init__(
         self,
         progress: Progress,
-        task_id: int,
+        task_id: TaskID,
         total: float | None = None,
     ):
         self._progress = progress
@@ -425,7 +453,9 @@ def item(description: str, total: float | None = None) -> t.Iterator[_Item]:
 def track(
     bar: _Item,
     poll: t.Callable[[], float | None],
-    run: t.Callable[[], None],
+    # Whatever `run` returns is discarded, so callers are free to pass an
+    # expression lambda (DuckDB's execute() returns the connection).
+    run: t.Callable[[], object],
     poll_interval: float = 0.1,
 ) -> None:
     """

@@ -16,6 +16,7 @@ import duckdb
 from geoparser.gazetteer import artifact
 from geoparser.gazetteer.build.progress import advance, item
 from geoparser.gazetteer.build.schema import GazetteerConfig
+from geoparser.gazetteer.build.stages.load import scalar_int
 
 # Number of rows copied per batch from DuckDB to SQLite
 BATCH_SIZE = 50000
@@ -75,9 +76,7 @@ def copy_rows(
     Returns:
         Number of copied rows
     """
-    total = duckdb_connection.execute(
-        f"SELECT count(*) FROM ({select_sql})"
-    ).fetchone()[0]
+    total = scalar_int(duckdb_connection, f"SELECT count(*) FROM ({select_sql})")
     cursor = duckdb_connection.execute(select_sql)
     copied = 0
     sqlite_connection.execute("BEGIN")

@@ -39,7 +39,7 @@ from geoparser.gazetteer.build.schema import FeatureConfig, GazetteerConfig
 from geoparser.gazetteer.build.stages.acquire import Acquirer
 from geoparser.gazetteer.build.stages.compile import ProjectionCompiler
 from geoparser.gazetteer.build.stages.emit import create_artifact_db, emit, finalize
-from geoparser.gazetteer.build.stages.load import Loader, quote_literal
+from geoparser.gazetteer.build.stages.load import Loader, quote_literal, scalar_int
 
 
 def _sqlite_temp_env_names() -> tuple[str, ...]:
@@ -263,7 +263,9 @@ class GazetteerBuilder:
     def _available_cpus() -> int:
         """Return CPUs usable by this process (affinity-aware when possible)."""
         try:
-            return len(os.sched_getaffinity(0))
+            # Linux-only; the AttributeError branch is the guard everywhere else,
+            # and typeshed only declares it for the checker's own platform.
+            return len(os.sched_getaffinity(0))  # ty: ignore[unresolved-attribute]
         except (AttributeError, OSError):
             return os.cpu_count() or 1
 
@@ -346,7 +348,12 @@ class GazetteerBuilder:
 
         status = MEMORYSTATUSEX()
         status.dwLength = ctypes.sizeof(status)
-        if not ctypes.windll.kernel32.GlobalMemoryStatusEx(ctypes.byref(status)):
+        # ctypes only exposes windll on Windows. Off Windows this raises
+        # AttributeError, which _physical_memory_bytes catches to skip this
+        # reader; typeshed likewise only declares it for the checker's platform.
+        if not ctypes.windll.kernel32.GlobalMemoryStatusEx(  # ty: ignore[unresolved-attribute]
+            ctypes.byref(status)
+        ):
             return None
         return int(status.ullTotalPhys)
 
@@ -470,7 +477,7 @@ class GazetteerBuilder:
                 )
             advance()
 
-        total = connection.execute("SELECT count(*) FROM _features_final").fetchone()[0]
+        total = scalar_int(connection, "SELECT count(*) FROM _features_final")
         if total == 0:
             raise ValueError(
                 "The build produced no features; check the configuration's "
@@ -549,9 +556,9 @@ class GazetteerBuilder:
             )
         advance()
         try:
-            has_duplicates = connection.execute(
-                "SELECT count(*) FROM _dup_geometry"
-            ).fetchone()[0]
+            has_duplicates = scalar_int(
+                connection, "SELECT count(*) FROM _dup_geometry"
+            )
             if has_duplicates:
                 with item(f"Merging duplicates in {feature.source}", total=100) as bar:
                     track(

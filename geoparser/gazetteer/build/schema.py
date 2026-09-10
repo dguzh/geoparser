@@ -269,8 +269,14 @@ class FeatureConfig(BaseModel):
 
     @model_validator(mode="after")
     def validate_feature(self) -> FeatureConfig:
+        # validate_data has already rejected any entry without an alias, so
+        # the None filter here is about types, not about dropping real keys.
         data_names = [split_data_value(item)[1] for item in self.data]
-        duplicates = {name for name in data_names if data_names.count(name) > 1}
+        duplicates = {
+            name
+            for name in data_names
+            if name is not None and data_names.count(name) > 1
+        }
         if duplicates:
             raise ValueError(
                 f"Feature '{self.source}' has duplicate data keys: "

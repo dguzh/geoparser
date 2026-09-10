@@ -66,6 +66,8 @@ class Acquirer:
         """Download the source's file or validate its local path."""
         if source_config.url:
             return self._download_file(source_config.url)
+        if source_config.path is None:  # pragma: no cover - validate_source
+            raise ValueError(f"Source '{source_config.name}' has neither url nor path")
         local_path = Path(source_config.path)
         if not local_path.exists():
             raise FileNotFoundError(f"Local path does not exist: {local_path}")

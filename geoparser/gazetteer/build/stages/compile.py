@@ -198,6 +198,8 @@ class ProjectionCompiler:
         data_parts = []
         for item in feature.data:
             expression, alias = split_data_value(item)
+            if alias is None:  # pragma: no cover - FeatureConfig.validate_data
+                raise ValueError(f"Data value '{item}' has no alias")
             value = self._resolve(feature, expression, f"data value '{alias}'")
             data_parts.append(f"{quote_literal(alias)}: {self._first(value)}")
         if data_parts:
@@ -355,8 +357,11 @@ class ProjectionCompiler:
         coordinate columns still has to be transformed, from the CRS its
         source declares.
         """
-        geometry = self._resolve_own(feature, feature.geometry, "geometry")
-        if self._reads_geometry_column(feature):
+        if feature.geometry is None:  # pragma: no cover - callers check first
+            raise ValueError(f"Feature '{feature.source}' declares no geometry")
+        expression = feature.geometry
+        geometry = self._resolve_own(feature, expression, "geometry")
+        if self._reads_geometry_column(feature, expression):
             return geometry
         native_crs = self._source_crs(feature.source)
         if native_crs != self.config.crs:
@@ -366,11 +371,11 @@ class ProjectionCompiler:
             )
         return geometry
 
-    def _reads_geometry_column(self, feature: FeatureConfig) -> bool:
+    def _reads_geometry_column(self, feature: FeatureConfig, expression: str) -> bool:
         """Whether the block's geometry is read from its source's geometry."""
         if self._sources[feature.source].is_tabular:
             return False
-        return GEOMETRY_ATTRIBUTE in bare_references(feature.geometry)
+        return GEOMETRY_ATTRIBUTE in bare_references(expression)
 
     def _source_crs(self, source_name: str) -> str:
         """Return the CRS of a source, defaulting to the gazetteer CRS."""

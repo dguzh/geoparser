@@ -50,6 +50,26 @@ def quote_identifier(name: str) -> str:
     return f'"{escaped}"'
 
 
+def scalar_int(connection: duckdb.DuckDBPyConnection, sql: str) -> int:
+    """
+    Run a query that yields exactly one integer, such as a ``COUNT(*)``.
+
+    Args:
+        connection: DuckDB connection to run the query on
+        sql: Query returning a single row with a single integer column
+
+    Returns:
+        The integer the query produced
+
+    Raises:
+        RuntimeError: If the query produced no row at all
+    """
+    row = connection.execute(sql).fetchone()
+    if row is None:  # pragma: no cover - an aggregate always returns one row
+        raise RuntimeError(f"Query returned no rows: {sql}")
+    return int(row[0])
+
+
 def quote_literal(value: str) -> str:
     """
     Quote a string literal for SQL.
@@ -98,7 +118,7 @@ class Loader:
         else:
             self._load_spatial(source_config, file_path)
         table = quote_identifier(source_config.name)
-        return self.connection.execute(f"SELECT count(*) FROM {table}").fetchone()[0]
+        return scalar_int(self.connection, f"SELECT count(*) FROM {table}")
 
     def columns(self, table_name: str) -> list[str]:
         """
@@ -127,6 +147,8 @@ class Loader:
         lines (common in CSVs with prose columns), so such files are re-read
         with the single-threaded scanner rather than rejected.
         """
+        if source_config.delimiter is None:  # pragma: no cover - is_tabular
+            raise ValueError(f"Source '{source_config.name}' has no delimiter")
         options = [
             f"delim={quote_literal(source_config.delimiter)}",
             f"skip={source_config.skip_rows}",
