@@ -7,6 +7,11 @@ on:
   push:
     branches:
       - main
+  # Mutation testing is the one check too slow to sit in front of a merge: a
+  # cold run spends ~40 minutes mapping tests to code before it mutates
+  # anything. It runs nightly instead, and on demand.
+  schedule:
+    - cron: "0 3 * * *"
   workflow_dispatch:
 
 permissions:
@@ -17,12 +22,13 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
-  # The most surviving mutants tolerated, measured on 2026-09-10: 3764 mutants,
-  # 2353 killed, 956 survived, a 71.1% mutation score. This is a ratchet --
-  # lower it whenever a run comes in under, and never raise it to turn a red
-  # build green. A new survivor means a line the unit suite runs but does not
-  # check, so the fix is the test, not the threshold.
-  MAX_SURVIVING_MUTANTS: "956"
+  # The most surviving mutants tolerated. Measured on this tree: 3871 mutants,
+  # 2480 killed, 931 survived, 290 with no covering unit test -- a 72.7%
+  # mutation score at 9.69 mutants/second. This is a ratchet: lower it whenever
+  # a run comes in under, and never raise it to turn a red build green. A new
+  # survivor means a line the unit suite runs but does not check, so the fix is
+  # the test, not the threshold.
+  MAX_SURVIVING_MUTANTS: "931"
 
 jobs:
   # Type checking needs the dependencies installed, or every third-party import
@@ -48,8 +54,14 @@ jobs:
         run: uv run --no-sync ty check
 
   mutation:
+    # Nightly and on demand only; the pull request gates are ruff, ty, the
+    # test matrix, coverage and CRAP, which together finish in minutes.
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    # A cold run maps every test to the code it reaches before it mutates
+    # anything, and that mapping pass dominates. Warm runs restore the
+    # mutants/ cache below and only re-test what changed.
+    timeout-minutes: 180
     steps:
       - uses: actions/checkout@v7
         with:

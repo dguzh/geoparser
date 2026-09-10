@@ -30,10 +30,10 @@ class TestMain:
     def test_main_module_execution(self):
         """Test running the module directly with python -m geoparser."""
         # Arrange & Act
-        # `python -m geoparser --help` imports torch and spaCy, which takes
-        # ~20s even on a warm machine, so the budget is generous: a loaded CI
-        # runner should not turn a slow import into a spurious failure.
-        # Windows gets more still, where subprocess start-up is slower.
+        # The CLI resolves its heavy imports per command, so `--help` is a
+        # fraction of a second. The budget stays generous anyway: a loaded CI
+        # runner should not turn a slow start-up into a spurious failure, and
+        # Windows spawns subprocesses more slowly still.
         timeout = 240 if sys.platform == "win32" else 120
 
         result = subprocess.run(
@@ -46,3 +46,36 @@ class TestMain:
         # Assert
         assert result.returncode == 0
         assert "Usage:" in result.stdout or "usage:" in result.stdout.lower()
+
+    def test_help_does_not_import_the_heavy_stack(self):
+        """
+        `--help` must not pay for torch, spaCy or duckdb.
+
+        Registering the annotator and install commands used to import the
+        FastAPI app and the build pipeline at module scope, which made every
+        CLI invocation load the whole machine-learning stack. This pins the
+        commands staying lazily imported.
+        """
+        # Arrange & Act
+        probe = (
+            "import runpy, sys\n"
+            "sys.argv = ['geoparser', '--help']\n"
+            "try:\n"
+            "    runpy.run_module('geoparser', run_name='__main__')\n"
+            "except SystemExit:\n"
+            "    pass\n"
+            "heavy = {'torch', 'spacy', 'thinc', 'transformers', 'duckdb'}\n"
+            "print(sorted(heavy & set(sys.modules)))\n"
+        )
+        result = subprocess.run(
+            [sys.executable, "-c", probe],
+            capture_output=True,
+            text=True,
+            timeout=240 if sys.platform == "win32" else 120,
+        )
+
+        # Assert
+        assert result.returncode == 0, result.stderr
+        assert result.stdout.strip().endswith("[]"), (
+            f"CLI --help imported heavy modules: {result.stdout.strip()}"
+        )

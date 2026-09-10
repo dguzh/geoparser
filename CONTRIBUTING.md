@@ -66,6 +66,20 @@ Coverage is collected for `geoparser` (HTML report in `htmlcov/`; open `htmlcov/
 uv run pytest --cov-fail-under=100
 ```
 
+The suite is kept fast on purpose. Two things matter if you are adding to it:
+
+- **Do not import the heavy stack at module scope in `geoparser/cli/` or in a
+  package `__init__`.** The CLI resolves spaCy, torch and the build pipeline
+  per command, which is what keeps `python -m geoparser --help` at a fraction
+  of a second instead of the ~9s it used to take. A test pins this.
+- Coverage is measured with the `sys.monitoring` core (`core = "sysmon"`),
+  which costs under 1% rather than the tracer's overhead. It falls back
+  automatically on Python 3.10 and 3.11.
+
+`pytest-xdist` was measured and deliberately not adopted: worker start-up
+dwarfs 638 fast unit tests (three times slower), and on the full suite it
+moved the wall clock by under 2% for ~80% more CPU.
+
 Useful subsets:
 
 ```bash
@@ -86,7 +100,7 @@ uv run pytest --cov-fail-under=100
 uv run python scripts/crap.py --max-crap 6
 uv run mutmut run
 uv run mutmut export-cicd-stats
-uv run python scripts/mutation_gate.py --max-survivors 956
+uv run python scripts/mutation_gate.py --max-survivors 931
 ```
 
 What each step guards:
@@ -97,9 +111,13 @@ What each step guards:
 - **scripts/crap.py** — the [CRAP score](https://testing.googleblog.com/2011/02/this-code-is-crap.html) gate, `complexity² × (1 − coverage)³ + complexity`, per function. For fully covered code this reduces to a cyclomatic-complexity ceiling, so it fails both on untested code and on code that has grown too branchy. It reads the coverage data that pytest just wrote, so run it after the suite.
 - **[mutmut](https://mutmut.readthedocs.io/)** — mutation testing. It edits the source in small ways and re-runs the tests; a mutant that survives is a line the suite does not really check. Configuration lives under `[tool.mutmut]` in `pyproject.toml`; `scripts/mutation_gate.py` reads the exported stats and fails when more mutants survive than the agreed baseline.
 
-Mutation testing runs the library's 3764 mutants against the **unit** suite only (about 25 minutes from cold, most of it the one-off pass that works out which tests reach which code). The integration and e2e suites build a real gazetteer and load real models, which at one run per mutant would take days.
+Mutation testing runs the library's 3871 mutants against the **unit** suite, at about 9.7 mutants/second once the one-off pass that maps tests to code has finished.
 
-The baseline as of 2026-09-10 is **2353 killed, 956 survived — a 71.1% mutation score**. That gap against ~100% line coverage is the point of the exercise: a surviving mutant is a line the fast suite executes but never checks. Survivors cluster in the gazetteer build pipeline, which the integration suite does exercise for real but which mutation testing does not see. `MAX_SURVIVING_MUTANTS` in `.github/workflows/quality.yml` is a ratchet: lower it as survivors are killed, never raise it.
+The baseline on this tree is **2480 killed, 931 survived, 290 with no covering unit test — a 72.7% mutation score**. That gap against 100% line coverage is the point of the exercise: a surviving mutant is a line the fast suite executes but never checks. `MAX_SURVIVING_MUTANTS` in `.github/workflows/quality.yml` is a ratchet: lower it as survivors are killed, never raise it.
+
+Judging mutants with the integration suite as well was measured and rejected. It is genuinely more thorough — every `no tests` mutant disappears and survival falls from 29% to about 11% — but each mutant it reaches then rebuilds a real gazetteer, roughly 23 seconds apiece and some thirteen hours for the package. The build pipeline is covered by the integration and e2e suites and by the 100% coverage gate instead. If you want the thorough run, add `"tests/integration"` to `pytest_add_cli_args_test_selection` and set aside an evening.
+
+Around 164 mutants end in a segfault rather than a verdict. They sit in code that calls native extensions (duckdb, threads), which mutmut runs in-process; they are neither killed nor survived, so they are a known blind spot rather than a passing grade.
 
 Inspect survivors with:
 
@@ -144,7 +162,7 @@ A few practical tips that make reviews easier:
 
 CI runs on pull requests into `main` and on `main` itself, never on feature-branch pushes. The matrix is three operating systems across Python 3.10–3.14, with uv providing the interpreter on all of them. Pushing again to an open pull request cancels the previous run.
 
-Three workflows run: **Lint** (Ruff, seconds, no project dependencies), **Tests** (the matrix, then the combined coverage and CRAP gates), and **Quality** (ty, and mutation testing). `tests-passed` is the check the branch ruleset requires; adding the Lint and Quality jobs to that ruleset is a repository setting, not something this file controls.
+Three workflows run: **Lint** (Ruff, seconds, no project dependencies), **Tests** (the matrix, then the combined coverage and CRAP gates), and **Quality** (ty on every pull request; mutation testing nightly and on demand). Mutation testing is deliberately not a merge gate -- a cold run spends around forty minutes mapping tests to code before it mutates anything -- so the pull request path stays at ruff, ty, tests, coverage and CRAP, which finish in minutes. `tests-passed` is the check the branch ruleset requires; adding the Lint and Quality jobs to that ruleset is a repository setting, not something this file controls.
 
 If you add a dependency, commit the updated `uv.lock` alongside `pyproject.toml` (`uv add <package>` updates both). Prefer permissively licensed packages; geoparser is MIT-licensed.
 

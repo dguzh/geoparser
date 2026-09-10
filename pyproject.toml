@@ -142,12 +142,13 @@ do_not_mutate = [
     "geoparser/annotator/*",
     "geoparser/cli/*",
 ]
-# Mutants are judged by the unit and integration suites. The integration suite
-# is what actually exercises the gazetteer build pipeline, so leaving it out
-# made most of that package look untested. mutmut only runs the tests that
-# reach a given mutant, so the cost is mostly the one-off mapping pass rather
-# than a whole suite per mutant.
-pytest_add_cli_args_test_selection = ["tests/unit", "tests/integration"]
+# Mutants are judged by the unit suite. Adding the integration suite was
+# measured: it does remove every "no tests" mutant and cuts survival from 29%
+# to about 11%, but each mutant it reaches then rebuilds a real gazetteer --
+# roughly 23 seconds per mutant, some thirteen hours for the package. The
+# integration and e2e suites plus the 100% coverage gate cover that code
+# instead; mutation testing stays where it is cheap enough to run often.
+pytest_add_cli_args_test_selection = ["tests/unit"]
 # Coverage instrumentation is pure overhead here, and is re-collected per
 # mutant otherwise.
 pytest_add_cli_args = ["--no-cov", "-p", "no:cacheprovider"]
