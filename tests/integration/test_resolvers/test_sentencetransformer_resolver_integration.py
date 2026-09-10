@@ -401,7 +401,7 @@ class TestSentenceTransformerResolverIntegration:
         assert len(results) == 1
         # Should find Canillo in Andorra gazetteer
         assert results[0][0] is not None
-        gazetteer_name, identifier = results[0][0]
+        gazetteer_name, _identifier = results[0][0]
         assert gazetteer_name == "andorranames"
 
     def test_fit_trains_model_with_referent_annotations(

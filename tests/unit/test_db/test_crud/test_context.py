@@ -57,7 +57,7 @@ class TestContextRepositoryGetByProject:
         context1_proj1 = context_factory(tag="tag1", project_id=project1.id)
 
         # Contexts in project2
-        context1_proj2 = context_factory(tag="tag1", project_id=project2.id)
+        context_factory(tag="tag1", project_id=project2.id)
 
         # Act - Get contexts from project1
         contexts = ContextRepository.get_by_project(test_session, project1.id)
@@ -97,7 +97,7 @@ class TestContextRepositoryGetByProjectAndTag:
         """Test that get_by_project_and_tag returns None when tag doesn't match."""
         # Arrange
         project = project_factory()
-        context = context_factory(tag="my-tag", project_id=project.id)
+        context_factory(tag="my-tag", project_id=project.id)
 
         # Act
         found_context = ContextRepository.get_by_project_and_tag(
@@ -114,7 +114,7 @@ class TestContextRepositoryGetByProjectAndTag:
         # Arrange
         project1 = project_factory()
         project2 = project_factory()
-        context = context_factory(tag="my-tag", project_id=project1.id)
+        context_factory(tag="my-tag", project_id=project1.id)
 
         # Act
         found_context = ContextRepository.get_by_project_and_tag(
@@ -130,9 +130,9 @@ class TestContextRepositoryGetByProjectAndTag:
         """Test that get_by_project_and_tag returns correct context when multiple exist."""
         # Arrange
         project = project_factory()
-        context1 = context_factory(tag="tag-a", project_id=project.id)
+        context_factory(tag="tag-a", project_id=project.id)
         context2 = context_factory(tag="tag-b", project_id=project.id)
-        context3 = context_factory(tag="tag-c", project_id=project.id)
+        context_factory(tag="tag-c", project_id=project.id)
 
         # Act
         found_context = ContextRepository.get_by_project_and_tag(
@@ -150,7 +150,7 @@ class TestContextRepositoryGetByProjectAndTag:
         """Test that get_by_project_and_tag works with contexts that have None IDs."""
         # Arrange
         project = project_factory()
-        context = context_factory(
+        context_factory(
             tag="none-tag", project_id=project.id, recognizer_id=None, resolver_id=None
         )
 

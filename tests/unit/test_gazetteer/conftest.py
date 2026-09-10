@@ -49,9 +49,9 @@ def make_artifact(tmp_path: Path, monkeypatch) -> t.Callable:
 
     def _make(
         name: str = "testgaz",
-        features: t.Optional[t.List[dict]] = None,
+        features: list[dict] | None = None,
         crs: str = "EPSG:4326",
-        schema_version: t.Optional[str] = None,
+        schema_version: str | None = None,
     ) -> Path:
         """
         Write an artifact with the given features.

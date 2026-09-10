@@ -1,6 +1,6 @@
 import random
+import typing as t
 from pathlib import Path
-from typing import List, Tuple, Union
 
 import spacy
 from spacy.training import Example
@@ -18,10 +18,16 @@ class SpacyRecognizer(Recognizer):
 
     NAME = "SpacyRecognizer"
 
+    # A tuple, so the default cannot be mutated by a caller. It is normalized
+    # to a list by the JSON round-trip in Module.__init__, which keeps the
+    # recorded config -- and therefore the module id -- byte-for-byte the same
+    # as when this default was a list literal.
+    DEFAULT_ENTITY_TYPES: t.ClassVar[tuple[str, ...]] = ("FAC", "GPE", "LOC")
+
     def __init__(
         self,
         model_name: str = "en_core_web_sm",
-        entity_types: List[str] = ["FAC", "GPE", "LOC"],
+        entity_types: t.Sequence[str] = DEFAULT_ENTITY_TYPES,
     ):
         """
         Initialize the SpaCy recognition module.
@@ -73,7 +79,7 @@ class SpacyRecognizer(Recognizer):
             nlp.remove_pipe(pipe_name)
         return nlp
 
-    def predict(self, texts: List[str]) -> List[Union[List[Tuple[int, int]], None]]:
+    def predict(self, texts: list[str]) -> list[list[tuple[int, int]] | None]:
         """
         Identify references (location entities) in multiple document texts using spaCy.
 
@@ -105,9 +111,9 @@ class SpacyRecognizer(Recognizer):
 
     def fit(
         self,
-        texts: List[str],
-        references: List[List[Tuple[int, int]]],
-        output_path: Union[str, Path],
+        texts: list[str],
+        references: list[list[tuple[int, int]]],
+        output_path: str | Path,
         epochs: int = 10,
         batch_size: int = 8,
         dropout: float = 0.1,
@@ -150,7 +156,7 @@ class SpacyRecognizer(Recognizer):
 
         # Training loop
         losses = {}
-        for epoch in range(epochs):
+        for _epoch in range(epochs):
             # Shuffle examples for each epoch
             epoch_examples = examples.copy()
             random.shuffle(epoch_examples)
@@ -197,8 +203,8 @@ class SpacyRecognizer(Recognizer):
         return "LOC"  # Default fallback
 
     def _prepare_training_data(
-        self, texts: List[str], references: List[List[Tuple[int, int]]]
-    ) -> List[Example]:
+        self, texts: list[str], references: list[list[tuple[int, int]]]
+    ) -> list[Example]:
         """
         Convert documents with reference annotations to spaCy training format.
         Uses label distillation to assign each span the label the base model would choose.
@@ -215,7 +221,7 @@ class SpacyRecognizer(Recognizer):
 
         examples = []
 
-        for text, doc_references in zip(texts, references):
+        for text, doc_references in zip(texts, references, strict=True):
             # Create spaCy doc from text (for training)
             doc = self.nlp.make_doc(text)
 

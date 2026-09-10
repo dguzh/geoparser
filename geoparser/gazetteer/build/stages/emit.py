@@ -96,7 +96,7 @@ def copy_rows(
 def emit(
     duckdb_connection: duckdb.DuckDBPyConnection,
     sqlite_connection: sqlite3.Connection,
-) -> t.Tuple[int, int]:
+) -> tuple[int, int]:
     """
     Copy the projected features and names into the artifact.
 

@@ -14,8 +14,8 @@ from geoparser.annotator.exceptions import SessionSettingsNotFoundException
 
 class SessionSettingsRepository(BaseRepository):
     model = AnnotatorSessionSettings
-    exception_factory: t.Callable[[str, uuid.UUID], Exception] = (
-        lambda x, y: SessionSettingsNotFoundException(f"{x} with ID {y} not found.")
+    exception_factory: t.Callable[[str, uuid.UUID], Exception] = lambda x, y: (
+        SessionSettingsNotFoundException(f"{x} with ID {y} not found.")
     )
 
     @classmethod
@@ -23,12 +23,12 @@ class SessionSettingsRepository(BaseRepository):
         cls,
         db: DBSession,
         item: AnnotatorSessionSettingsCreate,
-        exclude: t.Optional[list[str]] = [],
-        additional: t.Optional[dict[str, t.Any]] = {},
+        exclude: list[str] | None = None,
+        additional: dict[str, t.Any] | None = None,
     ) -> AnnotatorSessionSettings:
-        assert (
-            "session_id" in additional
-        ), "settings cannot be created without link to session"
+        assert "session_id" in additional, (
+            "settings cannot be created without link to session"
+        )
         return super().create(db, item, exclude=exclude, additional=additional)
 
     @classmethod

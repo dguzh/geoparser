@@ -145,7 +145,7 @@ class TestReferenceRepositoryGetByDocumentAndSpan:
         """Test that get_by_document_and_span returns None for non-matching span."""
         # Arrange
         document = document_factory(text="New York is a city")
-        reference = reference_factory(start=0, end=8, document_id=document.id)
+        reference_factory(start=0, end=8, document_id=document.id)
 
         # Act - Query with different span
         found_ref = ReferenceRepository.get_by_document_and_span(

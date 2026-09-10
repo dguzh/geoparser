@@ -316,13 +316,15 @@ class TestProjectGetDocuments:
 
         # Act - Using tag to retrieve documents
         # Note: The implementation retrieves IDs from context, but we're testing the context setting behavior
-        with patch.object(
-            project.context, "get_recognizer_context", return_value="test_recognizer"
+        with (
+            patch.object(
+                project.context,
+                "get_recognizer_context",
+                return_value="test_recognizer",
+            ),
+            patch.object(project.context, "get_resolver_context", return_value=None),
         ):
-            with patch.object(
-                project.context, "get_resolver_context", return_value=None
-            ):
-                project.get_documents(tag="test_tag")
+            project.get_documents(tag="test_tag")
 
         # Assert
         mock_doc._set_recognizer_context.assert_called_once_with("test_recognizer")
@@ -348,11 +350,13 @@ class TestProjectGetDocuments:
         project = Project("TestProject")
 
         # Act - Using tag to retrieve documents
-        with patch.object(project.context, "get_recognizer_context", return_value=None):
-            with patch.object(
+        with (
+            patch.object(project.context, "get_recognizer_context", return_value=None),
+            patch.object(
                 project.context, "get_resolver_context", return_value="test_resolver"
-            ):
-                project.get_documents(tag="test_tag")
+            ),
+        ):
+            project.get_documents(tag="test_tag")
 
         # Assert
         mock_ref1._set_resolver_context.assert_called_once_with("test_resolver")
@@ -617,16 +621,18 @@ class TestProjectLoadAnnotations:
         )
 
         # Mock json.load
-        with patch("geoparser.project.project.json.load", return_value=json_data):
-            with patch.object(Project, "create_references"):
-                with patch.object(Project, "create_referents"):
-                    project = Project("TestProject")
+        with (
+            patch("geoparser.project.project.json.load", return_value=json_data),
+            patch.object(Project, "create_references"),
+            patch.object(Project, "create_referents"),
+        ):
+            project = Project("TestProject")
 
-                    # Act
-                    project.load_annotations("test.json", tag="test_tag")
+            # Act
+            project.load_annotations("test.json", tag="test_tag")
 
-                    # Assert - Verify file was opened
-                    mock_file_open.assert_called_once()
+            # Assert - Verify file was opened
+            mock_file_open.assert_called_once()
 
     @patch("geoparser.project.project.ProjectRepository")
     @patch("geoparser.project.project.open", create=True)
@@ -643,19 +649,19 @@ class TestProjectLoadAnnotations:
             "documents": [{"text": "Paris", "toponyms": []}],
         }
 
-        with patch("geoparser.project.project.json.load", return_value=json_data):
-            with patch.object(Project, "create_documents") as mock_create_docs:
-                with patch.object(Project, "create_references"):
-                    with patch.object(Project, "create_referents"):
-                        project = Project("TestProject")
+        with (
+            patch("geoparser.project.project.json.load", return_value=json_data),
+            patch.object(Project, "create_documents") as mock_create_docs,
+            patch.object(Project, "create_references"),
+            patch.object(Project, "create_referents"),
+        ):
+            project = Project("TestProject")
 
-                        # Act
-                        project.load_annotations(
-                            "test.json", tag="test_tag", create_documents=True
-                        )
+            # Act
+            project.load_annotations("test.json", tag="test_tag", create_documents=True)
 
-                        # Assert
-                        mock_create_docs.assert_called_once_with(["Paris"])
+            # Assert
+            mock_create_docs.assert_called_once_with(["Paris"])
 
     @patch("geoparser.project.project.ProjectRepository")
     @patch("geoparser.project.project.open", create=True)
@@ -674,17 +680,19 @@ class TestProjectLoadAnnotations:
             "documents": [{"text": "Paris", "toponyms": []}],
         }
 
-        with patch("geoparser.project.project.json.load", return_value=json_data):
-            with patch.object(Project, "create_documents") as mock_create_docs:
-                with patch.object(Project, "create_references"):
-                    with patch.object(Project, "create_referents"):
-                        project = Project("TestProject")
+        with (
+            patch("geoparser.project.project.json.load", return_value=json_data),
+            patch.object(Project, "create_documents") as mock_create_docs,
+            patch.object(Project, "create_references"),
+            patch.object(Project, "create_referents"),
+        ):
+            project = Project("TestProject")
 
-                        # Act
-                        project.load_annotations("test.json", tag="test_tag")
+            # Act
+            project.load_annotations("test.json", tag="test_tag")
 
-                        # Assert
-                        mock_create_docs.assert_not_called()
+            # Assert
+            mock_create_docs.assert_not_called()
 
     @patch("geoparser.project.project.ProjectRepository")
     @patch("geoparser.project.project.open", create=True)
@@ -711,16 +719,18 @@ class TestProjectLoadAnnotations:
             ],
         }
 
-        with patch("geoparser.project.project.json.load", return_value=json_data):
-            with patch.object(Project, "create_references"):
-                with patch.object(Project, "create_referents") as mock_create_ref:
-                    project = Project("TestProject")
+        with (
+            patch("geoparser.project.project.json.load", return_value=json_data),
+            patch.object(Project, "create_references"),
+            patch.object(Project, "create_referents") as mock_create_ref,
+        ):
+            project = Project("TestProject")
 
-                    # Act
-                    project.load_annotations("test.json", tag="test_tag")
+            # Act
+            project.load_annotations("test.json", tag="test_tag")
 
-                    # Assert
-                    # Should create referents with None for non-geocoded
-                    call_args = mock_create_ref.call_args[0]
-                    referents = call_args[2]  # Third argument is referents
-                    assert referents == [[("geonames", "123"), None]]
+            # Assert
+            # Should create referents with None for non-geocoded
+            call_args = mock_create_ref.call_args[0]
+            referents = call_args[2]  # Third argument is referents
+            assert referents == [[("geonames", "123"), None]]

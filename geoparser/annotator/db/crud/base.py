@@ -8,20 +8,20 @@ T = t.TypeVar("T", bound=SQLModel)
 
 
 class BaseRepository(ABC):
-    model: t.Type[T]
-    exception_factory: t.Callable[[str, uuid.UUID], Exception] = (
-        lambda x, y: ValueError(f"{x} with ID {y} not found.")
+    model: type[T]
+    exception_factory: t.Callable[[str, uuid.UUID], Exception] = lambda x, y: (
+        ValueError(f"{x} with ID {y} not found.")
     )
 
     @classmethod
     def get_mapped_class(
         cls,
         item: T,
-        exclude: t.Optional[list[str]] = [],
-        additional: t.Optional[dict[str, t.Any]] = {},
+        exclude: list[str] | None = None,
+        additional: dict[str, t.Any] | None = None,
     ) -> T:
-        item_data = item.model_dump(exclude=exclude, exclude_unset=True)
-        return cls.model(**item_data, **additional)
+        item_data = item.model_dump(exclude=exclude or [], exclude_unset=True)
+        return cls.model(**item_data, **(additional or {}))
 
     @classmethod
     def get_db_item(cls, db: Session, id: uuid.UUID) -> T:
@@ -35,8 +35,8 @@ class BaseRepository(ABC):
         cls,
         db: Session,
         item: T,
-        exclude: t.Optional[list[str]] = [],
-        additional: t.Optional[dict[str, t.Any]] = {},
+        exclude: list[str] | None = None,
+        additional: dict[str, t.Any] | None = None,
     ) -> T:
         item = cls.get_mapped_class(item, exclude, additional)
         db.add(item)
@@ -45,11 +45,11 @@ class BaseRepository(ABC):
         return item
 
     @classmethod
-    def read(cls, db: Session, id: uuid.UUID) -> t.Optional[T]:
+    def read(cls, db: Session, id: uuid.UUID) -> T | None:
         return cls.get_db_item(db, id)
 
     @classmethod
-    def read_all(cls, db: Session, **filters) -> t.List[T]:
+    def read_all(cls, db: Session, **filters) -> list[T]:
         filter_args = [
             getattr(cls.model, key) == value for key, value in filters.items()
         ]
@@ -67,7 +67,7 @@ class BaseRepository(ABC):
         return db_item
 
     @classmethod
-    def delete(cls, db: Session, id: uuid.UUID) -> t.Optional[T]:
+    def delete(cls, db: Session, id: uuid.UUID) -> T | None:
         item = cls.get_db_item(db, id)
         db.delete(item)
         db.commit()

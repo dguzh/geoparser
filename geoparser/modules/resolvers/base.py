@@ -1,4 +1,3 @@
-import typing as t
 from abc import abstractmethod
 
 from geoparser.modules.module import Module
@@ -26,8 +25,8 @@ class Resolver(Module):
 
     @abstractmethod
     def predict(
-        self, texts: t.List[str], references: t.List[t.List[t.Tuple[int, int]]]
-    ) -> t.List[t.List[t.Union[t.Tuple[str, str], None]]]:
+        self, texts: list[str], references: list[list[tuple[int, int]]]
+    ) -> list[list[tuple[str, str] | None]]:
         """
         Predict referents for multiple references across multiple documents.
 

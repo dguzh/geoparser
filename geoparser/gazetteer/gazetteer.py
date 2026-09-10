@@ -8,7 +8,6 @@ file) and exposes name search and identifier lookup over its features.
 from __future__ import annotations
 
 import re
-from typing import List, Optional
 
 from geoparser.gazetteer.artifact import GazetteerArtifact, artifact_path
 from geoparser.gazetteer.feature import Feature
@@ -52,7 +51,7 @@ class Gazetteer:
 
     def search(
         self, name: str, method: str = "exact", limit: int = 10000, tiers: int = 1
-    ) -> List[Feature]:
+    ) -> list[Feature]:
         """
         Search for features using the specified search method.
 
@@ -90,7 +89,7 @@ class Gazetteer:
 
         return method_map[method]()
 
-    def find(self, identifier: str) -> Optional[Feature]:
+    def find(self, identifier: str) -> Feature | None:
         """
         Find a feature by its identifier.
 

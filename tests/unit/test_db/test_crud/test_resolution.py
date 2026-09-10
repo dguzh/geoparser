@@ -24,8 +24,8 @@ class TestResolutionRepositoryGetByReference:
         """Test that get_by_reference returns all resolutions for a reference."""
         # Arrange
         reference = reference_factory()
-        resolver1 = resolver_factory(id="res1")
-        resolver2 = resolver_factory(id="res2")
+        resolver_factory(id="res1")
+        resolver_factory(id="res2")
 
         ResolutionRepository.create(
             test_session,
@@ -71,7 +71,7 @@ class TestResolutionRepositoryGetByResolver:
     ):
         """Test that get_by_resolver returns all resolutions for a resolver."""
         # Arrange
-        resolver = resolver_factory(id="test_res")
+        resolver_factory(id="test_res")
         ref1 = reference_factory()
         ref2 = reference_factory()
 
@@ -98,7 +98,7 @@ class TestResolutionRepositoryGetByResolver:
     ):
         """Test that get_by_resolver returns empty list for resolver without resolutions."""
         # Arrange
-        resolver = resolver_factory(id="test_res")
+        resolver_factory(id="test_res")
 
         # Act
         resolutions = ResolutionRepository.get_by_resolver(test_session, "test_res")
@@ -120,7 +120,7 @@ class TestResolutionRepositoryGetByReferenceAndResolver:
         """Test that get_by_reference_and_resolver returns resolution for matching pair."""
         # Arrange
         reference = reference_factory()
-        resolver = resolver_factory(id="test_res")
+        resolver_factory(id="test_res")
 
         created_resolution = ResolutionRepository.create(
             test_session,
@@ -147,7 +147,7 @@ class TestResolutionRepositoryGetByReferenceAndResolver:
         """Test that get_by_reference_and_resolver returns None for non-matching pair."""
         # Arrange
         reference = reference_factory()
-        resolver = resolver_factory(id="test_res")
+        resolver_factory(id="test_res")
 
         # Act
         resolution = ResolutionRepository.get_by_reference_and_resolver(
@@ -173,7 +173,7 @@ class TestResolutionRepositoryGetUnprocessedReferences:
         """Test that get_unprocessed_references returns references not yet processed."""
         # Arrange
         project = project_factory()
-        resolver = resolver_factory(id="test_res")
+        resolver_factory(id="test_res")
         document = document_factory(project_id=project.id)
 
         # Create three references
@@ -210,11 +210,11 @@ class TestResolutionRepositoryGetUnprocessedReferences:
         """Test that get_unprocessed_references returns all references when none processed."""
         # Arrange
         project = project_factory()
-        resolver = resolver_factory(id="test_res")
+        resolver_factory(id="test_res")
         document = document_factory(project_id=project.id)
 
-        ref1 = reference_factory(document_id=document.id)
-        ref2 = reference_factory(document_id=document.id)
+        reference_factory(document_id=document.id)
+        reference_factory(document_id=document.id)
 
         # Act
         unprocessed = ResolutionRepository.get_unprocessed_references(
@@ -235,7 +235,7 @@ class TestResolutionRepositoryGetUnprocessedReferences:
         """Test that get_unprocessed_references returns empty list when all processed."""
         # Arrange
         project = project_factory()
-        resolver = resolver_factory(id="test_res")
+        resolver_factory(id="test_res")
         document = document_factory(project_id=project.id)
 
         ref1 = reference_factory(document_id=document.id)
@@ -271,7 +271,7 @@ class TestResolutionRepositoryGetUnprocessedReferences:
         # Arrange
         project1 = project_factory()
         project2 = project_factory()
-        resolver = resolver_factory(id="test_res")
+        resolver_factory(id="test_res")
 
         # References in project1
         doc1_proj1 = document_factory(project_id=project1.id)
@@ -279,7 +279,7 @@ class TestResolutionRepositoryGetUnprocessedReferences:
 
         # References in project2
         doc1_proj2 = document_factory(project_id=project2.id)
-        ref1_proj2 = reference_factory(document_id=doc1_proj2.id)
+        reference_factory(document_id=doc1_proj2.id)
 
         # Act - Get unprocessed from project1
         unprocessed = ResolutionRepository.get_unprocessed_references(

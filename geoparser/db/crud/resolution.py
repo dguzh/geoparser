@@ -1,4 +1,3 @@
-import typing as t
 import uuid
 
 from sqlalchemy import not_
@@ -16,9 +15,7 @@ class ResolutionRepository(BaseRepository[Resolution]):
     model = Resolution
 
     @classmethod
-    def get_by_reference(
-        cls, db: Session, reference_id: uuid.UUID
-    ) -> t.List[Resolution]:
+    def get_by_reference(cls, db: Session, reference_id: uuid.UUID) -> list[Resolution]:
         """
         Get all resolutions for a reference.
 
@@ -33,7 +30,7 @@ class ResolutionRepository(BaseRepository[Resolution]):
         return db.exec(statement).unique().all()
 
     @classmethod
-    def get_by_resolver(cls, db: Session, resolver_id: str) -> t.List[Resolution]:
+    def get_by_resolver(cls, db: Session, resolver_id: str) -> list[Resolution]:
         """
         Get all resolutions for a resolver.
 
@@ -50,7 +47,7 @@ class ResolutionRepository(BaseRepository[Resolution]):
     @classmethod
     def get_by_reference_and_resolver(
         cls, db: Session, reference_id: uuid.UUID, resolver_id: str
-    ) -> t.Optional[Resolution]:
+    ) -> Resolution | None:
         """
         Get a resolution for a specific reference and resolver.
 
@@ -71,7 +68,7 @@ class ResolutionRepository(BaseRepository[Resolution]):
     @classmethod
     def get_unprocessed_references(
         cls, db: Session, project_id: uuid.UUID, resolver_id: str
-    ) -> t.List[Reference]:
+    ) -> list[Reference]:
         """
         Get all references from a project that have not been processed by a specific resolver.
 

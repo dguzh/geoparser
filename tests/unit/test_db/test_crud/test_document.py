@@ -63,7 +63,7 @@ class TestDocumentRepositoryGetByProject:
         doc1_proj1 = document_factory(text="Doc in Project 1", project_id=project1.id)
 
         # Documents in project2
-        doc1_proj2 = document_factory(text="Doc in Project 2", project_id=project2.id)
+        document_factory(text="Doc in Project 2", project_id=project2.id)
 
         # Act - Get documents from project1
         documents = DocumentRepository.get_by_project(test_session, project1.id)

@@ -100,7 +100,7 @@ class TestSpacyRecognizerInitialization:
         mock_spacy_load.return_value = mock_nlp
 
         # Act
-        recognizer = SpacyRecognizer()
+        SpacyRecognizer()
 
         # Assert
         # Should remove tagger, parser, lemmatizer but keep ner
@@ -119,7 +119,7 @@ class TestSpacyRecognizerInitialization:
         mock_spacy_load.return_value = mock_nlp
 
         # Act
-        recognizer = SpacyRecognizer()
+        SpacyRecognizer()
 
         # Assert
         # Should not call remove_pipe since no unnecessary components exist
@@ -485,25 +485,25 @@ class TestSpacyRecognizerPrepareTrainingData:
         mock_base_doc = Mock()
         mock_base_nlp.return_value = mock_base_doc
 
-        with patch.object(recognizer, "_load_spacy_model", return_value=mock_base_nlp):
-            with patch.object(recognizer, "_get_distilled_label", return_value="GPE"):
-                # Create mock Example.from_dict
-                with patch(
-                    "geoparser.modules.recognizers.spacy.Example"
-                ) as mock_example:
-                    mock_example_instance = Mock()
-                    mock_example.from_dict.return_value = mock_example_instance
+        # Create mock Example.from_dict
+        with (
+            patch.object(recognizer, "_load_spacy_model", return_value=mock_base_nlp),
+            patch.object(recognizer, "_get_distilled_label", return_value="GPE"),
+            patch("geoparser.modules.recognizers.spacy.Example") as mock_example,
+        ):
+            mock_example_instance = Mock()
+            mock_example.from_dict.return_value = mock_example_instance
 
-                    texts = ["Paris is beautiful"]
-                    references = [[(0, 5)]]
+            texts = ["Paris is beautiful"]
+            references = [[(0, 5)]]
 
-                    # Act
-                    examples = recognizer._prepare_training_data(texts, references)
+            # Act
+            examples = recognizer._prepare_training_data(texts, references)
 
-                    # Assert
-                    assert len(examples) == 1
-                    assert examples[0] == mock_example_instance
-                    mock_example.from_dict.assert_called_once()
+            # Assert
+            assert len(examples) == 1
+            assert examples[0] == mock_example_instance
+            mock_example.from_dict.assert_called_once()
 
     @patch("geoparser.modules.recognizers.spacy.spacy.load")
     def test_handles_multiple_references_in_document(self, mock_spacy_load):
@@ -521,26 +521,26 @@ class TestSpacyRecognizerPrepareTrainingData:
         mock_base_doc = Mock()
         mock_base_nlp.return_value = mock_base_doc
 
-        with patch.object(recognizer, "_load_spacy_model", return_value=mock_base_nlp):
-            with patch.object(recognizer, "_get_distilled_label", return_value="GPE"):
-                with patch(
-                    "geoparser.modules.recognizers.spacy.Example"
-                ) as mock_example:
-                    mock_example_instance = Mock()
-                    mock_example.from_dict.return_value = mock_example_instance
+        with (
+            patch.object(recognizer, "_load_spacy_model", return_value=mock_base_nlp),
+            patch.object(recognizer, "_get_distilled_label", return_value="GPE"),
+            patch("geoparser.modules.recognizers.spacy.Example") as mock_example,
+        ):
+            mock_example_instance = Mock()
+            mock_example.from_dict.return_value = mock_example_instance
 
-                    texts = ["Paris and London"]
-                    references = [[(0, 5), (10, 16)]]
+            texts = ["Paris and London"]
+            references = [[(0, 5), (10, 16)]]
 
-                    # Act
-                    examples = recognizer._prepare_training_data(texts, references)
+            # Act
+            examples = recognizer._prepare_training_data(texts, references)
 
-                    # Assert
-                    assert len(examples) == 1
-                    # Should have created one example with 2 entities
-                    call_args = mock_example.from_dict.call_args[0]
-                    entity_dict = call_args[1]
-                    assert len(entity_dict["entities"]) == 2
+            # Assert
+            assert len(examples) == 1
+            # Should have created one example with 2 entities
+            call_args = mock_example.from_dict.call_args[0]
+            entity_dict = call_args[1]
+            assert len(entity_dict["entities"]) == 2
 
     @patch("geoparser.modules.recognizers.spacy.spacy.load")
     def test_handles_multiple_documents(self, mock_spacy_load):
@@ -558,19 +558,19 @@ class TestSpacyRecognizerPrepareTrainingData:
         mock_base_doc = Mock()
         mock_base_nlp.return_value = mock_base_doc
 
-        with patch.object(recognizer, "_load_spacy_model", return_value=mock_base_nlp):
-            with patch.object(recognizer, "_get_distilled_label", return_value="GPE"):
-                with patch(
-                    "geoparser.modules.recognizers.spacy.Example"
-                ) as mock_example:
-                    mock_example_instance = Mock()
-                    mock_example.from_dict.return_value = mock_example_instance
+        with (
+            patch.object(recognizer, "_load_spacy_model", return_value=mock_base_nlp),
+            patch.object(recognizer, "_get_distilled_label", return_value="GPE"),
+            patch("geoparser.modules.recognizers.spacy.Example") as mock_example,
+        ):
+            mock_example_instance = Mock()
+            mock_example.from_dict.return_value = mock_example_instance
 
-                    texts = ["Paris", "London"]
-                    references = [[(0, 5)], [(0, 6)]]
+            texts = ["Paris", "London"]
+            references = [[(0, 5)], [(0, 6)]]
 
-                    # Act
-                    examples = recognizer._prepare_training_data(texts, references)
+            # Act
+            examples = recognizer._prepare_training_data(texts, references)
 
-                    # Assert
-                    assert len(examples) == 2
+            # Assert
+            assert len(examples) == 2

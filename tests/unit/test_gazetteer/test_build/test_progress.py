@@ -81,9 +81,8 @@ class TestStageStandalone:
 
     def test_nested_inside_build_display_does_not_own_display(self):
         """A stage inside build_display() reuses the shared display."""
-        with build_display():
-            with Stage("Running", "Done", 1) as group:
-                assert group._owns_display is False
+        with build_display(), Stage("Running", "Done", 1) as group:
+            assert group._owns_display is False
 
     def test_advance_grows_total_items_beyond_estimate(self):
         """Advancing past the initial estimate grows total_items instead of
@@ -102,22 +101,20 @@ class TestItemLifecycle:
 
     def test_update_advances_progress(self):
         """update() advances the item's completed amount."""
-        with Stage("Running", "Done", 1):
-            with item("Working", total=100) as bar:
-                bar.update(30)
-                task = bar._progress.tasks[bar._task_id]
-                assert task.completed == 30
+        with Stage("Running", "Done", 1), item("Working", total=100) as bar:
+            bar.update(30)
+            task = bar._progress.tasks[bar._task_id]
+            assert task.completed == 30
 
     def test_set_progress_switches_indeterminate_to_determinate(self):
         """set_progress() on an indeterminate item makes it determinate."""
-        with Stage("Running", "Done", 1):
-            with item("Working") as bar:
-                assert bar._determinate is False
-                bar.set_progress(55)
-                assert bar._determinate is True
-                assert bar._total == 100
-                task = bar._progress.tasks[bar._task_id]
-                assert task.completed == 55
+        with Stage("Running", "Done", 1), item("Working") as bar:
+            assert bar._determinate is False
+            bar.set_progress(55)
+            assert bar._determinate is True
+            assert bar._total == 100
+            task = bar._progress.tasks[bar._task_id]
+            assert task.completed == 55
 
     def test_standalone_item_without_active_stage_or_display(self):
         """item() outside any stage or display manages its own display."""
@@ -132,9 +129,8 @@ class TestItemLifecycle:
     def test_standalone_item_reuses_active_display_without_stage(self):
         """item() inside build_display() but without an active stage still
         attaches to the shared display rather than creating its own."""
-        with build_display():
-            with item("Working", total=100) as bar:
-                assert bar._progress is progress_module._active_progress.get()
+        with build_display(), item("Working", total=100) as bar:
+            assert bar._progress is progress_module._active_progress.get()
 
     def test_advance_without_active_stage_is_a_no_op(self):
         """advance() is safe to call with no active stage."""
@@ -149,35 +145,32 @@ class TestSample:
 
     def test_ignores_poll_errors(self):
         """A poll() that raises is swallowed, leaving the bar untouched."""
-        with Stage("Running", "Done", 1):
-            with item("Working", total=100) as bar:
+        with Stage("Running", "Done", 1), item("Working", total=100) as bar:
 
-                def _failing_poll():
-                    raise RuntimeError("boom")
+            def _failing_poll():
+                raise RuntimeError("boom")
 
-                _sample(bar, _failing_poll)
+            _sample(bar, _failing_poll)
 
-                task = bar._progress.tasks[bar._task_id]
-                assert task.completed == 0
+            task = bar._progress.tasks[bar._task_id]
+            assert task.completed == 0
 
     def test_ignores_negative_and_none_readings(self):
         """Negative or missing readings leave the bar's progress unchanged."""
-        with Stage("Running", "Done", 1):
-            with item("Working", total=100) as bar:
-                _sample(bar, lambda: -1)
-                _sample(bar, lambda: None)
+        with Stage("Running", "Done", 1), item("Working", total=100) as bar:
+            _sample(bar, lambda: -1)
+            _sample(bar, lambda: None)
 
-                task = bar._progress.tasks[bar._task_id]
-                assert task.completed == 0
+            task = bar._progress.tasks[bar._task_id]
+            assert task.completed == 0
 
     def test_applies_valid_readings(self):
         """A valid non-negative reading updates the bar's progress."""
-        with Stage("Running", "Done", 1):
-            with item("Working", total=100) as bar:
-                _sample(bar, lambda: 77)
+        with Stage("Running", "Done", 1), item("Working", total=100) as bar:
+            _sample(bar, lambda: 77)
 
-                task = bar._progress.tasks[bar._task_id]
-                assert task.completed == 77
+            task = bar._progress.tasks[bar._task_id]
+            assert task.completed == 77
 
 
 @pytest.mark.unit

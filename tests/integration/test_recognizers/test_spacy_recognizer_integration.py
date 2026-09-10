@@ -106,7 +106,8 @@ class TestSpacyRecognizerIntegration:
         """Test that SpacyRecognizer only identifies configured entity types."""
         # Arrange
         recognizer = SpacyRecognizer(
-            model_name="en_core_web_sm", entity_types=["GPE"]  # Only GPE, not LOC
+            model_name="en_core_web_sm",
+            entity_types=["GPE"],  # Only GPE, not LOC
         )
         texts = ["New York is a city."]  # GPE entity
 

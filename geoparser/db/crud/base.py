@@ -1,6 +1,5 @@
-import typing as t
 import uuid
-from typing import Generic, Type, TypeVar, Union
+from typing import Generic, TypeVar
 
 from sqlmodel import Session, SQLModel, select
 
@@ -12,7 +11,7 @@ class BaseRepository(Generic[T]):
     Base repository with common CRUD operations for all models.
     """
 
-    model: Type[T] = None
+    model: type[T] = None
 
     @classmethod
     def create(cls, db: Session, obj_in: SQLModel) -> T:
@@ -36,7 +35,7 @@ class BaseRepository(Generic[T]):
         return db_obj
 
     @classmethod
-    def get(cls, db: Session, id: Union[uuid.UUID, str]) -> t.Optional[T]:
+    def get(cls, db: Session, id: uuid.UUID | str) -> T | None:
         """
         Get a record by ID.
 
@@ -51,7 +50,7 @@ class BaseRepository(Generic[T]):
         return db.exec(statement).unique().first()
 
     @classmethod
-    def get_all(cls, db: Session) -> t.List[T]:
+    def get_all(cls, db: Session) -> list[T]:
         """
         Get all records.
 
@@ -87,7 +86,7 @@ class BaseRepository(Generic[T]):
         return db_obj
 
     @classmethod
-    def delete(cls, db: Session, *, id: Union[uuid.UUID, str]) -> t.Optional[T]:
+    def delete(cls, db: Session, *, id: uuid.UUID | str) -> T | None:
         """
         Delete a record.
 

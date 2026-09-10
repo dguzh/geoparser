@@ -1,4 +1,3 @@
-import typing as t
 import uuid
 
 from sqlmodel import Session, select
@@ -31,7 +30,6 @@ class ReferenceRepository(BaseRepository[Reference]):
         # Extract data from the ReferenceCreate model
         data = obj_in.model_dump()
         document_id = data["document_id"]
-        recognizer_id = data["recognizer_id"]
         start = data["start"]
         end = data["end"]
 
@@ -66,7 +64,6 @@ class ReferenceRepository(BaseRepository[Reference]):
         start = update_data.get("start", db_obj.start)
         end = update_data.get("end", db_obj.end)
         document_id = update_data.get("document_id", db_obj.document_id)
-        recognizer_id = update_data.get("recognizer_id", db_obj.recognizer_id)
 
         # Get the document to extract updated text
         document = db.get(Document, document_id)
@@ -77,7 +74,7 @@ class ReferenceRepository(BaseRepository[Reference]):
         return super().update(db, db_obj=db_obj, obj_in=Reference(**update_data))
 
     @classmethod
-    def get_by_document(cls, db: Session, document_id: uuid.UUID) -> t.List[Reference]:
+    def get_by_document(cls, db: Session, document_id: uuid.UUID) -> list[Reference]:
         """
         Get all references for a document.
 
@@ -94,7 +91,7 @@ class ReferenceRepository(BaseRepository[Reference]):
     @classmethod
     def get_by_document_and_span(
         cls, db: Session, document_id: uuid.UUID, start: int, end: int
-    ) -> t.Optional[Reference]:
+    ) -> Reference | None:
         """
         Get a reference by document ID and span (start and end positions).
 

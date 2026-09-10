@@ -43,11 +43,11 @@ class AnnotatorSession(AnnotatorSessionBase, table=True):
 
 class AnnotatorSessionCreate(AnnotatorSessionBase):
     settings: "AnnotatorSessionSettingsCreate" = AnnotatorSessionSettingsCreate()
-    documents: t.Optional[list["AnnotatorDocumentCreate"]] = []
+    documents: list["AnnotatorDocumentCreate"] | None = []
 
 
 class AnnotatorSessionDownload(AnnotatorSessionBase):
-    documents: t.Optional[list["AnnotatorDocumentCreate"]] = []
+    documents: list["AnnotatorDocumentCreate"] | None = []
 
 
 class AnnotatorSessionForTemplate(AnnotatorSessionBase):
@@ -57,6 +57,6 @@ class AnnotatorSessionForTemplate(AnnotatorSessionBase):
 
 class AnnotatorSessionUpdate(SQLModel):
     id: uuid.UUID
-    created_at: t.Optional[datetime] = None
-    last_updated: t.Optional[datetime] = None
-    gazetteer: t.Optional[str] = None
+    created_at: datetime | None = None
+    last_updated: datetime | None = None
+    gazetteer: str | None = None

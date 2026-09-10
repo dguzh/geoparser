@@ -1,5 +1,3 @@
-import typing as t
-
 from sqlmodel import Session, select
 
 from geoparser.db.crud.base import BaseRepository
@@ -14,7 +12,7 @@ class ProjectRepository(BaseRepository[Project]):
     model = Project
 
     @classmethod
-    def get_by_name(cls, db: Session, name: str) -> t.Optional[Project]:
+    def get_by_name(cls, db: Session, name: str) -> Project | None:
         """
         Get a project by name.
 

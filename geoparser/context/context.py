@@ -1,4 +1,3 @@
-import typing as t
 import uuid
 
 from geoparser.db.crud.context import ContextRepository
@@ -90,7 +89,7 @@ class Context:
                 session, db_obj=context_record, obj_in=context_update
             )
 
-    def get_recognizer_context(self, tag: str) -> t.Optional[str]:
+    def get_recognizer_context(self, tag: str) -> str | None:
         """
         Get the recognizer ID for a given tag.
 
@@ -106,7 +105,7 @@ class Context:
             context_record = ContextRepository.get(session, context_id)
             return context_record.recognizer_id
 
-    def get_resolver_context(self, tag: str) -> t.Optional[str]:
+    def get_resolver_context(self, tag: str) -> str | None:
         """
         Get the resolver ID for a given tag.
 

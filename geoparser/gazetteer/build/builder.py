@@ -42,7 +42,7 @@ from geoparser.gazetteer.build.stages.emit import create_artifact_db, emit, fina
 from geoparser.gazetteer.build.stages.load import Loader, quote_literal
 
 
-def _sqlite_temp_env_names() -> t.Tuple[str, ...]:
+def _sqlite_temp_env_names() -> tuple[str, ...]:
     """
     Environment variables that steer SQLite's temporary-file location.
 
@@ -114,9 +114,7 @@ class GazetteerBuilder:
     # count stays proportional to the memory limit on small machines.
     _MB_PER_THREAD = 1024
 
-    def build(
-        self, config_path: t.Union[str, Path], keep_downloads: bool = False
-    ) -> Path:
+    def build(self, config_path: str | Path, keep_downloads: bool = False) -> Path:
         """
         Build and install a gazetteer from a configuration file.
 
@@ -218,9 +216,7 @@ class GazetteerBuilder:
 
         temp_dir = build_dir / "duckdb-temp"
         temp_dir.mkdir(parents=True, exist_ok=True)
-        connection.execute(
-            f"SET temp_directory = {quote_literal(str(temp_dir))}"
-        )
+        connection.execute(f"SET temp_directory = {quote_literal(str(temp_dir))}")
         # Ordering is established explicitly where it matters (row ids, emit),
         # so let DuckDB avoid buffering results just to preserve input order.
         connection.execute("SET preserve_insertion_order = false")
@@ -272,7 +268,7 @@ class GazetteerBuilder:
             return os.cpu_count() or 1
 
     @staticmethod
-    def _physical_memory_bytes() -> t.Optional[int]:
+    def _physical_memory_bytes() -> int | None:
         """
         Return usable physical memory in bytes, if detectable.
 
@@ -281,7 +277,7 @@ class GazetteerBuilder:
         otherwise let the staging engine size itself above the container
         budget and get OOM-killed.
         """
-        candidates: t.List[int] = []
+        candidates: list[int] = []
         for reader in (
             GazetteerBuilder._physical_memory_bytes_cgroup,
             GazetteerBuilder._physical_memory_bytes_sysconf,
@@ -298,7 +294,7 @@ class GazetteerBuilder:
         return min(candidates)
 
     @staticmethod
-    def _physical_memory_bytes_cgroup() -> t.Optional[int]:
+    def _physical_memory_bytes_cgroup() -> int | None:
         """Read this process's cgroup v2 ``memory.max`` limit, if finite."""
         with open("/proc/self/cgroup", encoding="utf-8") as handle:
             lines = handle.read().splitlines()
@@ -325,12 +321,12 @@ class GazetteerBuilder:
             directory = directory.parent
 
     @staticmethod
-    def _physical_memory_bytes_sysconf() -> t.Optional[int]:
+    def _physical_memory_bytes_sysconf() -> int | None:
         """Read physical memory via ``os.sysconf`` (Linux, macOS, ...)."""
         return os.sysconf("SC_PHYS_PAGES") * os.sysconf("SC_PAGE_SIZE")
 
     @staticmethod
-    def _physical_memory_bytes_windows() -> t.Optional[int]:
+    def _physical_memory_bytes_windows() -> int | None:
         """Read physical memory via ``GlobalMemoryStatusEx`` (Windows)."""
         import ctypes
         import ctypes.wintypes
@@ -511,7 +507,7 @@ class GazetteerBuilder:
         name_suffixes = label_suffixes(
             [f"Collecting names from {feature.source}"] * len(name_queries)
         )
-        for name_query, name_suffix in zip(name_queries, name_suffixes):
+        for name_query, name_suffix in zip(name_queries, name_suffixes, strict=True):
             with item(
                 f"Collecting names from {feature.source}{name_suffix}", total=100
             ) as bar:
@@ -557,9 +553,7 @@ class GazetteerBuilder:
                 "SELECT count(*) FROM _dup_geometry"
             ).fetchone()[0]
             if has_duplicates:
-                with item(
-                    f"Merging duplicates in {feature.source}", total=100
-                ) as bar:
+                with item(f"Merging duplicates in {feature.source}", total=100) as bar:
                     track(
                         bar,
                         connection.query_progress,
@@ -601,7 +595,7 @@ class GazetteerBuilder:
         config: GazetteerConfig,
         build_dir: Path,
         target_path: Path,
-    ) -> t.Tuple[int, int]:
+    ) -> tuple[int, int]:
         """Write the artifact file and atomically move it into place."""
         temporary_path = build_dir / target_path.name
         # Keep SQLite's temporary files (FTS rebuild, index sorts, VACUUM) on

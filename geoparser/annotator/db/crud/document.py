@@ -21,8 +21,8 @@ from geoparser.modules.recognizers.spacy import SpacyRecognizer
 
 class DocumentRepository(BaseRepository):
     model = AnnotatorDocument
-    exception_factory: t.Callable[[str, uuid.UUID], Exception] = (
-        lambda x, y: DocumentNotFoundException(f"{x} with ID {y} not found.")
+    exception_factory: t.Callable[[str, uuid.UUID], Exception] = lambda x, y: (
+        DocumentNotFoundException(f"{x} with ID {y} not found.")
     )
 
     @classmethod
@@ -52,12 +52,12 @@ class DocumentRepository(BaseRepository):
         cls,
         db: DBSession,
         item: AnnotatorDocumentCreate,
-        exclude: t.Optional[list[str]] = [],
-        additional: t.Optional[dict[str, t.Any]] = {},
+        exclude: list[str] | None = None,
+        additional: dict[str, t.Any] | None = None,
     ) -> AnnotatorDocument:
-        assert (
-            "session_id" in additional
-        ), "document cannot be created without link to session"
+        assert additional and "session_id" in additional, (
+            "document cannot be created without link to session"
+        )
         # Create the main document object
         document = super().create(
             db,

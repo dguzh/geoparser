@@ -40,7 +40,7 @@ class TestResolverModel:
     def test_name_is_indexed(self, test_session: Session, resolver_factory):
         """Test that the name field is indexed for efficient queries."""
         # Arrange
-        resolver = resolver_factory(name="Indexed Resolver")
+        resolver_factory(name="Indexed Resolver")
 
         # Act - Query by name should work efficiently
         from sqlmodel import select

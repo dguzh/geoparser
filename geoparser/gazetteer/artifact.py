@@ -114,7 +114,7 @@ def artifact_path(gazetteer_name: str) -> Path:
     return gazetteers_dir() / f"{gazetteer_name}{ARTIFACT_SUFFIX}"
 
 
-def list_artifacts() -> t.List[str]:
+def list_artifacts() -> list[str]:
     """
     List the names of installed gazetteers.
 
@@ -150,7 +150,7 @@ class GazetteerArtifact:
 
     _FEATURE_COLUMNS = "f.id, f.identifier, f.source, f.data, f.geometry"
 
-    def __init__(self, path: t.Union[str, Path]):
+    def __init__(self, path: str | Path):
         """
         Open a gazetteer artifact.
 
@@ -195,7 +195,7 @@ class GazetteerArtifact:
             self._local.connection = connection
         return connection
 
-    def _read_metadata(self) -> t.Dict[str, str]:
+    def _read_metadata(self) -> dict[str, str]:
         try:
             rows = (
                 self._connection().execute("SELECT key, value FROM metadata").fetchall()
@@ -206,7 +206,7 @@ class GazetteerArtifact:
             ) from error
         return dict(rows)
 
-    def _features_from_rows(self, rows: t.Iterable[t.Tuple]) -> t.List[Feature]:
+    def _features_from_rows(self, rows: t.Iterable[tuple]) -> list[Feature]:
         return [
             Feature(
                 artifact=self,
@@ -219,7 +219,7 @@ class GazetteerArtifact:
             for row in rows
         ]
 
-    def find(self, identifier: str) -> t.Optional[Feature]:
+    def find(self, identifier: str) -> Feature | None:
         """
         Find a feature by its identifier.
 
@@ -241,7 +241,7 @@ class GazetteerArtifact:
             return None
         return self._features_from_rows([row])[0]
 
-    def get_feature_names(self, feature_id: int) -> t.List[str]:
+    def get_feature_names(self, feature_id: int) -> list[str]:
         """
         Get all names of a feature.
 
@@ -261,7 +261,7 @@ class GazetteerArtifact:
         )
         return [row[0] for row in rows]
 
-    def search_exact(self, name: str, limit: int = 10000) -> t.List[Feature]:
+    def search_exact(self, name: str, limit: int = 10000) -> list[Feature]:
         """
         Find features with a name exactly matching the query.
 
@@ -295,8 +295,8 @@ class GazetteerArtifact:
         return self._features_from_rows(rows)
 
     def _search_tiered(
-        self, matched_sql: str, parameters: t.Tuple, limit: int, tiers: int
-    ) -> t.List[Feature]:
+        self, matched_sql: str, parameters: tuple, limit: int, tiers: int
+    ) -> list[Feature]:
         """
         Run a per-name match query and keep the best score tiers per feature.
 
@@ -335,7 +335,7 @@ class GazetteerArtifact:
 
     def search_phrase(
         self, name: str, limit: int = 10000, tiers: int = 1
-    ) -> t.List[Feature]:
+    ) -> list[Feature]:
         """
         Find features whose names contain the query as a contiguous phrase.
 
@@ -360,7 +360,7 @@ class GazetteerArtifact:
 
     def search_partial(
         self, name: str, limit: int = 10000, tiers: int = 1
-    ) -> t.List[Feature]:
+    ) -> list[Feature]:
         """
         Find features whose names match some of the query tokens.
 
@@ -388,7 +388,7 @@ class GazetteerArtifact:
 
     def search_fuzzy(
         self, name: str, limit: int = 10000, tiers: int = 1
-    ) -> t.List[Feature]:
+    ) -> list[Feature]:
         """
         Find features with names that sound like the query.
 

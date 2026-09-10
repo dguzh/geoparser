@@ -47,5 +47,5 @@ class ResolutionUpdate(SQLModel):
     """Model for updating an existing resolution record."""
 
     id: uuid.UUID
-    reference_id: t.Optional[uuid.UUID] = None
-    resolver_id: t.Optional[str] = None
+    reference_id: uuid.UUID | None = None
+    resolver_id: str | None = None

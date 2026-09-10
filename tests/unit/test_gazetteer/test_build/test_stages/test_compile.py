@@ -6,7 +6,6 @@ in-memory DuckDB datasets and asserting on the produced rows.
 """
 
 import json
-import typing as t
 
 import duckdb
 import pytest
@@ -21,7 +20,7 @@ from geoparser.gazetteer.build.stages.compile import (
 )
 
 
-def build_compiler(config_data: dict) -> t.Tuple[GazetteerConfig, ProjectionCompiler]:
+def build_compiler(config_data: dict) -> tuple[GazetteerConfig, ProjectionCompiler]:
     """Validate a config and build a compiler with a catalog from its sources."""
     config = GazetteerConfig.model_validate(config_data)
     catalog = {
@@ -30,7 +29,7 @@ def build_compiler(config_data: dict) -> t.Tuple[GazetteerConfig, ProjectionComp
     return config, ProjectionCompiler(config, catalog)
 
 
-def tabular(name: str, *columns: t.Tuple[str, str]) -> dict:
+def tabular(name: str, *columns: tuple[str, str]) -> dict:
     """A tabular source declaration with (column, type) pairs."""
     return {
         "name": name,
@@ -41,7 +40,7 @@ def tabular(name: str, *columns: t.Tuple[str, str]) -> dict:
     }
 
 
-def spatial(name: str, *columns: t.Tuple[str, str]) -> dict:
+def spatial(name: str, *columns: tuple[str, str]) -> dict:
     """A spatial source declaration; must include a ('geometry', 'geometry') pair."""
     return {
         "name": name,
@@ -55,7 +54,7 @@ def run_features(
     connection: duckdb.DuckDBPyConnection,
     compiler: ProjectionCompiler,
     config: GazetteerConfig,
-) -> t.Dict[str, dict]:
+) -> dict[str, dict]:
     """
     Run all feature queries and index the rows by identifier.
 
@@ -85,9 +84,9 @@ def run_names(
     connection: duckdb.DuckDBPyConnection,
     compiler: ProjectionCompiler,
     config: GazetteerConfig,
-) -> t.Dict[str, t.Set[str]]:
+) -> dict[str, set[str]]:
     """Run all name queries and collect names per identifier."""
-    names: t.Dict[str, t.Set[str]] = {}
+    names: dict[str, set[str]] = {}
     for feature in config.features:
         for query in compiler.name_queries(feature):
             for identifier, text in connection.execute(query).fetchall():

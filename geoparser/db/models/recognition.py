@@ -47,5 +47,5 @@ class RecognitionUpdate(SQLModel):
     """Model for updating an existing recognition record."""
 
     id: uuid.UUID
-    document_id: t.Optional[uuid.UUID] = None
-    recognizer_id: t.Optional[str] = None
+    document_id: uuid.UUID | None = None
+    recognizer_id: str | None = None

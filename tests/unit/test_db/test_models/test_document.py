@@ -62,8 +62,8 @@ class TestDocumentModel:
         document = document_factory(text="New York and Paris are cities.")
 
         # Create references in reverse order
-        ref2 = reference_factory(start=13, end=18, document_id=document.id)  # Paris
-        ref1 = reference_factory(start=0, end=8, document_id=document.id)  # New York
+        reference_factory(start=13, end=18, document_id=document.id)  # Paris
+        reference_factory(start=0, end=8, document_id=document.id)  # New York
 
         # Act
         test_session.refresh(document)
@@ -110,18 +110,14 @@ class TestDocumentModel:
         """Test that toponyms property filters references by recognizer context."""
         # Arrange
         document = document_factory(text="Test document")
-        recognizer1 = recognizer_factory(id="rec1", name="Recognizer 1")
-        recognizer2 = recognizer_factory(id="rec2", name="Recognizer 2")
+        recognizer_factory(id="rec1", name="Recognizer 1")
+        recognizer_factory(id="rec2", name="Recognizer 2")
 
-        ref1 = reference_factory(
-            start=0, end=4, document_id=document.id, recognizer_id="rec1"
-        )
-        ref2 = reference_factory(
+        reference_factory(start=0, end=4, document_id=document.id, recognizer_id="rec1")
+        reference_factory(
             start=5, end=13, document_id=document.id, recognizer_id="rec2"
         )
-        ref3 = reference_factory(
-            start=0, end=4, document_id=document.id, recognizer_id="rec1"
-        )
+        reference_factory(start=0, end=4, document_id=document.id, recognizer_id="rec1")
 
         test_session.refresh(document)
 

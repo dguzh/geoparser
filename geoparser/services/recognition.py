@@ -1,6 +1,5 @@
 import typing as t
 import uuid
-from typing import List, Tuple
 
 from sqlmodel import Session
 
@@ -59,7 +58,7 @@ class RecognitionService:
                 )
             return recognizer_record.id
 
-    def predict(self, documents: List["Document"]) -> None:
+    def predict(self, documents: list["Document"]) -> None:
         """
         Run the recognizer on the provided documents and store results in the database.
 
@@ -94,7 +93,7 @@ class RecognitionService:
                     session, unprocessed_documents, predicted_references, recognizer_id
                 )
 
-    def fit(self, documents: List["Document"], **kwargs) -> None:
+    def fit(self, documents: list["Document"], **kwargs) -> None:
         """
         Train the recognizer using the provided documents.
 
@@ -131,8 +130,8 @@ class RecognitionService:
     def _record_reference_predictions(
         self,
         session: Session,
-        documents: List["Document"],
-        predicted_references: List[t.Union[List[Tuple[int, int]], None]],
+        documents: list["Document"],
+        predicted_references: list[list[tuple[int, int]] | None],
         recognizer_id: uuid.UUID,
     ) -> None:
         """
@@ -145,8 +144,11 @@ class RecognitionService:
                                  or None for documents where predictions are not available
             recognizer_id: ID of the recognizer that made the predictions
         """
-        # Process each document with its predicted references
-        for document, references in zip(documents, predicted_references):
+        # Process each document with its predicted references. Recognizers
+        # are pluggable, so the prediction count is not enforced here;
+        # a short list leaves the trailing documents unprocessed rather
+        # than failing the whole batch.
+        for document, references in zip(documents, predicted_references, strict=False):
             # Skip documents where predictions are not available
             # (None indicates the recognizer couldn't process this document)
             if references is None:
@@ -202,8 +204,8 @@ class RecognitionService:
         RecognitionRepository.create(session, recognition_create)
 
     def _filter_unprocessed_documents(
-        self, session: Session, documents: List["Document"], recognizer_id: str
-    ) -> List["Document"]:
+        self, session: Session, documents: list["Document"], recognizer_id: str
+    ) -> list["Document"]:
         """
         Filter out documents that have already been processed by this recognizer.
 

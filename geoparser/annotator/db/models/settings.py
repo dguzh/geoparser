@@ -11,10 +11,10 @@ if t.TYPE_CHECKING:
 
 
 class AnnotatorSessionSettingsBase(SQLModel):
-    auto_close_annotation_modal: t.Optional[bool] = DEFAULT_SESSION_SETTINGS[
+    auto_close_annotation_modal: bool | None = DEFAULT_SESSION_SETTINGS[
         "auto_close_annotation_modal"
     ]
-    one_sense_per_discourse: t.Optional[bool] = DEFAULT_SESSION_SETTINGS[
+    one_sense_per_discourse: bool | None = DEFAULT_SESSION_SETTINGS[
         "one_sense_per_discourse"
     ]
 
@@ -37,5 +37,5 @@ class AnnotatorSessionSettingsCreate(AnnotatorSessionSettingsBase):
 
 class AnnotatorSessionSettingsUpdate(SQLModel):
     id: uuid.UUID
-    auto_close_annotation_modal: t.Optional[bool] = None
-    one_sense_per_discourse: t.Optional[bool] = None
+    auto_close_annotation_modal: bool | None = None
+    one_sense_per_discourse: bool | None = None

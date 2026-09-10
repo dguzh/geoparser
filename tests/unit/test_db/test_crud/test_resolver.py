@@ -39,7 +39,7 @@ class TestResolverRepositoryGetByNameAndConfig:
         """Test that get_by_name_and_config returns None when name doesn't match."""
         # Arrange
         config = {"model": "all-MiniLM-L6-v2"}
-        resolver = resolver_factory(name="SentenceTransformerResolver", config=config)
+        resolver_factory(name="SentenceTransformerResolver", config=config)
 
         # Act
         found_resolver = ResolverRepository.get_by_name_and_config(
@@ -56,7 +56,7 @@ class TestResolverRepositoryGetByNameAndConfig:
         # Arrange
         config1 = {"model": "all-MiniLM-L6-v2"}
         config2 = {"model": "all-mpnet-base-v2"}
-        resolver = resolver_factory(name="SentenceTransformerResolver", config=config1)
+        resolver_factory(name="SentenceTransformerResolver", config=config1)
 
         # Act
         found_resolver = ResolverRepository.get_by_name_and_config(

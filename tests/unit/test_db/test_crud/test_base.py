@@ -75,7 +75,7 @@ class TestBaseRepositoryGet:
     def test_accepts_string_id(self, test_session: Session, recognizer_factory):
         """Test that get method accepts string IDs (for recognizers/resolvers)."""
         # Arrange
-        recognizer = recognizer_factory(id="test_id", name="Test Recognizer")
+        recognizer_factory(id="test_id", name="Test Recognizer")
 
         # Act
         from geoparser.db.crud import RecognizerRepository
@@ -94,9 +94,9 @@ class TestBaseRepositoryGetAll:
     def test_retrieves_all_records(self, test_session: Session, project_factory):
         """Test that get_all retrieves all records of the model."""
         # Arrange
-        project1 = project_factory(name="Project 1")
-        project2 = project_factory(name="Project 2")
-        project3 = project_factory(name="Project 3")
+        project_factory(name="Project 1")
+        project_factory(name="Project 2")
+        project_factory(name="Project 3")
 
         # Act
         all_projects = ProjectRepository.get_all(test_session)

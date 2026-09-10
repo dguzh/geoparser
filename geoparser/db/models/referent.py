@@ -76,7 +76,7 @@ class ReferentUpdate(SQLModel):
     """Model for updating an existing referent."""
 
     id: uuid.UUID
-    reference_id: t.Optional[uuid.UUID] = None
-    gazetteer_name: t.Optional[str] = None
-    feature_identifier: t.Optional[str] = None
-    resolver_id: t.Optional[str] = None
+    reference_id: uuid.UUID | None = None
+    gazetteer_name: str | None = None
+    feature_identifier: str | None = None
+    resolver_id: str | None = None

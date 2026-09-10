@@ -6,7 +6,7 @@ These factories help reduce boilerplate in tests and ensure consistent test data
 """
 
 import uuid
-from typing import Callable, Optional
+from collections.abc import Callable
 
 import pytest
 from sqlmodel import Session
@@ -41,7 +41,7 @@ def project_factory(test_session: Session) -> Callable:
         Function that creates projects with optional custom attributes
     """
 
-    def _create_project(name: Optional[str] = None, **kwargs):
+    def _create_project(name: str | None = None, **kwargs):
         """
         Create a project with the given attributes.
 
@@ -75,7 +75,7 @@ def document_factory(test_session: Session, project_factory: Callable) -> Callab
     """
 
     def _create_document(
-        text: Optional[str] = None, project_id: Optional[uuid.UUID] = None, **kwargs
+        text: str | None = None, project_id: uuid.UUID | None = None, **kwargs
     ):
         """
         Create a document with the given attributes.
@@ -120,9 +120,9 @@ def reference_factory(
     def _create_reference(
         start: int = 0,
         end: int = 4,
-        text: Optional[str] = None,
-        document_id: Optional[uuid.UUID] = None,
-        recognizer_id: Optional[str] = None,
+        text: str | None = None,
+        document_id: uuid.UUID | None = None,
+        recognizer_id: str | None = None,
         **kwargs,
     ):
         """
@@ -173,9 +173,9 @@ def recognizer_factory(test_session: Session) -> Callable:
     """
 
     def _create_recognizer(
-        id: Optional[str] = None,
-        name: Optional[str] = None,
-        config: Optional[dict] = None,
+        id: str | None = None,
+        name: str | None = None,
+        config: dict | None = None,
         **kwargs,
     ):
         """
@@ -218,9 +218,9 @@ def resolver_factory(test_session: Session) -> Callable:
     """
 
     def _create_resolver(
-        id: Optional[str] = None,
-        name: Optional[str] = None,
-        config: Optional[dict] = None,
+        id: str | None = None,
+        name: str | None = None,
+        config: dict | None = None,
         **kwargs,
     ):
         """
@@ -267,10 +267,10 @@ def context_factory(
     """
 
     def _create_context(
-        tag: Optional[str] = None,
-        project_id: Optional[uuid.UUID] = None,
-        recognizer_id: Optional[str] = None,
-        resolver_id: Optional[str] = None,
+        tag: str | None = None,
+        project_id: uuid.UUID | None = None,
+        recognizer_id: str | None = None,
+        resolver_id: str | None = None,
         **kwargs,
     ):
         """
@@ -325,9 +325,9 @@ def referent_factory(
 
     def _create_referent(
         gazetteer_name: str = "andorranames",
-        feature_identifier: Optional[str] = None,
-        reference_id: Optional[uuid.UUID] = None,
-        resolver_id: Optional[str] = None,
+        feature_identifier: str | None = None,
+        reference_id: uuid.UUID | None = None,
+        resolver_id: str | None = None,
         **kwargs,
     ):
         """

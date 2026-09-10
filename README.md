@@ -49,8 +49,10 @@ document = geoparser.parse(
 # Access results
 for toponym in document.toponyms:
     location = toponym.location  # None if the name could not be resolved
-    print(f"{toponym.text} -> {location.data['name']}, {location.data['country_name']} "
-          f"({location.data['latitude']}, {location.data['longitude']})")
+    print(
+        f"{toponym.text} -> {location.data['name']}, {location.data['country_name']} "
+        f"({location.data['latitude']}, {location.data['longitude']})"
+    )
 ```
 
 ```text

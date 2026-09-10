@@ -59,7 +59,7 @@ class TestResolutionServicePredict:
         """Test that predict calls the resolver's predict method."""
         # Arrange
         document = document_factory(text="New York is a city.")
-        reference = reference_factory(start=0, end=8, document_id=document.id)
+        reference_factory(start=0, end=8, document_id=document.id)
         test_session.refresh(document)
 
         mock_sentencetransformer_resolver.predict.return_value = [

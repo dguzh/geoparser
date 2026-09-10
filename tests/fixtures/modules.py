@@ -8,7 +8,6 @@ load actual models for integration tests.
 
 import copy
 from functools import lru_cache
-from typing import List, Tuple
 from unittest.mock import Mock
 
 import pytest
@@ -261,7 +260,7 @@ def create_manual_recognizer():
     """
 
     def _create(
-        label: str, texts: List[str], references: List[List[Tuple[int, int]]]
+        label: str, texts: list[str], references: list[list[tuple[int, int]]]
     ) -> ManualRecognizer:
         return ManualRecognizer(label=label, texts=texts, references=references)
 
@@ -279,9 +278,9 @@ def create_manual_resolver():
 
     def _create(
         label: str,
-        texts: List[str],
-        references: List[List[Tuple[int, int]]],
-        referents: List[List[Tuple[str, str]]],
+        texts: list[str],
+        references: list[list[tuple[int, int]]],
+        referents: list[list[tuple[str, str]]],
     ) -> ManualResolver:
         return ManualResolver(
             label=label, texts=texts, references=references, referents=referents

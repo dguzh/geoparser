@@ -38,4 +38,4 @@ class ProjectUpdate(SQLModel):
     """Model for updating an existing project."""
 
     id: uuid.UUID
-    name: t.Optional[str] = None
+    name: str | None = None

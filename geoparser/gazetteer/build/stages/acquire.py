@@ -9,7 +9,6 @@ contents or directories.
 import shutil
 import zipfile
 from pathlib import Path
-from typing import Optional
 
 import requests
 
@@ -98,14 +97,16 @@ class Acquirer:
             response.raise_for_status()
             total_size = int(response.headers.get("content-length", 0))
 
-            with open(download_path, "wb") as output_file:
-                with item(
+            with (
+                open(download_path, "wb") as output_file,
+                item(
                     f"Downloading {download_path.name}", total=total_size or None
-                ) as progress_bar:
-                    for chunk in response.iter_content(chunk_size=DOWNLOAD_CHUNK_SIZE):
-                        if chunk:
-                            output_file.write(chunk)
-                            progress_bar.update(len(chunk))
+                ) as progress_bar,
+            ):
+                for chunk in response.iter_content(chunk_size=DOWNLOAD_CHUNK_SIZE):
+                    if chunk:
+                        output_file.write(chunk)
+                        progress_bar.update(len(chunk))
         advance()
 
         return download_path
@@ -148,16 +149,17 @@ class Acquirer:
         if not archive_path.is_file():
             return True
 
-        if extraction_dir.name == target_filename:
-            if archive_path.stat().st_mtime <= extraction_dir.stat().st_mtime:
-                return True
+        if (
+            extraction_dir.name == target_filename
+            and archive_path.stat().st_mtime <= extraction_dir.stat().st_mtime
+        ):
+            return True
 
         target_path = self._find_target_file_quiet(extraction_dir, target_filename)
-        if target_path:
-            if archive_path.stat().st_mtime <= target_path.stat().st_mtime:
-                return True
-
-        return False
+        # bool() because the `and` yields None when no target file was found.
+        return bool(
+            target_path and archive_path.stat().st_mtime <= target_path.stat().st_mtime
+        )
 
     def _extract_zip(
         self, archive_path: Path, extraction_dir: Path, target_filename: str
@@ -188,9 +190,7 @@ class Acquirer:
                 return path
         raise FileNotFoundError(f"File '{filename}' not found in {directory}")
 
-    def _find_target_file_quiet(
-        self, directory: Path, filename: str
-    ) -> Optional[Path]:
+    def _find_target_file_quiet(self, directory: Path, filename: str) -> Path | None:
         """Find a file by name, returning None if not found."""
         try:
             return self._find_target_file(directory, filename)

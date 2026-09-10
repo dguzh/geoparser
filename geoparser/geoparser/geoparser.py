@@ -1,5 +1,6 @@
 import uuid
-from typing import List, Optional, Sequence, Union, overload
+from collections.abc import Sequence
+from typing import overload
 
 from geoparser.db.models import Document
 from geoparser.modules.recognizers import Recognizer
@@ -28,8 +29,8 @@ class Geoparser:
 
     def __init__(
         self,
-        recognizer: Optional[Recognizer],
-        resolver: Optional[Resolver],
+        recognizer: Recognizer | None,
+        resolver: Resolver | None,
     ):
         """
         Initialize a Geoparser instance.
@@ -47,11 +48,11 @@ class Geoparser:
     def parse(self, texts: str, save: bool = False) -> Document: ...
 
     @overload
-    def parse(self, texts: Sequence[str], save: bool = False) -> List[Document]: ...
+    def parse(self, texts: Sequence[str], save: bool = False) -> list[Document]: ...
 
     def parse(
-        self, texts: Union[str, Sequence[str]], save: bool = False
-    ) -> Union[Document, List[Document]]:
+        self, texts: str | Sequence[str], save: bool = False
+    ) -> Document | list[Document]:
         """
         Parse one or more texts with the configured recognizer and resolver.
 

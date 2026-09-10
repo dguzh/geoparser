@@ -75,7 +75,7 @@ _DONE_STYLE = "green"
 _console = Console(stderr=True)
 
 # The Progress shared by every stage and item of the current build.
-_active_progress: ContextVar[t.Optional[Progress]] = ContextVar(
+_active_progress: ContextVar[Progress | None] = ContextVar(
     "active_build_progress", default=None
 )
 # The stage currently accepting items, so item() can attach without callers
@@ -131,9 +131,7 @@ class _ProgressReadoutColumn(ProgressColumn):
     """
 
     def __init__(self) -> None:
-        super().__init__(
-            table_column=Column(width=4, justify="right", no_wrap=True)
-        )
+        super().__init__(table_column=Column(width=4, justify="right", no_wrap=True))
 
     def render(self, task: Task) -> Text:
         if task.total:
@@ -255,9 +253,9 @@ class Stage:
         self.done_label = done_label
         self.total_items = total_items
         self._completed = 0
-        self._progress: t.Optional[Progress] = None
+        self._progress: Progress | None = None
         self._owns_display = False
-        self._task_id: t.Optional[int] = None
+        self._task_id: int | None = None
         self._stage_token = None
 
     def __enter__(self) -> "Stage":
@@ -299,9 +297,7 @@ class Stage:
             self._progress.update(self._task_id, total=self.total_items)
         self._progress.advance(self._task_id, count)
 
-    def item(
-        self, description: str, total: t.Optional[float] = None
-    ) -> "_Item":
+    def item(self, description: str, total: float | None = None) -> "_Item":
         """Create an item bar nested under this stage."""
         task_id = self._progress.add_task(description, total=total, is_child=True)
         return _Item(self._progress, task_id, total=total)
@@ -333,7 +329,7 @@ class _Item:
         self,
         progress: Progress,
         task_id: int,
-        total: t.Optional[float] = None,
+        total: float | None = None,
     ):
         self._progress = progress
         self._task_id = task_id
@@ -382,7 +378,7 @@ class _Item:
 
 
 @contextmanager
-def item(description: str, total: t.Optional[float] = None) -> t.Iterator[_Item]:
+def item(description: str, total: float | None = None) -> t.Iterator[_Item]:
     """
     Display a nested, transient progress item.
 
@@ -428,7 +424,7 @@ def item(description: str, total: t.Optional[float] = None) -> t.Iterator[_Item]
 
 def track(
     bar: _Item,
-    poll: t.Callable[[], t.Optional[float]],
+    poll: t.Callable[[], float | None],
     run: t.Callable[[], None],
     poll_interval: float = 0.1,
 ) -> None:
@@ -463,12 +459,12 @@ def track(
     Raises:
         Whatever exception ``run()`` raised, re-raised on the calling thread
     """
-    error: t.List[BaseException] = []
+    error: list[BaseException] = []
 
     def _run() -> None:
         try:
             run()
-        except BaseException as exc:  # noqa: BLE001 - re-raised below
+        except BaseException as exc:
             error.append(exc)
 
     thread = threading.Thread(target=_run, daemon=True)
@@ -482,7 +478,7 @@ def track(
     bar.set_progress(100)
 
 
-def _sample(bar: _Item, poll: t.Callable[[], t.Optional[float]]) -> None:
+def _sample(bar: _Item, poll: t.Callable[[], float | None]) -> None:
     """Read one progress value and apply it to ``bar``, ignoring poll errors."""
     try:
         value = poll()
@@ -507,7 +503,7 @@ def advance(count: int = 1) -> None:
         active_stage.advance(count)
 
 
-def label_suffixes(labels: t.Sequence[str]) -> t.List[str]:
+def label_suffixes(labels: t.Sequence[str]) -> list[str]:
     """
     Number labels that repeat, so identical-looking items are told apart.
 
@@ -530,10 +526,10 @@ def label_suffixes(labels: t.Sequence[str]) -> t.List[str]:
         >>> label_suffixes(["Loading A", "Collecting names from A", "Collecting names from A"])
         ['', ' (1/2)', ' (2/2)']
     """
-    totals: t.Dict[str, int] = {}
+    totals: dict[str, int] = {}
     for label in labels:
         totals[label] = totals.get(label, 0) + 1
-    seen: t.Dict[str, int] = {}
+    seen: dict[str, int] = {}
     suffixes = []
     for label in labels:
         total = totals[label]

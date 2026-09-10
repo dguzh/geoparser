@@ -11,7 +11,7 @@ class ResolverBase(SQLModel):
     """Base model for resolver metadata."""
 
     name: str = Field(index=True)
-    config: t.Dict[str, t.Any] = Field(default_factory=dict, sa_type=JSON)
+    config: dict[str, t.Any] = Field(default_factory=dict, sa_type=JSON)
 
 
 class Resolver(ResolverBase, table=True):
@@ -45,7 +45,7 @@ class Resolver(ResolverBase, table=True):
         Returns:
             String with resolver name and config parameters
         """
-        config_str = ", ".join(f"{k}={repr(v)}" for k, v in self.config.items())
+        config_str = ", ".join(f"{k}={v!r}" for k, v in self.config.items())
         return f"{self.name}({config_str})"
 
     def __repr__(self) -> str:
@@ -68,5 +68,5 @@ class ResolverUpdate(SQLModel):
     """Model for updating a resolver record."""
 
     id: str
-    name: t.Optional[str] = None
-    config: t.Optional[t.Dict[str, t.Any]] = None
+    name: str | None = None
+    config: dict[str, t.Any] | None = None

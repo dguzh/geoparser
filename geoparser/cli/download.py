@@ -14,7 +14,7 @@ def download_cli(config: str):
                 a path to a custom YAML configuration file.
     """
     typer.secho(
-        f"Use 'install' instead:\n" f"  python -m geoparser install {config}",
+        f"Use 'install' instead:\n  python -m geoparser install {config}",
         fg=typer.colors.YELLOW,
         err=True,
     )

@@ -1,5 +1,3 @@
-import typing as t
-
 from sqlmodel import Session, select
 
 from geoparser.db.crud.base import BaseRepository
@@ -16,7 +14,7 @@ class RecognizerRepository(BaseRepository[Recognizer]):
     @classmethod
     def get_by_name_and_config(
         cls, db: Session, name: str, config: dict
-    ) -> t.Optional[Recognizer]:
+    ) -> Recognizer | None:
         """
         Get a recognizer by name and configuration.
 

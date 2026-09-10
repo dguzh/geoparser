@@ -24,8 +24,8 @@ class TestRecognitionRepositoryGetByDocument:
         """Test that get_by_document returns all recognitions for a document."""
         # Arrange
         document = document_factory()
-        recognizer1 = recognizer_factory(id="rec1")
-        recognizer2 = recognizer_factory(id="rec2")
+        recognizer_factory(id="rec1")
+        recognizer_factory(id="rec2")
 
         RecognitionRepository.create(
             test_session,
@@ -71,7 +71,7 @@ class TestRecognitionRepositoryGetByRecognizer:
     ):
         """Test that get_by_recognizer returns all recognitions for a recognizer."""
         # Arrange
-        recognizer = recognizer_factory(id="test_rec")
+        recognizer_factory(id="test_rec")
         doc1 = document_factory()
         doc2 = document_factory()
 
@@ -98,7 +98,7 @@ class TestRecognitionRepositoryGetByRecognizer:
     ):
         """Test that get_by_recognizer returns empty list for recognizer without recognitions."""
         # Arrange
-        recognizer = recognizer_factory(id="test_rec")
+        recognizer_factory(id="test_rec")
 
         # Act
         recognitions = RecognitionRepository.get_by_recognizer(test_session, "test_rec")
@@ -120,7 +120,7 @@ class TestRecognitionRepositoryGetByDocumentAndRecognizer:
         """Test that get_by_document_and_recognizer returns recognition for matching pair."""
         # Arrange
         document = document_factory()
-        recognizer = recognizer_factory(id="test_rec")
+        recognizer_factory(id="test_rec")
 
         created_recognition = RecognitionRepository.create(
             test_session,
@@ -147,7 +147,7 @@ class TestRecognitionRepositoryGetByDocumentAndRecognizer:
         """Test that get_by_document_and_recognizer returns None for non-matching pair."""
         # Arrange
         document = document_factory()
-        recognizer = recognizer_factory(id="test_rec")
+        recognizer_factory(id="test_rec")
 
         # Act
         recognition = RecognitionRepository.get_by_document_and_recognizer(
@@ -172,7 +172,7 @@ class TestRecognitionRepositoryGetUnprocessedDocuments:
         """Test that get_unprocessed_documents returns documents not yet processed."""
         # Arrange
         project = project_factory()
-        recognizer = recognizer_factory(id="test_rec")
+        recognizer_factory(id="test_rec")
 
         # Create three documents
         doc1 = document_factory(project_id=project.id)
@@ -207,10 +207,10 @@ class TestRecognitionRepositoryGetUnprocessedDocuments:
         """Test that get_unprocessed_documents returns all documents when none processed."""
         # Arrange
         project = project_factory()
-        recognizer = recognizer_factory(id="test_rec")
+        recognizer_factory(id="test_rec")
 
-        doc1 = document_factory(project_id=project.id)
-        doc2 = document_factory(project_id=project.id)
+        document_factory(project_id=project.id)
+        document_factory(project_id=project.id)
 
         # Act
         unprocessed = RecognitionRepository.get_unprocessed_documents(
@@ -230,7 +230,7 @@ class TestRecognitionRepositoryGetUnprocessedDocuments:
         """Test that get_unprocessed_documents returns empty list when all processed."""
         # Arrange
         project = project_factory()
-        recognizer = recognizer_factory(id="test_rec")
+        recognizer_factory(id="test_rec")
 
         doc1 = document_factory(project_id=project.id)
         doc2 = document_factory(project_id=project.id)
@@ -264,13 +264,13 @@ class TestRecognitionRepositoryGetUnprocessedDocuments:
         # Arrange
         project1 = project_factory()
         project2 = project_factory()
-        recognizer = recognizer_factory(id="test_rec")
+        recognizer_factory(id="test_rec")
 
         # Documents in project1
         doc1_proj1 = document_factory(project_id=project1.id)
 
         # Documents in project2
-        doc1_proj2 = document_factory(project_id=project2.id)
+        document_factory(project_id=project2.id)
 
         # Act - Get unprocessed from project1
         unprocessed = RecognitionRepository.get_unprocessed_documents(

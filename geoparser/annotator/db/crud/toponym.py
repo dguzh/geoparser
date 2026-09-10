@@ -26,12 +26,12 @@ if t.TYPE_CHECKING:
 
 class ToponymRepository(BaseRepository):
     model = AnnotatorToponym
-    exception_factory: t.Callable[[str, uuid.UUID], Exception] = (
-        lambda x, y: ToponymNotFoundException(f"{x} with ID {y} not found.")
+    exception_factory: t.Callable[[str, uuid.UUID], Exception] = lambda x, y: (
+        ToponymNotFoundException(f"{x} with ID {y} not found.")
     )
 
     # Gazetteer-specific attribute mappings for location descriptions
-    GAZETTEER_ATTRIBUTE_MAP = {
+    GAZETTEER_ATTRIBUTE_MAP: t.ClassVar[dict[str, dict[str, str]]] = {
         "geonames": {
             "name": "name",
             "type": "feature_name",
@@ -49,7 +49,7 @@ class ToponymRepository(BaseRepository):
     }
 
     # Filter attributes for each gazetteer
-    GAZETTEER_FILTER_ATTRIBUTES = {
+    GAZETTEER_FILTER_ATTRIBUTES: t.ClassVar[dict[str, list[str]]] = {
         "geonames": [
             "feature_name",
             "country_name",
@@ -146,8 +146,8 @@ class ToponymRepository(BaseRepository):
     @classmethod
     def _remove_duplicates(
         cls,
-        old_toponyms: list[t.Union[AnnotatorToponym, AnnotatorToponymCreate]],
-        new_toponyms: list[t.Union[AnnotatorToponym, AnnotatorToponymCreate]],
+        old_toponyms: list[AnnotatorToponym | AnnotatorToponymCreate],
+        new_toponyms: list[AnnotatorToponym | AnnotatorToponymCreate],
     ) -> list[AnnotatorToponymCreate]:
         toponyms = []
         for new_toponym in new_toponyms:
@@ -259,12 +259,12 @@ class ToponymRepository(BaseRepository):
         cls,
         db: DBSession,
         item: AnnotatorToponymCreate,
-        exclude: t.Optional[list[str]] = [],
-        additional: t.Optional[dict[str, t.Any]] = {},
+        exclude: list[str] | None = None,
+        additional: dict[str, t.Any] | None = None,
     ) -> AnnotatorToponym:
-        assert (
-            "document_id" in additional
-        ), "toponym cannot be created without link to document"
+        assert "document_id" in additional, (
+            "toponym cannot be created without link to document"
+        )
         cls.validate_overlap(db, item, additional["document_id"])
         return super().create(db, item, exclude=exclude, additional=additional)
 
@@ -275,10 +275,10 @@ class ToponymRepository(BaseRepository):
     @classmethod
     def _get_toponym(
         cls,
-        toponyms: list[t.Union[AnnotatorToponym, AnnotatorToponymCreate]],
+        toponyms: list[AnnotatorToponym | AnnotatorToponymCreate],
         start: int,
         end: int,
-    ) -> t.Optional[t.Union[AnnotatorToponym, AnnotatorToponymCreate]]:
+    ) -> AnnotatorToponym | AnnotatorToponymCreate | None:
         return next(
             (t for t in toponyms if t.start == start and t.end == end),
             None,
@@ -287,7 +287,7 @@ class ToponymRepository(BaseRepository):
     @classmethod
     def get_toponym(
         cls, document: "AnnotatorDocument", start: int, end: int
-    ) -> t.Optional[AnnotatorToponym]:
+    ) -> AnnotatorToponym | None:
         return cls._get_toponym(document.toponyms, start, end)
 
     @classmethod
@@ -330,7 +330,7 @@ class ToponymRepository(BaseRepository):
         cls,
         db: DBSession,
         item: AnnotatorToponymUpdate,
-        document_id: t.Optional[str] = None,
+        document_id: str | None = None,
     ) -> AnnotatorToponym:
         cls.validate_overlap(db, item, document_id or item.document_id)
         return super().update(db, item)

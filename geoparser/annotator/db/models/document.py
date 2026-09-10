@@ -18,7 +18,7 @@ if t.TYPE_CHECKING:
 class AnnotatorDocumentBase(SQLModel):
     filename: str
     spacy_model: str
-    spacy_applied: t.Optional[bool] = False
+    spacy_applied: bool | None = False
     text: t.Annotated[str, AfterValidator(normalize_newlines)]
 
 
@@ -44,12 +44,12 @@ class AnnotatorDocument(AnnotatorDocumentBase, table=True):
 
 
 class AnnotatorDocumentCreate(AnnotatorDocumentBase):
-    toponyms: t.Optional[list["AnnotatorToponymCreate"]] = []
+    toponyms: list["AnnotatorToponymCreate"] | None = []
 
 
 class AnnotatorDocumentUpdate(SQLModel):
     id: uuid.UUID
-    filename: t.Optional[str] = None
-    spacy_model: t.Optional[str] = None
-    spacy_applied: t.Optional[bool] = None
-    text: t.Optional[str] = None
+    filename: str | None = None
+    spacy_model: str | None = None
+    spacy_applied: bool | None = None
+    text: str | None = None

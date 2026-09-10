@@ -12,7 +12,7 @@ class AnnotatorToponymBase(SQLModel):
     text: str
     start: int
     end: int
-    loc_id: t.Optional[str] = ""
+    loc_id: str | None = ""
 
 
 class AnnotatorToponym(AnnotatorToponymBase, table=True):
@@ -33,8 +33,8 @@ class AnnotatorToponymCreate(AnnotatorToponymBase):
 
 class AnnotatorToponymUpdate(SQLModel):
     id: uuid.UUID
-    document_id: t.Optional[uuid.UUID] = None
-    text: t.Optional[str] = None
-    start: t.Optional[int] = None
-    end: t.Optional[int] = None
-    loc_id: t.Optional[str] = ""
+    document_id: uuid.UUID | None = None
+    text: str | None = None
+    start: int | None = None
+    end: int | None = None
+    loc_id: str | None = ""

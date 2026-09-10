@@ -1,6 +1,5 @@
 import typing as t
 import uuid
-from typing import List, Tuple
 
 from sqlmodel import Session
 
@@ -58,7 +57,7 @@ class ResolutionService:
                 resolver_record = ResolverRepository.create(session, resolver_create)
             return resolver_record.id
 
-    def predict(self, documents: List["Document"]) -> None:
+    def predict(self, documents: list["Document"]) -> None:
         """
         Run the resolver on all references from the provided documents and store results in the database.
 
@@ -96,15 +95,17 @@ class ResolutionService:
                 # Get predictions from resolver using raw data
                 predicted_referents = self.resolver.predict(texts, reference_boundaries)
 
-                # Record predictions for each document
+                # Record predictions for each document. Resolvers are
+                # pluggable, so as in RecognitionService the prediction
+                # count is not enforced here.
                 for unprocessed_references, doc_referents in zip(
-                    reference_objects, predicted_referents
+                    reference_objects, predicted_referents, strict=False
                 ):
                     self._record_referent_predictions(
                         session, unprocessed_references, doc_referents, resolver_id
                     )
 
-    def fit(self, documents: List["Document"], **kwargs) -> None:
+    def fit(self, documents: list["Document"], **kwargs) -> None:
         """
         Train the resolver using the provided documents.
 
@@ -158,8 +159,8 @@ class ResolutionService:
     def _record_referent_predictions(
         self,
         session: Session,
-        unprocessed_references: List["Reference"],
-        predicted_referents: List[t.Union[Tuple[str, str], None]],
+        unprocessed_references: list["Reference"],
+        predicted_referents: list[tuple[str, str] | None],
         resolver_id: uuid.UUID,
     ) -> None:
         """
@@ -172,8 +173,11 @@ class ResolutionService:
                                 or None for references where predictions are not available
             resolver_id: ID of the resolver that made the predictions
         """
-        # Process each reference with its predicted referent
-        for reference, referent in zip(unprocessed_references, predicted_referents):
+        # Process each reference with its predicted referent; see above on
+        # why a short prediction list is tolerated rather than rejected.
+        for reference, referent in zip(
+            unprocessed_references, predicted_referents, strict=False
+        ):
             # Skip references where predictions are not available
             # (None indicates the resolver couldn't process this reference)
             if referent is None:
@@ -213,8 +217,7 @@ class ResolutionService:
         feature = Gazetteer(gazetteer_name).find(identifier)
         if feature is None:
             raise ValueError(
-                f"Feature '{identifier}' does not exist in gazetteer "
-                f"'{gazetteer_name}'"
+                f"Feature '{identifier}' does not exist in gazetteer '{gazetteer_name}'"
             )
 
         # Create the referent with resolver ID directly
@@ -243,8 +246,8 @@ class ResolutionService:
         ResolutionRepository.create(session, resolution_create)
 
     def _filter_unprocessed_references(
-        self, session: Session, references: List["Reference"], resolver_id: str
-    ) -> List["Reference"]:
+        self, session: Session, references: list["Reference"], resolver_id: str
+    ) -> list["Reference"]:
         """
         Filter out references that have already been processed by this resolver.
 

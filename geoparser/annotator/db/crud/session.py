@@ -30,12 +30,15 @@ class SessionRepository(BaseRepository):
         cls,
         db: DBSession,
         item: AnnotatorSessionCreate,
-        exclude: t.Optional[list[str]] = [],
-        additional: t.Optional[dict[str, t.Any]] = {},
+        exclude: list[str] | None = None,
+        additional: dict[str, t.Any] | None = None,
     ) -> AnnotatorSession:
         # Create the main session object
         session = super().create(
-            db, item, exclude=["settings", "documents", *exclude], additional=additional
+            db,
+            item,
+            exclude=["settings", "documents", *(exclude or [])],
+            additional=additional,
         )
         # Create settings if provided
         if item.settings:

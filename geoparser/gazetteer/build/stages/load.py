@@ -10,7 +10,6 @@ is therefore in one coordinate system, which is what lets expressions and
 spatial joins mix sources without transforming anything by hand.
 """
 
-import typing as t
 from pathlib import Path
 
 import duckdb
@@ -68,9 +67,7 @@ def quote_literal(value: str) -> str:
 class Loader:
     """Loads source files into tables of a DuckDB connection."""
 
-    def __init__(
-        self, connection: duckdb.DuckDBPyConnection, crs: str = DEFAULT_CRS
-    ):
+    def __init__(self, connection: duckdb.DuckDBPyConnection, crs: str = DEFAULT_CRS):
         """
         Initialize the loader.
 
@@ -103,7 +100,7 @@ class Loader:
         table = quote_identifier(source_config.name)
         return self.connection.execute(f"SELECT count(*) FROM {table}").fetchone()[0]
 
-    def columns(self, table_name: str) -> t.List[str]:
+    def columns(self, table_name: str) -> list[str]:
         """
         Return the column names of a loaded table.
 
@@ -159,7 +156,7 @@ class Loader:
                     raise
                 self.connection.execute(
                     self._read_csv_sql(
-                        source_config, file_path, options + ["parallel=false"]
+                        source_config, file_path, [*options, "parallel=false"]
                     )
                 )
 
@@ -169,7 +166,7 @@ class Loader:
 
     @staticmethod
     def _read_csv_sql(
-        source_config: SourceConfig, file_path: Path, options: t.List[str]
+        source_config: SourceConfig, file_path: Path, options: list[str]
     ) -> str:
         """Build the statement staging a delimited file into its table."""
         table = quote_identifier(source_config.name)
@@ -196,7 +193,11 @@ class Loader:
             f"SELECT * FROM ST_Read({quote_literal(str(file_path))})"
         )
         with item(f"Loading {source_config.name}", total=100) as bar:
-            track(bar, self.connection.query_progress, lambda: self.connection.execute(read_sql))
+            track(
+                bar,
+                self.connection.query_progress,
+                lambda: self.connection.execute(read_sql),
+            )
         advance()
         # Geometry types may carry a CRS parameter, e.g. GEOMETRY('EPSG:4326')
         geometry_columns = [
@@ -239,7 +240,11 @@ class Loader:
             f"SELECT {', '.join(select_parts)} FROM {raw}"
         )
         with item(f"Normalizing {source_config.name}", total=100) as bar:
-            track(bar, self.connection.query_progress, lambda: self.connection.execute(cast_sql))
+            track(
+                bar,
+                self.connection.query_progress,
+                lambda: self.connection.execute(cast_sql),
+            )
         advance()
         self.connection.execute(f"DROP TABLE {raw}")
 

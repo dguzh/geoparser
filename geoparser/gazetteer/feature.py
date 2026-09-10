@@ -31,12 +31,12 @@ class Feature:
 
     def __init__(
         self,
-        artifact: "GazetteerArtifact",
+        artifact: GazetteerArtifact,
         id: int,
         identifier: str,
         source: str,
         data: str,
-        geometry: t.Optional[bytes],
+        geometry: bytes | None,
     ):
         """
         Initialize a feature from an artifact row.
@@ -62,7 +62,7 @@ class Feature:
         return self._artifact.name
 
     @cached_property
-    def data(self) -> t.Dict[str, t.Any]:
+    def data(self) -> dict[str, t.Any]:
         """
         The feature's data as a dictionary.
 
@@ -72,7 +72,7 @@ class Feature:
         return json.loads(self._data_json)
 
     @cached_property
-    def geometry(self) -> t.Optional[BaseGeometry]:
+    def geometry(self) -> BaseGeometry | None:
         """
         The feature's geometry as a Shapely object.
 
@@ -92,7 +92,7 @@ class Feature:
         return self._artifact.crs
 
     @cached_property
-    def names(self) -> t.List[str]:
+    def names(self) -> list[str]:
         """
         All searchable names of this feature.
 

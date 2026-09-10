@@ -287,7 +287,7 @@ class TestMemoryLimit:
     def test_windows_memory_reader_returns_total_phys(self, monkeypatch):
         """GlobalMemoryStatusEx success yields ullTotalPhys."""
         import ctypes
-        import ctypes.wintypes  # noqa: F401 — required attribute on Linux
+        import ctypes.wintypes
         import types
 
         class FakeKernel:
@@ -310,7 +310,7 @@ class TestMemoryLimit:
     def test_windows_memory_reader_returns_none_on_api_failure(self, monkeypatch):
         """A failed GlobalMemoryStatusEx call is treated as unknown RAM."""
         import ctypes
-        import ctypes.wintypes  # noqa: F401 — required attribute on Linux
+        import ctypes.wintypes
         import types
 
         class FakeKernel:
@@ -449,7 +449,7 @@ class TestDiskPreflight:
             )(),
         )
 
-        with pytest.raises(OSError, match="Not enough free disk space.*geonames"):
+        with pytest.raises(OSError, match=r"Not enough free disk space.*geonames"):
             GazetteerBuilder()._check_disk_space(config, tmp_path)
 
 

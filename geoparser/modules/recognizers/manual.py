@@ -1,5 +1,4 @@
 import typing as t
-from typing import List, Tuple
 
 from geoparser.modules.recognizers import Recognizer
 
@@ -24,7 +23,7 @@ class ManualRecognizer(Recognizer):
     NAME = "ManualRecognizer"
 
     def __init__(
-        self, label: str, texts: List[str], references: List[List[Tuple[int, int]]]
+        self, label: str, texts: list[str], references: list[list[tuple[int, int]]]
     ):
         """
         Initialize the ManualRecognizer with a label and reference annotations.
@@ -45,9 +44,7 @@ class ManualRecognizer(Recognizer):
         self.texts = texts
         self.references = references
 
-    def predict(
-        self, texts: t.List[str]
-    ) -> t.List[t.Union[t.List[t.Tuple[int, int]], None]]:
+    def predict(self, texts: list[str]) -> list[list[tuple[int, int]] | None]:
         """
         Return the manually provided reference annotations for the given documents.
 

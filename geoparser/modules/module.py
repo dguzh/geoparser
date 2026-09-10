@@ -3,7 +3,10 @@ import json
 from abc import ABC
 
 
-class Module(ABC):
+# B024: a deliberate marker base. The behavioural contract (`predict`) is
+# abstract on Recognizer and Resolver, which is where it can be stated
+# precisely; Module only carries the shared config/identity machinery.
+class Module(ABC):  # noqa: B024
     """
     Abstract base class for any geoparser module.
 
@@ -37,7 +40,7 @@ class Module(ABC):
         Returns:
             String with module name and config parameters
         """
-        config_str = ", ".join(f"{k}={repr(v)}" for k, v in self.config.items())
+        config_str = ", ".join(f"{k}={v!r}" for k, v in self.config.items())
         return f"{self.name}({config_str})"
 
     def __repr__(self) -> str:

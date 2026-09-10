@@ -28,7 +28,6 @@ joined table is available, and the values to keep are selected in ``data``.
 from __future__ import annotations
 
 import re
-import typing as t
 from enum import Enum
 from pathlib import Path
 
@@ -80,21 +79,21 @@ class SourceConfig(BaseModel):
     """
 
     name: str
-    url: t.Optional[str] = None
-    path: t.Optional[str] = None
+    url: str | None = None
+    path: str | None = None
     file: str
 
     # Tabular options
-    delimiter: t.Optional[str] = None
-    quote: t.Optional[str] = None
+    delimiter: str | None = None
+    quote: str | None = None
     skip_rows: int = 0
 
     # Coordinate reference system of the source's geometry/coordinates.
     # Geometries are re-projected into the gazetteer's CRS during the build,
     # so configs never transform coordinates themselves.
-    crs: t.Optional[str] = None
+    crs: str | None = None
 
-    attributes: t.List[AttributeDef]
+    attributes: list[AttributeDef]
 
     @property
     def is_tabular(self) -> bool:
@@ -102,7 +101,7 @@ class SourceConfig(BaseModel):
         return self.delimiter is not None
 
     @property
-    def data_attributes(self) -> t.List[AttributeDef]:
+    def data_attributes(self) -> list[AttributeDef]:
         """The non-geometry attributes of this source."""
         return [a for a in self.attributes if a.type != DataType.GEOMETRY]
 
@@ -117,7 +116,7 @@ class SourceConfig(BaseModel):
         return value
 
     @model_validator(mode="after")
-    def validate_source(self) -> "SourceConfig":
+    def validate_source(self) -> SourceConfig:
         if bool(self.url) == bool(self.path):
             raise ValueError(
                 f"Source '{self.name}' must define exactly one of 'url' or 'path'"
@@ -182,7 +181,7 @@ _ALIAS_SUFFIX = re.compile(
 )
 
 
-def split_data_value(value: str) -> t.Tuple[str, t.Optional[str]]:
+def split_data_value(value: str) -> tuple[str, str | None]:
     """
     Split a ``data`` entry into its SQL expression and output key.
 
@@ -231,15 +230,15 @@ class FeatureConfig(BaseModel):
     """
 
     source: str
-    joins: t.List[str] = Field(default_factory=list)
+    joins: list[str] = Field(default_factory=list)
     identifier: str
-    geometry: t.Optional[str] = None
-    names: t.List[str]
-    data: t.List[str] = Field(default_factory=list)
+    geometry: str | None = None
+    names: list[str]
+    data: list[str] = Field(default_factory=list)
 
     @field_validator("names")
     @classmethod
-    def validate_names(cls, value: t.List[str]) -> t.List[str]:
+    def validate_names(cls, value: list[str]) -> list[str]:
         if not value:
             raise ValueError("A feature must define at least one name")
         for name in value:
@@ -249,7 +248,7 @@ class FeatureConfig(BaseModel):
 
     @field_validator("joins")
     @classmethod
-    def validate_joins(cls, value: t.List[str]) -> t.List[str]:
+    def validate_joins(cls, value: list[str]) -> list[str]:
         for join in value:
             if not isinstance(join, str) or not join.strip():
                 raise ValueError("A join must be a non-empty SQL join clause")
@@ -257,7 +256,7 @@ class FeatureConfig(BaseModel):
 
     @field_validator("data")
     @classmethod
-    def validate_data(cls, value: t.List[str]) -> t.List[str]:
+    def validate_data(cls, value: list[str]) -> list[str]:
         for item in value:
             if not isinstance(item, str) or not item.strip():
                 raise ValueError("A data value must be a non-empty string")
@@ -269,7 +268,7 @@ class FeatureConfig(BaseModel):
         return value
 
     @model_validator(mode="after")
-    def validate_feature(self) -> "FeatureConfig":
+    def validate_feature(self) -> FeatureConfig:
         data_names = [split_data_value(item)[1] for item in self.data]
         duplicates = {name for name in data_names if data_names.count(name) > 1}
         if duplicates:
@@ -288,9 +287,9 @@ class GazetteerConfig(BaseModel):
     # Minimum free bytes needed on the gazetteers volume during install
     # (peak working set). Measured from a real install and rounded up by
     # authors; omitted for custom configs that have not been measured.
-    disk: t.Optional[int] = None
-    sources: t.List[SourceConfig]
-    features: t.List[FeatureConfig]
+    disk: int | None = None
+    sources: list[SourceConfig]
+    features: list[FeatureConfig]
 
     @field_validator("name")
     @classmethod
@@ -304,14 +303,14 @@ class GazetteerConfig(BaseModel):
 
     @field_validator("disk")
     @classmethod
-    def validate_disk(cls, value: t.Optional[int]) -> t.Optional[int]:
+    def validate_disk(cls, value: int | None) -> int | None:
         if value is not None and value <= 0:
             raise ValueError("disk must be a positive number of bytes")
         return value
 
     @field_validator("sources")
     @classmethod
-    def validate_sources(cls, value: t.List[SourceConfig]) -> t.List[SourceConfig]:
+    def validate_sources(cls, value: list[SourceConfig]) -> list[SourceConfig]:
         if not value:
             raise ValueError("A gazetteer must define at least one source")
         names = [source.name for source in value]
@@ -322,7 +321,7 @@ class GazetteerConfig(BaseModel):
 
     @field_validator("features")
     @classmethod
-    def validate_features(cls, value: t.List[FeatureConfig]) -> t.List[FeatureConfig]:
+    def validate_features(cls, value: list[FeatureConfig]) -> list[FeatureConfig]:
         if not value:
             raise ValueError("A gazetteer must define at least one feature block")
         sources = [feature.source for feature in value]
@@ -335,7 +334,7 @@ class GazetteerConfig(BaseModel):
         return value
 
     @model_validator(mode="after")
-    def validate_references(self) -> "GazetteerConfig":
+    def validate_references(self) -> GazetteerConfig:
         source_names = {source.name for source in self.sources}
 
         for feature in self.features:
@@ -346,7 +345,7 @@ class GazetteerConfig(BaseModel):
         return self
 
     @classmethod
-    def from_yaml(cls, path: t.Union[str, Path]) -> "GazetteerConfig":
+    def from_yaml(cls, path: str | Path) -> GazetteerConfig:
         """
         Load and validate a gazetteer configuration from a YAML file.
 
@@ -358,7 +357,7 @@ class GazetteerConfig(BaseModel):
         Returns:
             Validated GazetteerConfig instance
         """
-        with open(path, "r", encoding="utf-8") as config_file:
+        with open(path, encoding="utf-8") as config_file:
             data = yaml.safe_load(config_file)
         config = cls.model_validate(data)
         base_dir = Path(path).resolve().parent

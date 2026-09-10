@@ -7,6 +7,7 @@ Tests the Context model, including creation, validation, and relationships.
 import uuid
 
 import pytest
+from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session
 
 from geoparser.db.models import Context, ContextCreate, ContextUpdate
@@ -94,7 +95,7 @@ class TestContextModel:
         # Act & Assert
         context2 = Context(tag="duplicate-tag", project_id=project.id)
         test_session.add(context2)
-        with pytest.raises(Exception):  # IntegrityError or similar
+        with pytest.raises(IntegrityError):
             test_session.commit()
 
     def test_allows_same_tag_for_different_projects(

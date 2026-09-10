@@ -39,7 +39,7 @@ class TestRecognizerRepositoryGetByNameAndConfig:
         """Test that get_by_name_and_config returns None when name doesn't match."""
         # Arrange
         config = {"model": "en_core_web_sm"}
-        recognizer = recognizer_factory(name="SpacyRecognizer", config=config)
+        recognizer_factory(name="SpacyRecognizer", config=config)
 
         # Act
         found_recognizer = RecognizerRepository.get_by_name_and_config(
@@ -56,7 +56,7 @@ class TestRecognizerRepositoryGetByNameAndConfig:
         # Arrange
         config1 = {"model": "en_core_web_sm"}
         config2 = {"model": "en_core_web_lg"}
-        recognizer = recognizer_factory(name="SpacyRecognizer", config=config1)
+        recognizer_factory(name="SpacyRecognizer", config=config1)
 
         # Act
         found_recognizer = RecognizerRepository.get_by_name_and_config(

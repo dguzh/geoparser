@@ -116,7 +116,9 @@ def score_file(coverage: Coverage, path: Path, root: Path) -> list[Score]:
     return scores
 
 
-def collect(root: Path, package: Path, data_file: Path, omit: tuple[str, ...]) -> list[Score]:
+def collect(
+    root: Path, package: Path, data_file: Path, omit: tuple[str, ...]
+) -> list[Score]:
     """
     Score every function in the package.
 
@@ -161,7 +163,9 @@ def main(argv: list[str] | None = None) -> int:
 
     root = Path.cwd().resolve()
     if not args.data_file.exists():
-        print(f"No coverage data at {args.data_file}; run pytest first.", file=sys.stderr)
+        print(
+            f"No coverage data at {args.data_file}; run pytest first.", file=sys.stderr
+        )
         return 2
 
     scores = collect(root, args.package, args.data_file, tuple(args.omit))
@@ -184,7 +188,9 @@ def main(argv: list[str] | None = None) -> int:
             print(f"  {score}", file=sys.stderr)
         return 1
 
-    print(f"\nAll {len(scores)} functions are within the CRAP threshold of {args.max_crap:g}.")
+    print(
+        f"\nAll {len(scores)} functions are within the CRAP threshold of {args.max_crap:g}."
+    )
     return 0
 
 

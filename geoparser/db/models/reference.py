@@ -18,7 +18,7 @@ class ReferenceBase(SQLModel):
 
     start: int  # Start position of the reference in the document text
     end: int  # End position of the reference in the document text
-    text: t.Optional[str] = None  # The actual text of the reference
+    text: str | None = None  # The actual text of the reference
 
 
 class Reference(ReferenceBase, table=True):
@@ -60,9 +60,9 @@ class Reference(ReferenceBase, table=True):
         },
     )
 
-    _resolver_id: Optional[str] = None
+    _resolver_id: str | None = None
 
-    def _set_resolver_context(self, resolver_id: str = None):
+    def _set_resolver_context(self, resolver_id: str | None = None):
         """
         Internal method to set the viewing context for referents.
 
@@ -125,7 +125,7 @@ class ReferenceUpdate(SQLModel):
     """Model for updating an existing reference."""
 
     id: uuid.UUID
-    document_id: t.Optional[uuid.UUID] = None
-    recognizer_id: t.Optional[str] = None
-    start: t.Optional[int] = None
-    end: t.Optional[int] = None
+    document_id: uuid.UUID | None = None
+    recognizer_id: str | None = None
+    start: int | None = None
+    end: int | None = None

@@ -1,4 +1,3 @@
-import typing as t
 import uuid
 
 from sqlmodel import Session, select
@@ -15,7 +14,7 @@ class ContextRepository(BaseRepository[Context]):
     model = Context
 
     @classmethod
-    def get_by_project(cls, db: Session, project_id: uuid.UUID) -> t.List[Context]:
+    def get_by_project(cls, db: Session, project_id: uuid.UUID) -> list[Context]:
         """
         Get all context records for a project.
 
@@ -32,7 +31,7 @@ class ContextRepository(BaseRepository[Context]):
     @classmethod
     def get_by_project_and_tag(
         cls, db: Session, project_id: uuid.UUID, tag: str
-    ) -> t.Optional[Context]:
+    ) -> Context | None:
         """
         Get a specific context record by project and tag.
 

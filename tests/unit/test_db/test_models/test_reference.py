@@ -55,7 +55,7 @@ class TestReferenceModel:
     ):
         """Test that Reference has a relationship to its recognizer."""
         # Arrange
-        recognizer = recognizer_factory(id="test_rec", name="Test Recognizer")
+        recognizer_factory(id="test_rec", name="Test Recognizer")
         reference = reference_factory(recognizer_id="test_rec")
 
         # Act
@@ -163,8 +163,8 @@ class TestReferenceModel:
         from geoparser.db.models import ReferentCreate
 
         reference = reference_factory()
-        resolver1 = resolver_factory(id="resolver1")
-        resolver2 = resolver_factory(id="resolver2")
+        resolver_factory(id="resolver1")
+        resolver_factory(id="resolver2")
 
         # Create referent with resolver1
         ReferentRepository.create(
@@ -213,7 +213,7 @@ class TestReferenceModel:
         """Test that deleting a reference cascades to delete its referents."""
         # Arrange
 
-        reference = reference_factory()
+        reference_factory()
 
         # Create referents (we need a feature first, but for this test we can mock it)
         # We'll skip this test for now as it requires more complex setup with features

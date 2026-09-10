@@ -1,4 +1,3 @@
-import typing as t
 import uuid
 
 from sqlmodel import Session, select
@@ -15,7 +14,7 @@ class ReferentRepository(BaseRepository[Referent]):
     model = Referent
 
     @classmethod
-    def get_by_reference(cls, db: Session, reference_id: uuid.UUID) -> t.List[Referent]:
+    def get_by_reference(cls, db: Session, reference_id: uuid.UUID) -> list[Referent]:
         """
         Get all referents for a reference.
 

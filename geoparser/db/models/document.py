@@ -1,6 +1,5 @@
 import typing as t
 import uuid
-from typing import List, Optional
 
 from pydantic import AfterValidator
 from sqlalchemy import UUID, Column, ForeignKey
@@ -55,9 +54,9 @@ class Document(DocumentBase, table=True):
         },
     )
 
-    _recognizer_id: Optional[str] = None
+    _recognizer_id: str | None = None
 
-    def _set_recognizer_context(self, recognizer_id: str = None):
+    def _set_recognizer_context(self, recognizer_id: str | None = None):
         """
         Internal method to set the viewing context for references.
 
@@ -67,7 +66,7 @@ class Document(DocumentBase, table=True):
         self._recognizer_id = recognizer_id
 
     @property
-    def toponyms(self) -> List["Reference"]:
+    def toponyms(self) -> list["Reference"]:
         """
         Return references filtered by the configured recognizer.
 
@@ -115,5 +114,5 @@ class DocumentUpdate(SQLModel):
     """Model for updating an existing document."""
 
     id: uuid.UUID
-    project_id: t.Optional[uuid.UUID] = None
-    text: t.Optional[str] = None
+    project_id: uuid.UUID | None = None
+    text: str | None = None

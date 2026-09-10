@@ -1,6 +1,5 @@
 import typing as t
 from pathlib import Path
-from typing import Dict, List, Tuple, Union
 
 import spacy
 import torch
@@ -34,7 +33,7 @@ class SentenceTransformerResolver(Resolver):
     NAME = "SentenceTransformerResolver"
 
     # Gazetteer-specific attribute mappings for location descriptions
-    GAZETTEER_ATTRIBUTE_MAP = {
+    GAZETTEER_ATTRIBUTE_MAP: t.ClassVar[dict[str, dict[str, str]]] = {
         "geonames": {
             "name": "name",
             "type": "feature_name",
@@ -64,7 +63,7 @@ class SentenceTransformerResolver(Resolver):
         gazetteer_name: str = "geonames",
         min_similarity: float = 0.6,
         max_tiers: int = 3,
-        attribute_map: dict = None,
+        attribute_map: dict | None = None,
     ):
         """
         Initialize the SentenceTransformerResolver.
@@ -111,17 +110,17 @@ class SentenceTransformerResolver(Resolver):
         self.nlp = self._load_spacy_model("xx_sent_ud_sm")
 
         # Caches for document processing to avoid recomputation
-        self.doc_tokens: Dict[str, int] = {}  # text -> token count
-        self.doc_objects: Dict[str, spacy.tokens.Doc] = {}  # text -> spaCy doc object
+        self.doc_tokens: dict[str, int] = {}  # text -> token count
+        self.doc_objects: dict[str, spacy.tokens.Doc] = {}  # text -> spaCy doc object
 
         # Caches for embeddings to avoid recomputation
-        self.context_embeddings: Dict[str, torch.Tensor] = {}  # context -> embedding
-        self.candidate_embeddings: Dict[int, torch.Tensor] = (
-            {}
-        )  # feature_id -> embedding
+        self.context_embeddings: dict[str, torch.Tensor] = {}  # context -> embedding
+        self.candidate_embeddings: dict[
+            int, torch.Tensor
+        ] = {}  # feature_id -> embedding
 
     def _validate_and_set_attribute_map(
-        self, gazetteer_name: str, attribute_map: dict = None
+        self, gazetteer_name: str, attribute_map: dict | None = None
     ) -> dict:
         """
         Validate and set the attribute map for the gazetteer.
@@ -167,8 +166,8 @@ class SentenceTransformerResolver(Resolver):
         return nlp
 
     def predict(
-        self, texts: t.List[str], references: t.List[t.List[t.Tuple[int, int]]]
-    ) -> t.List[t.List[t.Union[t.Tuple[str, str], None]]]:
+        self, texts: list[str], references: list[list[tuple[int, int]]]
+    ) -> list[list[tuple[str, str] | None]]:
         """
         Predict referents for multiple references using iterative candidate generation.
 
@@ -241,8 +240,8 @@ class SentenceTransformerResolver(Resolver):
         return results
 
     def _extract_contexts(
-        self, texts: List[str], references: List[List[Tuple[int, int]]]
-    ) -> List[List[str]]:
+        self, texts: list[str], references: list[list[tuple[int, int]]]
+    ) -> list[list[str]]:
         """
         Extract contexts for all references.
 
@@ -254,7 +253,7 @@ class SentenceTransformerResolver(Resolver):
             List of lists of context strings, matching the structure of references
         """
         contexts = []
-        for text, doc_references in zip(texts, references):
+        for text, doc_references in zip(texts, references, strict=True):
             doc_contexts = []
             for start, end in doc_references:
                 context = self._extract_context(text, start, end)
@@ -262,7 +261,7 @@ class SentenceTransformerResolver(Resolver):
             contexts.append(doc_contexts)
         return contexts
 
-    def _embed_contexts(self, contexts: List[List[str]]) -> None:
+    def _embed_contexts(self, contexts: list[list[str]]) -> None:
         """
         Generate embeddings for contexts, avoiding duplicate work.
 
@@ -287,16 +286,19 @@ class SentenceTransformerResolver(Resolver):
                 show_progress_bar=True,
             )
 
-            # Store embeddings in cache with context as key
-            for context, embedding in zip(unique_contexts, embeddings):
+            # Store embeddings in cache with context as key. The encoder
+            # returns one embedding per input, so strict= only matters if a
+            # stand-in model breaks that contract; truncating is the
+            # long-standing behaviour and is kept deliberately.
+            for context, embedding in zip(unique_contexts, embeddings, strict=False):
                 self.context_embeddings[context] = embedding
 
     def _gather_candidates(
         self,
-        texts: List[str],
-        references: List[List[Tuple[int, int]]],
-        candidates: List[List[List["Feature"]]],
-        results: List[List[Tuple[str, str]]],
+        texts: list[str],
+        references: list[list[tuple[int, int]]],
+        candidates: list[list[list["Feature"]]],
+        results: list[list[tuple[str, str]]],
         method: str,
         tiers: int,
     ) -> None:
@@ -311,11 +313,11 @@ class SentenceTransformerResolver(Resolver):
             method: Search method to use
             tiers: Number of rank tiers to include
         """
-        for doc_idx, (text, doc_references, doc_candidates, doc_results) in enumerate(
-            zip(texts, references, candidates, results)
+        for _doc_idx, (text, doc_references, doc_candidates, doc_results) in enumerate(
+            zip(texts, references, candidates, results, strict=True)
         ):
             for ref_idx, ((start, end), result) in enumerate(
-                zip(doc_references, doc_results)
+                zip(doc_references, doc_results, strict=True)
             ):
                 # Skip already resolved references
                 if result is not None:
@@ -333,8 +335,8 @@ class SentenceTransformerResolver(Resolver):
 
     def _embed_candidates(
         self,
-        candidates: List[List[List["Feature"]]],
-        results: List[List[Tuple[str, str]]],
+        candidates: list[list[list["Feature"]]],
+        results: list[list[tuple[str, str]]],
     ) -> None:
         """
         Generate embeddings for candidates that need to be processed.
@@ -346,8 +348,8 @@ class SentenceTransformerResolver(Resolver):
         # Collect unique candidates that need embedding
         candidates_to_embed = {}  # Use dict to avoid duplicates: id -> candidate
 
-        for doc_candidates, doc_results in zip(candidates, results):
-            for candidate_list, result in zip(doc_candidates, doc_results):
+        for doc_candidates, doc_results in zip(candidates, results, strict=True):
+            for candidate_list, result in zip(doc_candidates, doc_results, strict=True):
                 # Skip already resolved references
                 if result is not None:
                     continue
@@ -377,15 +379,16 @@ class SentenceTransformerResolver(Resolver):
                 show_progress_bar=True,
             )
 
-            # Store embeddings in cache
-            for candidate, embedding in zip(candidates_list, embeddings):
+            # Store embeddings in cache. As above, the encoder's output
+            # length is its own contract rather than one enforced here.
+            for candidate, embedding in zip(candidates_list, embeddings, strict=False):
                 self.candidate_embeddings[candidate.id] = embedding
 
     def _evaluate_candidates(
         self,
-        contexts: List[List[str]],
-        candidates: List[List[List["Feature"]]],
-        results: List[List[Tuple[str, str]]],
+        contexts: list[list[str]],
+        candidates: list[list[list["Feature"]]],
+        results: list[list[tuple[str, str]]],
         min_similarity: float = 0.0,
     ) -> None:
         """
@@ -397,11 +400,11 @@ class SentenceTransformerResolver(Resolver):
             results: Nested list of current results (modified in-place)
             min_similarity: Minimum similarity threshold (default: 0.0)
         """
-        for doc_idx, (doc_contexts, doc_candidates, doc_results) in enumerate(
-            zip(contexts, candidates, results)
+        for _doc_idx, (doc_contexts, doc_candidates, doc_results) in enumerate(
+            zip(contexts, candidates, results, strict=True)
         ):
             for ref_idx, (context, candidate_list, result) in enumerate(
-                zip(doc_contexts, doc_candidates, doc_results)
+                zip(doc_contexts, doc_candidates, doc_results, strict=True)
             ):
                 # Skip already resolved references
                 if result is not None:
@@ -567,8 +570,8 @@ class SentenceTransformerResolver(Resolver):
     def _calculate_similarities(
         self,
         context_embedding: torch.Tensor,
-        candidate_embeddings: List[torch.Tensor],
-    ) -> List[float]:
+        candidate_embeddings: list[torch.Tensor],
+    ) -> list[float]:
         """
         Calculate cosine similarities between context and candidate embeddings.
 
@@ -594,10 +597,10 @@ class SentenceTransformerResolver(Resolver):
 
     def fit(
         self,
-        texts: List[str],
-        references: List[List[Tuple[int, int]]],
-        referents: List[List[Tuple[str, str]]],
-        output_path: Union[str, Path],
+        texts: list[str],
+        references: list[list[tuple[int, int]]],
+        referents: list[list[tuple[str, str]]],
+        output_path: str | Path,
         epochs: int = 1,
         batch_size: int = 8,
         learning_rate: float = 2e-5,
@@ -678,10 +681,10 @@ class SentenceTransformerResolver(Resolver):
 
     def _prepare_training_data(
         self,
-        texts: List[str],
-        references: List[List[Tuple[int, int]]],
-        referents: List[List[Tuple[str, str]]],
-    ) -> Dict[str, List]:
+        texts: list[str],
+        references: list[list[tuple[int, int]]],
+        referents: list[list[tuple[str, str]]],
+    ) -> dict[str, list]:
         """
         Prepare training data from documents with resolved references.
 
@@ -701,9 +704,11 @@ class SentenceTransformerResolver(Resolver):
         sentence2_texts = []  # candidate descriptions
         labels = []  # 1 for positive, 0 for negative
 
-        for text, doc_references, doc_referents in zip(texts, references, referents):
-            for (start, end), (gazetteer_name, identifier) in zip(
-                doc_references, doc_referents
+        for text, doc_references, doc_referents in zip(
+            texts, references, referents, strict=True
+        ):
+            for (start, end), (_gazetteer_name, identifier) in zip(
+                doc_references, doc_referents, strict=True
             ):
                 # Extract context for this reference
                 context = self._extract_context(text, start, end)

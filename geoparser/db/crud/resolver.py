@@ -1,5 +1,3 @@
-import typing as t
-
 from sqlmodel import Session, select
 
 from geoparser.db.crud.base import BaseRepository
@@ -16,7 +14,7 @@ class ResolverRepository(BaseRepository[Resolver]):
     @classmethod
     def get_by_name_and_config(
         cls, db: Session, name: str, config: dict
-    ) -> t.Optional[Resolver]:
+    ) -> Resolver | None:
         """
         Get a resolver by name and configuration.
 

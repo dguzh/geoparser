@@ -83,7 +83,7 @@ templates = Jinja2Templates(
 spacy_models = list(get_installed_models())
 
 # Module-level variable to track current session's gazetteer name
-current_gazetteer_name: t.Optional[str] = None
+current_gazetteer_name: str | None = None
 
 
 @app.get("/", tags=["pages"])
@@ -219,7 +219,7 @@ def create_from_legacy_files(
     files_failed = []
     for legacy_file in legacy_files:
         try:
-            with open(legacy_file, "r") as infile:
+            with open(legacy_file) as infile:
                 content = infile.read()
             SessionRepository.create_from_json(db, content, keep_id=True)
             legacy_file.unlink()
@@ -259,7 +259,7 @@ def continue_session_cached(
 @app.post("/session/continue/file", tags=["session"])
 def continue_session_file(
     db: t.Annotated[DBSession, Depends(get_db)],
-    session_file: t.Optional[UploadFile] = None,
+    session_file: UploadFile | None = None,
 ) -> RedirectResponse:
     global current_gazetteer_name
 
@@ -297,7 +297,7 @@ def add_documents(
     db: t.Annotated[DBSession, Depends(get_db)],
     session: t.Annotated[dict, Depends(get_session)],
     spacy_model: t.Annotated[str, Form()],
-    files: t.Optional[list[UploadFile]] = None,
+    files: list[UploadFile] | None = None,
 ) -> BaseResponse:
     if not files:
         response.status_code = status.HTTP_422_UNPROCESSABLE_ENTITY

@@ -1,5 +1,4 @@
 import typing as t
-from typing import List, Tuple
 
 from geoparser.modules.resolvers import Resolver
 
@@ -26,9 +25,9 @@ class ManualResolver(Resolver):
     def __init__(
         self,
         label: str,
-        texts: List[str],
-        references: List[List[Tuple[int, int]]],
-        referents: List[List[Tuple[str, str]]],
+        texts: list[str],
+        references: list[list[tuple[int, int]]],
+        referents: list[list[tuple[str, str]]],
     ):
         """
         Initialize the ManualResolver with a label and referent annotations.
@@ -53,8 +52,8 @@ class ManualResolver(Resolver):
         self.referents = referents
 
     def predict(
-        self, texts: t.List[str], references: t.List[t.List[t.Tuple[int, int]]]
-    ) -> t.List[t.List[t.Union[t.Tuple[str, str], None]]]:
+        self, texts: list[str], references: list[list[tuple[int, int]]]
+    ) -> list[list[tuple[str, str] | None]]:
         """
         Return the manually provided referent annotations for the given references.
 
@@ -73,7 +72,7 @@ class ManualResolver(Resolver):
             be marked as processed).
         """
         results = []
-        for text, doc_references in zip(texts, references):
+        for text, doc_references in zip(texts, references, strict=True):
             try:
                 text_idx = self.texts.index(text)
                 stored_references = self.references[text_idx]

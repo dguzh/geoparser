@@ -42,7 +42,7 @@ class TestRecognizerModel:
     def test_name_is_indexed(self, test_session: Session, recognizer_factory):
         """Test that the name field is indexed for efficient queries."""
         # Arrange
-        recognizer = recognizer_factory(name="Indexed Recognizer")
+        recognizer_factory(name="Indexed Recognizer")
 
         # Act - Query by name should work efficiently
         from sqlmodel import select

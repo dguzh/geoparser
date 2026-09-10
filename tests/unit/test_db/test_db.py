@@ -126,9 +126,8 @@ class TestDatabaseCompatibilityCheck:
             )
             connection.commit()
 
-        with patch.object(db, "engine", legacy_engine):
-            with pytest.raises(RuntimeError):
-                db.create_db_and_tables()
+        with patch.object(db, "engine", legacy_engine), pytest.raises(RuntimeError):
+            db.create_db_and_tables()
 
     def test_raises_for_legacy_referent_layout(self):
         """A referent table without feature_identifier is rejected clearly."""
@@ -140,15 +139,13 @@ class TestDatabaseCompatibilityCheck:
         with legacy_engine.connect() as connection:
             connection.execute(
                 text(
-                    "CREATE TABLE referent "
-                    "(id INTEGER PRIMARY KEY, feature_id INTEGER)"
+                    "CREATE TABLE referent (id INTEGER PRIMARY KEY, feature_id INTEGER)"
                 )
             )
             connection.commit()
 
-        with patch.object(db, "engine", legacy_engine):
-            with pytest.raises(RuntimeError):
-                db.create_db_and_tables()
+        with patch.object(db, "engine", legacy_engine), pytest.raises(RuntimeError):
+            db.create_db_and_tables()
 
     def test_allows_fresh_database(self):
         """An empty database is fine and gets its tables created."""
@@ -163,8 +160,7 @@ class TestDatabaseCompatibilityCheck:
         with fresh_engine.connect() as connection:
             result = connection.execute(
                 text(
-                    "SELECT 1 FROM sqlite_master "
-                    "WHERE type='table' AND name='referent'"
+                    "SELECT 1 FROM sqlite_master WHERE type='table' AND name='referent'"
                 )
             )
             assert result.first() is not None

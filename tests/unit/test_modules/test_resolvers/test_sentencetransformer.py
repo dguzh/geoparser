@@ -131,7 +131,7 @@ class TestSentenceTransformerResolverInitialization:
         )
 
         # Act
-        resolver = SentenceTransformerResolver(model_name="test-model")
+        SentenceTransformerResolver(model_name="test-model")
 
         # Assert
         mock_transformer_class.assert_called_once_with("test-model")
@@ -152,7 +152,7 @@ class TestSentenceTransformerResolverInitialization:
         )
 
         # Act
-        resolver = SentenceTransformerResolver(model_name="test-model")
+        SentenceTransformerResolver(model_name="test-model")
 
         # Assert
         mock_tokenizer.assert_called_once_with("test-model")
@@ -173,7 +173,7 @@ class TestSentenceTransformerResolverInitialization:
         )
 
         # Act
-        resolver = SentenceTransformerResolver()
+        SentenceTransformerResolver()
 
         # Assert
         mock_spacy_load.assert_called_once_with("xx_sent_ud_sm")
@@ -202,7 +202,7 @@ class TestSentenceTransformerResolverInitialization:
         }
 
         # Act
-        resolver = SentenceTransformerResolver(
+        SentenceTransformerResolver(
             gazetteer_name="test-gazetteer", attribute_map=custom_map
         )
 
@@ -566,16 +566,28 @@ class TestSentenceTransformerResolverPredict:
 
         resolver = SentenceTransformerResolver()
 
+        def context_encode_calls() -> int:
+            """How many times the transformer was asked to embed the context."""
+            # Contexts are encoded as a batch of unique strings; candidate
+            # descriptions go through the same mock, so match on the payload.
+            return sum(
+                1
+                for call in mock_transformer_instance.encode.call_args_list
+                if call.args and call.args[0] == ["Test"]
+            )
+
         # Act - Call predict twice with same text
         resolver.predict(texts=["Test"], references=[[(0, 4)]])
-        call_count_first = mock_transformer_instance.encode.call_count
+        after_first = context_encode_calls()
 
         resolver.predict(texts=["Test"], references=[[(0, 4)]])
-        call_count_second = mock_transformer_instance.encode.call_count
+        after_second = context_encode_calls()
 
         # Assert - encode should not be called again for the same context
         # (though it may be called for candidates)
         assert "Test" in resolver.context_embeddings
+        assert after_first == 1
+        assert after_second == 1
 
     @patch("geoparser.modules.resolvers.sentencetransformer.spacy.load")
     @patch(
@@ -658,22 +670,33 @@ class TestSentenceTransformerResolverPredict:
 
         # Act - Call predict with document containing multiple references
         text = "Test text"
+
+        def doc_tokenize_calls() -> int:
+            """How many times the full document text was tokenized."""
+            # Sentence splitting tokenizes fragments; only the whole document
+            # counts towards the cache being honoured.
+            return sum(
+                1
+                for call in mock_tokenizer_instance.tokenize.call_args_list
+                if call.args and call.args[0] == text
+            )
+
         resolver.predict(texts=[text], references=[[(0, 4), (5, 9)]])
 
-        # Assert - Token count for text should be cached
+        # Assert - Token count for text should be cached, and the two
+        # references in this one document share the single tokenization
         assert text in resolver.doc_tokens
         assert resolver.doc_tokens[text] == 2
-
-        # Act - Call tokenize count before second predict
-        tokenize_call_count_first = mock_tokenizer_instance.tokenize.call_count
+        after_first = doc_tokenize_calls()
+        assert after_first == 1
 
         # Call predict again with same text
         resolver.predict(texts=[text], references=[[(0, 4)]])
-        tokenize_call_count_second = mock_tokenizer_instance.tokenize.call_count
 
         # Assert - tokenize should not be called again for the document text
         # (it may be called for sentence tokenization, but not for full doc)
         assert text in resolver.doc_tokens
+        assert doc_tokenize_calls() == after_first
 
     @patch("geoparser.modules.resolvers.sentencetransformer.spacy.load")
     @patch(
@@ -1316,24 +1339,26 @@ class TestSentenceTransformerResolverPrepareTrainingData:
         mock_candidate.data = {"name": "Paris", "feature_name": "city"}
         mock_gazetteer_instance.search.return_value = [mock_candidate]
 
-        with patch.object(resolver, "_extract_context", return_value="Context"):
-            with patch.object(
+        with (
+            patch.object(resolver, "_extract_context", return_value="Context"),
+            patch.object(
                 resolver, "_generate_description", return_value="Paris (city)"
-            ) as mock_generate:
-                texts = ["Paris is beautiful."]
-                references = [[(0, 5)]]
-                referents = [[("geonames", "123")]]
+            ) as mock_generate,
+        ):
+            texts = ["Paris is beautiful."]
+            references = [[(0, 5)]]
+            referents = [[("geonames", "123")]]
 
-                # Act
-                training_data = resolver._prepare_training_data(
-                    texts, references, referents
-                )
+            # Act
+            training_data = resolver._prepare_training_data(
+                texts, references, referents
+            )
 
-                # Assert
-                # _generate_description should have been called
-                mock_generate.assert_called()
-                # All sentence2 entries should be the generated description
-                assert all(s2 == "Paris (city)" for s2 in training_data["sentence2"])
+            # Assert
+            # _generate_description should have been called
+            mock_generate.assert_called()
+            # All sentence2 entries should be the generated description
+            assert all(s2 == "Paris (city)" for s2 in training_data["sentence2"])
 
     @patch("geoparser.modules.resolvers.sentencetransformer.spacy.load")
     @patch(

@@ -34,13 +34,13 @@ class Context(ContextBase, table=True):
             UUID, ForeignKey("project.id", ondelete="CASCADE"), nullable=False
         )
     )
-    recognizer_id: t.Optional[str] = Field(
+    recognizer_id: str | None = Field(
         default=None,
         sa_column=Column(
             String, ForeignKey("recognizer.id", ondelete="SET NULL"), nullable=True
         ),
     )
-    resolver_id: t.Optional[str] = Field(
+    resolver_id: str | None = Field(
         default=None,
         sa_column=Column(
             String, ForeignKey("resolver.id", ondelete="SET NULL"), nullable=True
@@ -55,14 +55,14 @@ class ContextCreate(ContextBase):
     """Model for creating a new context record."""
 
     project_id: uuid.UUID
-    recognizer_id: t.Optional[str] = None
-    resolver_id: t.Optional[str] = None
+    recognizer_id: str | None = None
+    resolver_id: str | None = None
 
 
 class ContextUpdate(SQLModel):
     """Model for updating an existing context record."""
 
     id: uuid.UUID
-    tag: t.Optional[str] = None
-    recognizer_id: t.Optional[str] = None
-    resolver_id: t.Optional[str] = None
+    tag: str | None = None
+    recognizer_id: str | None = None
+    resolver_id: str | None = None

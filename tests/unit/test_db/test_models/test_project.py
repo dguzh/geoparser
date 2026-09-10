@@ -7,6 +7,7 @@ Tests the Project model, including creation, validation, and relationships.
 import uuid
 
 import pytest
+from pydantic import ValidationError
 from sqlmodel import Session
 
 from geoparser.db.models import Project, ProjectCreate, ProjectUpdate
@@ -82,8 +83,8 @@ class TestProjectModel:
         test_session.refresh(project)
 
         # Add documents using the factory
-        doc1 = document_factory(text="Doc 1", project_id=project.id)
-        doc2 = document_factory(text="Doc 2", project_id=project.id)
+        document_factory(text="Doc 1", project_id=project.id)
+        document_factory(text="Doc 2", project_id=project.id)
 
         # Act - Delete the project
         test_session.delete(project)
@@ -114,7 +115,7 @@ class TestProjectCreate:
     def test_validates_required_fields(self):
         """Test that ProjectCreate validates required fields."""
         # Arrange & Act & Assert
-        with pytest.raises(Exception):  # Pydantic will raise ValidationError
+        with pytest.raises(ValidationError):
             ProjectCreate()  # Missing required 'name' field
 
 

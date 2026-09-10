@@ -2,7 +2,6 @@ import json
 import typing as t
 import uuid
 from pathlib import Path
-from typing import List, Union
 
 from geoparser.context import Context
 from geoparser.db.crud import DocumentRepository, ProjectRepository
@@ -64,7 +63,7 @@ class Project:
 
             return project_record.id
 
-    def create_documents(self, texts: t.Sequence[str]) -> List[uuid.UUID]:
+    def create_documents(self, texts: t.Sequence[str]) -> list[uuid.UUID]:
         """
         Create documents in the project.
 
@@ -103,7 +102,7 @@ class Project:
         return document_ids
 
     def create_references(
-        self, texts: List[str], references: List[List[tuple]], tag: str
+        self, texts: list[str], references: list[list[tuple]], tag: str
     ) -> None:
         """
         Create references (toponym spans) using ManualRecognizer.
@@ -118,9 +117,9 @@ class Project:
 
     def create_referents(
         self,
-        texts: List[str],
-        references: List[List[tuple]],
-        referents: List[List[tuple]],
+        texts: list[str],
+        references: list[list[tuple]],
+        referents: list[list[tuple]],
         tag: str,
     ) -> None:
         """
@@ -139,8 +138,8 @@ class Project:
 
     @staticmethod
     def _normalize_document_ids(
-        ids: Union[uuid.UUID, str, t.Sequence[Union[uuid.UUID, str]]],
-    ) -> List[uuid.UUID]:
+        ids: uuid.UUID | str | t.Sequence[uuid.UUID | str],
+    ) -> list[uuid.UUID]:
         """
         Convert document IDs given as UUIDs or strings into a list of UUIDs.
 
@@ -175,11 +174,9 @@ class Project:
 
     def get_documents(
         self,
-        ids: t.Optional[
-            Union[uuid.UUID, str, t.Sequence[Union[uuid.UUID, str]]]
-        ] = None,
+        ids: uuid.UUID | str | t.Sequence[uuid.UUID | str] | None = None,
         tag: str = "latest",
-    ) -> List[Document]:
+    ) -> list[Document]:
         """
         Retrieve documents in the project with context set for the specified tag.
 
@@ -350,7 +347,7 @@ class Project:
         """
         # Load JSON file
         path = Path(path)
-        with open(path, "r") as f:
+        with open(path) as f:
             data = json.load(f)
 
         # Extract gazetteer name from annotations

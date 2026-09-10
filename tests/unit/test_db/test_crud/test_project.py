@@ -34,7 +34,7 @@ class TestProjectRepositoryGetByName:
     ):
         """Test that get_by_name returns None when name doesn't match."""
         # Arrange
-        project = project_factory(name="MyProject")
+        project_factory(name="MyProject")
 
         # Act
         found_project = ProjectRepository.get_by_name(test_session, "OtherProject")
@@ -48,7 +48,7 @@ class TestProjectRepositoryGetByName:
         """Test that get_by_name returns first project when multiple exist (edge case)."""
         # Arrange
         project1 = project_factory(name="Project A")
-        project2 = project_factory(name="Project B")
+        project_factory(name="Project B")
 
         # Act
         found_project = ProjectRepository.get_by_name(test_session, "Project A")

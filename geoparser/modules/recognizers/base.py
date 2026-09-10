@@ -1,4 +1,3 @@
-import typing as t
 from abc import abstractmethod
 
 from geoparser.modules.module import Module
@@ -25,9 +24,7 @@ class Recognizer(Module):
         super().__init__(**kwargs)
 
     @abstractmethod
-    def predict(
-        self, texts: t.List[str]
-    ) -> t.List[t.Union[t.List[t.Tuple[int, int]], None]]:
+    def predict(self, texts: list[str]) -> list[list[tuple[int, int]] | None]:
         """
         Predict references in multiple document texts.
 

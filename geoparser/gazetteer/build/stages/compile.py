@@ -57,15 +57,13 @@ _BARE_IDENTIFIER = re.compile(r"^[a-zA-Z_][a-zA-Z0-9_]*$")
 
 # Matches string literals, quoted identifiers and bare identifiers so
 # expressions can be scanned token by token.
-_EXPRESSION_TOKEN = re.compile(
-    r"'(?:[^']|'')*'|\"[^\"]*\"|[A-Za-z_][A-Za-z0-9_]*"
-)
+_EXPRESSION_TOKEN = re.compile(r"'(?:[^']|'')*'|\"[^\"]*\"|[A-Za-z_][A-Za-z0-9_]*")
 
 # Alias the block's own source is available under inside compiled queries.
 SOURCE_ALIAS = "src"
 
 
-def qualifiers(expression: str) -> t.Set[str]:
+def qualifiers(expression: str) -> set[str]:
     """
     Collect the table qualifiers a scalar SQL expression reads columns from.
 
@@ -93,7 +91,7 @@ def qualifiers(expression: str) -> t.Set[str]:
     return found
 
 
-def bare_references(expression: str) -> t.Set[str]:
+def bare_references(expression: str) -> set[str]:
     """
     Collect the unqualified column references of a scalar SQL expression.
 
@@ -168,9 +166,7 @@ class ProjectionCompiler:
     resolve and validate bare column references against the block's source.
     """
 
-    def __init__(
-        self, config: GazetteerConfig, catalog: t.Dict[str, t.List[str]]
-    ):
+    def __init__(self, config: GazetteerConfig, catalog: dict[str, list[str]]):
         """
         Initialize the compiler.
 
@@ -222,7 +218,7 @@ class ProjectionCompiler:
             f"GROUP BY 1"
         )
 
-    def name_queries(self, feature: FeatureConfig) -> t.List[str]:
+    def name_queries(self, feature: FeatureConfig) -> list[str]:
         """
         Compile the name queries for a feature block.
 
@@ -256,9 +252,7 @@ class ProjectionCompiler:
             )
         return queries
 
-    def duplicate_geometry_query(
-        self, feature: FeatureConfig
-    ) -> t.Optional[str]:
+    def duplicate_geometry_query(self, feature: FeatureConfig) -> str | None:
         """
         Compile the geometry-merge query for duplicated identifiers.
 
@@ -430,6 +424,6 @@ class ProjectionCompiler:
         replacements = {column: f'src."{column}"' for column in base_columns}
         return f"({qualify_expression(value, replacements)})"
 
-    def _available_hint(self, columns: t.Set[str]) -> str:
+    def _available_hint(self, columns: set[str]) -> str:
         """Build an error message hint listing the available columns."""
         return f"Available columns: {', '.join(sorted(columns))}"

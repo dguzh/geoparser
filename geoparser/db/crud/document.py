@@ -15,7 +15,7 @@ class DocumentRepository(BaseRepository[Document]):
     model = Document
 
     @classmethod
-    def get_by_project(cls, db: Session, project_id: uuid.UUID) -> t.List[Document]:
+    def get_by_project(cls, db: Session, project_id: uuid.UUID) -> list[Document]:
         """
         Get all documents for a project.
 
@@ -32,7 +32,7 @@ class DocumentRepository(BaseRepository[Document]):
     @classmethod
     def get_by_ids(
         cls, db: Session, project_id: uuid.UUID, ids: t.Sequence[uuid.UUID]
-    ) -> t.List[Document]:
+    ) -> list[Document]:
         """
         Get the documents with the given IDs that belong to a project.
 

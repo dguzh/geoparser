@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import os
 import sqlite3
+from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Iterator
 
 from appdirs import user_data_dir
 from sqlalchemy import Engine, event, text
