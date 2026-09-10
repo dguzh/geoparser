@@ -161,3 +161,12 @@ cython_debug/
 
 # Cursor settings
 .cursor
+
+# macOS
+.DS_Store
+
+# Tooling caches (ruff, ty, mutmut)
+.ruff_cache/
+.ty_cache/
+.mutmut-cache
+mutants/

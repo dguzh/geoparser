@@ -18,11 +18,9 @@ copyright = "2024-2026, Diego Gomes"
 author = "Diego Gomes"
 
 # Read from pyproject.toml rather than importlib.metadata, because Read the Docs
-# installs the dependencies with --no-root and never installs geoparser itself.
+# installs the dependencies without the project itself and never installs geoparser.
 _pyproject = Path(__file__).resolve().parent.parent / "pyproject.toml"
-release = tomllib.loads(_pyproject.read_text(encoding="utf-8"))["tool"]["poetry"][
-    "version"
-]
+release = tomllib.loads(_pyproject.read_text(encoding="utf-8"))["project"]["version"]
 version = ".".join(release.split(".")[:2])
 
 # -- General configuration ---------------------------------------------------

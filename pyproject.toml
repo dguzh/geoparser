@@ -1,72 +1,134 @@
-[tool.poetry]
+[project]
 name = "geoparser"
 version = "0.6.0"
 description = "A customizable geoparsing library for unstructured text"
-authors = ["Diego Gomes <diego.gomes@uzh.ch>"]
+authors = [{ name = "Diego Gomes", email = "diego.gomes@uzh.ch" }]
 readme = "README.md"
 license = "MIT"
-homepage = "https://geoparser.app"
-repository = "https://github.com/dguzh/geoparser"
-include = [
-    "LICENSE",
-    "README.md",
-    "ROADMAP.md",
+license-files = ["LICENSE"]
+requires-python = ">=3.10,<3.15"
+dependencies = [
+    "accelerate>=1.11.0,<2",
+    "appdirs>=1.4.4,<2",
+    "datasets>=5.0.0,<6",
+    "duckdb>=1.5.4,<2",
+    "fastapi>=0.121.0,<0.122",
+    "markupsafe>=3.0.3,<4",
+    "pydantic>=2.12.3,<3",
+    "pyproj>=3.7.1,<4",
+    "python-multipart>=0.0.20,<0.0.21",
+    "pyyaml>=6.0.3,<7",
+    "rapidfuzz>=3.14.5,<4",
+    "requests>=2.32.5,<3",
+    "rich>=15.0.0,<16",
+    "sentence-transformers>=5.1.2,<6",
+    "shapely>=2.1.2,<3",
+    # 3.8.14 has cp314 wheels on GitHub but not on PyPI (explosion/spaCy#13949)
+    "spacy>=3.8.7,<4,!=3.8.14",
+    "sqlalchemy>=2.0.44,<3",
+    "sqlmodel>=0.0.39,<0.0.40",
+    "torch>=2.9.0,<3",
+    "transformers>=5.0.0,<6",
+    "typer>=0.27.0,<0.28",
+    "uvicorn>=0.38.0,<0.39",
+    "werkzeug>=3.1.3,<4",
 ]
 
-[tool.poetry.dependencies]
-python = ">=3.10,<3.15"
-accelerate = "^1.11.0"
-appdirs = "^1.4.4"
-datasets = "^5.0.0"
-duckdb = "^1.5.4"
-fastapi = "^0.121.0"
-markupsafe = "^3.0.3"
-pydantic = "^2.12.3"
-pyproj = "^3.7.1"
-python-multipart = "^0.0.20"
-pyyaml = "^6.0.3"
-rapidfuzz = "^3.14.5"
-requests = "^2.32.5"
-rich = "^15.0.0"
-sentence-transformers = "^5.1.2"
-shapely = "^2.1.2"
-spacy = "^3.8.7,!=3.8.14" # 3.8.14 has cp314 wheels on GitHub but not on PyPI (explosion/spaCy#13949)
-sqlalchemy = "^2.0.44"
-sqlmodel = "^0.0.39"
-torch = "^2.9.0"
-transformers = "^5.0.0"
-typer = "^0.27.0"
-uvicorn = "^0.38.0"
-werkzeug = "^3.1.3"
+[project.urls]
+Homepage = "https://geoparser.app"
+Repository = "https://github.com/dguzh/geoparser"
 
-[tool.poetry.group.dev.dependencies]
-autoflake = "^2.3.1"
-black = "25.11.0"
-deptry = "^0.23.1"
-isort = "^7.0.0"
-jupyter = "^1.1.1"
-pytest = "^8.4.2"
-pytest-cov = "^7.0.0"
-requests-mock = "^1.12.1"
-shibuya = "^2026.7.12"
-sphinx = "^7.4.7"
-sphinx-copybutton = "^0.5.2"
-sphinx-tabs = "^3.4.7"
-en-core-web-sm = {url = "https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0.tar.gz"}
-xx-sent-ud-sm = {url = "https://github.com/explosion/spacy-models/releases/download/xx_sent_ud_sm-3.8.0/xx_sent_ud_sm-3.8.0.tar.gz"}
+[dependency-groups]
+# Everything needed to develop, test and document the project. `uv sync`
+# installs this group by default, so a bare clone is one command from a
+# working environment.
+dev = [
+    { include-group = "lint" },
+    { include-group = "test" },
+    { include-group = "docs" },
+    "deptry>=0.23.1,<0.24",
+    "jupyter>=1.1.1,<2",
+]
+# Kept separate so CI can install the linters without pulling torch and the
+# CUDA stack; this is what keeps the lint job at a few seconds.
+lint = [
+    "ruff==0.16.6",
+    "ty==0.0.78",
+    # radon + coverage are what scripts/crap.py needs to combine complexity
+    # with coverage; coverage also backs the combined report in CI.
+    "radon>=6.0.1,<7",
+    "coverage[toml]>=7.0,<8",
+]
+test = [
+    "pytest>=8.4.2,<10",
+    "pytest-cov>=7.0.0,<8",
+    "requests-mock>=1.12.1,<2",
+    "mutmut>=3.7.0,<4",
+    "en-core-web-sm",
+    "xx-sent-ud-sm",
+]
+docs = [
+    "shibuya>=2026.7.12",
+    "sphinx>=7.4.7,<8",
+    "sphinx-copybutton>=0.5.2,<0.6",
+    "sphinx-tabs>=3.4.7,<4",
+]
+
+# spaCy models are not on PyPI; they are published as GitHub release artifacts.
+[tool.uv.sources]
+en-core-web-sm = { url = "https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0.tar.gz" }
+xx-sent-ud-sm = { url = "https://github.com/explosion/spacy-models/releases/download/xx_sent_ud_sm-3.8.0/xx_sent_ud_sm-3.8.0.tar.gz" }
 
 [build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
-[tool.black]
-required-version = "25.11.0"
+[tool.hatch.build.targets.wheel]
+packages = ["geoparser"]
 
-[tool.isort]
-profile = "black"
+[tool.hatch.build.targets.sdist]
+include = ["geoparser", "LICENSE", "README.md", "ROADMAP.md"]
+
+[tool.ruff]
+line-length = 88
+target-version = "py310"
+extend-exclude = ["docs/_build"]
+
+[tool.ruff.lint]
+# E/W/F are the pyflakes+pycodestyle baseline black and autoflake used to cover
+# (F401 replaces autoflake's unused-import pass); I replaces isort; the rest are
+# the low-noise correctness and modernization rules worth enforcing here.
+select = ["E", "W", "F", "I", "UP", "B", "C4", "SIM", "RUF"]
+ignore = [
+    # Formatter owns line length; long strings and comments are not worth churning.
+    "E501",
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Re-exports are the point of these files.
+"__init__.py" = ["F401"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["geoparser"]
 
 [tool.pytest.ini_options]
-addopts = "--cov=geoparser --cov-report html"
+python_files = "test_*.py"
+python_classes = "Test*"
+python_functions = "test_*"
+testpaths = ["tests"]
+markers = [
+    "unit: Fast, isolated unit tests with mocked dependencies",
+    "integration: Integration tests with real models and database",
+    "e2e: End-to-end pipeline tests",
+]
+addopts = [
+    "--strict-markers",
+    "--cov=geoparser",
+    "--cov-report=html",
+    "--cov-report=term-missing",
+    "--cov-config=pyproject.toml",
+]
+console_output_style = "progress"
 
 [tool.coverage.report]
 exclude_also = [
@@ -90,3 +152,6 @@ source = [
     'geoparser/',
     'geoparser\',
 ]
+
+[tool.ty.src]
+include = ["geoparser"]

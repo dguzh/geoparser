@@ -22,6 +22,16 @@ concurrency:
   # leave a commit on main permanently untested.
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
+env:
+  # The hard coverage gate, applied to the combined report across the whole
+  # matrix. Single cells are not gated: platform-specific branches are
+  # unreachable off their own operating system, so only the combination is a
+  # fair measure. Raise this when coverage rises; never lower it to go green.
+  COVERAGE_THRESHOLD: "0"
+  # The worst tolerated CRAP score (complexity^2 * (1-coverage)^3 + complexity).
+  # For fully covered code this is just a cyclomatic-complexity ceiling.
+  CRAP_THRESHOLD: "0"
+
 jobs:
   pytest:
     strategy:
@@ -34,33 +44,13 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - name: Set up Python ${{ matrix.python-version }}
-        if: runner.os != 'macOS'
-        uses: actions/setup-python@v5
+      # uv provides the interpreter on every platform, so all three operating
+      # systems take the same path; this replaces the setup-python/brew split.
+      - name: Set up uv and Python ${{ matrix.python-version }}
+        uses: astral-sh/setup-uv@v10
         with:
+          enable-cache: true
           python-version: ${{ matrix.python-version }}
-
-      - name: Set up Python ${{ matrix.python-version }} (macOS)
-        if: runner.os == 'macOS'
-        run: |
-          brew install python@${{ matrix.python-version }}
-
-      - name: Install Poetry
-        if: runner.os != 'macOS'
-        run: |
-          pipx install poetry --python python
-          poetry env use python
-
-      - name: Install Poetry (macOS)
-        if: runner.os == 'macOS'
-        run: |
-          pipx install poetry --python python${{ matrix.python-version }}
-          poetry env use python${{ matrix.python-version }}
-
-      - name: Setup local virtual environment
-        run: |
-          poetry config virtualenvs.create true --local
-          poetry config virtualenvs.in-project true --local
 
       # torch pulls the full CUDA stack on Linux, which does not fit alongside
       # the toolchains preinstalled on the runner image.
@@ -78,18 +68,18 @@ jobs:
           df -h
 
       - name: Install project dependencies
-        run: poetry install
+        run: uv sync --locked
 
       - name: Cache Hugging Face models
         uses: actions/cache@v6
         with:
           path: ~/.cache/huggingface
-          key: huggingface-${{ runner.os }}-${{ hashFiles('poetry.lock') }}
+          key: huggingface-${{ runner.os }}-${{ hashFiles('uv.lock') }}
           restore-keys: |
             huggingface-${{ runner.os }}-
 
       - name: Run pytest
-        run: poetry run pytest -v --cov=geoparser
+        run: uv run --no-sync pytest -v
 
       - run: mkdir coverage
       - run: mv .coverage coverage/.coverage.${{ runner.os }}-py${{ matrix.python-version }}
@@ -106,18 +96,32 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v7
-      - name: Install Python
-        uses: actions/setup-python@v5
+      - uses: astral-sh/setup-uv@v10
+        with:
+          enable-cache: true
       - name: Get coverage files
         uses: actions/download-artifact@v4
         with:
           merge-multiple: true
           pattern: coverage-*
           path: coverage
-      - run: pip install coverage[toml]
-      - run: coverage combine coverage
-      - run: coverage report
-      - run: coverage html --show-contexts --title "geoparser coverage for ${{ github.sha }}"
+      # Only the tools needed to combine and gate; no torch.
+      - run: uv sync --locked --only-group lint
+      - run: uv run --no-sync coverage combine coverage
+      - run: uv run --no-sync coverage report
+
+      # The hard gate. Runs before the reporting steps so a coverage drop fails
+      # the build rather than being quietly published.
+      - name: Enforce the coverage threshold
+        run: uv run --no-sync coverage report --fail-under=${{ env.COVERAGE_THRESHOLD }}
+
+      # Complexity is only half of CRAP; the other half is the combined
+      # coverage that has just been assembled, so the gate lives here.
+      - name: Enforce the CRAP threshold
+        run: uv run --no-sync python scripts/crap.py --max-crap ${{ env.CRAP_THRESHOLD }}
+
+      - run: uv run --no-sync coverage html --show-contexts --title "geoparser coverage for ${{ github.sha }}"
+
       # tests-passed depends on this job, so a hiccup in a third-party commenting
       # action must not become a merge blocker. The comment itself is posted by
       # the Coverage comment workflow from the artifact written here.
