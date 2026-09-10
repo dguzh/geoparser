@@ -26,4 +26,4 @@ class ReferentRepository(BaseRepository[Referent]):
             List of referents
         """
         statement = select(Referent).where(Referent.reference_id == reference_id)
-        return db.exec(statement).unique().all()
+        return list(db.exec(statement).unique().all())

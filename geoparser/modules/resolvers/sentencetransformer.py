@@ -2,6 +2,7 @@ import typing as t
 from pathlib import Path
 
 import spacy
+import spacy.tokens
 import torch
 from datasets import Dataset
 from sentence_transformers import SentenceTransformer, SentenceTransformerTrainer
@@ -9,7 +10,7 @@ from sentence_transformers.sentence_transformer.losses import ContrastiveLoss
 from sentence_transformers.sentence_transformer.training_args import (
     SentenceTransformerTrainingArguments,
 )
-from transformers import AutoTokenizer, logging
+from transformers import AutoTokenizer, PreTrainedTokenizerBase, logging
 
 from geoparser.gazetteer.gazetteer import Gazetteer
 from geoparser.modules.resolvers import Resolver
@@ -104,7 +105,13 @@ class SentenceTransformerResolver(Resolver):
 
         # Initialize transformer and tokenizer
         self.transformer = SentenceTransformer(model_name)
-        self.tokenizer = AutoTokenizer.from_pretrained(model_name)
+        # Annotated explicitly: AutoTokenizer's return union includes backend
+        # types (and None) that do not carry .tokenize, which is all this class
+        # uses. Narrowing here types the four call sites correctly; from_pretrained
+        # does not actually return None for a resolvable model name.
+        self.tokenizer: PreTrainedTokenizerBase = AutoTokenizer.from_pretrained(  # ty: ignore[invalid-assignment]
+            model_name
+        )
 
         # Initialize spaCy model for sentence splitting
         self.nlp = self._load_spacy_model("xx_sent_ud_sm")
@@ -298,7 +305,7 @@ class SentenceTransformerResolver(Resolver):
         texts: list[str],
         references: list[list[tuple[int, int]]],
         candidates: list[list[list["Feature"]]],
-        results: list[list[tuple[str, str]]],
+        results: list[list[tuple[str, str] | None]],
         method: str,
         tiers: int,
     ) -> None:
@@ -336,7 +343,7 @@ class SentenceTransformerResolver(Resolver):
     def _embed_candidates(
         self,
         candidates: list[list[list["Feature"]]],
-        results: list[list[tuple[str, str]]],
+        results: list[list[tuple[str, str] | None]],
     ) -> None:
         """
         Generate embeddings for candidates that need to be processed.
@@ -388,7 +395,7 @@ class SentenceTransformerResolver(Resolver):
         self,
         contexts: list[list[str]],
         candidates: list[list[list["Feature"]]],
-        results: list[list[tuple[str, str]]],
+        results: list[list[tuple[str, str] | None]],
         min_similarity: float = 0.0,
     ) -> None:
         """
@@ -453,6 +460,13 @@ class SentenceTransformerResolver(Resolver):
             Context string for the reference
         """
         max_seq_length = self.transformer.get_max_seq_length()
+        # Not every SentenceTransformer module advertises a maximum length; the
+        # context window cannot be sized without one.
+        if max_seq_length is None:
+            raise ValueError(
+                f"Model '{self.model_name}' does not report a maximum sequence "
+                "length, so reference context cannot be sized"
+            )
         # Reserve space for special tokens ([CLS] and [SEP] for BERT-like models)
         token_limit = max_seq_length - 2
 
@@ -478,6 +492,14 @@ class SentenceTransformerResolver(Resolver):
             if sent.start_char <= start < sent.end_char:
                 target_sentence = sent
                 break
+
+        # A reference that falls in no sentence (a span past the end of the
+        # text, or in a gap the splitter left uncovered) used to surface as
+        # "None is not in list" from the lookup below.
+        if target_sentence is None:
+            raise ValueError(
+                f"No sentence contains reference at position {start}-{end}"
+            )
 
         # Get sentence index
         target_idx = sentences.index(target_sentence)

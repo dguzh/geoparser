@@ -27,7 +27,7 @@ class DocumentRepository(BaseRepository[Document]):
             List of documents
         """
         statement = select(Document).where(Document.project_id == project_id)
-        return db.exec(statement).unique().all()
+        return list(db.exec(statement).unique().all())
 
     @classmethod
     def get_by_ids(
@@ -53,8 +53,12 @@ class DocumentRepository(BaseRepository[Document]):
         chunk_size = 500
         for offset in range(0, len(ids), chunk_size):
             chunk = ids[offset : offset + chunk_size]
+            # SQLModel fields are annotated with their instance type, but at class
+            # level they are SQLAlchemy column expressions carrying .in_/.desc/etc.
+            # No checker models that duality without a SQLAlchemy plugin.
             statement = select(Document).where(
-                Document.project_id == project_id, Document.id.in_(chunk)
+                Document.project_id == project_id,
+                Document.id.in_(chunk),  # ty: ignore[unresolved-attribute]
             )
             documents.extend(db.exec(statement).unique().all())
 

@@ -1,7 +1,10 @@
 import uuid
 
+from sqlmodel import Session
+
 from geoparser.db.crud.context import ContextRepository
 from geoparser.db.db import get_session
+from geoparser.db.models.context import Context as ContextRecord
 from geoparser.db.models.context import ContextCreate, ContextUpdate
 
 
@@ -51,6 +54,27 @@ class Context:
 
             return context_record.id
 
+    def _load_context_record(
+        self, session: Session, context_id: uuid.UUID
+    ) -> ContextRecord:
+        """
+        Load the context record that _ensure_context_record guaranteed exists.
+
+        Args:
+            session: Database session to load the record into
+            context_id: ID returned by _ensure_context_record
+
+        Returns:
+            The context record, attached to the given session
+
+        Raises:
+            RuntimeError: If the record vanished between the two sessions
+        """
+        record = ContextRepository.get(session, context_id)
+        if record is None:  # pragma: no cover - guaranteed by the caller
+            raise RuntimeError(f"Context record '{context_id}' no longer exists")
+        return record
+
     def update_recognizer_context(self, tag: str, recognizer_id: str) -> None:
         """
         Update the recognizer ID for a given tag.
@@ -62,7 +86,7 @@ class Context:
         context_id = self._ensure_context_record(tag)
 
         with get_session() as session:
-            context_record = ContextRepository.get(session, context_id)
+            context_record = self._load_context_record(session, context_id)
             context_update = ContextUpdate(
                 id=context_record.id, recognizer_id=recognizer_id
             )
@@ -81,7 +105,7 @@ class Context:
         context_id = self._ensure_context_record(tag)
 
         with get_session() as session:
-            context_record = ContextRepository.get(session, context_id)
+            context_record = self._load_context_record(session, context_id)
             context_update = ContextUpdate(
                 id=context_record.id, resolver_id=resolver_id
             )
@@ -102,7 +126,7 @@ class Context:
         context_id = self._ensure_context_record(tag)
 
         with get_session() as session:
-            context_record = ContextRepository.get(session, context_id)
+            context_record = self._load_context_record(session, context_id)
             return context_record.recognizer_id
 
     def get_resolver_context(self, tag: str) -> str | None:
@@ -118,5 +142,5 @@ class Context:
         context_id = self._ensure_context_record(tag)
 
         with get_session() as session:
-            context_record = ContextRepository.get(session, context_id)
+            context_record = self._load_context_record(session, context_id)
             return context_record.resolver_id

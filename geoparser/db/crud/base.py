@@ -11,7 +11,9 @@ class BaseRepository(Generic[T]):
     Base repository with common CRUD operations for all models.
     """
 
-    model: type[T] = None
+    # Set by every concrete repository. There is no meaningful default, and
+    # all nine subclasses assign it, so it is declared without one.
+    model: type[T]
 
     @classmethod
     def create(cls, db: Session, obj_in: SQLModel) -> T:
@@ -46,7 +48,11 @@ class BaseRepository(Generic[T]):
         Returns:
             Record if found, None otherwise
         """
-        statement = select(cls.model).where(cls.model.id == id)
+        # SQLModel columns are typed as their instance value (uuid.UUID), but
+        # at class level they are SQLAlchemy column expressions carrying
+        # .id/.in_/.desc. No type checker models this duality without a
+        # SQLAlchemy plugin, so the access below is suppressed narrowly.
+        statement = select(cls.model).where(cls.model.id == id)  # ty: ignore[unresolved-attribute]
         return db.exec(statement).unique().first()
 
     @classmethod
@@ -61,7 +67,7 @@ class BaseRepository(Generic[T]):
             List of all records
         """
         statement = select(cls.model)
-        return db.exec(statement).unique().all()
+        return list(db.exec(statement).unique().all())
 
     @classmethod
     def update(cls, db: Session, *, db_obj: T, obj_in: SQLModel) -> T:

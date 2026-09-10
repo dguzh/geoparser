@@ -27,7 +27,7 @@ class RecognitionRepository(BaseRepository[Recognition]):
             List of recognitions
         """
         statement = select(Recognition).where(Recognition.document_id == document_id)
-        return db.exec(statement).unique().all()
+        return list(db.exec(statement).unique().all())
 
     @classmethod
     def get_by_recognizer(cls, db: Session, recognizer_id: str) -> list[Recognition]:
@@ -44,7 +44,7 @@ class RecognitionRepository(BaseRepository[Recognition]):
         statement = select(Recognition).where(
             Recognition.recognizer_id == recognizer_id
         )
-        return db.exec(statement).unique().all()
+        return list(db.exec(statement).unique().all())
 
     @classmethod
     def get_by_document_and_recognizer(
@@ -90,11 +90,11 @@ class RecognitionRepository(BaseRepository[Recognition]):
         statement = select(Document).where(
             Document.project_id == project_id,
             not_(
-                Document.id.in_(
+                Document.id.in_(  # ty: ignore[unresolved-attribute]
                     select(Recognition.document_id).where(
                         Recognition.recognizer_id == recognizer_id
                     )
                 )
             ),
         )
-        return db.exec(statement).unique().all()
+        return list(db.exec(statement).unique().all())

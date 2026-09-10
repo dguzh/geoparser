@@ -27,7 +27,7 @@ class ResolutionRepository(BaseRepository[Resolution]):
             List of resolutions
         """
         statement = select(Resolution).where(Resolution.reference_id == reference_id)
-        return db.exec(statement).unique().all()
+        return list(db.exec(statement).unique().all())
 
     @classmethod
     def get_by_resolver(cls, db: Session, resolver_id: str) -> list[Resolution]:
@@ -42,7 +42,7 @@ class ResolutionRepository(BaseRepository[Resolution]):
             List of resolutions
         """
         statement = select(Resolution).where(Resolution.resolver_id == resolver_id)
-        return db.exec(statement).unique().all()
+        return list(db.exec(statement).unique().all())
 
     @classmethod
     def get_by_reference_and_resolver(
@@ -86,11 +86,15 @@ class ResolutionRepository(BaseRepository[Resolution]):
         # Get all references for documents in the project that haven't been processed
         statement = (
             select(Reference)
-            .join(Document, Reference.document_id == Document.id)
+            .join(
+                Document,
+                Reference.document_id  # ty: ignore[invalid-argument-type]
+                == Document.id,
+            )
             .where(
                 Document.project_id == project_id,
                 not_(
-                    Reference.id.in_(
+                    Reference.id.in_(  # ty: ignore[unresolved-attribute]
                         select(Resolution.reference_id).where(
                             Resolution.resolver_id == resolver_id
                         )
@@ -98,4 +102,4 @@ class ResolutionRepository(BaseRepository[Resolution]):
                 ),
             )
         )
-        return db.exec(statement).unique().all()
+        return list(db.exec(statement).unique().all())

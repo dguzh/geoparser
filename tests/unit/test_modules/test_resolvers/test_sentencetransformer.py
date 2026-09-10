@@ -960,6 +960,76 @@ class TestSentenceTransformerResolverHelperMethods:
     )
     @patch("geoparser.modules.resolvers.sentencetransformer.SentenceTransformer")
     @patch("geoparser.modules.resolvers.sentencetransformer.Gazetteer")
+    def test_extract_context_reports_reference_outside_every_sentence(
+        self, mock_gazetteer, mock_transformer, mock_tokenizer, mock_spacy_load
+    ):
+        """A reference offset no sentence covers is reported clearly."""
+        # Arrange
+        from geoparser.modules.resolvers.sentencetransformer import (
+            SentenceTransformerResolver,
+        )
+
+        mock_transformer_instance = mock_transformer.return_value
+        mock_transformer_instance.get_max_seq_length.return_value = 512
+
+        mock_tokenizer_instance = mock_tokenizer.return_value
+
+        def tokenize_side_effect(text):
+            # Force the sentence-splitting path by making the document too long
+            return ["token"] * 600 if len(text) > 20 else ["token"] * 3
+
+        mock_tokenizer_instance.tokenize.side_effect = tokenize_side_effect
+
+        # A sentence that stops well before the requested offset, which is what
+        # a bad reference span or an uncovered gap between sentences looks like.
+        mock_sent = Mock()
+        mock_sent.start_char = 0
+        mock_sent.end_char = 10
+        mock_sent.text = "I went to."
+
+        mock_doc = Mock()
+        mock_doc.sents = [mock_sent]
+        mock_nlp = Mock()
+        mock_nlp.return_value = mock_doc
+
+        resolver = SentenceTransformerResolver()
+        resolver.nlp = mock_nlp
+
+        text = "I went to Paris yesterday and it was lovely."
+
+        # Act & Assert - a clear message, not "None is not in list"
+        with pytest.raises(ValueError, match="No sentence contains reference"):
+            resolver._extract_context(text, 10, 15)
+
+    @patch("geoparser.modules.resolvers.sentencetransformer.spacy.load")
+    @patch(
+        "geoparser.modules.resolvers.sentencetransformer.AutoTokenizer.from_pretrained"
+    )
+    @patch("geoparser.modules.resolvers.sentencetransformer.SentenceTransformer")
+    @patch("geoparser.modules.resolvers.sentencetransformer.Gazetteer")
+    def test_extract_context_requires_a_maximum_sequence_length(
+        self, mock_gazetteer, mock_transformer, mock_tokenizer, mock_spacy_load
+    ):
+        """A model that advertises no maximum length is reported clearly."""
+        # Arrange
+        from geoparser.modules.resolvers.sentencetransformer import (
+            SentenceTransformerResolver,
+        )
+
+        mock_transformer.return_value.get_max_seq_length.return_value = None
+
+        resolver = SentenceTransformerResolver()
+
+        # Act & Assert
+        with pytest.raises(ValueError, match="does not report a maximum sequence"):
+            resolver._extract_context("Some text", 0, 4)
+
+    @patch("geoparser.modules.resolvers.sentencetransformer.spacy.load")
+    @patch(
+        "geoparser.modules.resolvers.sentencetransformer.AutoTokenizer.from_pretrained"
+    )
+    @patch("geoparser.modules.resolvers.sentencetransformer.SentenceTransformer")
+    @patch("geoparser.modules.resolvers.sentencetransformer.Gazetteer")
     def test_generate_description_handles_missing_attributes(
         self, mock_gazetteer, mock_transformer, mock_tokenizer, mock_spacy_load
     ):

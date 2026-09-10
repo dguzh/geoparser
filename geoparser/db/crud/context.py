@@ -26,7 +26,7 @@ class ContextRepository(BaseRepository[Context]):
             List of context records
         """
         statement = select(Context).where(Context.project_id == project_id)
-        return db.exec(statement).unique().all()
+        return list(db.exec(statement).unique().all())
 
     @classmethod
     def get_by_project_and_tag(

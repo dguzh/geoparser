@@ -17,7 +17,7 @@ class Module(ABC):  # noqa: B024
     """
 
     # Module name should be defined by subclasses
-    NAME: str = None
+    NAME: str | None = None
 
     def __init__(self, **kwargs):
         """

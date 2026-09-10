@@ -3,6 +3,7 @@ import typing as t
 from pathlib import Path
 
 import spacy
+import spacy.tokens
 from spacy.training import Example
 
 from geoparser.modules.recognizers import Recognizer

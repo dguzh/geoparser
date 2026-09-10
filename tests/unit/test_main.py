@@ -30,8 +30,11 @@ class TestMain:
     def test_main_module_execution(self):
         """Test running the module directly with python -m geoparser."""
         # Arrange & Act
-        # Use longer timeout on Windows where subprocess can be slower
-        timeout = 60 if sys.platform == "win32" else 30
+        # `python -m geoparser --help` imports torch and spaCy, which takes
+        # ~20s even on a warm machine, so the budget is generous: a loaded CI
+        # runner should not turn a slow import into a spurious failure.
+        # Windows gets more still, where subprocess start-up is slower.
+        timeout = 240 if sys.platform == "win32" else 120
 
         result = subprocess.run(
             [sys.executable, "-m", "geoparser", "--help"],

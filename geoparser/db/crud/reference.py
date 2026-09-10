@@ -15,8 +15,14 @@ class ReferenceRepository(BaseRepository[Reference]):
 
     model = Reference
 
+    # The base declares the widest useful parameter type (SQLModel); each
+    # repository deliberately accepts its own Create/Update model, which is
+    # a Liskov narrowing. Callers always go through the concrete repository,
+    # so the precise signature is worth more here than strict substitutability.
     @classmethod
-    def create(cls, db: Session, obj_in: ReferenceCreate) -> Reference:
+    def create(  # ty: ignore[invalid-method-override]
+        cls, db: Session, obj_in: ReferenceCreate
+    ) -> Reference:
         """
         Create a new reference and populate its text field from the document.
 
@@ -43,7 +49,7 @@ class ReferenceRepository(BaseRepository[Reference]):
         return super().create(db, Reference(**data))
 
     @classmethod
-    def update(
+    def update(  # ty: ignore[invalid-method-override]  (see create above)
         cls, db: Session, *, db_obj: Reference, obj_in: ReferenceUpdate
     ) -> Reference:
         """
@@ -86,7 +92,7 @@ class ReferenceRepository(BaseRepository[Reference]):
             List of references
         """
         statement = select(Reference).where(Reference.document_id == document_id)
-        return db.exec(statement).unique().all()
+        return list(db.exec(statement).unique().all())
 
     @classmethod
     def get_by_document_and_span(
