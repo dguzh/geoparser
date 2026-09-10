@@ -73,6 +73,18 @@ jobs:
           restore-keys: |
             huggingface-${{ runner.os }}-
 
+      # mutmut caches each mutant's verdict under mutants/ and re-tests only
+      # what changed, so restoring the previous run turns a pull request into
+      # an incremental check rather than a full sweep. The cache is keyed by
+      # commit and falls back to the most recent run on this branch or main.
+      - name: Cache mutation results
+        uses: actions/cache@v6
+        with:
+          path: mutants
+          key: mutmut-${{ runner.os }}-${{ github.sha }}
+          restore-keys: |
+            mutmut-${{ runner.os }}-
+
       # Scoped by [tool.mutmut] in pyproject.toml: the library is mutated and
       # judged by the unit suite.
       - name: Run mutation testing

@@ -149,6 +149,10 @@ pytest_add_cli_args_test_selection = ["tests/unit"]
 # Coverage instrumentation is pure overhead here, and is re-collected per
 # mutant otherwise.
 pytest_add_cli_args = ["--no-cov", "-p", "no:cacheprovider"]
+# mutmut runs the suite from a copied tree; the schema tests validate the
+# example config that the gazetteers guide walks through, so it has to come
+# along or every mutant "fails" for want of a file.
+also_copy = ["docs/examples"]
 
 [tool.coverage.report]
 exclude_also = [
