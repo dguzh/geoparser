@@ -1,0 +1,89 @@
+name: Quality
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  # The most surviving mutants tolerated. Lower it whenever a run comes in
+  # under; never raise it to make a red build green -- kill the mutant by
+  # strengthening the test that should have caught it.
+  MAX_SURVIVING_MUTANTS: "0"
+
+jobs:
+  # Type checking needs the dependencies installed, or every third-party import
+  # is unresolved, so it cannot join the fast Ruff job.
+  ty:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: astral-sh/setup-uv@v10
+        with:
+          enable-cache: true
+
+      - name: Free up disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/share/boost /usr/local/lib/android
+
+      - name: Install project dependencies
+        run: uv sync --locked
+
+      - name: ty
+        run: uv run --no-sync ty check
+
+  mutation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # mutmut's change detection compares against history.
+          fetch-depth: 0
+
+      - uses: astral-sh/setup-uv@v10
+        with:
+          enable-cache: true
+
+      - name: Free up disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/share/boost /usr/local/lib/android
+
+      - name: Install project dependencies
+        run: uv sync --locked
+
+      - name: Cache Hugging Face models
+        uses: actions/cache@v6
+        with:
+          path: ~/.cache/huggingface
+          key: huggingface-${{ runner.os }}-${{ hashFiles('uv.lock') }}
+          restore-keys: |
+            huggingface-${{ runner.os }}-
+
+      # Scoped by [tool.mutmut] in pyproject.toml: the library is mutated and
+      # judged by the unit suite.
+      - name: Run mutation testing
+        run: uv run --no-sync mutmut run
+
+      - name: Export mutation stats
+        run: uv run --no-sync mutmut export-cicd-stats
+
+      - name: Enforce the mutation baseline
+        run: uv run --no-sync python scripts/mutation_gate.py --max-survivors ${{ env.MAX_SURVIVING_MUTANTS }}
+
+      - name: Mutation results
+        if: always()
+        run: uv run --no-sync mutmut results

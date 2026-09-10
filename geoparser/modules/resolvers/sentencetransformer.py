@@ -33,6 +33,14 @@ class SentenceTransformerResolver(Resolver):
 
     NAME = "SentenceTransformerResolver"
 
+    # Search methods in order of preference, from most to least restrictive.
+    SEARCH_METHODS: t.ClassVar[tuple[str, ...]] = (
+        "exact",
+        "phrase",
+        "partial",
+        "fuzzy",
+    )
+
     # Gazetteer-specific attribute mappings for location descriptions
     GAZETTEER_ATTRIBUTE_MAP: t.ClassVar[dict[str, dict[str, str]]] = {
         "geonames": {
@@ -206,45 +214,89 @@ class SentenceTransformerResolver(Resolver):
         results = [[None for _ in doc_refs] for doc_refs in references]
         candidates = [[[] for _ in doc_refs] for doc_refs in references]
 
-        # Define search methods in order of preference
-        search_methods = [
-            "exact",
-            "phrase",
-            "partial",
-            "fuzzy",
-        ]
-
         # Iterative search strategy with increasing tiers
         for tiers in range(1, self.max_tiers + 1):
-            for method in search_methods:
-                # Skip exact method for tiers > 1
-                if method == "exact" and tiers > 1:
-                    continue
-
-                # Step 3: Gather candidates for unresolved references
-                self._gather_candidates(
-                    texts, references, candidates, results, method, tiers
-                )
-
-                # Step 4: Embed new candidates
-                self._embed_candidates(candidates, results)
-
-                # Step 5: Evaluate candidates and update results
-                self._evaluate_candidates(
-                    contexts, candidates, results, self.min_similarity
-                )
-
-                # If all references resolved, we can stop
-                if all(
-                    all(r is not None for r in doc_results) for doc_results in results
-                ):
-                    break
+            self._search_tier(texts, references, contexts, candidates, results, tiers)
 
             # If all references resolved, we can stop
-            if all(all(r is not None for r in doc_results) for doc_results in results):
+            if self._all_resolved(results):
                 break
 
         return results
+
+    def _search_tier(
+        self,
+        texts: list[str],
+        references: list[list[tuple[int, int]]],
+        contexts: list[list[str]],
+        candidates: list[list[list["Feature"]]],
+        results: list[list[tuple[str, str] | None]],
+        tiers: int,
+    ) -> None:
+        """
+        Try each search method at one tier, stopping early once all are resolved.
+
+        Args:
+            texts: Document texts
+            references: Per-document reference spans
+            contexts: Per-reference context strings
+            candidates: Per-reference candidate features, extended in place
+            results: Per-reference referents, filled in place
+            tiers: How far to expand the search on this pass
+        """
+        for method in self.SEARCH_METHODS:
+            # The exact method cannot yield anything new once the search widens
+            if method == "exact" and tiers > 1:
+                continue
+
+            self._search_once(
+                texts, references, contexts, candidates, results, method, tiers
+            )
+
+            if self._all_resolved(results):
+                break
+
+    @staticmethod
+    def _all_resolved(
+        results: list[list[tuple[str, str] | None]],
+    ) -> bool:
+        """
+        Whether every reference in every document has been resolved.
+
+        Args:
+            results: Per-document lists of referents, with None where a
+                     reference is still unresolved
+
+        Returns:
+            True when no None remains
+        """
+        return all(all(r is not None for r in doc_results) for doc_results in results)
+
+    def _search_once(
+        self,
+        texts: list[str],
+        references: list[list[tuple[int, int]]],
+        contexts: list[list[str]],
+        candidates: list[list[list["Feature"]]],
+        results: list[list[tuple[str, str] | None]],
+        method: str,
+        tiers: int,
+    ) -> None:
+        """
+        Run one gather/embed/evaluate pass, updating candidates and results.
+
+        Args:
+            texts: Document texts
+            references: Per-document reference spans
+            contexts: Per-reference context strings
+            candidates: Per-reference candidate features, extended in place
+            results: Per-reference referents, filled in place
+            method: Gazetteer search method for this pass
+            tiers: How far to expand the search for this pass
+        """
+        self._gather_candidates(texts, references, candidates, results, method, tiers)
+        self._embed_candidates(candidates, results)
+        self._evaluate_candidates(contexts, candidates, results, self.min_similarity)
 
     def _extract_contexts(
         self, texts: list[str], references: list[list[tuple[int, int]]]
@@ -451,6 +503,10 @@ class SentenceTransformerResolver(Resolver):
         """
         Extract context around a single reference, respecting model token limits.
 
+        The whole document is used when it fits. Otherwise the sentence holding
+        the reference is grown outwards, a sentence at a time, for as long as
+        the encoder's token budget allows.
+
         Args:
             text: Full document text
             start: Start position of the reference
@@ -459,87 +515,135 @@ class SentenceTransformerResolver(Resolver):
         Returns:
             Context string for the reference
         """
+        token_limit = self._token_limit()
+
+        if self._document_tokens(text) <= token_limit:
+            return text
+
+        sentences = self._sentences(text)
+        target_idx = self._locate_sentence(sentences, start, end)
+        window = self._expand_window(sentences, target_idx, token_limit)
+        return " ".join(sent.text for sent in window)
+
+    def _token_limit(self) -> int:
+        """
+        The number of tokens available for a context.
+
+        Returns:
+            The model's maximum sequence length, less the special tokens
+            ([CLS] and [SEP] for BERT-like models)
+
+        Raises:
+            ValueError: If the model advertises no maximum sequence length
+        """
         max_seq_length = self.transformer.get_max_seq_length()
-        # Not every SentenceTransformer module advertises a maximum length; the
-        # context window cannot be sized without one.
         if max_seq_length is None:
             raise ValueError(
                 f"Model '{self.model_name}' does not report a maximum sequence "
                 "length, so reference context cannot be sized"
             )
-        # Reserve space for special tokens ([CLS] and [SEP] for BERT-like models)
-        token_limit = max_seq_length - 2
+        return max_seq_length - 2
 
-        # Check if entire document fits within token limit
-        # Use cached token count if available
+    def _document_tokens(self, text: str) -> int:
+        """
+        The token count of a whole document, computed once per document.
+
+        Args:
+            text: Full document text
+
+        Returns:
+            Number of tokens in the document
+        """
         if text not in self.doc_tokens:
             self.doc_tokens[text] = len(self.tokenizer.tokenize(text))
-        doc_tokens = self.doc_tokens[text]
+        return self.doc_tokens[text]
 
-        if doc_tokens <= token_limit:
-            return text
+    def _sentences(self, text: str) -> list["spacy.tokens.Span"]:
+        """
+        The document's sentences, parsed once per document.
 
-        # Use spaCy to get sentence boundaries
-        # Use cached spaCy doc if available
+        Args:
+            text: Full document text
+
+        Returns:
+            The document's sentence spans, in order
+        """
         if text not in self.doc_objects:
             self.doc_objects[text] = self.nlp(text)
-        doc = self.doc_objects[text]
-        sentences = list(doc.sents)
+        return list(self.doc_objects[text].sents)
 
-        # Find the sentence containing the reference
-        target_sentence = None
-        for sent in sentences:
+    @staticmethod
+    def _locate_sentence(
+        sentences: list["spacy.tokens.Span"], start: int, end: int
+    ) -> int:
+        """
+        Find the index of the sentence containing a reference.
+
+        Args:
+            sentences: The document's sentence spans
+            start: Start position of the reference
+            end: End position of the reference
+
+        Returns:
+            Index into ``sentences``
+
+        Raises:
+            ValueError: If the reference falls in no sentence -- a span past the
+                end of the text, or in a gap the splitter left uncovered. This
+                previously surfaced as "None is not in list".
+        """
+        for index, sent in enumerate(sentences):
             if sent.start_char <= start < sent.end_char:
-                target_sentence = sent
-                break
+                return index
+        raise ValueError(f"No sentence contains reference at position {start}-{end}")
 
-        # A reference that falls in no sentence (a span past the end of the
-        # text, or in a gap the splitter left uncovered) used to surface as
-        # "None is not in list" from the lookup below.
-        if target_sentence is None:
-            raise ValueError(
-                f"No sentence contains reference at position {start}-{end}"
-            )
+    def _expand_window(
+        self,
+        sentences: list["spacy.tokens.Span"],
+        target_idx: int,
+        token_limit: int,
+    ) -> list["spacy.tokens.Span"]:
+        """
+        Grow a sentence window outwards while it stays within the token budget.
 
-        # Get sentence index
-        target_idx = sentences.index(target_sentence)
-        context_sentences = [target_sentence]
+        Expansion alternates between the preceding and following sentence and
+        stops as soon as neither fits, so the reference stays roughly centred.
 
-        # Calculate tokens for target sentence
-        tokens_count = len(self.tokenizer.tokenize(target_sentence.text))
+        Args:
+            sentences: The document's sentence spans
+            target_idx: Index of the sentence holding the reference
+            token_limit: Tokens available for the whole context
 
-        # Expand context bidirectionally while respecting token limit
-        i, j = target_idx, target_idx
+        Returns:
+            The contiguous run of sentences to use as context
+        """
+        window = [sentences[target_idx]]
+        tokens_count = len(self.tokenizer.tokenize(sentences[target_idx].text))
+        first, last = target_idx, target_idx
 
         while True:
             expanded = False
 
-            # Try to add previous sentence
-            if i > 0:
-                prev_sentence = sentences[i - 1]
-                prev_tokens = len(self.tokenizer.tokenize(prev_sentence.text))
-                if tokens_count + prev_tokens <= token_limit:
-                    context_sentences.insert(0, prev_sentence)
-                    tokens_count += prev_tokens
-                    i -= 1
+            if first > 0:
+                candidate = sentences[first - 1]
+                cost = len(self.tokenizer.tokenize(candidate.text))
+                if tokens_count + cost <= token_limit:
+                    window.insert(0, candidate)
+                    tokens_count += cost
+                    first -= 1
                     expanded = True
 
-            # Try to add next sentence
-            if j < len(sentences) - 1:
-                next_sentence = sentences[j + 1]
-                next_tokens = len(self.tokenizer.tokenize(next_sentence.text))
-                if tokens_count + next_tokens <= token_limit:
-                    context_sentences.append(next_sentence)
-                    tokens_count += next_tokens
-                    j += 1
+            if last < len(sentences) - 1:
+                candidate = sentences[last + 1]
+                cost = len(self.tokenizer.tokenize(candidate.text))
+                if tokens_count + cost <= token_limit:
+                    window.append(candidate)
+                    tokens_count += cost
+                    last += 1
                     expanded = True
 
             if not expanded:
-                break
-
-        # Combine sentences to form context
-        context = " ".join(sent.text for sent in context_sentences)
-        return context
+                return window
 
     def _generate_description(self, candidate: "Feature") -> str:
         """

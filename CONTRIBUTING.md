@@ -63,7 +63,7 @@ uv run pytest
 Coverage is collected for `geoparser` (HTML report in `htmlcov/`; open `htmlcov/index.html`). `geoparser/annotator/` is omitted from coverage. CI enforces a hard floor on the combined coverage of the whole matrix:
 
 ```bash
-uv run pytest --cov-fail-under=COVERAGE_GATE
+uv run pytest --cov-fail-under=99
 ```
 
 Useful subsets:
@@ -82,9 +82,11 @@ uv sync
 uv run ruff check .
 uv run ruff format --check .
 uv run ty check
-uv run pytest --cov-fail-under=COVERAGE_GATE
-uv run python scripts/crap.py --max-crap CRAP_GATE
+uv run pytest --cov-fail-under=99
+uv run python scripts/crap.py --max-crap 10
 uv run mutmut run
+uv run mutmut export-cicd-stats
+uv run python scripts/mutation_gate.py --max-survivors 0
 ```
 
 What each step guards:
@@ -93,7 +95,7 @@ What each step guards:
 - **[ty](https://github.com/astral-sh/ty)** — static type checking of `geoparser/`. Fix the type error rather than adding a blanket `# type: ignore`; where a suppression is genuinely right, make it specific and comment why.
 - **pytest** — the unit, integration and end-to-end suites, with the hard coverage floor.
 - **scripts/crap.py** — the [CRAP score](https://testing.googleblog.com/2011/02/this-code-is-crap.html) gate, `complexity² × (1 − coverage)³ + complexity`, per function. For fully covered code this reduces to a cyclomatic-complexity ceiling, so it fails both on untested code and on code that has grown too branchy. It reads the coverage data that pytest just wrote, so run it after the suite.
-- **[mutmut](https://mutmut.readthedocs.io/)** — mutation testing. It edits the source in small ways and re-runs the tests; a mutant that survives is a line the suite does not really check. Configuration lives under `[tool.mutmut]` in `pyproject.toml`.
+- **[mutmut](https://mutmut.readthedocs.io/)** — mutation testing. It edits the source in small ways and re-runs the tests; a mutant that survives is a line the suite does not really check. Configuration lives under `[tool.mutmut]` in `pyproject.toml`; `scripts/mutation_gate.py` reads the exported stats and fails when more mutants survive than the agreed baseline.
 
 Mutation testing is much slower than the rest, so it runs against the fast unit suite over the core packages only. Inspect survivors with:
 
@@ -136,7 +138,9 @@ A few practical tips that make reviews easier:
 - Add or update tests when behavior changes
 - Update docs when user-facing behavior changes
 
-CI runs on pull requests into `main` and on `main` itself, never on feature-branch pushes. The matrix is three operating systems across Python 3.10–3.14. Pushing again to an open pull request cancels the previous run.
+CI runs on pull requests into `main` and on `main` itself, never on feature-branch pushes. The matrix is three operating systems across Python 3.10–3.14, with uv providing the interpreter on all of them. Pushing again to an open pull request cancels the previous run.
+
+Three workflows run: **Lint** (Ruff, seconds, no project dependencies), **Tests** (the matrix, then the combined coverage and CRAP gates), and **Quality** (ty, and mutation testing). `tests-passed` is the check the branch ruleset requires; adding the Lint and Quality jobs to that ruleset is a repository setting, not something this file controls.
 
 If you add a dependency, commit the updated `uv.lock` alongside `pyproject.toml` (`uv add <package>` updates both). Prefer permissively licensed packages; geoparser is MIT-licensed.
 

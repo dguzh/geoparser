@@ -117,11 +117,24 @@ class SourceConfig(BaseModel):
 
     @model_validator(mode="after")
     def validate_source(self) -> SourceConfig:
+        """Check the whole source declaration, one concern at a time."""
+        self._validate_location()
+        self._validate_attribute_names()
+        if self.is_tabular:
+            self._validate_tabular()
+        else:
+            self._validate_spatial()
+        return self
+
+    def _validate_location(self) -> None:
+        """A source is fetched from a url or read from a path, never both."""
         if bool(self.url) == bool(self.path):
             raise ValueError(
                 f"Source '{self.name}' must define exactly one of 'url' or 'path'"
             )
 
+    def _validate_attribute_names(self) -> None:
+        """Attributes must exist, and each must be named only once."""
         if not self.attributes:
             raise ValueError(
                 f"Source '{self.name}' must declare at least one attribute"
@@ -134,38 +147,41 @@ class SourceConfig(BaseModel):
                 f"{', '.join(sorted(duplicates))}"
             )
 
-        geometry_attributes = [
-            a for a in self.attributes if a.type == DataType.GEOMETRY
-        ]
-        if self.is_tabular:
-            if geometry_attributes:
+    def _validate_tabular(self) -> None:
+        """A delimited source carries its coordinates as ordinary columns."""
+        if self._geometry_attributes():
+            raise ValueError(
+                f"Source '{self.name}': tabular sources cannot declare a "
+                "geometry attribute"
+            )
+
+    def _validate_spatial(self) -> None:
+        """A spatial source has one geometry attribute and no CSV-only options."""
+        for field in ("quote",):
+            if getattr(self, field) is not None:
                 raise ValueError(
-                    f"Source '{self.name}': tabular sources cannot declare a "
-                    "geometry attribute"
+                    f"Source '{self.name}': '{field}' is only valid for tabular "
+                    "sources (those with a 'delimiter')"
                 )
-        else:
-            for field in ("quote",):
-                if getattr(self, field) is not None:
-                    raise ValueError(
-                        f"Source '{self.name}': '{field}' is only valid for tabular "
-                        "sources (those with a 'delimiter')"
-                    )
-            if self.skip_rows:
-                raise ValueError(
-                    f"Source '{self.name}': 'skip_rows' is only valid for tabular "
-                    "sources"
-                )
-            if len(geometry_attributes) != 1:
-                raise ValueError(
-                    f"Source '{self.name}': a spatial source must declare exactly "
-                    "one geometry attribute"
-                )
-            if geometry_attributes[0].name != GEOMETRY_ATTRIBUTE:
-                raise ValueError(
-                    f"Source '{self.name}': the geometry attribute must be named "
-                    f"'{GEOMETRY_ATTRIBUTE}'"
-                )
-        return self
+        if self.skip_rows:
+            raise ValueError(
+                f"Source '{self.name}': 'skip_rows' is only valid for tabular sources"
+            )
+        geometry_attributes = self._geometry_attributes()
+        if len(geometry_attributes) != 1:
+            raise ValueError(
+                f"Source '{self.name}': a spatial source must declare exactly "
+                "one geometry attribute"
+            )
+        if geometry_attributes[0].name != GEOMETRY_ATTRIBUTE:
+            raise ValueError(
+                f"Source '{self.name}': the geometry attribute must be named "
+                f"'{GEOMETRY_ATTRIBUTE}'"
+            )
+
+    def _geometry_attributes(self) -> list[AttributeDef]:
+        """The attributes of this source that hold a geometry."""
+        return [a for a in self.attributes if a.type == DataType.GEOMETRY]
 
 
 # Matches a bare or dot-qualified identifier (``NAME``, ``g.NAME``), each
