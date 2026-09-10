@@ -27,7 +27,7 @@ class ManualResolver(Resolver):
         label: str,
         texts: list[str],
         references: list[list[tuple[int, int]]],
-        referents: list[list[tuple[str, str]]],
+        referents: list[list[tuple[str, str] | None]],
     ):
         """
         Initialize the ManualResolver with a label and referent annotations.
@@ -39,8 +39,9 @@ class ManualResolver(Resolver):
             references: List of lists of (start, end) tuples representing reference positions.
                        Each inner list corresponds to references in one document.
             referents: List of lists of (gazetteer_name, identifier) tuples representing the
-                      resolved referents. Each annotation corresponds to the document and
-                      reference at the same positions in texts and references.
+                      resolved referents, or None where a reference was left ungeocoded.
+                      Each annotation corresponds to the document and reference at the
+                      same positions in texts and references.
         """
         # Only label goes to config and database
         super().__init__(label=label)

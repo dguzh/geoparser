@@ -119,8 +119,10 @@ class ResolutionService:
         Raises:
             ValueError: If the resolver does not implement a fit method
         """
-        # Check if the resolver has a fit method
-        if not hasattr(self.resolver, "fit"):
+        # Resolvers are not required to be trainable, so `fit` is looked up
+        # rather than declared on the base class.
+        fit: t.Callable[..., None] | None = getattr(self.resolver, "fit", None)
+        if fit is None:
             raise ValueError(
                 f"Resolver '{self.resolver.name}' does not implement a fit method"
             )
@@ -154,14 +156,14 @@ class ResolutionService:
                 referents.append(doc_referents)
 
         # Call the resolver's fit method with the prepared data
-        self.resolver.fit(texts, references, referents, **kwargs)
+        fit(texts, references, referents, **kwargs)
 
     def _record_referent_predictions(
         self,
         session: Session,
         unprocessed_references: list["Reference"],
         predicted_referents: list[tuple[str, str] | None],
-        resolver_id: uuid.UUID,
+        resolver_id: str,
     ) -> None:
         """
         Process referent predictions and update the database.
@@ -198,7 +200,7 @@ class ResolutionService:
         reference_id: uuid.UUID,
         gazetteer_name: str,
         identifier: str,
-        resolver_id: uuid.UUID,
+        resolver_id: str,
     ) -> None:
         """
         Create a referent record with the resolver ID.
@@ -230,7 +232,7 @@ class ResolutionService:
         ReferentRepository.create(session, referent_create)
 
     def _create_resolution_record(
-        self, session: Session, reference_id: uuid.UUID, resolver_id: uuid.UUID
+        self, session: Session, reference_id: uuid.UUID, resolver_id: str
     ) -> None:
         """
         Create a resolution record for a reference processed by a specific resolver.

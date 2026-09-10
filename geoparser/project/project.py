@@ -119,7 +119,7 @@ class Project:
         self,
         texts: list[str],
         references: list[list[tuple]],
-        referents: list[list[tuple]],
+        referents: list[list[tuple | None]],
         tag: str,
     ) -> None:
         """
@@ -346,8 +346,8 @@ class Project:
                              False to add annotations to existing documents.
         """
         # Load JSON file
-        path = Path(path)
-        with open(path) as f:
+        file_path = Path(path)
+        with open(file_path) as f:
             data = json.load(f)
 
         # Extract gazetteer name from annotations

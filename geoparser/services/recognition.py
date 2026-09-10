@@ -107,8 +107,10 @@ class RecognitionService:
         Raises:
             ValueError: If the recognizer does not implement a fit method
         """
-        # Check if the recognizer has a fit method
-        if not hasattr(self.recognizer, "fit"):
+        # Recognizers are not required to be trainable, so `fit` is looked up
+        # rather than declared on the base class.
+        fit: t.Callable[..., None] | None = getattr(self.recognizer, "fit", None)
+        if fit is None:
             raise ValueError(
                 f"Recognizer '{self.recognizer.name}' does not implement a fit method"
             )
@@ -125,14 +127,14 @@ class RecognitionService:
                 references.append([(ref.start, ref.end) for ref in doc.toponyms])
 
         # Call the recognizer's fit method with the prepared data
-        self.recognizer.fit(texts, references, **kwargs)
+        fit(texts, references, **kwargs)
 
     def _record_reference_predictions(
         self,
         session: Session,
         documents: list["Document"],
         predicted_references: list[list[tuple[int, int]] | None],
-        recognizer_id: uuid.UUID,
+        recognizer_id: str,
     ) -> None:
         """
         Process reference predictions and update the database.
@@ -169,7 +171,7 @@ class RecognitionService:
         document_id: uuid.UUID,
         start: int,
         end: int,
-        recognizer_id: uuid.UUID,
+        recognizer_id: str,
     ) -> None:
         """
         Create a reference record with the recognizer ID.
@@ -188,7 +190,7 @@ class RecognitionService:
         ReferenceRepository.create(session, reference_create)
 
     def _create_recognition_record(
-        self, session: Session, document_id: uuid.UUID, recognizer_id: uuid.UUID
+        self, session: Session, document_id: uuid.UUID, recognizer_id: str
     ) -> None:
         """
         Create a recognition record for a document processed by a specific recognizer.
