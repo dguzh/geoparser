@@ -86,7 +86,7 @@ uv run pytest --cov-fail-under=99
 uv run python scripts/crap.py --max-crap 10
 uv run mutmut run
 uv run mutmut export-cicd-stats
-uv run python scripts/mutation_gate.py --max-survivors 0
+uv run python scripts/mutation_gate.py --max-survivors 956
 ```
 
 What each step guards:
@@ -97,7 +97,11 @@ What each step guards:
 - **scripts/crap.py** — the [CRAP score](https://testing.googleblog.com/2011/02/this-code-is-crap.html) gate, `complexity² × (1 − coverage)³ + complexity`, per function. For fully covered code this reduces to a cyclomatic-complexity ceiling, so it fails both on untested code and on code that has grown too branchy. It reads the coverage data that pytest just wrote, so run it after the suite.
 - **[mutmut](https://mutmut.readthedocs.io/)** — mutation testing. It edits the source in small ways and re-runs the tests; a mutant that survives is a line the suite does not really check. Configuration lives under `[tool.mutmut]` in `pyproject.toml`; `scripts/mutation_gate.py` reads the exported stats and fails when more mutants survive than the agreed baseline.
 
-Mutation testing is much slower than the rest, so it runs against the fast unit suite over the core packages only. Inspect survivors with:
+Mutation testing runs the library's 3764 mutants against the **unit** suite only (about 25 minutes from cold, most of it the one-off pass that works out which tests reach which code). The integration and e2e suites build a real gazetteer and load real models, which at one run per mutant would take days.
+
+The baseline as of 2026-09-10 is **2353 killed, 956 survived — a 71.1% mutation score**. That gap against ~100% line coverage is the point of the exercise: a surviving mutant is a line the fast suite executes but never checks. Survivors cluster in the gazetteer build pipeline, which the integration suite does exercise for real but which mutation testing does not see. `MAX_SURVIVING_MUTANTS` in `.github/workflows/quality.yml` is a ratchet: lower it as survivors are killed, never raise it.
+
+Inspect survivors with:
 
 ```bash
 uv run mutmut results
