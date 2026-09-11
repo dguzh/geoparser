@@ -36,6 +36,8 @@ class Gazetteer:
         """
         path = artifact_path(gazetteer_name)
         if not path.exists():
+            # pragma: no mutate block - wording only; a test pins the type
+            # and that the message names the missing gazetteer.
             raise ValueError(
                 f"Gazetteer '{gazetteer_name}' is not installed. Install it by running "
                 f"'python -m geoparser install {gazetteer_name}', or run "

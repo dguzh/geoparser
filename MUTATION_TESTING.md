@@ -24,7 +24,7 @@ Pragmas only take effect when the mutant tree is regenerated, so delete
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
 | Baseline, whole package | 3871 | 2480 | 931 | 290 | 164 | 9.7/s |
 | After excluding the build pipeline | 2021 | 1427 | 307 | 286 | 0 | 34.0/s |
-| Current | 1970 | 1566 | **120** | 283 | 0 | — |
+| Current | 1946 | 1572 | **91** | 283 | 0 | — |
 
 `MAX_SURVIVING_MUTANTS` in `.github/workflows/quality.yml` is the ratchet.
 Lower it as survivors are killed; never raise it.

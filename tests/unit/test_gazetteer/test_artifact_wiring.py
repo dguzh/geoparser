@@ -134,3 +134,101 @@ class TestRegisterFunctions:
         # Assert
         assert soundex_value == "A261"
         assert distance == 3
+
+
+@pytest.mark.unit
+class TestArtifactOpening:
+    """Opening an artifact file."""
+
+    def test_reports_a_missing_artifact_by_path(self, tmp_path):
+        """The error names the file that could not be found."""
+        # Arrange
+        from geoparser.gazetteer.artifact import GazetteerArtifact
+
+        missing = tmp_path / "absent.gazetteer"
+
+        # Act & Assert
+        with pytest.raises(FileNotFoundError, match=str(missing)):
+            GazetteerArtifact(missing)
+
+
+@pytest.mark.unit
+class TestArtifactConnection:
+    """The per-thread, read-only SQLite connection."""
+
+    @staticmethod
+    def _artifact(tmp_path):
+        """A minimal artifact whose metadata satisfies the version check."""
+        from geoparser.gazetteer.artifact import SCHEMA_VERSION, GazetteerArtifact
+
+        path = tmp_path / "mini.gazetteer"
+        connection = sqlite3.connect(path)
+        connection.execute("CREATE TABLE metadata (key TEXT, value TEXT)")
+        connection.executemany(
+            "INSERT INTO metadata VALUES (?, ?)",
+            [
+                ("schema_version", SCHEMA_VERSION),
+                ("name", "mini"),
+                ("crs", "EPSG:4326"),
+            ],
+        )
+        connection.commit()
+        connection.close()
+        return GazetteerArtifact(path)
+
+    def test_reuses_one_connection_within_a_thread(self, tmp_path):
+        """
+        The connection is cached on the thread-local under a fixed name.
+
+        Looking it up under a different name would silently open a fresh
+        connection on every query.
+        """
+        # Arrange
+        artifact = self._artifact(tmp_path)
+
+        # Act
+        first = artifact._connection()
+        second = artifact._connection()
+
+        # Assert
+        assert first is second
+
+    def test_opens_the_artifact_read_only(self, tmp_path):
+        """The artifact is never modified after the build."""
+        # Arrange
+        artifact = self._artifact(tmp_path)
+
+        # Act & Assert
+        with pytest.raises(sqlite3.OperationalError):
+            artifact._connection().execute("CREATE TABLE scribble (x INTEGER)")
+
+    def test_each_thread_gets_its_own_connection(self, tmp_path):
+        """
+        Threads do not share a connection, and using one off the creating
+        thread is allowed.
+
+        SQLite would otherwise refuse the cross-thread access outright.
+        """
+        # Arrange
+        import threading
+
+        artifact = self._artifact(tmp_path)
+        main_connection = artifact._connection()
+        other: list = []
+
+        def _use_from_thread():
+            other.append(artifact._connection())
+            other.append(
+                artifact._connection()
+                .execute("SELECT COUNT(*) FROM metadata")
+                .fetchone()[0]
+            )
+
+        # Act
+        thread = threading.Thread(target=_use_from_thread)
+        thread.start()
+        thread.join()
+
+        # Assert
+        assert other[0] is not main_connection
+        assert other[1] == 3

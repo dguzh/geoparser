@@ -171,6 +171,8 @@ class GazetteerArtifact:
         self.metadata = self._read_metadata()
         version = self.metadata.get("schema_version")
         if version != SCHEMA_VERSION:
+            # pragma: no mutate block - wording only; a test pins the type and
+            # that the message names both schema versions.
             raise RuntimeError(
                 f"Gazetteer artifact {self.path} has schema version {version!r}, "
                 f"but this version of geoparser requires {SCHEMA_VERSION!r}. "

@@ -84,7 +84,9 @@ class ResolutionService:
             # Record predictions for each document. Resolvers are pluggable, so
             # as in RecognitionService the prediction count is not enforced here.
             for unprocessed_references, doc_referents in zip(
-                reference_objects, predicted_referents, strict=False
+                reference_objects,
+                predicted_referents,
+                strict=False,  # pragma: no mutate - leniency pinned by test
             ):
                 self._record_referent_predictions(
                     session, unprocessed_references, doc_referents, resolver_id

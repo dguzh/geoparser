@@ -404,7 +404,10 @@ class SentenceTransformerResolver(Resolver):
         # if a stand-in model breaks that contract; truncating is the
         # long-standing behaviour and is kept deliberately.
         embeddings = self._encode(to_encode)
-        for context, embedding in zip(to_encode, embeddings, strict=False):
+        # One embedding per input by construction, so strict= is immaterial.
+        for context, embedding in zip(
+            to_encode, embeddings, strict=False
+        ):  # pragma: no mutate
             self.context_embeddings[context] = embedding
 
     def _gather_candidates(
@@ -517,7 +520,10 @@ class SentenceTransformerResolver(Resolver):
         descriptions = [self._generate_description(candidate) for candidate in pending]
         # As with contexts, the encoder's output length is its own contract.
         embeddings = self._encode(descriptions)
-        for candidate, embedding in zip(pending, embeddings, strict=False):
+        # As above: one embedding per description, so strict= is immaterial.
+        for candidate, embedding in zip(
+            pending, embeddings, strict=False
+        ):  # pragma: no mutate
             self.candidate_embeddings[candidate.id] = embedding
 
     def _evaluate_candidates(

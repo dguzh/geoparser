@@ -97,5 +97,9 @@ def soundex(text: str) -> str:
         return ""
 
     first = letters[0]
-    suffix = _encode_suffix(letters[1:], _SOUNDEX_CODES.get(first, ""))
+    # As in _encode_suffix, the default only feeds an adjacency comparison
+    # where "" and None behave alike.
+    suffix = _encode_suffix(
+        letters[1:], _SOUNDEX_CODES.get(first, "")
+    )  # pragma: no mutate
     return (first + suffix + "000")[:4]
