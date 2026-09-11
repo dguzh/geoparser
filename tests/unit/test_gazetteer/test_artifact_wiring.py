@@ -6,6 +6,7 @@ registered on every connection under the exact names the SQL uses, and on
 them being declared deterministic so SQLite may use them in indexed queries.
 """
 
+import re
 import sqlite3
 import threading
 from types import SimpleNamespace
@@ -151,7 +152,7 @@ class TestArtifactOpening:
         missing = tmp_path / "absent.gazetteer"
 
         # Act & Assert
-        with pytest.raises(FileNotFoundError, match=str(missing)):
+        with pytest.raises(FileNotFoundError, match=re.escape(str(missing))):
             GazetteerArtifact(missing)
 
 

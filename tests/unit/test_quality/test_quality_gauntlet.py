@@ -107,7 +107,7 @@ def test_quality_runner_stops_on_first_failed_command(
     assert result == 17
     assert len(calls) == 1
     assert calls[0][0] == stages[0].commands[0]
-    assert calls[0][1] == Path("/repo")
+    assert calls[0][1] == stages[0].cwd
     assert calls[0][2]["GEOPARSER_QA_ARTIFACT_DIR"] == str(tmp_path)
 
 

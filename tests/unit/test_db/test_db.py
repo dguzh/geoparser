@@ -5,6 +5,8 @@ Tests the database setup following SQLAlchemy best practices and
 test fixtures that redirect database operations to test databases.
 """
 
+import re
+
 import pytest
 from sqlalchemy import Engine
 from sqlmodel import Session, create_engine, text
@@ -185,7 +187,7 @@ class TestDatabaseCompatibilityCheck:
         # Act & Assert
         with (
             patch.object(db, "engine", legacy_engine),
-            pytest.raises(RuntimeError, match=str(db.db_path)),
+            pytest.raises(RuntimeError, match=re.escape(str(db.db_path))),
         ):
             db.create_db_and_tables()
 
