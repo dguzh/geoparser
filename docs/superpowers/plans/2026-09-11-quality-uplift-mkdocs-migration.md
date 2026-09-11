@@ -71,10 +71,28 @@ Implement a pure graph builder that maps Python files to module names, resolves 
 
 ```python
 FORBIDDEN = {
-    "geoparser.db": {"geoparser.modules", "geoparser.services", "geoparser.project", "geoparser.context"},
-    "geoparser.modules": {"geoparser.db", "geoparser.services", "geoparser.project", "geoparser.context"},
-    "geoparser.context": {"geoparser.modules", "geoparser.services", "geoparser.project"},
-    "geoparser.services": {"geoparser.modules", "geoparser.project", "geoparser.context"},
+    "geoparser.db": {
+        "geoparser.modules",
+        "geoparser.services",
+        "geoparser.project",
+        "geoparser.context",
+    },
+    "geoparser.modules": {
+        "geoparser.db",
+        "geoparser.services",
+        "geoparser.project",
+        "geoparser.context",
+    },
+    "geoparser.context": {
+        "geoparser.modules",
+        "geoparser.services",
+        "geoparser.project",
+    },
+    "geoparser.services": {
+        "geoparser.modules",
+        "geoparser.project",
+        "geoparser.context",
+    },
 }
 ```
 

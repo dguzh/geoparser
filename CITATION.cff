@@ -1,0 +1,18 @@
+cff-version: 1.2.0
+title: "Irchel Geoparser"
+message: "If you use Irchel Geoparser, please cite this software."
+type: software
+version: "0.6.0"
+date-released: "2026-08-16"
+abstract: "A customizable geoparsing library for unstructured text."
+authors:
+  - family-names: Gomes
+    given-names: Diego
+    affiliation: University of Zurich
+license: MIT
+repository-code: "https://github.com/NoeFlandre/geoparser"
+url: "https://geoparser.app"
+keywords:
+  - geoparsing
+  - natural language processing
+  - geographic information science

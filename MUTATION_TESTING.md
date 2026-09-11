@@ -20,15 +20,14 @@ Pragmas only take effect when the mutant tree is regenerated, so delete
 
 ## Where the numbers stand
 
-| Run | Mutants | Killed | Survived | No tests | Segfault | Rate |
-| --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| Baseline, whole package | 3871 | 2480 | 931 | 290 | 164 | 9.7/s |
-| After excluding the build pipeline | 2021 | 1427 | 307 | 286 | 0 | 34.0/s |
-| Clean sweep after model pass | 1999 | 1787 | **0** | 212 | 0 | 25.1/s |
+| Run | Mutants | Killed | Survived | No tests | Timeout | Segfault | Rate |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| Baseline, whole package | 3871 | 2480 | 931 | 290 | — | 164 | 9.7/s |
+| After excluding the build pipeline | 2021 | 1427 | 307 | 286 | — | 0 | 34.0/s |
+| Clean sweep after model pass | 1999 | 1786 | **0** | 212 | 1 | 0 | 31.2/s |
 
-`MAX_SURVIVING_MUTANTS` in `.github/workflows/quality.yml` is now `0`.
-Keep it at zero: a new survivor is a line the unit suite runs but does not
-check.
+The quality gauntlet passes `--max-survivors 0` to the mutation gate. Keep it
+at zero: a new survivor is a line the unit suite runs but does not check.
 
 ## Scope, and why
 
@@ -109,14 +108,14 @@ Each of these is at zero survivors.
 
 The clean sweep after the model pass generated 1,999 mutants and reported:
 
-- **1,787 killed**
+- **1,786 killed**
 - **0 survived**
-- **0 timeouts, suspicious results, or segfaults**
+- **1 timeout, 0 suspicious results, or segfaults**
 - **212 with no covering unit test**
 
-The one transient timeout from the sweep was rerun in isolation and killed;
-the final exported stats report zero timeouts. There are no remaining
-survivors to investigate.
+The single timeout is not a survivor and does not breach the zero-survivor
+gate; it remains recorded so the result is reproducible and reviewable. There
+are no remaining survivors to investigate.
 
 The 212 no-test mutants are an intentional scope boundary: the mutation run
 uses `tests/unit`, while the integration and e2e suites plus the 100% coverage

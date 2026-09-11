@@ -5,7 +5,6 @@ from geoparser.geoparser import Geoparser
 from geoparser.modules.recognizers.manual import ManualRecognizer
 from geoparser.modules.resolvers.manual import ManualResolver
 
-
 pytestmark = pytest.mark.acceptance
 scenarios("features")
 
@@ -48,9 +47,9 @@ def parse_document(parse_state: dict[str, object], andorra_gazetteer) -> None:
         references=[[span]],
         referents=[[referent]],
     )
-    parse_state["document"] = Geoparser(
-        recognizer=recognizer, resolver=resolver
-    ).parse(text, save=False)
+    parse_state["document"] = Geoparser(recognizer=recognizer, resolver=resolver).parse(
+        text, save=False
+    )
 
 
 @then(parsers.parse('the parsed document text is "{text}"'))

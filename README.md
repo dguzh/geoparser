@@ -27,7 +27,7 @@ The library also needs a gazetteer, which is not bundled: it is the database of 
 python -m geoparser install geonames
 ```
 
-See the [installation guide](https://docs.geoparser.app/en/latest/installation.html) for environment setup, the available gazetteers, and their disk requirements.
+See the [installation guide](https://docs.geoparser.app/installation.html) for environment setup, the available gazetteers, and their disk requirements.
 
 ## Quick Start
 

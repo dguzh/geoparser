@@ -39,8 +39,8 @@ class Resolver(Module):
 
         Returns:
             A list of lists where each inner list corresponds to referents for references in one
-            document. Each element at position [i][j] is the referent (or None) for the reference
-            at position [i][j] in the input. Each element is either a tuple (gazetteer_name,
+            document. Each element at position ``[i][j]`` is the referent (or None) for the reference
+            at position ``[i][j]`` in the input. Each element is either a tuple (gazetteer_name,
             identifier) for a successfully resolved reference, or None to indicate that prediction
             is not available for that specific reference (e.g., missing data, unsupported format,
             etc.). The gazetteer_name identifies which gazetteer the identifier refers to, and the

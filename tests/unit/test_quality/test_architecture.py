@@ -9,7 +9,6 @@ from scripts.check_architecture import (
     find_cycles,
 )
 
-
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 
 
@@ -73,9 +72,7 @@ def test_find_boundary_violations_reports_forbidden_edges(tmp_path: Path) -> Non
     graph = build_import_graph(package, "pkg")
     forbidden = {"pkg.db": {"pkg.modules"}}
 
-    assert find_boundary_violations(graph, forbidden) == [
-        ("pkg.db", "pkg.modules")
-    ]
+    assert find_boundary_violations(graph, forbidden) == [("pkg.db", "pkg.modules")]
 
 
 @pytest.mark.architecture

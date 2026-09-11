@@ -7,7 +7,6 @@ import ast
 from collections.abc import Iterable, Mapping
 from pathlib import Path
 
-
 FORBIDDEN_IMPORTS: dict[str, set[str]] = {
     "geoparser.db": {
         "geoparser.context",
@@ -108,9 +107,7 @@ def build_import_graph(package_root: Path, package_name: str) -> dict[str, set[s
     """Build a deterministic runtime import graph for one Python package."""
     package_root = package_root.resolve()
     files = sorted(package_root.rglob("*.py"))
-    modules = {
-        _module_name(path, package_root, package_name): path for path in files
-    }
+    modules = {_module_name(path, package_root, package_name): path for path in files}
     graph = {module: set() for module in modules}
     packages = set(modules)
 
@@ -119,11 +116,15 @@ def build_import_graph(package_root: Path, package_name: str) -> dict[str, set[s
         visitor.visit(ast.parse(path.read_text(encoding="utf-8"), filename=str(path)))
         for imported, _, dots, names in visitor.runtime:
             if dots is None:
-                if imported and (
-                    imported == package_name or imported.startswith(f"{package_name}.")
+                if (
+                    imported
+                    and (
+                        imported == package_name
+                        or imported.startswith(f"{package_name}.")
+                    )
+                    and imported in packages
                 ):
-                    if imported in packages:
-                        graph[module].add(imported)
+                    graph[module].add(imported)
                 continue
             graph[module].update(
                 target
@@ -145,7 +146,7 @@ def find_cycles(graph: Mapping[str, set[str]]) -> list[tuple[str, ...]]:
     def visit(node: str) -> None:
         if node in positions:
             start = positions[node]
-            cycles.add(tuple((*stack[start:], node)))
+            cycles.add((*stack[start:], node))
             return
         if node in visited:
             return
