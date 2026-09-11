@@ -236,6 +236,13 @@ class TestMemoryLimit:
 
         assert GazetteerBuilder._available_cpus() == 6
 
+    def test_available_cpus_falls_back_when_affinity_missing(self, monkeypatch):
+        """Missing sched_getaffinity is handled on platforms without it."""
+        monkeypatch.delattr(os, "sched_getaffinity", raising=False)
+        monkeypatch.setattr(os, "cpu_count", lambda: 6)
+
+        assert GazetteerBuilder._available_cpus() == 6
+
     def test_cgroup_reader_returns_none_without_unified_hierarchy(
         self, tmp_path, monkeypatch
     ):

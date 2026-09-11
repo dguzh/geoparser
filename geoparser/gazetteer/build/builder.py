@@ -262,10 +262,11 @@ class GazetteerBuilder:
     @staticmethod
     def _available_cpus() -> int:
         """Return CPUs usable by this process (affinity-aware when possible)."""
+        affinity = os.__dict__.get("sched_getaffinity")
+        if affinity is None:
+            return os.cpu_count() or 1
         try:
-            # Linux-only; the AttributeError branch is the guard everywhere else,
-            # and typeshed only declares it for the checker's own platform.
-            return len(os.sched_getaffinity(0))  # ty: ignore[unresolved-attribute]
+            return len(affinity(0))
         except (AttributeError, OSError):
             return os.cpu_count() or 1
 
