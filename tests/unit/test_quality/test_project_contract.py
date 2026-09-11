@@ -159,3 +159,13 @@ def test_ci_runs_the_full_gate_and_publishes_strict_mkdocs() -> None:
     assert "--skip-docker" not in quality
     assert "mkdocs build --strict" in docs
     assert "deploy-pages" in docs
+
+
+def test_ci_pins_setup_uv_to_a_resolvable_release() -> None:
+    workflow_text = "\n".join(
+        path.read_text(encoding="utf-8")
+        for path in sorted((PROJECT_ROOT / ".github/workflows").glob("*.yml"))
+    )
+
+    assert "astral-sh/setup-uv@v10.1.0" in workflow_text
+    assert "astral-sh/setup-uv@v10\n" not in workflow_text
