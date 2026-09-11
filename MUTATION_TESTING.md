@@ -24,7 +24,7 @@ Pragmas only take effect when the mutant tree is regenerated, so delete
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
 | Baseline, whole package | 3871 | 2480 | 931 | 290 | 164 | 9.7/s |
 | After excluding the build pipeline | 2021 | 1427 | 307 | 286 | 0 | 34.0/s |
-| Current | 1993 | 1516 | **193** | 283 | 0 | 34.3/s |
+| Current | 1990 | 1560 | **146** | 283 | 0 | — |
 
 `MAX_SURVIVING_MUTANTS` in `.github/workflows/quality.yml` is the ratchet.
 Lower it as survivors are killed; never raise it.
@@ -89,6 +89,14 @@ Each of these is at zero survivors.
 - [x] `gazetteers_dir`, `artifact_path`, `list_artifacts`,
       `register_functions` — tests, plus 1 pragma for the Windows-only
       appauthor argument
+- [x] `Project.load_annotations` — 14 (tests: the import's data flow)
+- [x] `Project.run_recognizer` / `run_resolver` / `get_documents` — 18 (tests:
+      default and explicit tags, and the documents each service receives)
+- [x] `_best_referent`, `_token_limit`, `_extract_contexts` — 12 (tests, plus
+      1 pragma for the no-maximum-length message wording)
+- [x] `RecognitionService._record_reference_predictions` and
+      `ResolutionService._record_referent_predictions` — tests for the lenient
+      handling of short prediction lists and of None predictions
 
 ## Left to do
 

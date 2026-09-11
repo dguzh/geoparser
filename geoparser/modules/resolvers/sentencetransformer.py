@@ -636,6 +636,8 @@ class SentenceTransformerResolver(Resolver):
         """
         max_seq_length = self.transformer.get_max_seq_length()
         if max_seq_length is None:
+            # pragma: no mutate block - wording only; a test pins the type and
+            # that the message names the model.
             raise ValueError(
                 f"Model '{self.model_name}' does not report a maximum sequence "
                 "length, so reference context cannot be sized"

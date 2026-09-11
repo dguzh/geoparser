@@ -172,3 +172,287 @@ class TestEnsureProjectRecord:
         # Assert
         assert created == new_id
         assert create.call_args.args[1].name == "fresh"
+
+
+@pytest.mark.unit
+class TestLoadAnnotations:
+    """Importing an annotator export into the project."""
+
+    @staticmethod
+    def _export(tmp_path, documents, gazetteer="geonames"):
+        """Write an annotator-format JSON file and return its path."""
+        import json
+
+        path = tmp_path / "annotations.json"
+        path.write_text(json.dumps({"gazetteer": gazetteer, "documents": documents}))
+        return path
+
+    @staticmethod
+    def _load(project, path, **kwargs):
+        """Run load_annotations, capturing the two registration calls."""
+        with (
+            patch.object(project, "create_documents") as create_documents,
+            patch.object(project, "create_references") as create_references,
+            patch.object(project, "create_referents") as create_referents,
+        ):
+            project.load_annotations(str(path), "annotator_a", **kwargs)
+        return create_documents, create_references, create_referents
+
+    def test_registers_every_toponym_as_a_reference(self, tmp_path):
+        """Spans come through per document, in file order."""
+        # Arrange
+        project = Project.__new__(Project)
+        path = self._export(
+            tmp_path,
+            [
+                {
+                    "text": "Paris and Berlin",
+                    "toponyms": [
+                        {"start": 0, "end": 5, "loc_id": "1"},
+                        {"start": 10, "end": 16, "loc_id": "2"},
+                    ],
+                },
+                {"text": "Rome", "toponyms": [{"start": 0, "end": 4, "loc_id": "3"}]},
+            ],
+        )
+
+        # Act
+        _, create_references, _ = self._load(project, path)
+
+        # Assert
+        texts, references, tag = create_references.call_args.args
+        assert texts == ["Paris and Berlin", "Rome"]
+        assert references == [[(0, 5), (10, 16)], [(0, 4)]]
+        assert tag == "annotator_a"
+
+    def test_pairs_geocoded_toponyms_with_the_files_gazetteer(self, tmp_path):
+        """Referents name the gazetteer the export declares."""
+        # Arrange
+        project = Project.__new__(Project)
+        path = self._export(
+            tmp_path,
+            [{"text": "Paris", "toponyms": [{"start": 0, "end": 5, "loc_id": "7"}]}],
+            gazetteer="swissnames3d",
+        )
+
+        # Act
+        _, _, create_referents = self._load(project, path)
+
+        # Assert
+        texts, references, referents, tag = create_referents.call_args.args
+        assert texts == ["Paris"]
+        assert references == [[(0, 5)]]
+        assert referents == [[("swissnames3d", "7")]]
+        assert tag == "annotator_a"
+
+    def test_keeps_ungeocoded_toponyms_as_references_without_referents(self, tmp_path):
+        """
+        A toponym left ungeocoded still counts as a reference.
+
+        The two lists stay aligned by carrying None in the referent slot, so
+        the resolver skips it rather than the reference disappearing.
+        """
+        # Arrange
+        project = Project.__new__(Project)
+        path = self._export(
+            tmp_path,
+            [
+                {
+                    "text": "Paris and Nowhere",
+                    "toponyms": [
+                        {"start": 0, "end": 5, "loc_id": "1"},
+                        {"start": 10, "end": 17, "loc_id": ""},
+                    ],
+                }
+            ],
+        )
+
+        # Act
+        _, create_references, create_referents = self._load(project, path)
+
+        # Assert
+        assert create_references.call_args.args[1] == [[(0, 5), (10, 17)]]
+        assert create_referents.call_args.args[2] == [[("geonames", "1"), None]]
+
+    def test_does_not_create_documents_by_default(self, tmp_path):
+        """Annotations attach to documents that already exist."""
+        # Arrange
+        project = Project.__new__(Project)
+        path = self._export(
+            tmp_path,
+            [{"text": "Paris", "toponyms": [{"start": 0, "end": 5, "loc_id": "1"}]}],
+        )
+
+        # Act
+        create_documents, _, _ = self._load(project, path)
+
+        # Assert
+        create_documents.assert_not_called()
+
+    def test_creates_documents_from_the_export_when_asked(self, tmp_path):
+        """With create_documents=True the texts are inserted first."""
+        # Arrange
+        project = Project.__new__(Project)
+        path = self._export(
+            tmp_path,
+            [{"text": "Paris", "toponyms": [{"start": 0, "end": 5, "loc_id": "1"}]}],
+        )
+
+        # Act
+        create_documents, _, _ = self._load(project, path, create_documents=True)
+
+        # Assert
+        create_documents.assert_called_once_with(["Paris"])
+
+
+@pytest.mark.unit
+class TestRunModules:
+    """Running a module and recording it against a tag."""
+
+    @staticmethod
+    def _project() -> Project:
+        """A Project with the database untouched."""
+        project = Project.__new__(Project)
+        project.id = uuid.uuid4()
+        project.context = Mock()
+        return project
+
+    def test_records_the_recognizer_against_the_default_tag(self):
+        """Omitting the tag files the run under "latest"."""
+        # Arrange
+        project = self._project()
+        recognizer = Mock(id="rec-1")
+
+        with (
+            patch.object(project, "get_documents", return_value=[]),
+            patch("geoparser.project.project.RecognitionService"),
+        ):
+            # Act
+            project.run_recognizer(recognizer)
+
+        # Assert
+        project.context.update_recognizer_context.assert_called_once_with(
+            "latest", "rec-1"
+        )
+
+    def test_records_the_recognizer_against_an_explicit_tag(self):
+        """A caller-supplied tag is used verbatim."""
+        # Arrange
+        project = self._project()
+        recognizer = Mock(id="rec-1")
+
+        with (
+            patch.object(project, "get_documents", return_value=[]),
+            patch("geoparser.project.project.RecognitionService"),
+        ):
+            # Act
+            project.run_recognizer(recognizer, tag="experiment")
+
+        # Assert
+        project.context.update_recognizer_context.assert_called_once_with(
+            "experiment", "rec-1"
+        )
+
+    def test_runs_the_recognizer_over_the_projects_documents(self):
+        """The service is handed the documents this project holds."""
+        # Arrange
+        project = self._project()
+        documents = [Mock(), Mock()]
+
+        with (
+            patch.object(project, "get_documents", return_value=documents),
+            patch("geoparser.project.project.RecognitionService") as service,
+        ):
+            # Act
+            project.run_recognizer(Mock(id="rec-1"))
+
+        # Assert
+        service.return_value.predict.assert_called_once_with(documents)
+
+    def test_records_the_resolver_against_the_default_tag(self):
+        """The resolver path files under "latest" too."""
+        # Arrange
+        project = self._project()
+        resolver = Mock(id="res-1")
+
+        with (
+            patch.object(project, "get_documents", return_value=[]),
+            patch("geoparser.project.project.ResolutionService"),
+        ):
+            # Act
+            project.run_resolver(resolver)
+
+        # Assert
+        project.context.update_resolver_context.assert_called_once_with(
+            "latest", "res-1"
+        )
+
+    def test_runs_the_resolver_over_the_projects_documents(self):
+        """The resolution service sees the same documents."""
+        # Arrange
+        project = self._project()
+        documents = [Mock()]
+
+        with (
+            patch.object(project, "get_documents", return_value=documents),
+            patch("geoparser.project.project.ResolutionService") as service,
+        ):
+            # Act
+            project.run_resolver(Mock(id="res-1"), tag="experiment")
+
+        # Assert
+        service.return_value.predict.assert_called_once_with(documents)
+        project.context.update_resolver_context.assert_called_once_with(
+            "experiment", "res-1"
+        )
+
+
+@pytest.mark.unit
+class TestGetDocumentsTag:
+    """Which tag's results a retrieval is scoped to."""
+
+    def test_defaults_to_the_latest_tag(self):
+        """Both contexts are looked up for "latest" unless told otherwise."""
+        # Arrange
+        project = Project.__new__(Project)
+        project.id = uuid.uuid4()
+        project.context = Mock()
+        project.context.get_recognizer_context.return_value = None
+        project.context.get_resolver_context.return_value = None
+
+        with (
+            patch("geoparser.project.project.get_session"),
+            patch(
+                "geoparser.project.project.DocumentRepository.get_by_project",
+                return_value=[],
+            ),
+        ):
+            # Act
+            project.get_documents()
+
+        # Assert
+        project.context.get_recognizer_context.assert_called_once_with("latest")
+        project.context.get_resolver_context.assert_called_once_with("latest")
+
+    def test_uses_an_explicit_tag_for_both_contexts(self):
+        """A named tag scopes the recognizer and resolver together."""
+        # Arrange
+        project = Project.__new__(Project)
+        project.id = uuid.uuid4()
+        project.context = Mock()
+        project.context.get_recognizer_context.return_value = None
+        project.context.get_resolver_context.return_value = None
+
+        with (
+            patch("geoparser.project.project.get_session"),
+            patch(
+                "geoparser.project.project.DocumentRepository.get_by_project",
+                return_value=[],
+            ),
+        ):
+            # Act
+            project.get_documents(tag="experiment")
+
+        # Assert
+        project.context.get_recognizer_context.assert_called_once_with("experiment")
+        project.context.get_resolver_context.assert_called_once_with("experiment")

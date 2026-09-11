@@ -456,3 +456,117 @@ class TestSearchOnce:
 
         # Assert
         assert evaluate.call_args.args[-1] == 0.75
+
+
+@pytest.mark.unit
+class TestBestReferent:
+    """Choosing between a reference's candidates."""
+
+    @staticmethod
+    def _rank(resolver, similarities, min_similarity):
+        """Rank one candidate list with fixed similarity scores."""
+        candidates = [
+            Mock(id=i, identifier=f"id-{i}") for i in range(len(similarities))
+        ]
+        resolver.context_embeddings = {"ctx": "context-embedding"}
+        resolver.candidate_embeddings = {c.id: f"emb-{c.id}" for c in candidates}
+        resolver.gazetteer_name = "geonames"
+        with patch.object(
+            resolver, "_calculate_similarities", return_value=similarities
+        ):
+            return resolver._best_referent("ctx", candidates, min_similarity)
+
+    def test_picks_the_most_similar_candidate(self, resolver):
+        """
+        The winner is the highest score, not the first or the last.
+
+        Ranking without a key, or with a constant key, returns whichever
+        candidate happened to come first while still looking like a choice.
+        """
+        # Act
+        referent = self._rank(resolver, [0.10, 0.90, 0.40], min_similarity=0.0)
+
+        # Assert
+        assert referent == ("geonames", "id-1")
+
+    def test_accepts_a_candidate_exactly_at_the_threshold(self, resolver):
+        """min_similarity is the lowest acceptable score, not an exclusive bound."""
+        # Act
+        referent = self._rank(resolver, [0.60], min_similarity=0.60)
+
+        # Assert
+        assert referent == ("geonames", "id-0")
+
+    def test_rejects_the_best_candidate_when_it_is_below_the_threshold(self, resolver):
+        """Nothing similar enough means no referent at all."""
+        # Act & Assert
+        assert self._rank(resolver, [0.59], min_similarity=0.60) is None
+
+    def test_names_the_gazetteer_the_candidates_came_from(self, resolver):
+        """The referent is qualified by gazetteer, not just an identifier."""
+        # Act
+        referent = self._rank(resolver, [0.9], min_similarity=0.0)
+
+        # Assert
+        assert referent[0] == "geonames"
+
+
+@pytest.mark.unit
+class TestTokenLimit:
+    """The context budget derived from the model."""
+
+    def test_reserves_two_tokens_for_the_special_tokens(self, resolver):
+        """A BERT-style model spends two tokens on [CLS] and [SEP]."""
+        # Arrange
+        resolver.transformer.get_max_seq_length = Mock(return_value=512)
+
+        # Act & Assert
+        assert resolver._token_limit() == 510
+
+    def test_reports_a_model_that_advertises_no_maximum(self, resolver):
+        """Without a maximum there is no budget to size the context against."""
+        # Arrange
+        resolver.model_name = "some/model"
+        resolver.transformer.get_max_seq_length = Mock(return_value=None)
+
+        # Act & Assert
+        with pytest.raises(ValueError, match="some/model"):
+            resolver._token_limit()
+
+
+@pytest.mark.unit
+class TestExtractContexts:
+    """Extracting one context per reference."""
+
+    def test_extracts_a_context_for_each_reference_span(self, resolver):
+        """Every reference is looked up against its own document and offsets."""
+        # Arrange
+        calls = []
+        with patch.object(
+            resolver,
+            "_extract_context",
+            side_effect=lambda text, start, end: (
+                calls.append((text, start, end)) or f"ctx{start}"
+            ),
+        ):
+            # Act
+            contexts = resolver._extract_contexts(
+                ["Paris and Berlin", "Rome"], [[(0, 5), (10, 16)], [(0, 4)]]
+            )
+
+        # Assert
+        assert calls == [
+            ("Paris and Berlin", 0, 5),
+            ("Paris and Berlin", 10, 16),
+            ("Rome", 0, 4),
+        ]
+        assert contexts == [["ctx0", "ctx10"], ["ctx0"]]
+
+    def test_rejects_texts_and_references_of_different_lengths(self, resolver):
+        """The two lists must describe the same documents."""
+        # Act & Assert
+        with (
+            patch.object(resolver, "_extract_context", return_value="ctx"),
+            pytest.raises(ValueError),
+        ):
+            resolver._extract_contexts(["a", "b"], [[(0, 1)]])
