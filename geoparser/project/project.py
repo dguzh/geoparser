@@ -87,6 +87,8 @@ class Project:
         # A bare string would be iterated character by character, creating one
         # document per character, so reject it instead of doing that silently
         if isinstance(texts, str):
+            # pragma: no mutate block - the wording of this guidance is not
+            # behaviour; a test pins the type and that it names the method.
             raise TypeError(
                 "create_documents() expects a sequence of texts. To create a single "
                 "document, pass a sequence with one text in it: "

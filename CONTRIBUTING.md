@@ -128,6 +128,8 @@ uv run mutmut show <id>
 
 A surviving mutant is normally fixed by strengthening a test, not by deleting the mutant.
 
+[MUTATION_TESTING.md](./MUTATION_TESTING.md) tracks the scope decisions, the current numbers, and what is still outstanding. Keep it up to date as you work on it.
+
 ## Documentation
 
 User-facing docs are Sphinx sources in `docs/` and are published via Read the Docs. After `uv sync`, build them locally with:

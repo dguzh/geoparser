@@ -362,9 +362,12 @@ class SentenceTransformerResolver(Resolver):
         """
         return self.transformer.encode(
             texts,
+            # Behaviour: the callers do tensor arithmetic on the result.
             convert_to_tensor=True,
-            batch_size=32,
-            show_progress_bar=True,
+            # Batch size is a throughput knob and the progress bar is display
+            # only; neither changes the embeddings that come back.
+            batch_size=32,  # pragma: no mutate
+            show_progress_bar=True,  # pragma: no mutate
         )
 
     def _contexts_needing_embedding(self, contexts: list[list[str]]) -> list[str]:
@@ -752,7 +755,9 @@ class SentenceTransformerResolver(Resolver):
         first, last = target_idx, target_idx
 
         while True:
-            grew = False
+            # pragma: no mutate - only ever read as `if not grew`, so False and
+            # None are indistinguishable; the mutant is equivalent.
+            grew = False  # pragma: no mutate
 
             cost = self._affordable_cost(sentences, first - 1, remaining)
             if cost is not None:

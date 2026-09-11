@@ -141,6 +141,13 @@ source_paths = ["geoparser"]
 do_not_mutate = [
     "geoparser/annotator/*",
     "geoparser/cli/*",
+    # The build pipeline assembles SQL and drives duckdb; the unit suite mocks
+    # that away, so its mutants can only be judged by the integration suite,
+    # which rebuilds a real gazetteer per mutant (~23s each, ~13h for the
+    # package). It is covered instead by those integration tests and by the
+    # 100% coverage gate. Mutation testing stays where it is cheap to run
+    # often, and is expected to leave no survivor there.
+    "geoparser/gazetteer/build/*",
 ]
 # Mutants are judged by the unit suite. Adding the integration suite was
 # measured: it does remove every "no tests" mutant and cuts survival from 29%

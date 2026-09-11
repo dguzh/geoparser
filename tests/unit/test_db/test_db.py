@@ -113,6 +113,82 @@ class TestDatabaseCompatibilityCheck:
             connect_args={"check_same_thread": False},
         )
 
+    @pytest.mark.parametrize("table", ["gazetteer", "source", "feature", "name"])
+    def test_rejects_each_legacy_gazetteer_table(self, table):
+        """Any one of the four old gazetteer tables is enough to reject."""
+        # Arrange
+        from unittest.mock import patch
+
+        import geoparser.db.db as db
+
+        legacy_engine = self._make_engine()
+        with legacy_engine.connect() as connection:
+            connection.execute(text(f"CREATE TABLE {table} (id INTEGER PRIMARY KEY)"))
+            connection.commit()
+
+        # Act & Assert
+        with patch.object(db, "engine", legacy_engine), pytest.raises(RuntimeError):
+            db.create_db_and_tables()
+
+    def test_accepts_an_empty_database(self):
+        """
+        A database with none of the legacy tables is usable.
+
+        Without this the check could be inverted and still look correct: every
+        legacy name would then report "present" only for tables that are in
+        fact absent, and the positive cases alone would not notice.
+        """
+        # Arrange
+        from unittest.mock import patch
+
+        import geoparser.db.db as db
+
+        engine = self._make_engine()
+
+        # Act & Assert - must not raise
+        with patch.object(db, "engine", engine):
+            db.create_db_and_tables()
+
+    def test_accepts_a_referent_table_that_has_feature_identifier(self):
+        """The current referent layout is accepted."""
+        # Arrange
+        from unittest.mock import patch
+
+        import geoparser.db.db as db
+
+        engine = self._make_engine()
+        with engine.connect() as connection:
+            connection.execute(
+                text(
+                    "CREATE TABLE referent "
+                    "(id INTEGER PRIMARY KEY, feature_identifier TEXT)"
+                )
+            )
+            connection.commit()
+
+        # Act & Assert - must not raise
+        with patch.object(db, "engine", engine):
+            db.create_db_and_tables()
+
+    def test_rejection_names_the_database_file(self):
+        """The error tells the user which file to delete."""
+        # Arrange
+        from unittest.mock import patch
+
+        import geoparser.db.db as db
+
+        legacy_engine = self._make_engine()
+        with legacy_engine.connect() as connection:
+            connection.execute(text("CREATE TABLE gazetteer (id INTEGER PRIMARY KEY)"))
+            connection.commit()
+
+        # Act & Assert
+        with (
+            patch.object(db, "engine", legacy_engine),
+            pytest.raises(RuntimeError, match=str(db.db_path)),
+        ):
+            db.create_db_and_tables()
+
     def test_raises_for_legacy_gazetteer_tables(self):
         """A database holding old gazetteer tables is rejected clearly."""
         from unittest.mock import patch

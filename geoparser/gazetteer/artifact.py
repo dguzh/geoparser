@@ -98,7 +98,10 @@ def gazetteers_dir() -> Path:
     override = os.getenv("GEOPARSER_GAZETTEERS_DIR")
     if override:
         return Path(override)
-    return Path(user_data_dir("geoparser", "")) / "gazetteers"
+    # The empty appauthor keeps the path free of a vendor directory on
+    # Windows; on every other platform appdirs ignores it entirely, so
+    # mutating it cannot change where the artifacts live here.
+    return Path(user_data_dir("geoparser", "")) / "gazetteers"  # pragma: no mutate
 
 
 def artifact_path(gazetteer_name: str) -> Path:

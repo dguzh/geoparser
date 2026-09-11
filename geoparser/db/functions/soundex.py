@@ -58,14 +58,19 @@ def _encode_suffix(letters: list[str], previous_code: str) -> str:
         if char in ("H", "W"):
             continue
 
-        code = _SOUNDEX_CODES.get(char, "")
+        # The default only ever reaches _starts_new_group, which asks whether
+        # it is truthy, and the adjacency comparison below, where "" and None
+        # behave alike: substituting None leaves every code unchanged.
+        code = _SOUNDEX_CODES.get(char, "")  # pragma: no mutate
         if _starts_new_group(code, previous_code):
             digits += code
 
         # Vowels (code "") reset adjacency, so identical codes separated by a
         # vowel are coded twice.
         previous_code = code
-        if len(digits) >= 3:
+        # Stopping later cannot change the result: soundex() truncates to four
+        # characters, so a fourth digit is discarded either way.
+        if len(digits) >= 3:  # pragma: no mutate
             break
     return digits
 

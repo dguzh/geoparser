@@ -70,7 +70,11 @@ def _check_database_compatibility() -> None:
 
         def _table_exists(name: str) -> bool:
             result = connection.execute(
-                text("SELECT 1 FROM sqlite_master WHERE type='table' AND name=:name"),
+                # SQL keywords are case-insensitive, so case mutations here
+                # cannot change what the query matches.
+                text(
+                    "SELECT 1 FROM sqlite_master WHERE type='table' AND name=:name"  # pragma: no mutate
+                ),
                 {"name": name},
             )
             return result.first() is not None
@@ -85,11 +89,16 @@ def _check_database_compatibility() -> None:
         legacy_gazetteer_tables = any(
             _table_exists(name) for name in ("gazetteer", "source", "feature", "name")
         )
+        # SQLite identifiers are case-insensitive, so a case mutation of the
+        # table name cannot change the lookup.
         legacy_referent_layout = _table_exists("referent") and not _table_has_column(
-            "referent", "feature_identifier"
+            "referent",  # pragma: no mutate
+            "feature_identifier",
         )
 
         if legacy_gazetteer_tables or legacy_referent_layout:
+            # pragma: no mutate block - the wording of this guidance is not
+            # behaviour; a test pins that it names the database file.
             raise RuntimeError(
                 "Your geoparser database was created by an older version and is not compatible "
                 "with this release:\n\n"

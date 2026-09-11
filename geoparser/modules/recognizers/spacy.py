@@ -65,7 +65,11 @@ class SpacyRecognizer(Recognizer):
             nlp = spacy.load(self.model_name)
         except OSError:
             # Model not found, download it
-            print(f"Downloading spaCy model '{self.model_name}'...")
+            # Progress text, not behaviour; the download and reload below are
+            # what the tests pin.
+            print(
+                f"Downloading spaCy model '{self.model_name}'..."
+            )  # pragma: no mutate
             spacy.cli.download(self.model_name)
             nlp = spacy.load(self.model_name)
 
