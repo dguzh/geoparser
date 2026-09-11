@@ -170,3 +170,4 @@ cython_debug/
 .ty_cache/
 .mutmut-cache
 mutants/
+.worktrees/
