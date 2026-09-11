@@ -99,3 +99,30 @@ class TestSearchDispatch:
 
         # Act & Assert
         assert gazetteer.search("Paris") == [feature]
+
+
+@pytest.mark.unit
+class TestRankedSearchDefaults:
+    """The tier default the ranked search methods inherit."""
+
+    @pytest.mark.parametrize(
+        ("method", "query"),
+        [
+            ("phrase", "search_phrase"),
+            ("partial", "search_partial"),
+            ("fuzzy", "search_fuzzy"),
+        ],
+    )
+    def test_a_ranked_search_defaults_to_a_single_tier(self, gazetteer, method, query):
+        """
+        Omitting `tiers` asks for the best tier only.
+
+        Widening the default pulls in every candidate that merely ties on the
+        next rank down, which is a much larger and much noisier result set for
+        callers that never named a tier count.
+        """
+        # Act
+        gazetteer.search("Paris", method=method)
+
+        # Assert
+        getattr(gazetteer._artifact, query).assert_called_once_with("Paris", 10000, 1)

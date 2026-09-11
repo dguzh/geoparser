@@ -27,7 +27,9 @@ class Module(ABC):  # noqa: B024
             **kwargs: Configuration parameters for this module
         """
         if self.NAME is None:
+            # pragma: no mutate start - wording only; a test pins the type.
             raise ValueError("Module must define a NAME class attribute")
+            # pragma: no mutate end
 
         self.name = self.NAME
         # Normalize config using JSON round-trip to ensure consistent serialization

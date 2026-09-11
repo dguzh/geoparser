@@ -33,12 +33,12 @@ See the [installation guide](https://docs.geoparser.app/en/latest/installation.h
 
 ```python
 from geoparser import Geoparser
-from geoparser.modules import SentenceTransformerResolver, SpacyRecognizer
+from geoparser.modules import GLiNER2Recognizer, JinaResolver
 
 # Build a pipeline from a recognizer and a resolver
 geoparser = Geoparser(
-    recognizer=SpacyRecognizer(),
-    resolver=SentenceTransformerResolver(gazetteer_name="geonames"),
+    recognizer=GLiNER2Recognizer(),
+    resolver=JinaResolver(gazetteer_name="geonames"),
 )
 
 # Parse text

@@ -10,11 +10,11 @@ Give it a sentence, a document, or a corpus, and it returns the place names it f
 .. code-block:: python
 
    from geoparser import Geoparser
-   from geoparser.modules import SentenceTransformerResolver, SpacyRecognizer
+   from geoparser.modules import GLiNER2Recognizer, JinaResolver
 
    geoparser = Geoparser(
-       recognizer=SpacyRecognizer(),
-       resolver=SentenceTransformerResolver(gazetteer_name="geonames"),
+       recognizer=GLiNER2Recognizer(),
+       resolver=JinaResolver(gazetteer_name="geonames"),
    )
 
    document = geoparser.parse(

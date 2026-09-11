@@ -87,13 +87,14 @@ class Project:
         # A bare string would be iterated character by character, creating one
         # document per character, so reject it instead of doing that silently
         if isinstance(texts, str):
-            # pragma: no mutate block - the wording of this guidance is not
+            # pragma: no mutate start - the wording of this guidance is not
             # behaviour; a test pins the type and that it names the method.
             raise TypeError(
                 "create_documents() expects a sequence of texts. To create a single "
                 "document, pass a sequence with one text in it: "
                 "create_documents(['...'])."
             )
+            # pragma: no mutate end
 
         document_ids = []
 
@@ -168,13 +169,14 @@ class Project:
             try:
                 normalized.append(uuid.UUID(str(value)))
             except (AttributeError, TypeError, ValueError):
-                # pragma: no mutate block - wording only; a test pins the type
+                # pragma: no mutate start - wording only; a test pins the type
                 # and that the message names create_documents().
                 raise ValueError(
                     f"'{value}' is not a valid document ID. Document IDs are the values "
                     "returned by create_documents(). To select results by tag instead, "
                     "pass the tag as a keyword argument: get_documents(tag='...')."
                 ) from None
+                # pragma: no mutate end
 
         return normalized
 

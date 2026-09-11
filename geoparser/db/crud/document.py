@@ -49,8 +49,11 @@ class DocumentRepository(BaseRepository[Document]):
         """
         documents = []
 
-        # Query in chunks to stay below the SQLite limit on bound parameters
-        chunk_size = 500
+        # Query in chunks to stay below the SQLite limit on bound parameters.
+        # Any positive size returns the same documents, so the exact number is
+        # a throughput choice rather than behaviour and its mutants are
+        # equivalent; the chunking arithmetic around it is tested.
+        chunk_size = 500  # pragma: no mutate
         for offset in range(0, len(ids), chunk_size):
             chunk = ids[offset : offset + chunk_size]
             # SQLModel fields are annotated with their instance type, but at class

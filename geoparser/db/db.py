@@ -54,6 +54,15 @@ engine: Engine = create_engine(
 )
 
 
+# SQL keywords and SQLite identifiers are case-insensitive, so case mutations
+# of these literals cannot change what they match.
+# The pragmas need `fmt: skip` to survive: without it the formatter wraps
+# these lines and moves the comment off the statement, where mutmut ignores it.
+_TABLE_EXISTS_SQL = "SELECT 1 FROM sqlite_master WHERE type='table' AND name=:name"  # pragma: no mutate  # fmt: skip
+_COLUMN_EXISTS_SQL = "SELECT 1 FROM pragma_table_info('{table}') WHERE name=:column"  # pragma: no mutate  # fmt: skip
+_REFERENT_TABLE = "referent"  # pragma: no mutate
+
+
 def _check_database_compatibility() -> None:
     """
     Fail early if the database was created by an incompatible older version.
@@ -69,35 +78,24 @@ def _check_database_compatibility() -> None:
     with engine.connect() as connection:
 
         def _table_exists(name: str) -> bool:
-            result = connection.execute(
-                # SQL keywords are case-insensitive, so case mutations here
-                # cannot change what the query matches.
-                text(
-                    "SELECT 1 FROM sqlite_master WHERE type='table' AND name=:name"  # pragma: no mutate
-                ),
-                {"name": name},
-            )
+            result = connection.execute(text(_TABLE_EXISTS_SQL), {"name": name})
             return result.first() is not None
 
         def _table_has_column(table: str, column: str) -> bool:
             result = connection.execute(
-                text(f"SELECT 1 FROM pragma_table_info('{table}') WHERE name=:column"),
-                {"column": column},
+                text(_COLUMN_EXISTS_SQL.format(table=table)), {"column": column}
             )
             return result.first() is not None
 
         legacy_gazetteer_tables = any(
             _table_exists(name) for name in ("gazetteer", "source", "feature", "name")
         )
-        # SQLite identifiers are case-insensitive, so a case mutation of the
-        # table name cannot change the lookup.
-        legacy_referent_layout = _table_exists("referent") and not _table_has_column(
-            "referent",  # pragma: no mutate
-            "feature_identifier",
-        )
+        legacy_referent_layout = _table_exists(
+            _REFERENT_TABLE
+        ) and not _table_has_column(_REFERENT_TABLE, "feature_identifier")
 
         if legacy_gazetteer_tables or legacy_referent_layout:
-            # pragma: no mutate block - the wording of this guidance is not
+            # pragma: no mutate start - the wording of this guidance is not
             # behaviour; a test pins that it names the database file.
             raise RuntimeError(
                 "Your geoparser database was created by an older version and is not compatible "
@@ -108,6 +106,7 @@ def _check_database_compatibility() -> None:
                 "will need to delete the database file and reinstall the gazetteers to continue. "
                 "Doing so also removes any projects and results stored in the database. "
             )
+            # pragma: no mutate end
 
 
 def create_db_and_tables() -> None:

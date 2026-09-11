@@ -44,12 +44,16 @@ class Context:
             )
 
             if context_record is None:
+                # pragma: no mutate start - a fresh context has no modules
+                # yet; the two None arguments restate the model's own default,
+                # so dropping them writes exactly the same row.
                 context_create = ContextCreate(
                     project_id=self.project_id,
                     tag=tag,
                     recognizer_id=None,
                     resolver_id=None,
                 )
+                # pragma: no mutate end
                 context_record = ContextRepository.create(session, context_create)
 
             return context_record.id
@@ -72,7 +76,10 @@ class Context:
         """
         record = ContextRepository.get(session, context_id)
         if record is None:  # pragma: no cover - guaranteed by the caller
+            # pragma: no mutate start - wording only, on a branch the caller
+            # makes unreachable; there is no test that could pin the prose.
             raise RuntimeError(f"Context record '{context_id}' no longer exists")
+            # pragma: no mutate end
         return record
 
     def update_recognizer_context(self, tag: str, recognizer_id: str) -> None:

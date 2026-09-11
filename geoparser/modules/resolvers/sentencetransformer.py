@@ -22,6 +22,11 @@ if t.TYPE_CHECKING:
 logging.set_verbosity_error()
 
 
+# Throughput and display only: neither changes the embeddings that come back.
+_ENCODE_BATCH_SIZE = 32  # pragma: no mutate
+_SHOW_ENCODE_PROGRESS = True  # pragma: no mutate
+
+
 class SentenceTransformerResolver(Resolver):
     """
     A resolver that uses SentenceTransformer to map reference contexts to gazetteer candidates.
@@ -73,6 +78,7 @@ class SentenceTransformerResolver(Resolver):
         min_similarity: float = 0.6,
         max_tiers: int = 3,
         attribute_map: dict | None = None,
+        **extra_config,
     ):
         """
         Initialize the SentenceTransformerResolver.
@@ -86,6 +92,9 @@ class SentenceTransformerResolver(Resolver):
                           If None, will look up gazetteer_name in GAZETTEER_ATTRIBUTE_MAP.
                           If provided, will be used directly.
                           Should have keys: "name", "type", "level1", "level2", "level3"
+            **extra_config: Additional configuration a subclass wants recorded
+                          in the module id, so two resolvers that differ only
+                          in a subclass parameter do not share one.
         """
         # Initialize parent with the parameters
         super().__init__(
@@ -94,6 +103,7 @@ class SentenceTransformerResolver(Resolver):
             min_similarity=min_similarity,
             max_tiers=max_tiers,
             attribute_map=attribute_map,
+            **extra_config,
         )
 
         # Store instance attributes directly from parameters
@@ -112,14 +122,8 @@ class SentenceTransformerResolver(Resolver):
         self.gazetteer = Gazetteer(gazetteer_name)
 
         # Initialize transformer and tokenizer
-        self.transformer = SentenceTransformer(model_name)
-        # Annotated explicitly: AutoTokenizer's return union includes backend
-        # types (and None) that do not carry .tokenize, which is all this class
-        # uses. Narrowing here types the four call sites correctly; from_pretrained
-        # does not actually return None for a resolvable model name.
-        self.tokenizer: PreTrainedTokenizerBase = AutoTokenizer.from_pretrained(  # ty: ignore[invalid-assignment]
-            model_name
-        )
+        self.transformer = self._load_transformer(model_name)
+        self.tokenizer = self._load_tokenizer(model_name)
 
         # Initialize spaCy model for sentence splitting
         self.nlp = self._load_spacy_model("xx_sent_ud_sm")
@@ -133,6 +137,35 @@ class SentenceTransformerResolver(Resolver):
         self.candidate_embeddings: dict[
             int, torch.Tensor
         ] = {}  # feature_id -> embedding
+
+    def _load_transformer(self, model_name: str, **kwargs) -> SentenceTransformer:
+        """
+        Load the embedding model.
+
+        A hook rather than a direct call so a subclass whose checkpoint ships
+        its own modelling code can pass the flags that need.
+
+        Args:
+            model_name: HuggingFace checkpoint to load
+            **kwargs: Extra arguments for the SentenceTransformer constructor
+
+        Returns:
+            The loaded model
+        """
+        return SentenceTransformer(model_name, **kwargs)
+
+    def _load_tokenizer(self, model_name: str, **kwargs) -> PreTrainedTokenizerBase:
+        """
+        Load the tokenizer used to size reference contexts.
+
+        Args:
+            model_name: HuggingFace checkpoint to load the tokenizer of
+            **kwargs: Extra arguments for ``AutoTokenizer.from_pretrained``
+
+        Returns:
+            The loaded tokenizer
+        """
+        return AutoTokenizer.from_pretrained(model_name, **kwargs)
 
     def _validate_and_set_attribute_map(
         self, gazetteer_name: str, attribute_map: dict | None = None
@@ -175,7 +208,10 @@ class SentenceTransformerResolver(Resolver):
             nlp = spacy.load(model_name)
         except OSError:
             # Model not found, download it
+            # pragma: no mutate start - progress prose, not behaviour; the
+            # download and the reload below are what the tests pin.
             print(f"Downloading spaCy model '{model_name}'...")
+            # pragma: no mutate end
             spacy.cli.download(model_name)
             nlp = spacy.load(model_name)
         return nlp
@@ -284,7 +320,10 @@ class SentenceTransformerResolver(Resolver):
             )
 
             if self._all_resolved(results):
+                # pragma: no mutate start - last statement of the loop with
+                # nothing after it, so `return` behaves identically.
                 break
+                # pragma: no mutate end
 
     @staticmethod
     def _all_resolved(
@@ -350,25 +389,32 @@ class SentenceTransformerResolver(Resolver):
             contexts.append(doc_contexts)
         return contexts
 
-    def _encode(self, texts: list[str]) -> "torch.Tensor":
+    def _encode(self, texts: list[str], role: str) -> "torch.Tensor":
         """
         Embed a batch of strings with the sentence transformer.
 
         Args:
             texts: Strings to embed
+            role: What the strings are -- ``"context"`` for reference contexts
+                  or ``"candidate"`` for candidate descriptions. Symmetric
+                  models ignore it; models with separate query and document
+                  prompts override this method and use it. Required, so that
+                  a new call site has to say which side it is embedding.
 
         Returns:
             One embedding per input string, in the same order
         """
+        # pragma: no mutate start - batch size and the progress bar are
+        # throughput and display, not behaviour; convert_to_tensor and the
+        # texts themselves are pinned by tests on the subclass that overrides
+        # this method, which is where an encode call is worth checking.
         return self.transformer.encode(
             texts,
-            # Behaviour: the callers do tensor arithmetic on the result.
             convert_to_tensor=True,
-            # Batch size is a throughput knob and the progress bar is display
-            # only; neither changes the embeddings that come back.
-            batch_size=32,  # pragma: no mutate
-            show_progress_bar=True,  # pragma: no mutate
+            batch_size=_ENCODE_BATCH_SIZE,
+            show_progress_bar=_SHOW_ENCODE_PROGRESS,
         )
+        # pragma: no mutate end
 
     def _contexts_needing_embedding(self, contexts: list[list[str]]) -> list[str]:
         """
@@ -403,11 +449,10 @@ class SentenceTransformerResolver(Resolver):
         # The encoder returns one embedding per input, so strict= only matters
         # if a stand-in model breaks that contract; truncating is the
         # long-standing behaviour and is kept deliberately.
-        embeddings = self._encode(to_encode)
+        embeddings = self._encode(to_encode, role="context")
         # One embedding per input by construction, so strict= is immaterial.
-        for context, embedding in zip(
-            to_encode, embeddings, strict=False
-        ):  # pragma: no mutate
+        pairs = zip(to_encode, embeddings, strict=False)  # pragma: no mutate
+        for context, embedding in pairs:
             self.context_embeddings[context] = embedding
 
     def _gather_candidates(
@@ -519,11 +564,10 @@ class SentenceTransformerResolver(Resolver):
 
         descriptions = [self._generate_description(candidate) for candidate in pending]
         # As with contexts, the encoder's output length is its own contract.
-        embeddings = self._encode(descriptions)
+        embeddings = self._encode(descriptions, role="candidate")
         # As above: one embedding per description, so strict= is immaterial.
-        for candidate, embedding in zip(
-            pending, embeddings, strict=False
-        ):  # pragma: no mutate
+        pairs = zip(pending, embeddings, strict=False)  # pragma: no mutate
+        for candidate, embedding in pairs:
             self.candidate_embeddings[candidate.id] = embedding
 
     def _evaluate_candidates(
@@ -531,7 +575,7 @@ class SentenceTransformerResolver(Resolver):
         contexts: list[list[str]],
         candidates: list[list[list["Feature"]]],
         results: list[list[tuple[str, str] | None]],
-        min_similarity: float = 0.0,
+        min_similarity: float,
     ) -> None:
         """
         Evaluate candidates against reference contexts and update results.
@@ -540,7 +584,7 @@ class SentenceTransformerResolver(Resolver):
             contexts: List of lists of context strings
             candidates: Nested list of candidate lists for each reference
             results: Nested list of current results (modified in-place)
-            min_similarity: Minimum similarity threshold (default: 0.0)
+            min_similarity: Similarity a candidate must reach to be accepted
         """
         for doc_contexts, doc_candidates, doc_results in zip(
             contexts, candidates, results, strict=True
@@ -642,12 +686,13 @@ class SentenceTransformerResolver(Resolver):
         """
         max_seq_length = self.transformer.get_max_seq_length()
         if max_seq_length is None:
-            # pragma: no mutate block - wording only; a test pins the type and
+            # pragma: no mutate start - wording only; a test pins the type and
             # that the message names the model.
             raise ValueError(
                 f"Model '{self.model_name}' does not report a maximum sequence "
                 "length, so reference context cannot be sized"
             )
+            # pragma: no mutate end
         return max_seq_length - 2
 
     def _document_tokens(self, text: str) -> int:
@@ -853,9 +898,12 @@ class SentenceTransformerResolver(Resolver):
         candidate_tensor = torch.stack(candidate_embeddings)
 
         # Calculate cosine similarities
+        # pragma: no mutate start - dim=1 is also torch's default, so a
+        # mutant that drops it computes exactly the same similarities.
         similarities = torch.nn.functional.cosine_similarity(
             context_embedding.unsqueeze(0), candidate_tensor, dim=1
         )
+        # pragma: no mutate end
 
         return similarities.tolist()
 

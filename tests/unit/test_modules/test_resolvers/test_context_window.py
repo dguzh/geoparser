@@ -256,3 +256,110 @@ class TestLocateSentence:
         # Act & Assert
         with pytest.raises(ValueError, match="No sentence contains reference"):
             resolver._locate_sentence(sentences, start=99, end=100)
+
+
+@pytest.mark.unit
+class TestOneSidedExpansion:
+    """
+    Growth that only ever happens on one side.
+
+    The loop tracks whether *either* side grew in a round. When only one side
+    can grow, forgetting to record that ends expansion a round early and
+    returns a context roughly half the size the budget allows -- something the
+    two-sided cases cannot see, because the other side keeps the loop alive.
+    """
+
+    def test_keeps_growing_backwards_at_the_end_of_the_document(self, resolver):
+        """A target in the last sentence grows backwards over several rounds."""
+        # Arrange - four two-token sentences, budget for three
+        sentences = _sentences(*[f"s{i} w" for i in range(4)])
+
+        # Act
+        window = resolver._expand_window(sentences, target_idx=3, token_limit=6)
+
+        # Assert
+        assert [s.text for s in window] == ["s1 w", "s2 w", "s3 w"]
+
+    def test_keeps_growing_forwards_at_the_start_of_the_document(self, resolver):
+        """A target in the first sentence grows forwards over several rounds."""
+        # Arrange
+        sentences = _sentences(*[f"s{i} w" for i in range(4)])
+
+        # Act
+        window = resolver._expand_window(sentences, target_idx=0, token_limit=6)
+
+        # Assert
+        assert [s.text for s in window] == ["s0 w", "s1 w", "s2 w"]
+
+
+@pytest.mark.unit
+class TestExtractContext:
+    """The whole context extraction, from document text to context string."""
+
+    @pytest.fixture
+    def parsing_resolver(self, resolver):
+        """A resolver whose spaCy pipeline splits on '. ' and counts words."""
+
+        def parse(text):
+            spans, offset = [], 0
+            for chunk in text.split(". "):
+                piece = chunk if offset + len(chunk) >= len(text) else chunk + "."
+                spans.append(_sentence(piece, offset))
+                offset += len(piece) + 1
+            return SimpleNamespace(sents=spans)
+
+        resolver.nlp = Mock(side_effect=parse)
+        resolver.transformer.get_max_seq_length = Mock(return_value=7)
+        return resolver
+
+    def test_returns_the_whole_text_when_it_exactly_fills_the_budget(
+        self, parsing_resolver
+    ):
+        """
+        A document of exactly the budget is returned whole.
+
+        The comparison is inclusive: treating a document that just fits as too
+        long would send it through the windowing path for no reason.
+        """
+        # Arrange - five tokens, budget of seven minus two special tokens
+        text = "aa bb cc. dd ee"
+
+        # Act
+        context = parsing_resolver._extract_context(text, 0, 2)
+
+        # Assert
+        assert context == text
+        parsing_resolver.nlp.assert_not_called()
+
+    def test_joins_the_window_sentences_with_a_single_space(self, parsing_resolver):
+        """Selected sentences are rejoined as plain prose."""
+        # Arrange - three sentences, only two of which fit the budget
+        text = "aa bb. cc dd. ee ff"
+
+        # Act
+        context = parsing_resolver._extract_context(text, 7, 9)
+
+        # Assert
+        assert context == "aa bb. cc dd."
+
+    def test_parses_the_document_that_was_passed_in(self, parsing_resolver):
+        """The sentence splitter sees the document text, not something else."""
+        # Arrange
+        text = "aa bb. cc dd. ee ff"
+
+        # Act
+        parsing_resolver._extract_context(text, 0, 2)
+
+        # Assert
+        parsing_resolver.nlp.assert_called_once_with(text)
+
+    def test_names_the_whole_reference_span_when_no_sentence_contains_it(
+        self, parsing_resolver
+    ):
+        """The error reports both offsets, so the caller can find the span."""
+        # Arrange
+        text = "aa bb. cc dd. ee ff"
+
+        # Act & Assert
+        with pytest.raises(ValueError, match="position 99-104"):
+            parsing_resolver._extract_context(text, 99, 104)

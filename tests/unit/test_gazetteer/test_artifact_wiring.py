@@ -7,12 +7,15 @@ them being declared deterministic so SQLite may use them in indexed queries.
 """
 
 import sqlite3
+import threading
+from types import SimpleNamespace
 from unittest.mock import Mock
 
 import pytest
 
 from geoparser.gazetteer.artifact import (
     ARTIFACT_SUFFIX,
+    GazetteerArtifact,
     artifact_path,
     gazetteers_dir,
     list_artifacts,
@@ -232,3 +235,93 @@ class TestArtifactConnection:
         # Assert
         assert other[0] is not main_connection
         assert other[1] == 3
+
+
+@pytest.mark.unit
+class TestConnectionLifecycle:
+    """Test the per-thread connection and its teardown."""
+
+    def test_close_is_safe_before_any_query(self, make_artifact):
+        """A freshly opened artifact has no connection yet, and close() copes."""
+        artifact = GazetteerArtifact(make_artifact())
+        # __init__ reads the metadata, so drop that connection to get back to
+        # the state a thread that has never queried is in.
+        artifact._local = threading.local()
+
+        artifact.close()
+
+        assert getattr(artifact._local, "connection", None) is None
+
+    def test_close_lets_the_next_query_reconnect(self, make_artifact):
+        """Closing releases the connection; the next query opens a fresh one."""
+        artifact = GazetteerArtifact(make_artifact())
+        first = artifact._connection()
+
+        artifact.close()
+        second = artifact._connection()
+
+        assert second is not first
+        assert artifact.count_features() == 3
+
+
+@pytest.mark.unit
+class TestFeatureRowMapping:
+    """Test that artifact rows map onto the right Feature fields."""
+
+    def test_id_and_identifier_come_from_different_columns(self, make_artifact):
+        """The internal row id is distinct from the source's identifier."""
+        artifact = GazetteerArtifact(
+            make_artifact(
+                features=[{"identifier": "geo-42", "names": ["Solothurn"]}],
+            )
+        )
+
+        feature = artifact.find("geo-42")
+
+        assert feature is not None
+        assert feature.id == 1
+        assert feature.identifier == "geo-42"
+
+
+@pytest.mark.unit
+class TestSearchDefaults:
+    """Test the default limit and tier arguments of the search methods."""
+
+    @pytest.mark.parametrize(
+        "method",
+        ["search_phrase", "search_partial", "search_fuzzy"],
+    )
+    def test_tiered_searches_default_to_one_tier_and_ten_thousand(
+        self, make_artifact, method
+    ):
+        """Tiered searches score at most 10000 candidates and keep one tier."""
+        artifact = GazetteerArtifact(make_artifact())
+        captured = {}
+
+        def record(matched_sql, parameters, limit, tiers):
+            captured["limit"] = limit
+            captured["tiers"] = tiers
+            return []
+
+        artifact._search_tiered = record
+
+        getattr(artifact, method)("Paris")
+
+        assert captured == {"limit": 10000, "tiers": 1}
+
+    def test_search_exact_defaults_to_ten_thousand(self, make_artifact):
+        """search_exact passes its default limit through to the query."""
+        artifact = GazetteerArtifact(make_artifact())
+        connection = artifact._connection()
+        captured = []
+        original = connection.execute
+
+        def record(sql, parameters=()):
+            captured.append(parameters)
+            return original(sql, parameters)
+
+        artifact._connection = lambda: SimpleNamespace(execute=record)
+
+        artifact.search_exact("Paris")
+
+        assert captured[0][-1] == 10000

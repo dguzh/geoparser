@@ -7,6 +7,7 @@ unprocessed -- and skip individual predictions that come back as None. Both
 behaviours are easy to break into either a crash or a silent early exit.
 """
 
+import uuid
 from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
@@ -156,3 +157,44 @@ class TestRecordReferentPredictions:
 
         # Assert
         assert referents == [("r1", "swissnames3d", "42")]
+
+
+@pytest.mark.unit
+class TestReferentValidation:
+    """Checking a predicted referent against the installed gazetteer."""
+
+    @staticmethod
+    def _create(gazetteer_name, identifier, found=True):
+        """Run the record creation, returning the Gazetteer mock."""
+        service = ResolutionService(Mock())
+        feature = SimpleNamespace(identifier=identifier) if found else None
+        with (
+            patch("geoparser.services.resolution.Gazetteer") as gazetteer,
+            patch("geoparser.services.resolution.ReferentRepository"),
+        ):
+            gazetteer.return_value.find.return_value = feature
+            service._create_referent_record(
+                Mock(), uuid.uuid4(), gazetteer_name, identifier, "res"
+            )
+        return gazetteer
+
+    def test_looks_the_identifier_up_in_the_named_gazetteer(self):
+        """
+        The lookup uses both halves of the predicted referent.
+
+        Opening the wrong gazetteer, or looking up the wrong identifier, would
+        either reject a valid prediction or accept a bogus one, depending on
+        what happened to be installed.
+        """
+        # Act
+        gazetteer = self._create("swissnames3d", "42")
+
+        # Assert
+        gazetteer.assert_called_once_with("swissnames3d")
+        gazetteer.return_value.find.assert_called_once_with("42")
+
+    def test_rejects_an_identifier_the_gazetteer_does_not_have(self):
+        """An unknown feature is an error naming both the id and gazetteer."""
+        # Act & Assert
+        with pytest.raises(ValueError, match=r"'999'.*'geonames'"):
+            self._create("geonames", "999", found=False)

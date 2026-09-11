@@ -67,9 +67,10 @@ class SpacyRecognizer(Recognizer):
             # Model not found, download it
             # Progress text, not behaviour; the download and reload below are
             # what the tests pin.
-            print(
-                f"Downloading spaCy model '{self.model_name}'..."
-            )  # pragma: no mutate
+            # pragma: no mutate start - progress prose, not behaviour; the
+            # download and the reload below are what the tests pin.
+            print(f"Downloading spaCy model '{self.model_name}'...")
+            # pragma: no mutate end
             spacy.cli.download(self.model_name)
             nlp = spacy.load(self.model_name)
 

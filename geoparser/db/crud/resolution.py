@@ -6,6 +6,12 @@ from sqlmodel import Session, select
 from geoparser.db.crud.base import BaseRepository
 from geoparser.db.models import Document, Reference, Resolution
 
+# Spelled out rather than left to SQLAlchemy so the join reads plainly at the
+# call site. document_id is the only foreign key from Reference to Document,
+# so a mutant that drops or blanks this expression produces the same ON
+# clause -- which is why it is exempt while the query around it is not.
+_REFERENCE_TO_DOCUMENT = Reference.document_id == Document.id  # pragma: no mutate  # fmt: skip
+
 
 class ResolutionRepository(BaseRepository[Resolution]):
     """
@@ -83,23 +89,22 @@ class ResolutionRepository(BaseRepository[Resolution]):
         Returns:
             List of unprocessed Reference objects
         """
-        # Get all references for documents in the project that haven't been processed
-        statement = (
-            select(Reference)
-            .join(
-                Document,
-                Reference.document_id  # ty: ignore[invalid-argument-type]
-                == Document.id,
-            )
-            .where(
-                Document.project_id == project_id,
-                not_(
-                    Reference.id.in_(  # ty: ignore[unresolved-attribute]
-                        select(Resolution.reference_id).where(
-                            Resolution.resolver_id == resolver_id
-                        )
+        # Get all references for documents in the project that haven't been
+        # processed. The join is its own statement so its pragma has somewhere
+        # to sit: mutmut only reads a trailing pragma on a statement line, not
+        # on a link in a chained expression.
+        # SQLModel fields are annotated with their instance type, but at class
+        # level they are SQLAlchemy column expressions. No checker models that
+        # duality without a SQLAlchemy plugin.
+        joined = select(Reference).join(Document, _REFERENCE_TO_DOCUMENT)  # ty: ignore[invalid-argument-type]  # pragma: no mutate  # fmt: skip
+        statement = joined.where(
+            Document.project_id == project_id,
+            not_(
+                Reference.id.in_(  # ty: ignore[unresolved-attribute]
+                    select(Resolution.reference_id).where(
+                        Resolution.resolver_id == resolver_id
                     )
-                ),
-            )
+                )
+            ),
         )
         return list(db.exec(statement).unique().all())

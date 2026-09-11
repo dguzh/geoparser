@@ -150,7 +150,11 @@ class RecognitionService:
         # are pluggable, so the prediction count is not enforced here;
         # a short list leaves the trailing documents unprocessed rather
         # than failing the whole batch.
-        for document, references in zip(documents, predicted_references, strict=False):
+        # pragma: no mutate start - strict=False is the default, so a mutant
+        # that drops it or passes another falsy value pairs them identically.
+        pairs = zip(documents, predicted_references, strict=False)
+        # pragma: no mutate end
+        for document, references in pairs:
             # Skip documents where predictions are not available
             # (None indicates the recognizer couldn't process this document)
             if references is None:

@@ -24,10 +24,11 @@ Pragmas only take effect when the mutant tree is regenerated, so delete
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
 | Baseline, whole package | 3871 | 2480 | 931 | 290 | 164 | 9.7/s |
 | After excluding the build pipeline | 2021 | 1427 | 307 | 286 | 0 | 34.0/s |
-| Current | 1946 | 1572 | **91** | 283 | 0 | — |
+| Clean sweep after model pass | 1999 | 1787 | **0** | 212 | 0 | 25.1/s |
 
-`MAX_SURVIVING_MUTANTS` in `.github/workflows/quality.yml` is the ratchet.
-Lower it as survivors are killed; never raise it.
+`MAX_SURVIVING_MUTANTS` in `.github/workflows/quality.yml` is now `0`.
+Keep it at zero: a new survivor is a line the unit suite runs but does not
+check.
 
 ## Scope, and why
 
@@ -62,8 +63,8 @@ honest:
 
 Message wording counts as the second kind. Pinning the prose of an error
 word-for-word breaks on every copy-edit while verifying nothing; assert the
-part that matters (that the message names the offending file, say) and pragma
-the wording with a `block` pragma on the `raise`.
+part that matters (that the message names the offending file, say) and use an
+explicit `start`/`end` pragma region around the `raise`.
 
 A blanket regex over "lines that look like message text" was considered and
 rejected: a regex should not be the thing deciding what counts as behaviour.
@@ -104,23 +105,22 @@ Each of these is at zero survivors.
       tested, since the foreign key makes a dangling document impossible)
 - [x] `Project._normalize_document_ids` — 5 (1 pragma: guidance wording)
 
-## Left to do
+## Current status
 
-Run `uv run mutmut results | grep survived` for the current list. As of the
-last sweep the remaining 193 cluster in:
+The clean sweep after the model pass generated 1,999 mutants and reported:
 
-- `Project.load_annotations` (14) — annotation import
-- `Project.run_recognizer` / `run_resolver` / `get_documents` (18)
-- `GazetteerArtifact._connection` (8)
-- `Gazetteer.search` (6)
-- `ReferenceRepository.update` (5)
-- `RecognitionService._record_reference_predictions` (4)
-- a long tail of one to four per function elsewhere
+- **1,787 killed**
+- **0 survived**
+- **0 timeouts, suspicious results, or segfaults**
+- **212 with no covering unit test**
 
-Also open, and not counted as survivors:
+The one transient timeout from the sweep was rerun in isolation and killed;
+the final exported stats report zero timeouts. There are no remaining
+survivors to investigate.
 
-- **283 mutants with no covering unit test.** These are lines the unit suite
-  never reaches, mostly on paths the integration suite owns. They are neither
-  killed nor survived, so the gate is silent about them; closing that gap means
-  either unit tests that reach the code or accepting the integration suite as
-  its cover.
+The 212 no-test mutants are an intentional scope boundary: the mutation run
+uses `tests/unit`, while the integration and e2e suites plus the 100% coverage
+gate cover the paths that the unit suite does not reach. They remain visible in
+the exported stats but are not survivors. No `MAX_NO_TESTS` ratchet is used,
+because this count describes the established test-scope split rather than an
+unbounded survival budget.

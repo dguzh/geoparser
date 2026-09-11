@@ -4,7 +4,7 @@ Unit tests for geoparser/modules/resolvers/sentencetransformer.py
 Tests the SentenceTransformerResolver module with mocked dependencies.
 """
 
-from unittest.mock import Mock, patch
+from unittest.mock import Mock, call, patch
 
 import pytest
 import torch
@@ -1473,3 +1473,92 @@ class TestSentenceTransformerResolverPrepareTrainingData:
             assert len(training_data["sentence1"]) == len(training_data["label"])
             # Labels should be 0 or 1
             assert all(label in [0, 1] for label in training_data["label"])
+
+
+@pytest.mark.unit
+class TestSpacyModelDownload:
+    """The fallback that installs the sentence splitter on first use."""
+
+    @patch("geoparser.modules.resolvers.sentencetransformer.spacy.cli.download")
+    @patch("geoparser.modules.resolvers.sentencetransformer.spacy.load")
+    @patch(
+        "geoparser.modules.resolvers.sentencetransformer.AutoTokenizer.from_pretrained"
+    )
+    @patch("geoparser.modules.resolvers.sentencetransformer.SentenceTransformer")
+    @patch("geoparser.modules.resolvers.sentencetransformer.Gazetteer")
+    def test_downloads_then_reloads_the_same_model(
+        self,
+        mock_gazetteer,
+        mock_transformer,
+        mock_tokenizer,
+        mock_spacy_load,
+        mock_download,
+    ):
+        """
+        A missing model is downloaded and then loaded again by name.
+
+        Both the download and the reload must name the model that was asked
+        for; reloading something else would leave the resolver splitting
+        sentences with the wrong pipeline.
+        """
+        # Arrange
+        from geoparser.modules.resolvers.sentencetransformer import (
+            SentenceTransformerResolver,
+        )
+
+        reloaded = Mock()
+        mock_spacy_load.side_effect = [OSError("not found"), reloaded]
+
+        # Act
+        resolver = SentenceTransformerResolver()
+
+        # Assert
+        mock_download.assert_called_once_with("xx_sent_ud_sm")
+        assert mock_spacy_load.call_args_list == [
+            call("xx_sent_ud_sm"),
+            call("xx_sent_ud_sm"),
+        ]
+        assert resolver.nlp is reloaded
+
+
+@pytest.mark.unit
+class TestConfigIdentity:
+    """What the resolver records as its configuration."""
+
+    @patch("geoparser.modules.resolvers.sentencetransformer.spacy.load")
+    @patch(
+        "geoparser.modules.resolvers.sentencetransformer.AutoTokenizer.from_pretrained"
+    )
+    @patch("geoparser.modules.resolvers.sentencetransformer.SentenceTransformer")
+    @patch("geoparser.modules.resolvers.sentencetransformer.Gazetteer")
+    def test_a_custom_attribute_map_is_part_of_the_module_identity(
+        self, mock_gazetteer, mock_transformer, mock_tokenizer, mock_spacy_load
+    ):
+        """
+        The attribute map reaches the recorded config, so it changes the id.
+
+        Predictions are stored against the module id. Dropping the map from
+        the config would make two resolvers that describe candidates
+        differently share an id, and their predictions would be conflated.
+        """
+        # Arrange
+        from geoparser.modules.resolvers.sentencetransformer import (
+            SentenceTransformerResolver,
+        )
+
+        custom_map = {
+            "name": "N",
+            "type": "T",
+            "level1": "A",
+            "level2": "B",
+            "level3": "C",
+        }
+
+        # Act
+        default = SentenceTransformerResolver()
+        customized = SentenceTransformerResolver(attribute_map=custom_map)
+
+        # Assert
+        assert customized.config["attribute_map"] == custom_map
+        assert default.config["attribute_map"] is None
+        assert customized.id != default.id

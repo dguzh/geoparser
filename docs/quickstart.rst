@@ -15,11 +15,11 @@ A geoparser is made of two modules that you provide explicitly: a **recognizer**
 .. code-block:: python
 
    from geoparser import Geoparser
-   from geoparser.modules import SentenceTransformerResolver, SpacyRecognizer
+   from geoparser.modules import GLiNER2Recognizer, JinaResolver
 
    geoparser = Geoparser(
-       recognizer=SpacyRecognizer(),
-       resolver=SentenceTransformerResolver(gazetteer_name="geonames"),
+       recognizer=GLiNER2Recognizer(),
+       resolver=JinaResolver(gazetteer_name="geonames"),
    )
 
 Both arguments are required, and there are no defaults: omitting either raises a ``TypeError``. You can pass ``None`` to skip a stage — ``resolver=None`` gives you recognition only — but that has to be said explicitly.
@@ -254,13 +254,15 @@ Both modules take parameters, which is how you adapt the pipeline to your own ma
 .. code-block:: python
 
    from geoparser import Geoparser
-   from geoparser.modules import SentenceTransformerResolver, SpacyRecognizer
+   from geoparser.modules import GLiNER2Recognizer, JinaResolver
 
    geoparser = Geoparser(
-       # A larger, more accurate spaCy model
-       recognizer=SpacyRecognizer(model_name="en_core_web_trf"),
+       # Ask for the kinds of place your material actually contains
+       recognizer=GLiNER2Recognizer(
+           entity_types=["city", "country", "mountain", "valley"],
+       ),
        # A different gazetteer, and a lower confidence threshold
-       resolver=SentenceTransformerResolver(
+       resolver=JinaResolver(
            gazetteer_name="swissnames3d",
            min_similarity=0.5,
        ),
@@ -270,8 +272,8 @@ Both modules take parameters, which is how you adapt the pipeline to your own ma
 
 Two parameters have the largest effect on how much gets recognized and resolved:
 
-- ``model_name`` on the recognizer. The default ``en_core_web_sm`` is trained on contemporary English news text. On historical, literary, or non-English material it can miss most place names, and nothing downstream can recover a name that was never found. A larger model, or one for your language, usually helps.
-- ``min_similarity`` on the resolver, default ``0.6``. It is how confident the resolver must be before committing. Lower it to resolve more and risk more mistakes; raise it for the opposite. The default is calibrated for English news text against GeoNames, so other material generally wants a lower value.
+- ``entity_types`` on the recognizer, default ``["city", "country", "location"]``. GLiNER2 matches these zero-shot, so they are ordinary words rather than a fixed schema: naming the kinds of place your material contains usually helps more than reaching for a bigger model, and nothing downstream can recover a name that was never found.
+- ``min_similarity`` on the resolver, default ``0.6``. It is how confident the embedding stage must be before a candidate is worth reranking at all. Lower it to resolve more and risk more mistakes; raise it for the opposite. The default is calibrated for English news text against GeoNames, so other material generally wants a lower value.
 
 :doc:`guides/modules` covers every parameter, the second pre-trained resolver model, and how to write modules of your own.
 

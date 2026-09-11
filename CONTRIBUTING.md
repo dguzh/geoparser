@@ -54,6 +54,21 @@ Tests live under `tests/` and are organized as:
 
 Markers `unit`, `integration`, and `e2e` are declared under `[tool.pytest.ini_options]` in `pyproject.toml`, which is the single source of pytest configuration.
 
+Two integration files are opt-in, and skip with an explicit reason unless
+`GEOPARSER_TEST_REMOTE_MODELS=1` is set:
+
+```bash
+GEOPARSER_TEST_REMOTE_MODELS=1 uv run pytest tests/integration/test_recognizers/test_gliner_recognizer_integration.py tests/integration/test_resolvers/test_jina_resolver_integration.py
+```
+
+They exercise `GLiNER2Recognizer` and `JinaResolver` against the real
+checkpoints, which together are several gigabytes. Run them when you touch
+either module: they are the only tests that can catch a zero-shot label the
+model does not respond to, a prompt name the checkpoint does not define, or a
+change in the reranker's return shape — all of which pass silently under a
+mock. They are not in the default run because paying that download in each of
+the fifteen matrix cells would cost far more than it catches.
+
 Run the full suite:
 
 ```bash
@@ -100,7 +115,7 @@ uv run pytest --cov-fail-under=100
 uv run python scripts/crap.py --max-crap 6
 uv run mutmut run
 uv run mutmut export-cicd-stats
-uv run python scripts/mutation_gate.py --max-survivors 931
+uv run python scripts/mutation_gate.py --max-survivors 0
 ```
 
 What each step guards:
@@ -111,13 +126,15 @@ What each step guards:
 - **scripts/crap.py** — the [CRAP score](https://testing.googleblog.com/2011/02/this-code-is-crap.html) gate, `complexity² × (1 − coverage)³ + complexity`, per function. For fully covered code this reduces to a cyclomatic-complexity ceiling, so it fails both on untested code and on code that has grown too branchy. It reads the coverage data that pytest just wrote, so run it after the suite.
 - **[mutmut](https://mutmut.readthedocs.io/)** — mutation testing. It edits the source in small ways and re-runs the tests; a mutant that survives is a line the suite does not really check. Configuration lives under `[tool.mutmut]` in `pyproject.toml`; `scripts/mutation_gate.py` reads the exported stats and fails when more mutants survive than the agreed baseline.
 
-Mutation testing runs the library's 3871 mutants against the **unit** suite, at about 9.7 mutants/second once the one-off pass that maps tests to code has finished.
+Mutation testing currently generates 1,999 mutants against the **unit** suite, at about 25.1 mutants/second once the one-off pass that maps tests to code has finished.
 
-The baseline on this tree is **2480 killed, 931 survived, 290 with no covering unit test — a 72.7% mutation score**. That gap against 100% line coverage is the point of the exercise: a surviving mutant is a line the fast suite executes but never checks. `MAX_SURVIVING_MUTANTS` in `.github/workflows/quality.yml` is a ratchet: lower it as survivors are killed, never raise it.
+The verified baseline on this tree is **1,787 killed, 0 survived, and 212 with no covering unit test — a 100% mutation score over judged mutants**. The 212 no-test mutants are an intentional scope boundary: the integration and e2e suites plus the 100% coverage gate cover paths the unit suite does not reach. They remain visible in exported stats, but they are not survivors and are not governed by a separate `MAX_NO_TESTS` ratchet. `MAX_SURVIVING_MUTANTS` in `.github/workflows/quality.yml` is fixed at `0`.
 
 Judging mutants with the integration suite as well was measured and rejected. It is genuinely more thorough — every `no tests` mutant disappears and survival falls from 29% to about 11% — but each mutant it reaches then rebuilds a real gazetteer, roughly 23 seconds apiece and some thirteen hours for the package. The build pipeline is covered by the integration and e2e suites and by the 100% coverage gate instead. If you want the thorough run, add `"tests/integration"` to `pytest_add_cli_args_test_selection` and set aside an evening.
 
-Around 164 mutants end in a segfault rather than a verdict. They sit in code that calls native extensions (duckdb, threads), which mutmut runs in-process; they are neither killed nor survived, so they are a known blind spot rather than a passing grade.
+The clean sweep recorded no timeouts, suspicious results, or segfaults. A
+targeted rerun also cleared the one transient timeout observed during the
+initial sweep before the final stats were exported.
 
 Inspect survivors with:
 

@@ -171,13 +171,14 @@ class GazetteerArtifact:
         self.metadata = self._read_metadata()
         version = self.metadata.get("schema_version")
         if version != SCHEMA_VERSION:
-            # pragma: no mutate block - wording only; a test pins the type and
+            # pragma: no mutate start - wording only; a test pins the type and
             # that the message names both schema versions.
             raise RuntimeError(
                 f"Gazetteer artifact {self.path} has schema version {version!r}, "
                 f"but this version of geoparser requires {SCHEMA_VERSION!r}. "
                 "Please reinstall the gazetteer."
             )
+            # pragma: no mutate end
 
     @property
     def name(self) -> str:
@@ -193,18 +194,21 @@ class GazetteerArtifact:
         """Return the read-only SQLite connection for the current thread."""
         connection = getattr(self._local, "connection", None)
         if connection is None:
-            connection = sqlite3.connect(
-                f"file:{self.path}?mode=ro", uri=True, check_same_thread=False
-            )
+            connection = sqlite3.connect(f"file:{self.path}?mode=ro", uri=True)
             register_functions(connection)
             self._local.connection = connection
         return connection
 
+    # SQL keywords and SQLite identifiers are case-insensitive, so case
+    # mutations of these query literals cannot change what they match.
+    _METADATA_SQL = "SELECT key, value FROM metadata"  # pragma: no mutate
+    _FEATURE_NAMES_SQL = "SELECT text FROM name WHERE feature_id = ? ORDER BY id"  # pragma: no mutate  # fmt: skip
+    _COUNT_FEATURES_SQL = "SELECT count(*) FROM feature"  # pragma: no mutate
+    _COUNT_NAMES_SQL = "SELECT count(*) FROM name"  # pragma: no mutate
+
     def _read_metadata(self) -> dict[str, str]:
         try:
-            rows = (
-                self._connection().execute("SELECT key, value FROM metadata").fetchall()
-            )
+            rows = self._connection().execute(self._METADATA_SQL).fetchall()
         except sqlite3.DatabaseError as error:
             raise RuntimeError(
                 f"File {self.path} is not a valid gazetteer artifact: {error}"
@@ -258,10 +262,7 @@ class GazetteerArtifact:
         """
         rows = (
             self._connection()
-            .execute(
-                "SELECT text FROM name WHERE feature_id = ? ORDER BY id",
-                (feature_id,),
-            )
+            .execute(self._FEATURE_NAMES_SQL, (feature_id,))
             .fetchall()
         )
         return [row[0] for row in rows]
@@ -418,11 +419,11 @@ class GazetteerArtifact:
 
     def count_features(self) -> int:
         """Return the number of features in the artifact."""
-        return self._connection().execute("SELECT count(*) FROM feature").fetchone()[0]
+        return self._connection().execute(self._COUNT_FEATURES_SQL).fetchone()[0]
 
     def count_names(self) -> int:
         """Return the number of names in the artifact."""
-        return self._connection().execute("SELECT count(*) FROM name").fetchone()[0]
+        return self._connection().execute(self._COUNT_NAMES_SQL).fetchone()[0]
 
     def close(self) -> None:
         """Close the current thread's connection, if any."""

@@ -178,7 +178,7 @@ class TestEncode:
         resolver.transformer.encode = Mock(return_value="embeddings")
 
         # Act
-        returned = resolver._encode(["a", "b"])
+        returned = resolver._encode(["a", "b"], role="context")
 
         # Assert
         assert returned == "embeddings"
@@ -570,3 +570,68 @@ class TestExtractContexts:
             pytest.raises(ValueError),
         ):
             resolver._extract_contexts(["a", "b"], [[(0, 1)]])
+
+
+@pytest.mark.unit
+class TestPerDocumentAlignment:
+    """
+    The nested per-document structures must stay the same length.
+
+    Contexts, candidates and results are separate lists indexed by document
+    and then by reference. If one of them ever falls out of step, silently
+    zipping to the shortest would drop whole documents' references and return
+    plausible-looking results; the strict zips turn that into an error.
+    """
+
+    def test_search_once_rejects_a_short_results_list(self, resolver):
+        """A results list missing a document is an error, not a short run."""
+        # Arrange - two documents, but only one result slot
+        with (
+            patch.object(resolver, "_gather_candidates", return_value=[]),
+            pytest.raises(ValueError, match="is shorter than"),
+        ):
+            # Act & Assert
+            resolver._search_once(
+                ["a", "b"],
+                [[(0, 1)], [(0, 1)]],
+                [["ctx"], ["ctx"]],
+                [[[]], [[]]],
+                [[None]],
+                "exact",
+                1,
+            )
+
+    def test_evaluate_candidates_rejects_a_short_candidates_list(self, resolver):
+        """Candidates missing a document is an error, not a short run."""
+        # Act & Assert
+        with pytest.raises(ValueError, match="is shorter than"):
+            resolver._evaluate_candidates(
+                [["ctx"], ["ctx"]],
+                [[[]]],
+                [[None], [None]],
+                0.0,
+            )
+
+    def test_gather_candidates_rejects_a_short_results_row(self, resolver):
+        """
+        A document's references and results must line up one for one.
+
+        These two lists are indexed together to decide which references still
+        need candidates. If they ever fell out of step, a lenient zip would
+        pair a reference with another reference's result and quietly stop
+        searching for the ones past the end.
+        """
+        # Arrange - two references in the document, but one result slot
+        resolver.gazetteer = Mock()
+        resolver.gazetteer.search.return_value = []
+
+        # Act & Assert
+        with pytest.raises(ValueError, match="is shorter than"):
+            resolver._gather_candidates(
+                ["Paris and Berlin"],
+                [[(0, 5), (10, 16)]],
+                [[[], []]],
+                [[None]],
+                "exact",
+                1,
+            )

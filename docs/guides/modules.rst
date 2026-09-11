@@ -17,6 +17,33 @@ One behavior follows from this and is worth knowing early. A module is identifie
 Built-in Recognizers
 --------------------
 
+GLiNER2Recognizer
+~~~~~~~~~~~~~~~~~
+
+The ``GLiNER2Recognizer`` uses `GLiNER2.5 <https://huggingface.co/fastino/gliner2.5-multi-v1>`_, a zero-shot extractor: the entity types it looks for are given as ordinary words at call time rather than baked into the model. That makes it multilingual out of the box, and it makes the label list a parameter you can tune for your corpus instead of a fixed schema you have to live with.
+
+To use it with default settings:
+
+.. code-block:: python
+
+   from geoparser.modules import GLiNER2Recognizer
+
+   recognizer = GLiNER2Recognizer()
+
+The default configuration uses the ``fastino/gliner2.5-multi-v1`` checkpoint and looks for ``city``, ``country`` and ``location``. Both are configurable:
+
+.. code-block:: python
+
+   from geoparser.modules import GLiNER2Recognizer
+
+   recognizer = GLiNER2Recognizer(
+       entity_types=["city", "country", "river", "mountain", "national park"],
+   )
+
+Because the labels are matched zero-shot, naming what you actually want is usually more effective than reaching for a bigger model. If your corpus is about hiking routes, asking for ``mountain`` and ``trail`` will find things no fixed GPE/LOC/FAC schema exposes. The trade-off is that each extra label costs inference time, and overlapping labels are deduplicated: a span found under both ``city`` and ``country`` is one reference, not two.
+
+Spans from every label are merged into a single list ordered by position in the text, so the resolver sees the references in the order they are written.
+
 SpacyRecognizer
 ~~~~~~~~~~~~~~~
 
@@ -48,6 +75,34 @@ The ``entity_types`` parameter allows you to filter which entity types are consi
 
 Built-in Resolvers
 ------------------
+
+JinaResolver
+~~~~~~~~~~~~
+
+The ``JinaResolver`` extends the ``SentenceTransformerResolver`` below and changes how a candidate is chosen. It keeps the same tiered gazetteer search and the same context windowing, and differs in two ways.
+
+First, it embeds with `jina-embeddings-v5-text-small <https://huggingface.co/jinaai/jina-embeddings-v5-text-small>`_, which has **separate prompts for the two sides of a retrieval pair**. A reference's context is embedded as a query and a candidate's description as a document, which is what the model was trained for; embedding both under one prompt throws away most of the benefit.
+
+Second, it adds a **reranking stage**. The embedding comparison is cheap but sees each side in isolation, so it is used only to shortlist. `jina-reranker-v3.5 <https://huggingface.co/jinaai/jina-reranker-v3.5>`_ — a cross encoder, which reads the context and the candidate description together — then picks the winner from that shortlist.
+
+.. code-block:: python
+
+   from geoparser.modules import JinaResolver
+
+   resolver = JinaResolver()
+
+The defaults are the two checkpoints named above, a shortlist of 20 candidates, the ``geonames`` gazetteer, a minimum similarity of 0.6 and up to 3 search tiers. The parameters specific to this resolver are:
+
+.. code-block:: python
+
+   from geoparser.modules import JinaResolver
+
+   resolver = JinaResolver(
+       rerank_top_k=50,          # rerank more candidates, more slowly
+       gazetteer_name="swissnames3d",
+   )
+
+``rerank_top_k`` is the knob worth understanding. The cross encoder is far more expensive per candidate than the embedding comparison, so the shortlist is what keeps resolution affordable; widening it helps when the right candidate is being ranked outside the top 20 by embeddings alone, and costs proportionally more time. ``min_similarity`` still gates the embedding stage: a reference whose best candidate does not reach it is left unresolved and the reranker is never consulted.
 
 SentenceTransformerResolver
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~

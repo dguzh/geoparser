@@ -83,11 +83,12 @@ class ResolutionService:
 
             # Record predictions for each document. Resolvers are pluggable, so
             # as in RecognitionService the prediction count is not enforced here.
-            for unprocessed_references, doc_referents in zip(
-                reference_objects,
-                predicted_referents,
-                strict=False,  # pragma: no mutate - leniency pinned by test
-            ):
+            # Lenient by design; the leniency itself is pinned by a test, so
+            # suppressing the mutants on this line loses no coverage.
+            # pragma: no mutate start
+            pairs = zip(reference_objects, predicted_referents, strict=False)
+            # pragma: no mutate end
+            for unprocessed_references, doc_referents in pairs:
                 self._record_referent_predictions(
                     session, unprocessed_references, doc_referents, resolver_id
                 )
@@ -207,9 +208,11 @@ class ResolutionService:
         """
         # Process each reference with its predicted referent; see above on
         # why a short prediction list is tolerated rather than rejected.
-        for reference, referent in zip(
-            unprocessed_references, predicted_referents, strict=False
-        ):
+        # pragma: no mutate start - strict=False is the default, so a mutant
+        # that drops it or passes another falsy value pairs them identically.
+        pairs = zip(unprocessed_references, predicted_referents, strict=False)
+        # pragma: no mutate end
+        for reference, referent in pairs:
             # Skip references where predictions are not available
             # (None indicates the resolver couldn't process this reference)
             if referent is None:

@@ -8,7 +8,7 @@ This file collects the larger changes we intend to make to the Irchel Geoparser.
 
 The gazetteer subsystem is the first candidate for this. Turning arbitrary geographic data into a single-file, uniformly queryable artifact is useful beyond geoparsing, and it should be usable without installing the geoparsing framework alongside it. Resolvers already reach gazetteers only through a small query interface, so the split is mainly a packaging exercise.
 
-The default recognizer and resolver would follow, moving spaCy, PyTorch and Transformers out of a minimal install and leaving lightweight implementations in the core that are sufficient for a complete example. A pipeline now already has to be assembled from modules explicitly, so no part of the library silently assumes that a particular implementation is installed.
+The model-backed recognizers and resolvers would follow, moving spaCy, PyTorch, Transformers and GLiNER2 out of a minimal install and leaving lightweight implementations in the core that are sufficient for a complete example. That split matters more now than it did: `GLiNER2Recognizer` and `JinaResolver` between them pull in three large checkpoints that a user of the manual modules never touches. A pipeline now already has to be assembled from modules explicitly, so no part of the library silently assumes that a particular implementation is installed.
 
 ## Data handling
 

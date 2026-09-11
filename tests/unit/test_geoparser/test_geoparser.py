@@ -183,7 +183,13 @@ class TestGeoparserParse:
 
     @patch("geoparser.geoparser.geoparser.Project")
     def test_deletes_project_after_parsing_by_default(self, mock_project_class):
-        """Test that parse deletes the project by default (save=False)."""
+        """
+        Parsing without asking to save leaves no project behind.
+
+        The argument is deliberately omitted here: a default of True would
+        accumulate a project per parse call in every caller that never thinks
+        about saving.
+        """
         # Arrange
         mock_recognizer = Mock()
         mock_recognizer.id = "test_rec"
@@ -197,7 +203,7 @@ class TestGeoparserParse:
         geoparser = Geoparser(mock_recognizer, mock_resolver)
 
         # Act
-        geoparser.parse("Test text", save=False)
+        geoparser.parse("Test text")
 
         # Assert
         mock_project_instance.delete.assert_called_once()

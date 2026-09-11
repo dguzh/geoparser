@@ -19,11 +19,11 @@ class Geoparser:
     always clear which modules a pipeline is built from::
 
         from geoparser import Geoparser
-        from geoparser.modules import SentenceTransformerResolver, SpacyRecognizer
+        from geoparser.modules import GLiNER2Recognizer, JinaResolver
 
         geoparser = Geoparser(
-            recognizer=SpacyRecognizer(),
-            resolver=SentenceTransformerResolver(gazetteer_name="geonames"),
+            recognizer=GLiNER2Recognizer(),
+            resolver=JinaResolver(gazetteer_name="geonames"),
         )
     """
 

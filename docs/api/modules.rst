@@ -17,6 +17,11 @@ Base Classes
 Recognizers
 -----------
 
+.. automodule:: geoparser.modules.recognizers.gliner
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 .. automodule:: geoparser.modules.recognizers.spacy
    :members:
    :undoc-members:
@@ -24,6 +29,11 @@ Recognizers
 
 Resolvers
 ---------
+
+.. automodule:: geoparser.modules.resolvers.jina
+   :members:
+   :undoc-members:
+   :show-inheritance:
 
 .. automodule:: geoparser.modules.resolvers.sentencetransformer
    :members:

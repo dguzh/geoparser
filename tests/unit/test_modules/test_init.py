@@ -29,6 +29,24 @@ class TestModulesLazyLoading:
         assert SentenceTransformerResolver is not None
         assert SentenceTransformerResolver.__name__ == "SentenceTransformerResolver"
 
+    def test_lazy_loads_gliner_recognizer(self):
+        """Test that GLiNER2Recognizer is lazy-loaded on access."""
+        # Arrange & Act
+        from geoparser.modules import GLiNER2Recognizer
+
+        # Assert
+        assert GLiNER2Recognizer is not None
+        assert GLiNER2Recognizer.__name__ == "GLiNER2Recognizer"
+
+    def test_lazy_loads_jina_resolver(self):
+        """Test that JinaResolver is lazy-loaded on access."""
+        # Arrange & Act
+        from geoparser.modules import JinaResolver
+
+        # Assert
+        assert JinaResolver is not None
+        assert JinaResolver.__name__ == "JinaResolver"
+
     def test_raises_attribute_error_for_unknown_module(self):
         """Test that AttributeError is raised for unknown module attributes."""
         # Arrange
