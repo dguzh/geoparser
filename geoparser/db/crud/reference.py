@@ -41,7 +41,7 @@ class ReferenceRepository(BaseRepository[Reference]):
 
         # Get the document to extract the text
         document = db.get(Document, document_id)
-        if document and hasattr(document, "text"):
+        if document:
             # Extract the text from the document using the span
             data["text"] = document.text[start:end]
 
@@ -73,7 +73,7 @@ class ReferenceRepository(BaseRepository[Reference]):
 
         # Get the document to extract updated text
         document = db.get(Document, document_id)
-        if document and hasattr(document, "text"):
+        if document:
             # Update the text field
             update_data["text"] = document.text[start:end]
 

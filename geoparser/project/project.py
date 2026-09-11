@@ -168,6 +168,8 @@ class Project:
             try:
                 normalized.append(uuid.UUID(str(value)))
             except (AttributeError, TypeError, ValueError):
+                # pragma: no mutate block - wording only; a test pins the type
+                # and that the message names create_documents().
                 raise ValueError(
                     f"'{value}' is not a valid document ID. Document IDs are the values "
                     "returned by create_documents(). To select results by tag instead, "

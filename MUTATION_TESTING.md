@@ -24,7 +24,7 @@ Pragmas only take effect when the mutant tree is regenerated, so delete
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
 | Baseline, whole package | 3871 | 2480 | 931 | 290 | 164 | 9.7/s |
 | After excluding the build pipeline | 2021 | 1427 | 307 | 286 | 0 | 34.0/s |
-| Current | 1990 | 1560 | **146** | 283 | 0 | — |
+| Current | 1970 | 1566 | **120** | 283 | 0 | — |
 
 `MAX_SURVIVING_MUTANTS` in `.github/workflows/quality.yml` is the ratchet.
 Lower it as survivors are killed; never raise it.
@@ -97,6 +97,12 @@ Each of these is at zero survivors.
 - [x] `RecognitionService._record_reference_predictions` and
       `ResolutionService._record_referent_predictions` — tests for the lenient
       handling of short prediction lists and of None predictions
+- [x] `SentenceTransformerResolver._prepare_training_data` — 15 (tests for the
+      contrastive pairs: labels, contexts and the gazetteer lookups)
+- [x] `ReferenceRepository.update` / `get_by_document_and_span` — 8 (tests for
+      the span fallbacks; a redundant `hasattr` guard was deleted rather than
+      tested, since the foreign key makes a dangling document impossible)
+- [x] `Project._normalize_document_ids` — 5 (1 pragma: guidance wording)
 
 ## Left to do
 
