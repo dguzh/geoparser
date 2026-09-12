@@ -47,6 +47,35 @@ def summarize(stats: dict[str, int]) -> str:
     )
 
 
+def unaccounted_mutants(stats: dict[str, int]) -> int:
+    """
+    How many generated mutants the run reached no verdict on.
+
+    Every mutant mutmut generates should end in exactly one outcome. A run cut
+    short -- most often because mutmut's own baseline test run failed -- still
+    writes a stats file, but with those mutants in none of the categories.
+
+    Args:
+        stats: The counts mutmut exported
+
+    Returns:
+        The number of mutants with no recorded outcome, zero when all are
+        accounted for
+    """
+    accounted = sum(
+        stats.get(outcome, 0)
+        for outcome in (
+            "killed",
+            "survived",
+            "timeout",
+            "suspicious",
+            "no_tests",
+            "skipped",
+        )
+    )
+    return max(stats.get("total", 0) - accounted, 0)
+
+
 def mutation_diagnostics() -> str:
     """Return actionable non-killed mutant lines from the current run."""
     result = subprocess.run(
@@ -99,6 +128,18 @@ def main(argv: list[str] | None = None) -> int:
 
     stats = json.loads(args.stats.read_text(encoding="utf-8"))
     print(f"Mutation testing: {summarize(stats)}")
+
+    unchecked = unaccounted_mutants(stats)
+    if unchecked:
+        print(
+            f"\n{unchecked} of {stats.get('total', 0)} mutant(s) were never "
+            f"checked. mutmut writes a stats file and exits zero even when its "
+            f"own baseline test run failed, so a survivor count of zero here "
+            f"means nothing was verified rather than nothing was wrong. Run "
+            f"'mutmut run' again and read its output.",
+            file=sys.stderr,
+        )
+        return 1
 
     survived = stats.get("survived", 0)
     if survived > args.max_survivors:

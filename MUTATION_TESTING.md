@@ -106,16 +106,46 @@ Each of these is at zero survivors.
 
 ## Current status
 
-The clean sweep after the model pass generated 1,999 mutants and reported:
+The clean sweep after extracting the context-sizing module generated 2,028
+mutants and reported:
 
-- **1,786 killed**
+- **1,816 killed**
 - **0 survived**
-- **1 timeout, 0 suspicious results, or segfaults**
+- **0 timeouts, suspicious results, or segfaults**
 - **212 with no covering unit test**
 
-The single timeout is not a survivor and does not breach the zero-survivor
-gate; it remains recorded so the result is reproducible and reviewable. There
-are no remaining survivors to investigate.
+Every mutant is accounted for: 1,816 + 212 = 2,028. The gate now checks that
+sum, for the reason in the next section.
+
+The previous sweep recorded one timeout, in the loop that grows a context
+window. Rewriting that loop with an explicit bound -- it can extend at most
+once per sentence, so `for _ in range(len(sentences))` is never the reason it
+stops -- turned the non-terminating mutant into one the tests kill outright.
+The bound is worth having on its own: it makes non-termination impossible in
+production rather than merely unlikely.
+
+## A gate that could pass without checking anything
+
+mutmut writes a stats file and exits zero even when its **own** baseline test
+run fails. Every mutant is then left "not checked", and the exported stats read
+`killed: 0, survived: 0` — which a gate that looks only at the survivor count
+happily reports as a clean sheet. This was hit twice in one session: once when
+an architecture test that reads the real package source failed inside the
+rewritten `mutants/` copy, and once when a filtered run was started after
+`mutants/` had been deleted, discarding the test-to-function mapping.
+
+`scripts/mutation_gate.py` therefore fails when the outcome categories do not
+add up to the number of mutants generated. A run that verified nothing now
+reports exactly that instead of a 100% score.
+
+Two practical consequences:
+
+- A test that inspects the real source tree must skip itself inside the mutant
+  copy. `tests/unit/test_meta/test_pragma_placement.py` and the pure-module
+  check in `tests/unit/test_quality/test_architecture.py` both do this via an
+  `IN_MUTANT_TREE` guard.
+- A filtered run (`mutmut run <pattern>`) needs the mapping a full run builds.
+  Do not delete `mutants/` before one.
 
 The 212 no-test mutants are an intentional scope boundary: the mutation run
 uses `tests/unit`, while the integration and e2e suites plus the 100% coverage
