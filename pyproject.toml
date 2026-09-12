@@ -148,6 +148,7 @@ addopts = [
     "--cov-config=pyproject.toml",
 ]
 console_output_style = "progress"
+tmp_path_retention_policy = "failed"
 
 [tool.mutmut]
 # Mutation testing: mutmut edits the source in small ways and re-runs the

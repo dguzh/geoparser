@@ -38,6 +38,10 @@ def test_project_quality_dependencies_and_pytest_markers_are_declared() -> None:
         for marker in project["tool"]["pytest"]["ini_options"]["markers"]
     }
     assert {"property", "acceptance", "architecture"} <= marker_names
+    assert (
+        project["tool"]["pytest"]["ini_options"]["tmp_path_retention_policy"]
+        == "failed"
+    )
 
 
 def test_mutation_runner_copies_quality_support_modules() -> None:

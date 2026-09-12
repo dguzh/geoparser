@@ -48,8 +48,9 @@ uv run --no-sync python scripts/quality_gauntlet.py
 ```
 
 The runner removes its temporary reports and mutation tree after the command.
-The uv cache is reusable; remove that exact cache directory when it is no
-longer useful.
+Training tests remove their generated model directories after each test, and
+pytest retains temporary directories only for failed tests. The uv cache is
+reusable; remove that exact cache directory when it is no longer useful.
 
 ## Documentation
 
