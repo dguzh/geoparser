@@ -1,6 +1,7 @@
 import re
 from pathlib import Path
 
+import pytest
 import yaml
 
 try:
@@ -107,6 +108,12 @@ def test_public_documentation_uses_strict_mkdocs_material() -> None:
 
     for relative_path in nav_paths(parsed["nav"]):
         assert (PROJECT_ROOT / "docs" / relative_path).is_file(), relative_path
+
+
+def test_pyproject_is_compatible_with_mutmut_legacy_toml_parser() -> None:
+    legacy_toml = pytest.importorskip("toml")
+
+    legacy_toml.loads((PROJECT_ROOT / "pyproject.toml").read_text(encoding="utf-8"))
 
 
 def test_runtime_packaging_is_locked_and_does_not_copy_local_state() -> None:

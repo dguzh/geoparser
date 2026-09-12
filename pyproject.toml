@@ -217,7 +217,7 @@ relative_files = true
 [tool.coverage.paths]
 source = [
     'geoparser/',
-    'geoparser\',
+    "geoparser\\",
 ]
 
 [tool.ty.src]
