@@ -20,3 +20,12 @@ resolvers map those spans to gazetteer identifiers.
 ::: geoparser.modules.resolvers.jina.JinaResolver
 
 ::: geoparser.modules.resolvers.sentencetransformer.SentenceTransformerResolver
+
+## Context sizing
+
+An encoder truncates anything past its maximum sequence length, so a resolver
+has to choose which text around a reference is worth spending that budget on.
+That choice is plain arithmetic over sentence costs and lives on its own, with
+no dependency on the models that produce those costs.
+
+::: geoparser.modules.resolvers.context

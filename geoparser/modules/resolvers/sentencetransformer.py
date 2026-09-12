@@ -14,6 +14,7 @@ from transformers import AutoTokenizer, PreTrainedTokenizerBase, logging
 
 from geoparser.gazetteer.gazetteer import Gazetteer
 from geoparser.modules.resolvers import Resolver
+from geoparser.modules.resolvers.context import Sentence, select_context
 
 if t.TYPE_CHECKING:
     from geoparser.gazetteer.feature import Feature
@@ -651,9 +652,9 @@ class SentenceTransformerResolver(Resolver):
         """
         Extract context around a single reference, respecting model token limits.
 
-        The whole document is used when it fits. Otherwise the sentence holding
-        the reference is grown outwards, a sentence at a time, for as long as
-        the encoder's token budget allows.
+        The whole document is used when it fits. Otherwise the choice of which
+        sentences to keep is made by :func:`~geoparser.modules.resolvers.context.select_context`
+        over this document's measured sentences.
 
         Args:
             text: Full document text
@@ -668,10 +669,31 @@ class SentenceTransformerResolver(Resolver):
         if self._document_tokens(text) <= token_limit:
             return text
 
-        sentences = self._sentences(text)
-        target_idx = self._locate_sentence(sentences, start, end)
-        window = self._expand_window(sentences, target_idx, token_limit)
-        return " ".join(sent.text for sent in window)
+        return select_context(self._measured_sentences(text), start, end, token_limit)
+
+    def _measured_sentences(self, text: str) -> list[Sentence]:
+        """
+        The document's sentences, priced in encoder tokens.
+
+        This is the adapter between the models this resolver loads and the
+        plain arithmetic that sizes a context: spaCy supplies the spans, the
+        tokenizer supplies the costs, and everything downstream sees neither.
+
+        Args:
+            text: Full document text
+
+        Returns:
+            One Sentence per sentence of the document, in order
+        """
+        return [
+            Sentence(
+                text=sent.text,
+                start=sent.start_char,
+                end=sent.end_char,
+                cost=self._sentence_tokens(sent),
+            )
+            for sent in self._sentences(text)
+        ]
 
     def _token_limit(self) -> int:
         """
@@ -723,31 +745,6 @@ class SentenceTransformerResolver(Resolver):
             self.doc_objects[text] = self.nlp(text)
         return list(self.doc_objects[text].sents)
 
-    @staticmethod
-    def _locate_sentence(
-        sentences: list["spacy.tokens.Span"], start: int, end: int
-    ) -> int:
-        """
-        Find the index of the sentence containing a reference.
-
-        Args:
-            sentences: The document's sentence spans
-            start: Start position of the reference
-            end: End position of the reference
-
-        Returns:
-            Index into ``sentences``
-
-        Raises:
-            ValueError: If the reference falls in no sentence -- a span past the
-                end of the text, or in a gap the splitter left uncovered. This
-                previously surfaced as "None is not in list".
-        """
-        for index, sent in enumerate(sentences):
-            if sent.start_char <= start < sent.end_char:
-                return index
-        raise ValueError(f"No sentence contains reference at position {start}-{end}")
-
     def _sentence_tokens(self, sentence: "spacy.tokens.Span") -> int:
         """
         The token cost of one sentence.
@@ -759,75 +756,6 @@ class SentenceTransformerResolver(Resolver):
             Number of tokens the encoder would spend on it
         """
         return len(self.tokenizer.tokenize(sentence.text))
-
-    def _affordable_cost(
-        self,
-        sentences: list["spacy.tokens.Span"],
-        index: int,
-        remaining: int,
-    ) -> int | None:
-        """
-        The cost of a neighbouring sentence, if it exists and still fits.
-
-        Args:
-            sentences: The document's sentence spans
-            index: Index of the neighbour being considered
-            remaining: Tokens left in the budget
-
-        Returns:
-            The neighbour's token cost, or None when there is no such sentence
-            or it would not fit
-        """
-        if index < 0 or index >= len(sentences):
-            return None
-        cost = self._sentence_tokens(sentences[index])
-        return cost if cost <= remaining else None
-
-    def _expand_window(
-        self,
-        sentences: list["spacy.tokens.Span"],
-        target_idx: int,
-        token_limit: int,
-    ) -> list["spacy.tokens.Span"]:
-        """
-        Grow a sentence window outwards while it stays within the token budget.
-
-        Expansion alternates between the preceding and following sentence and
-        stops as soon as neither fits, so the reference stays roughly centred.
-
-        Args:
-            sentences: The document's sentence spans
-            target_idx: Index of the sentence holding the reference
-            token_limit: Tokens available for the whole context
-
-        Returns:
-            The contiguous run of sentences to use as context
-        """
-        window = [sentences[target_idx]]
-        remaining = token_limit - self._sentence_tokens(sentences[target_idx])
-        first, last = target_idx, target_idx
-
-        while True:
-            # pragma: no mutate - only ever read as `if not grew`, so False and
-            # None are indistinguishable; the mutant is equivalent.
-            grew = False  # pragma: no mutate
-
-            cost = self._affordable_cost(sentences, first - 1, remaining)
-            if cost is not None:
-                first -= 1
-                remaining -= cost
-                window.insert(0, sentences[first])
-                grew = True
-
-            cost = self._affordable_cost(sentences, last + 1, remaining)
-            if cost is not None:
-                last += 1
-                remaining -= cost
-                window.append(sentences[last])
-                grew = True
-
-            if not grew:
-                return window
 
     def _admin_levels(self, location_data: dict) -> list[str]:
         """

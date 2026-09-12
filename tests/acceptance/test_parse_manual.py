@@ -6,7 +6,7 @@ from geoparser.modules.recognizers.manual import ManualRecognizer
 from geoparser.modules.resolvers.manual import ManualResolver
 
 pytestmark = pytest.mark.acceptance
-scenarios("features")
+scenarios("features/parse_manual.feature")
 
 
 @pytest.fixture
