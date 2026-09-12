@@ -1,8 +1,12 @@
 import re
 from pathlib import Path
 
-import tomllib
 import yaml
+
+try:
+    import tomllib
+except ModuleNotFoundError:  # pragma: no cover - exercised on Python 3.10 CI.
+    import tomli as tomllib
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 
@@ -22,6 +26,11 @@ def test_project_quality_dependencies_and_pytest_markers_are_declared() -> None:
         if isinstance(dependency, str)
     }
     assert {"hypothesis", "pytest-bdd"} <= dependency_names
+    assert any(
+        dependency.startswith("tomli") and 'python_version < "3.11"' in dependency
+        for dependency in test_dependencies
+        if isinstance(dependency, str)
+    )
 
     marker_names = {
         marker.split(":", maxsplit=1)[0].strip()

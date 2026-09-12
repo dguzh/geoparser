@@ -1334,6 +1334,7 @@ dev = [
     { name = "radon" },
     { name = "requests-mock" },
     { name = "ruff" },
+    { name = "tomli", marker = "python_full_version < '3.11'" },
     { name = "ty" },
     { name = "xx-sent-ud-sm" },
 ]
@@ -1355,6 +1356,7 @@ test = [
     { name = "pytest-bdd" },
     { name = "pytest-cov" },
     { name = "requests-mock" },
+    { name = "tomli", marker = "python_full_version < '3.11'" },
     { name = "xx-sent-ud-sm" },
 ]
 
@@ -1407,6 +1409,7 @@ dev = [
     { name = "radon", specifier = ">=6.0.1,<7" },
     { name = "requests-mock", specifier = ">=1.12.1,<2" },
     { name = "ruff", specifier = "==0.16.6" },
+    { name = "tomli", marker = "python_full_version < '3.11'", specifier = ">=2.0.1,<3" },
     { name = "ty", specifier = "==0.0.78" },
     { name = "xx-sent-ud-sm", url = "https://github.com/explosion/spacy-models/releases/download/xx_sent_ud_sm-3.8.0/xx_sent_ud_sm-3.8.0.tar.gz" },
 ]
@@ -1428,6 +1431,7 @@ test = [
     { name = "pytest-bdd", specifier = ">=8.1.0,<9" },
     { name = "pytest-cov", specifier = ">=7.0.0,<8" },
     { name = "requests-mock", specifier = ">=1.12.1,<2" },
+    { name = "tomli", marker = "python_full_version < '3.11'", specifier = ">=2.0.1,<3" },
     { name = "xx-sent-ud-sm", url = "https://github.com/explosion/spacy-models/releases/download/xx_sent_ud_sm-3.8.0/xx_sent_ud_sm-3.8.0.tar.gz" },
 ]
 

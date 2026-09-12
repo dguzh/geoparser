@@ -90,6 +90,20 @@ def test_quality_runner_cleans_the_image_after_stages(monkeypatch) -> None:
     assert tags[0].startswith("geoparser:qa-geoparser-qa-")
 
 
+def test_quality_runner_sets_deterministic_python_environment(monkeypatch) -> None:
+    captured_environment: dict[str, str] = {}
+
+    def fake_run_stages(stages, environment):
+        captured_environment.update(environment)
+        return 0
+
+    monkeypatch.setattr("scripts.quality_gauntlet.run_stages", fake_run_stages)
+
+    assert main(["--skip-mutation", "--skip-docker"]) == 0
+    assert captured_environment["PYTHONHASHSEED"] == "0"
+    assert captured_environment["PYTHONDONTWRITEBYTECODE"] == "1"
+
+
 def test_quality_runner_stops_on_first_failed_command(
     monkeypatch, tmp_path: Path
 ) -> None:

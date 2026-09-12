@@ -248,6 +248,9 @@ def main(argv: list[str] | None = None) -> int:
                 "TMPDIR": str(artifact_dir),
                 "SQLITE_TMPDIR": str(artifact_dir),
                 "COVERAGE_FILE": str(artifact_dir / ".coverage"),
+                "PYTHONHASHSEED": "0",
+                "PYTHONDONTWRITEBYTECODE": "1",
+                "RUFF_CACHE_DIR": str(artifact_dir / "ruff-cache"),
             }
         )
         stages = build_stages(
