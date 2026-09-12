@@ -206,15 +206,15 @@ class TestArtifactConnection:
         with pytest.raises(sqlite3.OperationalError):
             artifact._connection().execute("CREATE TABLE scribble (x INTEGER)")
 
-    def test_uses_sqlite_uri_mode_for_read_only_connections(self, tmp_path, monkeypatch):
+    def test_uses_sqlite_uri_mode_for_read_only_connections(
+        self, tmp_path, monkeypatch
+    ):
         """Opening a fresh connection must pass the read-only URI flag."""
         # Arrange
         artifact = self._artifact(tmp_path)
         artifact._local = threading.local()
         connect = Mock(wraps=sqlite3.connect)
-        monkeypatch.setattr(
-            "geoparser.gazetteer.artifact.sqlite3.connect", connect
-        )
+        monkeypatch.setattr("geoparser.gazetteer.artifact.sqlite3.connect", connect)
 
         # Act
         connection = artifact._connection()
