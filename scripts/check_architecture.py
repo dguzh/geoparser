@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import ast
+import sys
 from collections.abc import Iterable, Mapping
 from pathlib import Path
 
@@ -30,6 +31,15 @@ FORBIDDEN_IMPORTS: dict[str, set[str]] = {
         "geoparser.modules",
         "geoparser.project",
     },
+}
+
+
+# Modules that must stay pure domain logic: they may import the standard
+# library and nothing else. Keeping a module on this list is what lets it be
+# tested and reasoned about on its own, rather than through whatever heavy
+# collaborators its callers happen to construct.
+PURE_MODULES: set[str] = {
+    "geoparser.modules.resolvers.context",
 }
 
 
@@ -180,6 +190,61 @@ def find_boundary_violations(
                 ):
                     violations.add((source, target))
     return sorted(violations)
+
+
+def find_impure_modules(
+    package_root: Path, package_name: str, pure_modules: set[str]
+) -> list[tuple[str, str]]:
+    """
+    Find imports that break a module's promise to depend only on the stdlib.
+
+    Args:
+        package_root: Directory holding the package's modules
+        package_name: Importable name of the package
+        pure_modules: Names of the modules that must stay pure
+
+    Returns:
+        (module, offending import) pairs, sorted, empty when all are pure
+    """
+    impure: list[tuple[str, str]] = []
+    for path in sorted(package_root.rglob("*.py")):
+        module = _module_name(path, package_root, package_name)
+        if module not in pure_modules:
+            continue
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        visitor = _ImportVisitor()
+        visitor.visit(tree)
+        for target, _lineno, dots, _names in visitor.runtime:
+            offender = _impure_target(package_name, target, dots)
+            if offender is not None:
+                impure.append((module, offender))
+    return sorted(impure)
+
+
+def _impure_target(
+    package_name: str, target: str | None, dots: str | None
+) -> str | None:
+    """
+    The import that makes a module impure, if this import does.
+
+    Args:
+        package_name: Importable name of the package
+        target: The imported module, as written
+        dots: Leading dots for a relative import, or None for a plain import
+
+    Returns:
+        The offending module name, or None when the import is standard library
+    """
+    if dots:
+        return f"{package_name}{'.' if target else ''}{target or ''}"
+    if target is None:
+        return None
+    root = target.split(".")[0]
+    if root == package_name or target.startswith(f"{package_name}."):
+        return target
+    if root in sys.stdlib_module_names:
+        return None
+    return target
 
 
 def main(argv: list[str] | None = None) -> int:

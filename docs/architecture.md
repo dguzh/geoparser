@@ -27,6 +27,21 @@ The executable architecture checker in
 rejects forbidden layer imports and import cycles. `TYPE_CHECKING` imports are
 ignored because they do not create runtime coupling.
 
+## Pure domain modules
+
+A few modules hold decision logic that has no business knowing what produced
+its inputs. They are listed in `PURE_MODULES` in the same checker, which fails
+if any of them imports anything but the standard library —
+`geoparser.modules.resolvers.context`, which decides how much text around a
+reference fits an encoder's token budget, is the current example.
+
+The point is testability rather than tidiness. Sizing a context is arithmetic
+over sentence costs, but it used to live on the resolver, reachable only
+through a tokenizer, a sentence splitter and an embedding model. Exercising it
+meant constructing all three as mocks. Behind a small value object it is
+exercised directly, including with generated inputs — see
+`tests/property/test_context_invariants.py`.
+
 ## Side effects
 
 Model inference, network access, filesystem access, and database writes stay at

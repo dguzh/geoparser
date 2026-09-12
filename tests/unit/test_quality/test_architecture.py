@@ -4,12 +4,21 @@ import pytest
 
 from scripts.check_architecture import (
     FORBIDDEN_IMPORTS,
+    PURE_MODULES,
     build_import_graph,
     find_boundary_violations,
     find_cycles,
+    find_impure_modules,
 )
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
+
+# mutmut runs the suite from a rewritten copy of the tree under ``mutants/``,
+# where every function has been expanded into numbered variants and the
+# generated code carries imports the real source does not. Checks that read
+# the real package are meaningless against that copy, and failing there would
+# abort the whole mutation run on this test alone.
+IN_MUTANT_TREE = "mutants" in PROJECT_ROOT.parts or "mutants" in Path.cwd().parts
 
 
 def _module(root: Path, name: str, source: str) -> None:
@@ -81,3 +90,54 @@ def test_real_package_has_no_cycles_or_boundary_violations() -> None:
 
     assert find_cycles(graph) == []
     assert find_boundary_violations(graph, FORBIDDEN_IMPORTS) == []
+
+
+@pytest.mark.architecture
+def test_find_impure_modules_reports_a_non_stdlib_dependency(tmp_path: Path) -> None:
+    package = tmp_path / "pkg"
+    _module(package, "__init__", "")
+    _module(package, "pure", "import torch\n")
+
+    impure = find_impure_modules(package, "pkg", {"pkg.pure"})
+
+    assert impure == [("pkg.pure", "torch")]
+
+
+@pytest.mark.architecture
+def test_find_impure_modules_accepts_a_standard_library_dependency(
+    tmp_path: Path,
+) -> None:
+    package = tmp_path / "pkg"
+    _module(package, "__init__", "")
+    _module(package, "pure", "import typing\nfrom dataclasses import dataclass\n")
+
+    assert find_impure_modules(package, "pkg", {"pkg.pure"}) == []
+
+
+@pytest.mark.architecture
+def test_find_impure_modules_reports_an_internal_dependency(tmp_path: Path) -> None:
+    package = tmp_path / "pkg"
+    _module(package, "__init__", "")
+    _module(package, "pure", "from pkg.other import thing\n")
+    _module(package, "other", "thing = 1\n")
+
+    impure = find_impure_modules(package, "pkg", {"pkg.pure"})
+
+    assert impure == [("pkg.pure", "pkg.other")]
+
+
+@pytest.mark.architecture
+@pytest.mark.skipif(
+    IN_MUTANT_TREE, reason="the mutated copy of the tree is not the source"
+)
+def test_the_pure_modules_of_the_real_package_stay_pure() -> None:
+    """
+    The domain logic listed in PURE_MODULES imports only the standard library.
+
+    That is what lets it be exercised directly instead of through the models
+    its callers happen to load, and it is a property that erodes the moment
+    someone reaches for a convenient helper from elsewhere in the package.
+    """
+    impure = find_impure_modules(PROJECT_ROOT / "geoparser", "geoparser", PURE_MODULES)
+
+    assert impure == []
