@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import subprocess
 import sys
 from pathlib import Path
 
@@ -43,6 +44,33 @@ def summarize(stats: dict[str, int]) -> str:
         f"timeout {stats.get('timeout', 0)}  suspicious {stats.get('suspicious', 0)}  "
         f"no tests {stats.get('no_tests', 0)}  skipped {stats.get('skipped', 0)}  "
         f"total {stats.get('total', 0)}"
+    )
+
+
+def mutation_diagnostics() -> str:
+    """Return actionable non-killed mutant lines from the current run."""
+    result = subprocess.run(
+        (sys.executable, "-m", "mutmut", "results"),
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode:
+        detail = result.stderr.strip() or result.stdout.strip() or "no output"
+        return f"mutmut results failed with exit code {result.returncode}: {detail}"
+
+    actionable_statuses = (
+        ": survived",
+        ": timeout",
+        ": suspicious",
+        ": segfault",
+        ": caught by type check",
+        ": check was interrupted by user",
+    )
+    return "\n".join(
+        line
+        for line in result.stdout.splitlines()
+        if any(status in line for status in actionable_statuses)
     )
 
 
@@ -74,11 +102,16 @@ def main(argv: list[str] | None = None) -> int:
 
     survived = stats.get("survived", 0)
     if survived > args.max_survivors:
+        diagnostics = mutation_diagnostics()
         print(
             f"\n{survived} mutant(s) survived, more than the agreed "
-            f"{args.max_survivors}. Inspect them with 'mutmut results' and "
-            f"'mutmut show <id>', then strengthen the tests that should have "
+            f"{args.max_survivors}. Strengthen the tests that should have "
             f"killed them.",
+            file=sys.stderr,
+        )
+        print(
+            "\nMutation diagnostics:\n"
+            + (diagnostics or "No actionable mutant details were returned."),
             file=sys.stderr,
         )
         return 1
