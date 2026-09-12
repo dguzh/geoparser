@@ -41,12 +41,10 @@ def _cleanup_training_outputs(tmp_path: Path) -> None:
 
 
 @pytest.fixture(autouse=True)
-def cleanup_training_outputs(request: pytest.FixtureRequest) -> Iterator[None]:
+def cleanup_training_outputs(tmp_path: Path) -> Iterator[None]:
     """Keep per-test model checkpoints from accumulating on disk."""
     yield
-    tmp_path = request.node.funcargs.get("tmp_path")
-    if isinstance(tmp_path, Path):
-        _cleanup_training_outputs(tmp_path)
+    _cleanup_training_outputs(tmp_path)
 
 
 def pytest_configure(config):
