@@ -206,6 +206,23 @@ class TestArtifactConnection:
         with pytest.raises(sqlite3.OperationalError):
             artifact._connection().execute("CREATE TABLE scribble (x INTEGER)")
 
+    def test_uses_sqlite_uri_mode_for_read_only_connections(self, tmp_path, monkeypatch):
+        """Opening a fresh connection must pass the read-only URI flag."""
+        # Arrange
+        artifact = self._artifact(tmp_path)
+        artifact._local = threading.local()
+        connect = Mock(wraps=sqlite3.connect)
+        monkeypatch.setattr(
+            "geoparser.gazetteer.artifact.sqlite3.connect", connect
+        )
+
+        # Act
+        connection = artifact._connection()
+
+        # Assert
+        assert connection.execute("SELECT COUNT(*) FROM metadata").fetchone()[0] == 3
+        connect.assert_called_once_with(f"file:{artifact.path}?mode=ro", uri=True)
+
     def test_each_thread_gets_its_own_connection(self, tmp_path):
         """
         Threads do not share a connection, and using one off the creating
