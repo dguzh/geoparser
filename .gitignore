@@ -171,3 +171,9 @@ cython_debug/
 .mutmut-cache
 mutants/
 .worktrees/
+
+# Real-model pilot output. ADR 0003 keeps generated evidence out of source
+# control: the reports, the gazetteer artifact and the project database are all
+# reproduced by `python scripts/pilot.py`. The findings that matter are written
+# up by hand in docs/guides/model-pilot.md.
+/pilot-results/
