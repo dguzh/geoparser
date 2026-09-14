@@ -39,6 +39,7 @@ FORBIDDEN_IMPORTS: dict[str, set[str]] = {
 # tested and reasoned about on its own, rather than through whatever heavy
 # collaborators its callers happen to construct.
 PURE_MODULES: set[str] = {
+    "geoparser.evaluation",
     "geoparser.modules.resolvers.context",
 }
 
@@ -258,6 +259,7 @@ def main(argv: list[str] | None = None) -> int:
     graph = build_import_graph(package_root, package_name)
     cycles = find_cycles(graph)
     violations = find_boundary_violations(graph, FORBIDDEN_IMPORTS)
+    impure = find_impure_modules(package_root, package_name, PURE_MODULES)
 
     if cycles:
         print("Import cycles:")
@@ -267,7 +269,11 @@ def main(argv: list[str] | None = None) -> int:
         print("Forbidden dependency edges:")
         for source, target in violations:
             print(f"  {source} -> {target}")
-    if cycles or violations:
+    if impure:
+        print("Pure modules with a forbidden dependency:")
+        for module, target in impure:
+            print(f"  {module} -> {target}")
+    if cycles or violations or impure:
         return 1
 
     print(f"Architecture checks passed for {package_name} ({len(graph)} modules).")

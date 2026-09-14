@@ -2,6 +2,7 @@ from pathlib import Path
 
 import pytest
 
+from scripts import check_architecture
 from scripts.check_architecture import (
     FORBIDDEN_IMPORTS,
     PURE_MODULES,
@@ -141,3 +142,39 @@ def test_the_pure_modules_of_the_real_package_stay_pure() -> None:
     impure = find_impure_modules(PROJECT_ROOT / "geoparser", "geoparser", PURE_MODULES)
 
     assert impure == []
+
+
+@pytest.mark.architecture
+def test_the_command_line_check_reports_an_impure_module(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """
+    The CLI enforces PURE_MODULES, not only the test suite.
+
+    The quality gauntlet runs this script rather than importing the helpers, so
+    a check that exists only in a pytest test leaves the gate weaker than it
+    looks: a pure module could gain a torch dependency and the architecture
+    stage would still print "passed".
+    """
+    package = tmp_path / "pkg"
+    _module(package, "__init__", "")
+    _module(package, "pure", "import torch\n")
+    monkeypatch.setattr(check_architecture, "PURE_MODULES", {"pkg.pure"})
+
+    exit_code = check_architecture.main(["--package", str(package)])
+
+    assert exit_code == 1
+    assert "pkg.pure" in capsys.readouterr().out
+
+
+@pytest.mark.architecture
+def test_the_command_line_check_passes_when_pure_modules_stay_pure(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A stdlib-only pure module keeps the CLI green."""
+    package = tmp_path / "pkg"
+    _module(package, "__init__", "")
+    _module(package, "pure", "from dataclasses import dataclass\n")
+    monkeypatch.setattr(check_architecture, "PURE_MODULES", {"pkg.pure"})
+
+    assert check_architecture.main(["--package", str(package)]) == 0
