@@ -66,6 +66,7 @@ nav:
       - Managing Projects: guides/projects.md
       - Annotating Data: guides/annotating.md
       - Training Modules: guides/training.md
+      - Offline Model Pilot: guides/model-pilot.md
   - API Reference:
       - Geoparser: api/geoparser.md
       - Project: api/project.md
@@ -80,3 +81,4 @@ nav:
       - Architecture Decision Records:
           - Quality Gates and MkDocs: decisions/0001-quality-gates-and-mkdocs.md
           - CPU-only Linux Containers: decisions/0002-linux-container-cpu-pytorch.md
+          - Resource-bounded Real-model Pilot: decisions/0003-real-model-pilot-boundary.md
