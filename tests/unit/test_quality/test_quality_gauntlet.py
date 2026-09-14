@@ -29,6 +29,40 @@ def test_quality_stages_have_the_required_order(tmp_path: Path) -> None:
     assert ty_command[-3:] == ("geoparser", "scripts", "tests")
 
 
+def test_uv_quality_commands_do_not_resolve_network_dependencies(
+    tmp_path: Path,
+) -> None:
+    stages = build_stages(Path("/repo"), tmp_path)
+
+    for stage in stages:
+        for command in stage.commands:
+            if command[:3] == ("uv", "run", "--no-sync"):
+                assert command[3] == "--offline"
+
+
+def test_offline_quality_mode_checks_for_a_lockfile_without_fetching(
+    tmp_path: Path,
+) -> None:
+    stages = build_stages(Path("/repo"), tmp_path, offline=True)
+
+    dependencies = next(stage for stage in stages if stage.name == "dependencies")
+    assert ("uv", "lock", "--check-exists", "--offline") in dependencies.commands
+
+
+def test_offline_smoke_build_reuses_the_provisioned_backend(tmp_path: Path) -> None:
+    stages = build_stages(Path("/repo"), tmp_path, offline=True, skip_docker=True)
+
+    smoke = next(stage for stage in stages if stage.name == "smoke")
+    assert (
+        "uv",
+        "build",
+        "--offline",
+        "--no-build-isolation",
+        "--out-dir",
+        str(tmp_path / "dist"),
+    ) in smoke.commands
+
+
 def test_quality_stages_can_skip_expensive_local_checks(tmp_path: Path) -> None:
     stages = build_stages(Path("/repo"), tmp_path, skip_mutation=True, skip_docker=True)
 

@@ -24,7 +24,7 @@ class Stage:
 
 
 def _uv(*arguments: str) -> Command:
-    return ("uv", "run", "--no-sync", *arguments)
+    return ("uv", "run", "--no-sync", "--offline", *arguments)
 
 
 def build_stages(
@@ -33,6 +33,7 @@ def build_stages(
     *,
     skip_mutation: bool = False,
     skip_docker: bool = False,
+    offline: bool = False,
     docker_tag: str = "geoparser:quality-check",
 ) -> list[Stage]:
     """Build the ordered quality stages for a repository checkout."""
@@ -40,6 +41,11 @@ def build_stages(
     artifact_dir = artifact_dir.resolve()
     coverage_report = artifact_dir / "coverage-html"
     coverage_data = artifact_dir / ".coverage"
+    lock_command = (
+        ("uv", "lock", "--check-exists", "--offline")
+        if offline
+        else ("uv", "lock", "--check")
+    )
 
     stages = [
         Stage("baseline", (_uv("pytest", "--cov-fail-under=100"),), root),
@@ -55,7 +61,7 @@ def build_stages(
         Stage(
             "dependencies",
             (
-                ("uv", "lock", "--check"),
+                lock_command,
                 _uv(
                     "deptry",
                     "geoparser",
@@ -138,10 +144,12 @@ def build_stages(
             )
         )
 
+    build_options = ("--offline", "--no-build-isolation") if offline else ()
     smoke_commands: list[Command] = [
         (
             "uv",
             "build",
+            *build_options,
             "--out-dir",
             str(artifact_dir / "dist"),
         ),
@@ -235,6 +243,11 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="Skip Docker commands for local diagnosis; CI must not use this.",
     )
+    parser.add_argument(
+        "--offline",
+        action="store_true",
+        help="Avoid network access and check only that uv.lock exists.",
+    )
     args = parser.parse_args(argv)
 
     root = Path(__file__).resolve().parents[1]
@@ -258,6 +271,7 @@ def main(argv: list[str] | None = None) -> int:
             artifact_dir,
             skip_mutation=args.skip_mutation,
             skip_docker=args.skip_docker,
+            offline=args.offline,
             docker_tag=docker_tag,
         )
         try:
