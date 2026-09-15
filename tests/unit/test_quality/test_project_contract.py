@@ -44,6 +44,36 @@ def test_project_quality_dependencies_and_pytest_markers_are_declared() -> None:
     )
 
 
+def test_transformer_spacy_pipelines_declare_their_plugin() -> None:
+    """The documented ``en_core_web_trf`` recognizer needs a spaCy plugin.
+
+    Transformer pipelines build their first component from the
+    ``curated_transformer`` factory, which ships in
+    ``spacy-curated-transformers`` rather than in spaCy. Leaving it undeclared
+    made ``SpacyRecognizer(model_name="en_core_web_trf")`` raise a spaCy
+    factory error while the sm/md/lg models worked (dguzh/geoparser#128).
+    """
+    with (PROJECT_ROOT / "pyproject.toml").open("rb") as pyproject_file:
+        project = tomllib.load(pyproject_file)
+
+    plugin_requirements = [
+        dependency
+        for dependency in project["project"]["dependencies"]
+        if _package_name(dependency) == "spacy-curated-transformers"
+    ]
+    assert plugin_requirements, (
+        "en_core_web_trf cannot load without spacy-curated-transformers"
+    )
+    # Upstream caps itself at Python 3.13, and the project supports up to 3.14.
+    assert "python_full_version < '3.14'" in plugin_requirements[0]
+
+    with (PROJECT_ROOT / "uv.lock").open("rb") as lockfile:
+        lock = tomllib.load(lockfile)
+    assert any(
+        package["name"] == "spacy-curated-transformers" for package in lock["package"]
+    )
+
+
 def test_mutation_runner_copies_quality_support_modules() -> None:
     with (PROJECT_ROOT / "pyproject.toml").open("rb") as pyproject_file:
         project = tomllib.load(pyproject_file)

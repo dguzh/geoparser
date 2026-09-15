@@ -32,6 +32,14 @@ dependencies = [
     "shapely>=2.1.2,<3",
     # 3.8.14 has cp314 wheels on GitHub but not on PyPI (explosion/spaCy#13949)
     "spacy>=3.8.7,<4,!=3.8.14",
+    # spaCy's transformer pipelines -- en_core_web_trf and its siblings, which
+    # the module guide recommends -- are built on the `curated_transformer`
+    # factory, and that factory ships in this plugin rather than in spaCy
+    # itself. Without it spacy.load() raises ValueError [E002] at load time,
+    # not at import, and the message blames a missing custom component (#128).
+    # Upstream caps itself at Python 3.13, so the marker keeps 3.14 installable;
+    # SpacyRecognizer explains the gap there instead of failing obscurely.
+    "spacy-curated-transformers>=0.3.1,<1; python_full_version < '3.14'",
     "sqlalchemy>=2.0.44,<3",
     "sqlmodel>=0.0.39,<0.0.40",
     "torch>=2.9.0,<3",

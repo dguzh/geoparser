@@ -64,6 +64,8 @@ recognizer = SpacyRecognizer(
 
 The `model_name` parameter accepts any spaCy model that includes a named entity recognizer. Larger models like `en_core_web_trf` provide higher accuracy but require more memory and processing time. For non-English texts, specify an appropriate spaCy model for that language.
 
+Transformer pipelines such as `en_core_web_trf` are built on the `curated_transformer` component, which comes from the `spacy-curated-transformers` plugin. Geoparser installs that plugin for you, except on Python 3.14 and later, where it has no release yet; there the transformer models cannot be loaded and `en_core_web_lg` is the most accurate option.
+
 The `entity_types` parameter allows you to filter which entity types are considered as toponyms. By default, the recognizer includes FAC (facilities like buildings and landmarks), GPE (geopolitical entities like countries and cities), and LOC (natural locations and regions). If your application only needs to identify country and city names, you might restrict this to just GPE.
 
 ## Built-in Resolvers

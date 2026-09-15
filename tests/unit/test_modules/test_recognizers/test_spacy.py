@@ -194,6 +194,68 @@ class TestSpacyRecognizerInitialization:
         assert mock_spacy_load.call_count == 1
         assert recognizer.nlp == mock_nlp
 
+    @patch("geoparser.modules.recognizers.spacy.spacy.load")
+    def test_explains_missing_transformer_plugin(self, mock_spacy_load):
+        """Test that a missing transformer plugin names the plugin to install.
+
+        Transformer pipelines such as en_core_web_trf get their first component
+        from the curated_transformer factory, which ships in
+        spacy-curated-transformers. Without it spaCy blames a missing custom
+        component, which points users at their own code (dguzh/geoparser#128).
+        """
+        # Arrange
+        spacy_error = ValueError(
+            "[E002] Can't find factory for 'curated_transformer' for language "
+            "English (en). This usually happens when spaCy calls "
+            "`nlp.create_pipe` with a custom component name that's not "
+            "registered on the current language class."
+        )
+        mock_spacy_load.side_effect = spacy_error
+
+        # Act
+        with pytest.raises(ValueError) as raised:
+            SpacyRecognizer(model_name="en_core_web_trf")
+
+        # Assert
+        message = str(raised.value)
+        assert "spacy-curated-transformers" in message
+        assert "en_core_web_trf" in message
+        # The original spaCy error is reported, not swallowed.
+        assert "[E002]" in message
+        assert raised.value.__cause__ is spacy_error
+
+    @patch("geoparser.modules.recognizers.spacy.spacy.load")
+    def test_propagates_unrelated_value_errors_unchanged(self, mock_spacy_load):
+        """Test that other spaCy ValueErrors are not reinterpreted."""
+        # Arrange
+        spacy_error = ValueError("[E002] Can't find factory for 'ner'")
+        mock_spacy_load.side_effect = spacy_error
+
+        # Act
+        with pytest.raises(ValueError) as raised:
+            SpacyRecognizer(model_name="en_core_web_sm")
+
+        # Assert
+        assert raised.value is spacy_error
+
+    @patch("geoparser.modules.recognizers.spacy.spacy.cli.download")
+    @patch("geoparser.modules.recognizers.spacy.spacy.load")
+    def test_explains_missing_plugin_after_downloading_model(
+        self, mock_spacy_load, mock_download
+    ):
+        """Test that the hint also covers a model downloaded on demand."""
+        # Arrange
+        spacy_error = ValueError("[E002] Can't find factory for 'curated_transformer'")
+        mock_spacy_load.side_effect = [OSError("Model not found"), spacy_error]
+
+        # Act
+        with pytest.raises(ValueError) as raised:
+            SpacyRecognizer(model_name="en_core_web_trf")
+
+        # Assert
+        mock_download.assert_called_once_with("en_core_web_trf")
+        assert "spacy-curated-transformers" in str(raised.value)
+
 
 @pytest.mark.unit
 class TestSpacyRecognizerPredict:
