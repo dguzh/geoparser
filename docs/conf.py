@@ -47,8 +47,9 @@ copybutton_selector = "div:not(.highlight-text) > div.highlight > pre"
 
 templates_path = ["_templates"]
 # `_snippets` holds reStructuredText that other pages `.. include::`. The files are not
-# documents of their own, so keeping them out of the build avoids a "not included in any
-# toctree" warning; `include` reads them directly and is unaffected.
+# documents of their own: without this entry Sphinx builds each of them into a page of
+# its own, reachable and duplicating the page that includes it. `include` reads the files
+# directly, so excluding them costs nothing.
 exclude_patterns = ["_build", "_snippets", "Thumbs.db", ".DS_Store"]
 
 add_module_names = False
