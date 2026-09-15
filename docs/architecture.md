@@ -23,7 +23,7 @@ gazetteer → artifact and build internals
 ```
 
 The executable architecture checker in
-[`scripts/check_architecture.py`](https://github.com/NoeFlandre/geoparser/blob/main/scripts/check_architecture.py)
+[`scripts/check_architecture.py`](https://github.com/dguzh/geoparser/blob/main/scripts/check_architecture.py)
 rejects forbidden layer imports and import cycles. `TYPE_CHECKING` imports are
 ignored because they do not create runtime coupling.
 

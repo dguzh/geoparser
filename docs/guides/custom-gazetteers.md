@@ -615,7 +615,7 @@ Neither is a fault in the configuration, and neither is visible from the build o
 
 Here is the complete configuration used by the walkthrough:
 
-[Download `pleiades.yaml`](https://github.com/NoeFlandre/geoparser/blob/main/docs/examples/pleiades.yaml)
+[Download `pleiades.yaml`](https://github.com/dguzh/geoparser/blob/main/docs/examples/pleiades.yaml)
 
 The repository keeps this example beside the documentation so it can be
 validated and reused without copying a large data artifact.

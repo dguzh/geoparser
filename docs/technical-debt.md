@@ -40,4 +40,4 @@ or coverage gates instead because mutating them with full fixtures is currently
 too expensive. The cleanup path is to add small deterministic mutation fixtures
 for those boundaries, then widen the mutation selection without turning the
 quality gate into an unbounded run. The current scope and counts are tracked in
-[`MUTATION_TESTING.md`](https://github.com/NoeFlandre/geoparser/blob/main/MUTATION_TESTING.md).
+[`MUTATION_TESTING.md`](https://github.com/dguzh/geoparser/blob/main/MUTATION_TESTING.md).

@@ -10,7 +10,7 @@ authors:
     given-names: Diego
     affiliation: University of Zurich
 license: MIT
-repository-code: "https://github.com/NoeFlandre/geoparser"
+repository-code: "https://github.com/dguzh/geoparser"
 url: "https://geoparser.app"
 keywords:
   - geoparsing

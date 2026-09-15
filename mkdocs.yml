@@ -1,7 +1,7 @@
 site_name: Irchel Geoparser
 site_url: https://docs.geoparser.app/
-repo_name: NoeFlandre/geoparser
-repo_url: https://github.com/NoeFlandre/geoparser
+repo_name: dguzh/geoparser
+repo_url: https://github.com/dguzh/geoparser
 edit_uri: edit/main/docs/
 use_directory_urls: false
 strict: true
