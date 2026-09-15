@@ -187,6 +187,8 @@ Tags provide a way to manage multiple result sets within the same project. When 
    for doc in transformer_docs:
        print(f"  Found {len(doc.toponyms)} toponyms")
 
+.. include:: /_snippets/spacy-transformer-requirements.rst
+
 Tags enable you to run multiple recognition and resolution strategies on the same corpus and compare their performance. Each tag maintains its own pointer to which recognizer and resolver were used, so when you call ``get_documents(tag="baseline")``, you see only the results from the modules associated with that tag. It's important to understand that tags are designed to represent complete processing pipelines, not individual modules. When using tags, always run both a recognizer and a resolver with the same tag, as resolution results are inherently tied to recognition results. Using different tags for recognition and resolution within the same pipeline will lead to invalid or incomplete results.
 
 Comparative Workflows

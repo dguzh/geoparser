@@ -44,6 +44,8 @@ The default configuration uses the ``en_core_web_sm`` model and recognizes entit
 
 The ``model_name`` parameter accepts any spaCy model that includes a named entity recognizer. Larger models like ``en_core_web_trf`` provide higher accuracy but require more memory and processing time. For non-English texts, specify an appropriate spaCy model for that language.
 
+.. include:: /_snippets/spacy-transformer-requirements.rst
+
 The ``entity_types`` parameter allows you to filter which entity types are considered as toponyms. By default, the recognizer includes FAC (facilities like buildings and landmarks), GPE (geopolitical entities like countries and cities), and LOC (natural locations and regions). If your application only needs to identify country and city names, you might restrict this to just GPE.
 
 Built-in Resolvers

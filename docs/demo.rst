@@ -31,6 +31,8 @@ The novel is split into its 37 chapters, each chapter parsed as one document, an
 
 ``en_core_web_trf`` rather than the default ``en_core_web_sm``, because nineteenth-century narrative prose is unlike the news text the small model was trained on and it misses noticeably more. And ``min_similarity=0.7`` rather than ``0.6``, because a wrong marker on a map is more damaging than a missing one: a mistake is visible and misleading, while an omission is merely absent. The gazetteer is not named here because ``SentenceTransformerResolver`` uses GeoNames unless told otherwise.
 
+.. include:: /_snippets/spacy-transformer-requirements.rst
+
 This is the general shape of tuning a pipeline: the defaults are a reasonable starting point, and the right values depend on your material and on which kind of error costs you more.
 
 Parsing and Aggregating

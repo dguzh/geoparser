@@ -46,7 +46,10 @@ intersphinx_mapping = {
 copybutton_selector = "div:not(.highlight-text) > div.highlight > pre"
 
 templates_path = ["_templates"]
-exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
+# `_snippets` holds reStructuredText that other pages `.. include::`. The files are not
+# documents of their own, so keeping them out of the build avoids a "not included in any
+# toctree" warning; `include` reads them directly and is unaffected.
+exclude_patterns = ["_build", "_snippets", "Thumbs.db", ".DS_Store"]
 
 add_module_names = False
 

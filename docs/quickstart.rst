@@ -273,6 +273,8 @@ Two parameters have the largest effect on how much gets recognized and resolved:
 - ``model_name`` on the recognizer. The default ``en_core_web_sm`` is trained on contemporary English news text. On historical, literary, or non-English material it can miss most place names, and nothing downstream can recover a name that was never found. A larger model, or one for your language, usually helps.
 - ``min_similarity`` on the resolver, default ``0.6``. It is how confident the resolver must be before committing. Lower it to resolve more and risk more mistakes; raise it for the opposite. The default is calibrated for English news text against GeoNames, so other material generally wants a lower value.
 
+.. include:: /_snippets/spacy-transformer-requirements.rst
+
 :doc:`guides/modules` covers every parameter, the second pre-trained resolver model, and how to write modules of your own.
 
 Keeping the Results
