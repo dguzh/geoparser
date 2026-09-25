@@ -5,6 +5,7 @@ Tests SpacyRecognizer with real spaCy models, verifying actual NER capabilities.
 """
 
 import pytest
+import spacy
 
 from geoparser.modules.recognizers.spacy import SpacyRecognizer
 
@@ -287,3 +288,7 @@ class TestSpacyRecognizerIntegration:
 
         # Assert
         assert output_path.exists()
+
+    def test_curated_transformer_factory_is_registered(self):
+        """trf models need the curated_transformer factory shipped with geoparser."""
+        assert spacy.blank("en").has_factory("curated_transformer")

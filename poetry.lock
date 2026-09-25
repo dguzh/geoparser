@@ -1119,6 +1119,98 @@ profiler = ["nvidia-cuda-profiler-api (==13.0.85.*) ; sys_platform == \"linux\" 
 sanitizer = ["nvidia-cuda-sanitizer-api (==13.0.85.*) ; sys_platform == \"linux\" and (platform_machine == \"aarch64\" or platform_machine == \"x86_64\") or (sys_platform == \"linux\" or sys_platform == \"win32\") and platform_machine == \"x86_64\""]
 
 [[package]]
+name = "curated-tokenizers"
+version = "0.0.10"
+description = "Lightweight piece tokenization library"
+optional = false
+python-versions = ">=3.9"
+groups = ["main"]
+files = [
+    {file = "curated_tokenizers-0.0.10-cp310-cp310-macosx_10_9_x86_64.whl", hash = "sha256:234e0678b02a8b44f2c1adc9bf1015b70fcc21aec61a801402bda591b13c4708"},
+    {file = "curated_tokenizers-0.0.10-cp310-cp310-macosx_11_0_arm64.whl", hash = "sha256:56cc788ded331bf55e7ef528c9d97166bb6e7bec542284496b1c4fa13805c63c"},
+    {file = "curated_tokenizers-0.0.10-cp310-cp310-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:c81a4e1d729d1ce8601bce69a34f629e9185d123dc465dc8b464f5fe0ba8b282"},
+    {file = "curated_tokenizers-0.0.10-cp310-cp310-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:f72968bdfc4cabe9c80ffbc38015094762ecfea87e33259f0f27cbb430682e3d"},
+    {file = "curated_tokenizers-0.0.10-cp310-cp310-musllinux_1_2_aarch64.whl", hash = "sha256:c19071d926d47472edf49f38743067ef3830782ca9cdcc046b67743f26a7f3a6"},
+    {file = "curated_tokenizers-0.0.10-cp310-cp310-musllinux_1_2_x86_64.whl", hash = "sha256:062f941ebbec58d29bfd964fda366de2132ffec6354792205c2b4cfd5710c540"},
+    {file = "curated_tokenizers-0.0.10-cp310-cp310-win32.whl", hash = "sha256:47516b7cd9c085552ff94b6de55526ca9c7dcd1cbdc8c0955dc05f623eed4b3f"},
+    {file = "curated_tokenizers-0.0.10-cp310-cp310-win_amd64.whl", hash = "sha256:20a8fcc21cd03bd0108b73bc2d1236c3870ebdfcccfa8f65bc0339362b4706e6"},
+    {file = "curated_tokenizers-0.0.10-cp310-cp310-win_arm64.whl", hash = "sha256:23fa374bed3af66dab2d751567323a04c75a973b991eb853cc40c86e9059879f"},
+    {file = "curated_tokenizers-0.0.10-cp311-cp311-macosx_10_9_x86_64.whl", hash = "sha256:22a08c5429578998dd5eca40936904a184c5ca064f9a74ca3c6dfcfbb5cde11d"},
+    {file = "curated_tokenizers-0.0.10-cp311-cp311-macosx_11_0_arm64.whl", hash = "sha256:b24ac912cbd8500a4d213643e7d420b211e47f437252f34ab1c4ad45173b2e8d"},
+    {file = "curated_tokenizers-0.0.10-cp311-cp311-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:d6fca956a1dc28092e87731732b5cb21a5706ffc08f192232190dc0239fbe0dd"},
+    {file = "curated_tokenizers-0.0.10-cp311-cp311-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:9151bda753cbb0fc1f9167fb1f939ceb45b841dc3230f9f835ac9eb4a0caf2e6"},
+    {file = "curated_tokenizers-0.0.10-cp311-cp311-musllinux_1_2_aarch64.whl", hash = "sha256:7e38b66342958bc623ebf8b4c07d46e090d720838205faf914874bd1ba00901f"},
+    {file = "curated_tokenizers-0.0.10-cp311-cp311-musllinux_1_2_x86_64.whl", hash = "sha256:09f5f6faa8282f7da585944d967a6e988d579105ad69c9b98df6f96c3244e9bf"},
+    {file = "curated_tokenizers-0.0.10-cp311-cp311-win32.whl", hash = "sha256:c0cd936af1a3e0b27b3c488236a9f7a5dcc7e923a84bfb0bb53a79cb8fb639c9"},
+    {file = "curated_tokenizers-0.0.10-cp311-cp311-win_amd64.whl", hash = "sha256:21d1a9a31dbfea1fe0343b271f7630054790b3e20389c6e6eacf1d68ce2ae7d5"},
+    {file = "curated_tokenizers-0.0.10-cp311-cp311-win_arm64.whl", hash = "sha256:a23c5c7de7530623f3c08f488a9e0d4d8aae0d4010b117e84d3491e3de9b90e0"},
+    {file = "curated_tokenizers-0.0.10-cp312-cp312-macosx_10_13_x86_64.whl", hash = "sha256:84366a23a728635b3d9e2f7433ba2abefb1f6b205b01aaf74c57750de6bb7cd6"},
+    {file = "curated_tokenizers-0.0.10-cp312-cp312-macosx_11_0_arm64.whl", hash = "sha256:6da08827cbf28f5b8d37ecfdd26c027be99d5fac2d2dc2d03a611c7ce294c1af"},
+    {file = "curated_tokenizers-0.0.10-cp312-cp312-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:7094e2c5add10d187c35205bf472eba483f352182496614dfe4e754f271ad242"},
+    {file = "curated_tokenizers-0.0.10-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:841743db1da4a4a1298675584771ed973945c31ea9f6dde9f06e9eb6b3974bf3"},
+    {file = "curated_tokenizers-0.0.10-cp312-cp312-musllinux_1_2_aarch64.whl", hash = "sha256:d7be982004b217cf734bd5528cca14241853124225131a472565ba4dde4cf2d9"},
+    {file = "curated_tokenizers-0.0.10-cp312-cp312-musllinux_1_2_x86_64.whl", hash = "sha256:584197edf6f4014137e58e90e0c11e7b7ff7b9c820eeba1190441cbf76d4455e"},
+    {file = "curated_tokenizers-0.0.10-cp312-cp312-win32.whl", hash = "sha256:200923b1551271dbf702ef7ae45f5c7f2bbca521b6206aa8faecc340e69c6dec"},
+    {file = "curated_tokenizers-0.0.10-cp312-cp312-win_amd64.whl", hash = "sha256:8ae890aae25d84248749b0a9b1e771713e72338e59d9c44bf22a3367c1ef867a"},
+    {file = "curated_tokenizers-0.0.10-cp312-cp312-win_arm64.whl", hash = "sha256:992878ef75a41bd26091ff14d6580e8ad4090cdda97534cdcbf2395e2acf8403"},
+    {file = "curated_tokenizers-0.0.10-cp313-cp313-macosx_10_13_x86_64.whl", hash = "sha256:1be18af033dbadbe7462bc6f81f1f492e8806fd3fd030f51e672b1badf963d6a"},
+    {file = "curated_tokenizers-0.0.10-cp313-cp313-macosx_11_0_arm64.whl", hash = "sha256:2e7a73eda1fa0b274d6b95bca12e3ac313a6b237c1e2bf0ee75095998fd30649"},
+    {file = "curated_tokenizers-0.0.10-cp313-cp313-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:1a65456c147c5f0a1f5638a8946b5ba86d301754b17a9b44fb2fd4b635281c83"},
+    {file = "curated_tokenizers-0.0.10-cp313-cp313-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:19153cc451405e465f036580b5dbab709c750b8c5e29bf7a7fb2ff639b18cc0d"},
+    {file = "curated_tokenizers-0.0.10-cp313-cp313-musllinux_1_2_aarch64.whl", hash = "sha256:0898caebb7c016dabe40d72c6a79cbd935b187e8dd85a5937bf77e50733303ee"},
+    {file = "curated_tokenizers-0.0.10-cp313-cp313-musllinux_1_2_x86_64.whl", hash = "sha256:9dc8fcccb9ae766eee5d055ec05790148d9c3271af6037ea1f73f51f53b893c4"},
+    {file = "curated_tokenizers-0.0.10-cp313-cp313-win32.whl", hash = "sha256:fba8ea4a957101eef064f103528c4af460a88411a82d9db25d49f89d2a8fc9ba"},
+    {file = "curated_tokenizers-0.0.10-cp313-cp313-win_amd64.whl", hash = "sha256:37079207712b3aaf391f6ffc1fa9b2afb4da2b13745f4c5f4e1bf69204aed85d"},
+    {file = "curated_tokenizers-0.0.10-cp313-cp313-win_arm64.whl", hash = "sha256:b030f4436d11cb030468934182dd56a3cb185229fd0e780460e44ce80ee01857"},
+    {file = "curated_tokenizers-0.0.10-cp314-cp314-macosx_10_15_x86_64.whl", hash = "sha256:864db06ef7deb803b40096df086d0f6bfa4044bbf0149d5cfe67eaf7f0d362c5"},
+    {file = "curated_tokenizers-0.0.10-cp314-cp314-macosx_11_0_arm64.whl", hash = "sha256:8184a90c507783f3c5f7caa92f7699bbf21826924cf9481f8592b0a1d1586af0"},
+    {file = "curated_tokenizers-0.0.10-cp314-cp314-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:ffce976759da63aa1859a6d6d0ab263e5440ffaeecee5af05c9d9ab5ea19a633"},
+    {file = "curated_tokenizers-0.0.10-cp314-cp314-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:0c8f209399c0c7954f779de972a73b59dfe83bb4655b3dce1694dcf6b517aa49"},
+    {file = "curated_tokenizers-0.0.10-cp314-cp314-musllinux_1_2_aarch64.whl", hash = "sha256:2d318f2b65fb0e8f922e2aae6b0326f37f1ec860322a2640f81ddc405ba1d8ea"},
+    {file = "curated_tokenizers-0.0.10-cp314-cp314-musllinux_1_2_x86_64.whl", hash = "sha256:278007ab3daa0e004fa2186ea974e108b14e738dbf7ddcfb1dc18da925cfd7a2"},
+    {file = "curated_tokenizers-0.0.10-cp314-cp314-win32.whl", hash = "sha256:060c98937c0138cba918eab3acb27db5fcbf2efa198be6feaa9b0d93d64b8428"},
+    {file = "curated_tokenizers-0.0.10-cp314-cp314-win_amd64.whl", hash = "sha256:56191c2952207f4664b3edbb19e84c00674259e0b65a79b21881a99b5df19bb8"},
+    {file = "curated_tokenizers-0.0.10-cp314-cp314-win_arm64.whl", hash = "sha256:a9d6b42eb10df0623c3f4d970e0988dc56cc88665a03517f1a529e231cba58bc"},
+    {file = "curated_tokenizers-0.0.10-cp314-cp314t-macosx_10_15_x86_64.whl", hash = "sha256:64a4d4b9d0b63181f0005a71d3c0d5c80ee7409fea079403cb8b68b9680537e9"},
+    {file = "curated_tokenizers-0.0.10-cp314-cp314t-macosx_11_0_arm64.whl", hash = "sha256:87f6946c432c7242b0e3fa729a323f23fb9870a115f1c10b2730d00fbe6dc976"},
+    {file = "curated_tokenizers-0.0.10-cp314-cp314t-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:4ddd0bf544ae214c472c211313a7eb93b9ed4e832b40fcf2c9df9bcf0eb523a4"},
+    {file = "curated_tokenizers-0.0.10-cp314-cp314t-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:8907558dc0b32262e11756e4290e4503371fc4d4564913566f9d85dc80057da4"},
+    {file = "curated_tokenizers-0.0.10-cp314-cp314t-musllinux_1_2_aarch64.whl", hash = "sha256:8a807903bc4fcb835a9100c51af6090ee788d01f18fa03f7003574ffebd186a6"},
+    {file = "curated_tokenizers-0.0.10-cp314-cp314t-musllinux_1_2_x86_64.whl", hash = "sha256:a1806446e817bb190b65329559045c7dd22e250a6f80be04eed8be02ef5f126f"},
+    {file = "curated_tokenizers-0.0.10-cp314-cp314t-win32.whl", hash = "sha256:01e1c5a0e0cbf5cfc44f88f498b3d567a5a7b1f7a92cc2e73d0bf9a18f6336c0"},
+    {file = "curated_tokenizers-0.0.10-cp314-cp314t-win_amd64.whl", hash = "sha256:c8a73c90ddcde4a60086972f042fd912c5909abb07b8130b2c302ab910b1023c"},
+    {file = "curated_tokenizers-0.0.10-cp314-cp314t-win_arm64.whl", hash = "sha256:1cbd65d473845cdd230ee17b6d797adf10843cf4faf22aade0afeea15d06df18"},
+    {file = "curated_tokenizers-0.0.10-cp39-cp39-macosx_10_9_x86_64.whl", hash = "sha256:7ade409a48c72e8457f0aee416e551fce2374330819816e697a33fa8cfa006d4"},
+    {file = "curated_tokenizers-0.0.10-cp39-cp39-macosx_11_0_arm64.whl", hash = "sha256:bfacf3f907389770cd75a4f1cb8556854ef74817f70347a8c8cce3b2918fa62f"},
+    {file = "curated_tokenizers-0.0.10-cp39-cp39-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:358e0e53aebc2a0f3e2ee5dbeb15822c9bab9f7deba07105aac5c28af6ba8407"},
+    {file = "curated_tokenizers-0.0.10-cp39-cp39-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:dfaa961a0a7e8a327a024a6b423fb07cd44d743c23a05bbc61c6b89d77817e8c"},
+    {file = "curated_tokenizers-0.0.10-cp39-cp39-musllinux_1_2_aarch64.whl", hash = "sha256:36a19d9d0e11a10f2c61a18706d7ea124053db3d89e518fbe6e70e392cb48f37"},
+    {file = "curated_tokenizers-0.0.10-cp39-cp39-musllinux_1_2_x86_64.whl", hash = "sha256:55437a0d7cbfcb3716d90e62258b8ebbcc5079e01cd0ece6826eceb49ec7c1a5"},
+    {file = "curated_tokenizers-0.0.10-cp39-cp39-win32.whl", hash = "sha256:d3e555714a70baef527d8c9d707c6fbef26403eeec5feb58eb8b09d19b9b4d9f"},
+    {file = "curated_tokenizers-0.0.10-cp39-cp39-win_amd64.whl", hash = "sha256:2ff4d38baa3cbadb40e7e8db8deda4f1dec27d2aee0e23a885cbb8ead43575e8"},
+    {file = "curated_tokenizers-0.0.10-cp39-cp39-win_arm64.whl", hash = "sha256:992135a4f0369468e5158dd701b578958832432e6360ba4ef400ea3dc331273e"},
+    {file = "curated_tokenizers-0.0.10.tar.gz", hash = "sha256:1c2b506e9c49e999b41939d783e788e021de5586a66a594b222fc2592aa169cf"},
+]
+
+[package.dependencies]
+regex = ">=2022"
+
+[[package]]
+name = "curated-transformers"
+version = "0.1.1"
+description = "Curated transformer models"
+optional = false
+python-versions = ">=3.6"
+groups = ["main"]
+files = [
+    {file = "curated-transformers-0.1.1.tar.gz", hash = "sha256:4671f03314df30efda2ec2b59bc7692ea34fcea44cb65382342c16684e8a2119"},
+    {file = "curated_transformers-0.1.1-py2.py3-none-any.whl", hash = "sha256:d716063d73d803c6925d2dab56fde9b9ab8e89e663c2c0587804944ba488ff01"},
+]
+
+[package.dependencies]
+torch = ">=1.12.0"
+
+[[package]]
 name = "cymem"
 version = "2.0.13"
 description = "Manage calls to calloc/free through Cython"
@@ -6391,6 +6483,42 @@ th = ["pythainlp (>=2.0)"]
 transformers = ["spacy_transformers (>=1.1.2,<1.4.0)"]
 
 [[package]]
+name = "spacy-curated-transformers"
+version = "0.3.0"
+description = "Curated transformer models for spaCy pipelines"
+optional = false
+python-versions = ">=3.9"
+groups = ["main"]
+markers = "python_version == \"3.14\""
+files = [
+    {file = "spacy_curated_transformers-0.3.0-py2.py3-none-any.whl", hash = "sha256:ddfd33e81b53ad798dac841ab022189f9543718ff874eda1081fce6ff93de377"},
+    {file = "spacy_curated_transformers-0.3.0.tar.gz", hash = "sha256:989a6bf2aa7becd1ac8c3be5f245cd489223d4e16e7218f6b69479c7e2689937"},
+]
+
+[package.dependencies]
+curated-tokenizers = ">=0.0.9,<0.1.0"
+curated-transformers = ">=0.1.0,<0.2.0"
+torch = ">=1.12.0"
+
+[[package]]
+name = "spacy-curated-transformers"
+version = "0.3.1"
+description = "Curated transformer models for spaCy pipelines"
+optional = false
+python-versions = "<3.14,>=3.9"
+groups = ["main"]
+markers = "python_version < \"3.14\""
+files = [
+    {file = "spacy_curated_transformers-0.3.1-py2.py3-none-any.whl", hash = "sha256:503559b6a1d6e44ec2c978e18ed871ce5c3d56871dc9216c0e1523428204e610"},
+    {file = "spacy_curated_transformers-0.3.1.tar.gz", hash = "sha256:7e53fccf64260e641b0a3f2b65b6d98381b86cef6eeb21ce279e8db849e8525d"},
+]
+
+[package.dependencies]
+curated-tokenizers = ">=0.0.9,<0.1.0"
+curated-transformers = ">=0.1.0,<0.2.0"
+torch = ">=1.12.0"
+
+[[package]]
 name = "spacy-legacy"
 version = "3.0.12"
 description = "Legacy registered functions for spaCy backwards compatibility"
@@ -7937,4 +8065,4 @@ propcache = ">=0.2.1"
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.10,<3.15"
-content-hash = "7d547975e88a4f9c689c12f31ce13bec729d994709ca7ced644b5fb2b3cee4cc"
+content-hash = "7b80e58dc7cab725084cf0a409db9891fd48b7cff3a3f61e74b788da9302e818"
