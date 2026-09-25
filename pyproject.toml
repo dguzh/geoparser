@@ -31,6 +31,7 @@ rich = "^15.0.0"
 sentence-transformers = "^5.1.2"
 shapely = "^2.1.2"
 spacy = "^3.8.7,!=3.8.14" # 3.8.14 has cp314 wheels on GitHub but not on PyPI (explosion/spaCy#13949)
+spacy-curated-transformers = "^0.3.0"
 sqlalchemy = "^2.0.44"
 sqlmodel = "^0.0.39"
 torch = "^2.9.0"
