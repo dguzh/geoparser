@@ -5,12 +5,13 @@ from sqlalchemy import UUID, Column, ForeignKey
 from sqlmodel import Field, Relationship, SQLModel
 
 from geoparser.annotator.constants import DEFAULT_SESSION_SETTINGS
+from geoparser.annotator.db.models.base import AnnotatorModel
 
 if t.TYPE_CHECKING:
     from geoparser.annotator.db.models.session import AnnotatorSession
 
 
-class AnnotatorSessionSettingsBase(SQLModel):
+class AnnotatorSessionSettingsBase(AnnotatorModel):
     auto_close_annotation_modal: t.Optional[bool] = DEFAULT_SESSION_SETTINGS[
         "auto_close_annotation_modal"
     ]
