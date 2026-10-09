@@ -2,12 +2,14 @@ import typing as t
 
 from sqlmodel import JSON, Field, Relationship, SQLModel
 
+from geoparser.db.models.base import GeoparserModel
+
 if t.TYPE_CHECKING:
     from geoparser.db.models.recognition import Recognition
     from geoparser.db.models.reference import Reference
 
 
-class RecognizerBase(SQLModel):
+class RecognizerBase(GeoparserModel):
     """Base model for recognizer metadata."""
 
     name: str = Field(index=True)

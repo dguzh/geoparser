@@ -2,12 +2,14 @@ import typing as t
 
 from sqlmodel import JSON, Field, Relationship, SQLModel
 
+from geoparser.db.models.base import GeoparserModel
+
 if t.TYPE_CHECKING:
     from geoparser.db.models.referent import Referent
     from geoparser.db.models.resolution import Resolution
 
 
-class ResolverBase(SQLModel):
+class ResolverBase(GeoparserModel):
     """Base model for resolver metadata."""
 
     name: str = Field(index=True)

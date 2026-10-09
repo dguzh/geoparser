@@ -6,6 +6,7 @@ from pydantic import AfterValidator
 from sqlalchemy import UUID, Column, ForeignKey
 from sqlmodel import Field, Relationship, SQLModel
 
+from geoparser.db.models.base import GeoparserModel
 from geoparser.db.models.validators import normalize_newlines
 
 if t.TYPE_CHECKING:
@@ -14,7 +15,7 @@ if t.TYPE_CHECKING:
     from geoparser.db.models.reference import Reference
 
 
-class DocumentBase(SQLModel):
+class DocumentBase(GeoparserModel):
     """
     Base model for document data.
 
