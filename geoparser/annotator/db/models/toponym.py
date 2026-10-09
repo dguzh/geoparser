@@ -4,11 +4,13 @@ import uuid
 from sqlalchemy import UUID, Column, ForeignKey
 from sqlmodel import Field, Relationship, SQLModel
 
+from geoparser.annotator.db.models.base import AnnotatorModel
+
 if t.TYPE_CHECKING:
     from geoparser.annotator.db.models.document import AnnotatorDocument
 
 
-class AnnotatorToponymBase(SQLModel):
+class AnnotatorToponymBase(AnnotatorModel):
     text: str
     start: int
     end: int

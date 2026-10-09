@@ -4,13 +4,15 @@ import uuid
 from sqlalchemy import UUID, Column, ForeignKey, String
 from sqlmodel import Field, Relationship, SQLModel
 
+from geoparser.db.models.base import GeoparserModel
+
 if t.TYPE_CHECKING:
     from geoparser.db.models.reference import Reference
     from geoparser.db.models.resolver import Resolver
     from geoparser.gazetteer.feature import Feature
 
 
-class ReferentBase(SQLModel):
+class ReferentBase(GeoparserModel):
     """Base model for referent data."""
 
     gazetteer_name: str

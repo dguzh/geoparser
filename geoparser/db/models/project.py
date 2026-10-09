@@ -3,11 +3,13 @@ import uuid
 
 from sqlmodel import Field, Relationship, SQLModel
 
+from geoparser.db.models.base import GeoparserModel
+
 if t.TYPE_CHECKING:
     from geoparser.db.models.document import Document
 
 
-class ProjectBase(SQLModel):
+class ProjectBase(GeoparserModel):
     """Base model for project data."""
 
     name: str = Field(index=True)
