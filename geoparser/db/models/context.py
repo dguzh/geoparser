@@ -4,13 +4,15 @@ import uuid
 from sqlalchemy import UUID, Column, ForeignKey, String, UniqueConstraint
 from sqlmodel import Field, Relationship, SQLModel
 
+from geoparser.db.models.base import GeoparserModel
+
 if t.TYPE_CHECKING:
     from geoparser.db.models.project import Project
     from geoparser.db.models.recognizer import Recognizer
     from geoparser.db.models.resolver import Resolver
 
 
-class ContextBase(SQLModel):
+class ContextBase(GeoparserModel):
     """Base model for context data."""
 
     tag: str

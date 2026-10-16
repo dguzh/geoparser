@@ -5,6 +5,8 @@ from typing import Optional
 from sqlalchemy import UUID, Column, ForeignKey, String
 from sqlmodel import Field, Relationship, SQLModel
 
+from geoparser.db.models.base import GeoparserModel
+
 if t.TYPE_CHECKING:
     from geoparser.db.models.document import Document
     from geoparser.db.models.recognizer import Recognizer
@@ -13,7 +15,7 @@ if t.TYPE_CHECKING:
     from geoparser.gazetteer.feature import Feature
 
 
-class ReferenceBase(SQLModel):
+class ReferenceBase(GeoparserModel):
     """Base model for reference data."""
 
     start: int  # Start position of the reference in the document text

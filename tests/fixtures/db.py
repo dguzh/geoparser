@@ -10,9 +10,10 @@ from unittest.mock import patch
 import pytest
 from sqlalchemy import Engine
 from sqlalchemy.pool import StaticPool
-from sqlmodel import Session, SQLModel, create_engine
+from sqlmodel import Session, create_engine
 
 import geoparser.db.models  # noqa: F401 - Ensure models are registered
+from geoparser.db.models.base import geoparser_registry
 
 
 @pytest.fixture(scope="function")
@@ -34,8 +35,9 @@ def test_engine() -> Engine:
         poolclass=StaticPool,
         connect_args={"check_same_thread": False},
     )
-    # Global event listeners from geoparser.db.db apply automatically
-    SQLModel.metadata.create_all(engine)
+    # Global event listeners from geoparser.db.db apply automatically.
+    # Create only the package tables, matching create_db_and_tables().
+    geoparser_registry.metadata.create_all(engine)
     try:
         yield engine
     finally:

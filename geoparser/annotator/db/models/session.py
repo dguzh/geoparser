@@ -4,6 +4,7 @@ from datetime import datetime
 
 from sqlmodel import Field, Relationship, SQLModel
 
+from geoparser.annotator.db.models.base import AnnotatorModel
 from geoparser.annotator.db.models.settings import AnnotatorSessionSettingsCreate
 
 if t.TYPE_CHECKING:
@@ -14,7 +15,7 @@ if t.TYPE_CHECKING:
     from geoparser.annotator.db.models.settings import AnnotatorSessionSettings
 
 
-class AnnotatorSessionBase(SQLModel):
+class AnnotatorSessionBase(AnnotatorModel):
     created_at: datetime = Field(default_factory=datetime.now)
     last_updated: datetime = Field(default_factory=datetime.now)
     gazetteer: str

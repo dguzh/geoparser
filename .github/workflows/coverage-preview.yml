@@ -21,11 +21,11 @@ jobs:
       # Listing the triggering run and downloading its artifacts.
       actions: read
     steps:
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.11'
       - run: pip install smokeshow
-      - uses: dawidd6/action-download-artifact@v21
+      - uses: dawidd6/action-download-artifact@v24
         with:
           workflow: test.yml
           commit: ${{ github.event.workflow_run.head_sha }}

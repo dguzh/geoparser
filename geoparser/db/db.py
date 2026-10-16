@@ -10,9 +10,10 @@ from appdirs import user_data_dir
 from sqlalchemy import Engine, event, text
 from sqlalchemy.engine import Connection
 from sqlalchemy.pool import NullPool
-from sqlmodel import Session, SQLModel, create_engine
+from sqlmodel import Session, create_engine
 
 import geoparser.db.models  # noqa: F401
+from geoparser.db.models.base import geoparser_registry
 
 # Database URL configuration (SQLite)
 DATABASE_URL = os.getenv(
@@ -103,14 +104,13 @@ def _check_database_compatibility() -> None:
 
 def create_db_and_tables() -> None:
     """
-    Create all database tables.
+    Create the core Geoparser tables.
 
-    Make sure all models are imported before calling this function.
-    For this application, tables are created automatically at module import.
-    This function is provided for explicit table creation if needed.
+    Tables come from the package registry, so models a host application
+    registers on ``SQLModel.metadata`` are not created here.
     """
     _check_database_compatibility()
-    SQLModel.metadata.create_all(engine)
+    geoparser_registry.metadata.create_all(engine)
 
 
 @contextmanager

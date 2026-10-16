@@ -4,12 +4,14 @@ import uuid
 from sqlalchemy import UUID, Column, ForeignKey, String
 from sqlmodel import Field, Relationship, SQLModel
 
+from geoparser.db.models.base import GeoparserModel
+
 if t.TYPE_CHECKING:
     from geoparser.db.models.document import Document
     from geoparser.db.models.recognizer import Recognizer
 
 
-class RecognitionBase(SQLModel):
+class RecognitionBase(GeoparserModel):
     """Base model for recognition data."""
 
 

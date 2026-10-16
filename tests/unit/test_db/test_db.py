@@ -179,6 +179,46 @@ class TestDatabaseCompatibilityCheck:
 
 
 @pytest.mark.unit
+class TestGeoparserMetadataIsolation:
+    """Core tables stay on the package registry, away from SQLModel.metadata."""
+
+    def test_create_all_ignores_host_sqlmodel_tables(self):
+        """A host SQLModel table is not created in the Geoparser database."""
+        from unittest.mock import patch
+
+        from sqlmodel import Field, SQLModel
+
+        import geoparser.db.db as db
+        from geoparser.db.models.base import geoparser_registry
+
+        class HostSource(SQLModel, table=True):
+            __tablename__ = "source"
+
+            id: int | None = Field(default=None, primary_key=True)
+
+        fresh_engine = TestDatabaseCompatibilityCheck._make_engine()
+        try:
+            assert "source" in SQLModel.metadata.tables
+            assert "project" not in SQLModel.metadata.tables
+            assert "project" in geoparser_registry.metadata.tables
+
+            with patch.object(db, "engine", fresh_engine):
+                db.create_db_and_tables()
+                db.create_db_and_tables()
+
+            with fresh_engine.connect() as connection:
+                rows = connection.execute(
+                    text("SELECT name FROM sqlite_master WHERE type='table'")
+                )
+                tables = {row[0] for row in rows}
+
+            assert "project" in tables
+            assert "source" not in tables
+        finally:
+            SQLModel.metadata.remove(HostSource.__table__)
+
+
+@pytest.mark.unit
 class TestSetSqlitePragma:
     """Test the _set_sqlite_pragma event listener."""
 

@@ -4,12 +4,14 @@ import uuid
 from sqlalchemy import UUID, Column, ForeignKey, String
 from sqlmodel import Field, Relationship, SQLModel
 
+from geoparser.db.models.base import GeoparserModel
+
 if t.TYPE_CHECKING:
     from geoparser.db.models.reference import Reference
     from geoparser.db.models.resolver import Resolver
 
 
-class ResolutionBase(SQLModel):
+class ResolutionBase(GeoparserModel):
     """Base model for resolution data."""
 
 
