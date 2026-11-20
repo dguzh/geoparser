@@ -7,8 +7,8 @@
   <a href="https://coverage-badge.samuelcolvin.workers.dev/redirect/dguzh/geoparser"><img src="https://coverage-badge.samuelcolvin.workers.dev/dguzh/geoparser.svg" alt="Coverage"></a>
   <a href="https://pypi.org/project/geoparser"><img src="https://img.shields.io/pypi/v/geoparser.svg" alt="PyPI"></a>
   <a href="https://pepy.tech/projects/geoparser"><img src="https://static.pepy.tech/badge/geoparser" alt="Downloads"></a>
-  <a href="https://pypi.org/project/geoparser"><img src="https://img.shields.io/pypi/pyversions/geoparser.svg" alt="Python"></a>
   <a href="https://github.com/dguzh/geoparser/blob/main/LICENSE"><img src="https://img.shields.io/github/license/dguzh/geoparser.svg" alt="License"></a>
+  <a href="https://doi.org/10.21105/joss.10365"><img src="https://joss.theoj.org/papers/10.21105/joss.10365/status.svg" alt="DOI"></a>
 </p>
 
 A Python library for extracting place names from text and linking them to geographic locations.
