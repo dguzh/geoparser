@@ -1,0 +1,38 @@
+cff-version: "1.2.0"
+authors:
+- family-names: Gomes
+  given-names: Diego
+  orcid: "https://orcid.org/0009-0003-8449-2603"
+- family-names: Purves
+  given-names: Ross S.
+  orcid: "https://orcid.org/0000-0002-9878-9243"
+contact:
+- family-names: Gomes
+  given-names: Diego
+  orcid: "https://orcid.org/0009-0003-8449-2603"
+doi: 10.5281/zenodo.23414217
+message: If you use this software, please cite our article in the
+  Journal of Open Source Software.
+preferred-citation:
+  authors:
+  - family-names: Gomes
+    given-names: Diego
+    orcid: "https://orcid.org/0009-0003-8449-2603"
+  - family-names: Purves
+    given-names: Ross S.
+    orcid: "https://orcid.org/0000-0002-9878-9243"
+  date-published: 2026-11-20
+  doi: 10.21105/joss.10365
+  issn: 2475-9066
+  issue: 127
+  journal: Journal of Open Source Software
+  publisher:
+    name: Open Journals
+  start: 10365
+  title: "The Irchel Geoparser: A Modular Python Library for Toponym
+    Recognition and Resolution"
+  type: article
+  url: "https://joss.theoj.org/papers/10.21105/joss.10365"
+  volume: 11
+title: "The Irchel Geoparser: A Modular Python Library for Toponym
+  Recognition and Resolution"
